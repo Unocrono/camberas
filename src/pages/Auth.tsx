@@ -10,6 +10,32 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { z } from "zod";
+
+const loginSchema = z.object({
+  email: z.string()
+    .trim()
+    .email("Formato de email inválido")
+    .max(255, "El email debe tener menos de 255 caracteres"),
+  password: z.string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "La contraseña debe contener al menos una mayúscula")
+    .regex(/[a-z]/, "La contraseña debe contener al menos una minúscula")
+    .regex(/[0-9]/, "La contraseña debe contener al menos un número"),
+});
+
+const signupSchema = loginSchema.extend({
+  first_name: z.string()
+    .trim()
+    .min(1, "El nombre es requerido")
+    .max(50, "El nombre debe tener menos de 50 caracteres")
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "El nombre solo puede contener letras"),
+  last_name: z.string()
+    .trim()
+    .min(1, "Los apellidos son requeridos")
+    .max(100, "Los apellidos deben tener menos de 100 caracteres")
+    .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Los apellidos solo pueden contener letras"),
+});
 
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,13 +60,21 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      // Validate input data
+      const validatedData = signupSchema.parse({
         email,
         password,
+        first_name: firstName,
+        last_name: lastName,
+      });
+
+      const { error } = await supabase.auth.signUp({
+        email: validatedData.email,
+        password: validatedData.password,
         options: {
           data: {
-            first_name: firstName,
-            last_name: lastName,
+            first_name: validatedData.first_name,
+            last_name: validatedData.last_name,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
@@ -58,11 +92,19 @@ const Auth = () => {
       setFirstName("");
       setLastName("");
     } catch (error: any) {
-      toast({
-        title: "Error al registrarse",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error de validación",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error al registrarse",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,9 +115,15 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      // Validate input data
+      const validatedData = loginSchema.parse({
         email,
         password,
+      });
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: validatedData.email,
+        password: validatedData.password,
       });
 
       if (error) throw error;
@@ -87,11 +135,19 @@ const Auth = () => {
       
       navigate("/");
     } catch (error: any) {
-      toast({
-        title: "Error al iniciar sesión",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error de validación",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error al iniciar sesión",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
