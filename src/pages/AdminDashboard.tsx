@@ -7,9 +7,10 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
+import ResultsManagement from "@/components/admin/ResultsManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "registrations";
+type AdminView = "races" | "registrations" | "results";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -93,6 +94,7 @@ const AdminDashboard = () => {
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
             {currentView === "registrations" && <RegistrationManagement />}
+            {currentView === "results" && <ResultsManagement />}
           </main>
         </div>
       </div>

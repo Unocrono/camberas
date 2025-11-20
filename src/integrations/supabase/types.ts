@@ -109,6 +109,53 @@ export type Database = {
           },
         ]
       }
+      race_results: {
+        Row: {
+          category_position: number | null
+          created_at: string
+          finish_time: unknown
+          id: string
+          notes: string | null
+          overall_position: number | null
+          photo_url: string | null
+          registration_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category_position?: number | null
+          created_at?: string
+          finish_time: unknown
+          id?: string
+          notes?: string | null
+          overall_position?: number | null
+          photo_url?: string | null
+          registration_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category_position?: number | null
+          created_at?: string
+          finish_time?: unknown
+          id?: string
+          notes?: string | null
+          overall_position?: number | null
+          photo_url?: string | null
+          registration_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_results_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: true
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       races: {
         Row: {
           created_at: string
