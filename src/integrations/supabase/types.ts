@@ -16,33 +16,48 @@ export type Database = {
     Tables: {
       profiles: {
         Row: {
+          autonomous_community: string | null
           birth_date: string | null
+          city: string | null
           created_at: string
+          dni_passport: string | null
           emergency_contact: string | null
           emergency_phone: string | null
-          full_name: string | null
+          first_name: string | null
           id: string
+          last_name: string | null
           phone: string | null
+          province: string | null
           updated_at: string
         }
         Insert: {
+          autonomous_community?: string | null
           birth_date?: string | null
+          city?: string | null
           created_at?: string
+          dni_passport?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
-          full_name?: string | null
+          first_name?: string | null
           id: string
+          last_name?: string | null
           phone?: string | null
+          province?: string | null
           updated_at?: string
         }
         Update: {
+          autonomous_community?: string | null
           birth_date?: string | null
+          city?: string | null
           created_at?: string
+          dni_passport?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
-          full_name?: string | null
+          first_name?: string | null
           id?: string
+          last_name?: string | null
           phone?: string | null
+          province?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -15,7 +15,8 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -38,7 +39,8 @@ const Auth = () => {
         password,
         options: {
           data: {
-            full_name: fullName,
+            first_name: firstName,
+            last_name: lastName,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
@@ -53,7 +55,8 @@ const Auth = () => {
       
       setEmail("");
       setPassword("");
-      setFullName("");
+      setFirstName("");
+      setLastName("");
     } catch (error: any) {
       toast({
         title: "Error al registrarse",
@@ -151,16 +154,29 @@ const Auth = () => {
               
               <TabsContent value="register">
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="register-name">Nombre Completo</Label>
-                    <Input
-                      id="register-name"
-                      type="text"
-                      placeholder="Juan Pérez"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="register-firstname">Nombre</Label>
+                      <Input
+                        id="register-firstname"
+                        type="text"
+                        placeholder="Juan"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-lastname">Apellidos</Label>
+                      <Input
+                        id="register-lastname"
+                        type="text"
+                        placeholder="Pérez García"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-email">Email</Label>
