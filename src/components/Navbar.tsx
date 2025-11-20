@@ -19,6 +19,7 @@ const Navbar = () => {
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
             <NavLink to="/timing-shop">Tienda</NavLink>
+            {user && <NavLink to="/dashboard">Dashboard</NavLink>}
           </nav>
           <div className="flex items-center gap-2">
             {user ? (
@@ -49,6 +50,7 @@ const Navbar = () => {
               <NavLink to="/">Inicio</NavLink>
               <NavLink to="/races">Carreras</NavLink>
               <NavLink to="/timing-shop">Tienda</NavLink>
+              {user && <NavLink to="/dashboard">Dashboard</NavLink>}
               {user ? (
                 <Button asChild variant="default" className="w-full">
                   <Link to="/profile">
