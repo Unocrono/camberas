@@ -8,9 +8,10 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import ResultsManagement from "@/components/admin/ResultsManagement";
+import SplitTimesManagement from "@/components/admin/SplitTimesManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "registrations" | "results";
+type AdminView = "races" | "registrations" | "results" | "splits";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -95,6 +96,7 @@ const AdminDashboard = () => {
             {currentView === "races" && <RaceManagement />}
             {currentView === "registrations" && <RegistrationManagement />}
             {currentView === "results" && <ResultsManagement />}
+            {currentView === "splits" && <SplitTimesManagement />}
           </main>
         </div>
       </div>

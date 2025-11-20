@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import SplitTimesDisplay from "@/components/SplitTimesDisplay";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -250,53 +251,76 @@ const RaceResults = () => {
                       <TableHead>Time</TableHead>
                       <TableHead>Pace</TableHead>
                       <TableHead>Cat Pos</TableHead>
+                      <TableHead>Splits</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredResults.map((result) => (
-                      <TableRow key={result.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getPositionBadge(result.overall_position)}
-                            <span className="font-medium">{result.overall_position || "-"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">#{result.registration.bib_number}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar>
-                              <AvatarImage src={result.photo_url || undefined} />
-                              <AvatarFallback>
-                                {result.registration.profiles?.first_name?.[0]}
-                                {result.registration.profiles?.last_name?.[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium">
-                              {result.registration.profiles?.first_name} {result.registration.profiles?.last_name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">
-                            {result.registration.race_distance.name}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-mono font-semibold">
-                          {formatTime(result.finish_time)}
-                        </TableCell>
-                        <TableCell className="font-mono text-sm text-muted-foreground">
-                          {calculatePace(result.finish_time, result.registration.race_distance.distance_km)}
-                        </TableCell>
-                        <TableCell>
-                          {result.category_position ? (
-                            <Badge variant="outline">{result.category_position}</Badge>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        <TableRow key={result.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getPositionBadge(result.overall_position)}
+                              <span className="font-medium">{result.overall_position || "-"}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">#{result.registration.bib_number}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar>
+                                <AvatarImage src={result.photo_url || undefined} />
+                                <AvatarFallback>
+                                  {result.registration.profiles?.first_name?.[0]}
+                                  {result.registration.profiles?.last_name?.[0]}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium">
+                                {result.registration.profiles?.first_name} {result.registration.profiles?.last_name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {result.registration.race_distance.name}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-mono font-semibold">
+                            {formatTime(result.finish_time)}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm text-muted-foreground">
+                            {calculatePace(result.finish_time, result.registration.race_distance.distance_km)}
+                          </TableCell>
+                          <TableCell>
+                            {result.category_position ? (
+                              <Badge variant="outline">{result.category_position}</Badge>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <details className="cursor-pointer">
+                              <summary className="text-sm text-primary hover:underline">
+                                View Splits
+                              </summary>
+                            </details>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow key={`${result.id}-splits`} className="hover:bg-transparent">
+                          <TableCell colSpan={8} className="p-0">
+                            <details className="group">
+                              <summary className="sr-only">Split Times</summary>
+                              <div className="p-4 bg-muted/50">
+                                <SplitTimesDisplay 
+                                  raceResultId={result.id} 
+                                  totalDistance={result.registration.race_distance.distance_km}
+                                />
+                              </div>
+                            </details>
+                          </TableCell>
+                        </TableRow>
+                      </>
                     ))}
                   </TableBody>
                 </Table>
