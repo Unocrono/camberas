@@ -24,7 +24,7 @@ interface Registration {
     location: string;
     image_url: string | null;
   };
-  race_distance: {
+  distance: {
     name: string;
     distance_km: number;
     price: number;
@@ -67,7 +67,7 @@ const Dashboard = () => {
             location,
             image_url
           ),
-          race_distance:race_distances (
+          distance:race_distances (
             name,
             distance_km,
             price
@@ -99,6 +99,8 @@ const Dashboard = () => {
 
   const handleCancelRegistration = async (registrationId: string) => {
     try {
+      const registration = registrations.find(r => r.id === registrationId);
+      
       const { error } = await supabase
         .from("registrations")
         .update({ status: "cancelled" })
@@ -106,9 +108,41 @@ const Dashboard = () => {
 
       if (error) throw error;
 
+      // Send cancellation confirmation email
+      if (registration) {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user!.id)
+            .single();
+
+          const userName = profile?.first_name 
+            ? `${profile.first_name} ${profile.last_name || ''}`
+            : user?.email || '';
+
+          await supabase.functions.invoke('send-cancellation-confirmation', {
+            body: {
+              userEmail: user?.email,
+              userName,
+              raceName: registration.race.name,
+              raceDate: registration.race.date,
+              distanceName: registration.distance.name,
+              price: registration.distance.price,
+              paymentStatus: registration.payment_status,
+            },
+          });
+          console.log("Cancellation confirmation email sent");
+        } catch (emailError) {
+          console.error("Failed to send cancellation email:", emailError);
+          // Don't fail the cancellation if email fails
+        }
+      }
+
       toast({
         title: "Inscripción cancelada",
-        description: "Tu inscripción ha sido cancelada exitosamente",
+        description: "Tu inscripción ha sido cancelada exitosamente. Revisa tu email para más detalles.",
       });
 
       fetchRegistrations(); // Refresh the list
@@ -209,7 +243,7 @@ const Dashboard = () => {
                         </div>
                         <CardTitle className="text-2xl">{registration.race.name}</CardTitle>
                         <CardDescription className="text-lg font-semibold text-primary">
-                          {registration.race_distance.name} - {registration.race_distance.distance_km}km
+                          {registration.distance.name} - {registration.distance.distance_km}km
                         </CardDescription>
                       </CardHeader>
 
@@ -241,7 +275,7 @@ const Dashboard = () => {
                             <CreditCard className="h-4 w-4 text-muted-foreground" />
                             <div>
                               <p className="text-sm text-muted-foreground">Precio</p>
-                              <p className="font-medium">{registration.race_distance.price}€</p>
+                              <p className="font-medium">{registration.distance.price}€</p>
                             </div>
                           </div>
                         </div>
@@ -267,7 +301,7 @@ const Dashboard = () => {
                                   <AlertDialogTitle>¿Cancelar inscripción?</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     Esta acción cancelará tu inscripción a <strong>{registration.race.name}</strong> 
-                                    ({registration.race_distance.name}). 
+                                    ({registration.distance.name}). 
                                     {registration.payment_status === "completed" && 
                                       " Si has realizado el pago, deberás contactar con organización para gestionar el reembolso."}
                                   </AlertDialogDescription>
