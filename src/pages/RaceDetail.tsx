@@ -325,6 +325,11 @@ const RaceDetail = () => {
               </div>
               <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
+              <div className="mt-4">
+                <Button variant="outline" onClick={() => navigate(`/race/${id}/results`)}>
+                  Ver Resultados
+                </Button>
+              </div>
             </CardHeader>
 
             <CardContent className="space-y-8">

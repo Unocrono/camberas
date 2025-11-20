@@ -1,4 +1,4 @@
-import { Calendar, Users, Home } from "lucide-react";
+import { Calendar, Users, Home, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = "races" | "registrations";
+type AdminView = "races" | "registrations" | "results";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -22,6 +22,7 @@ interface AdminSidebarProps {
 const menuItems = [
   { title: "Gestión de Carreras", view: "races" as AdminView, icon: Calendar },
   { title: "Inscripciones", view: "registrations" as AdminView, icon: Users },
+  { title: "Resultados", view: "results" as AdminView, icon: Trophy },
 ];
 
 export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
