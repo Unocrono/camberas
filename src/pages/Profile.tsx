@@ -11,6 +11,34 @@ import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, Trophy } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { z } from "zod";
+
+const profileSchema = z.object({
+  full_name: z.string()
+    .trim()
+    .min(1, "El nombre es requerido")
+    .max(100, "El nombre debe tener menos de 100 caracteres"),
+  phone: z.string()
+    .trim()
+    .regex(/^[+]?[\d\s()-]{7,20}$/, "Formato de teléfono inválido")
+    .max(20, "El teléfono debe tener menos de 20 caracteres"),
+  birth_date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Formato de fecha inválido (YYYY-MM-DD)")
+    .refine((date) => {
+      const birthDate = new Date(date);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      return age >= 0 && age <= 120;
+    }, "Fecha de nacimiento inválida"),
+  emergency_contact: z.string()
+    .trim()
+    .min(1, "El contacto de emergencia es requerido")
+    .max(100, "El contacto debe tener menos de 100 caracteres"),
+  emergency_phone: z.string()
+    .trim()
+    .regex(/^[+]?[\d\s()-]{7,20}$/, "Formato de teléfono inválido")
+    .max(20, "El teléfono debe tener menos de 20 caracteres"),
+});
 
 interface Profile {
   full_name: string;
@@ -115,9 +143,12 @@ const Profile = () => {
     setSaving(true);
 
     try {
+      // Validate input data
+      const validatedProfile = profileSchema.parse(profile);
+
       const { error } = await supabase
         .from("profiles")
-        .update(profile)
+        .update(validatedProfile)
         .eq("id", user?.id);
 
       if (error) throw error;
@@ -127,11 +158,19 @@ const Profile = () => {
         description: "Tus datos se han guardado correctamente.",
       });
     } catch (error: any) {
-      toast({
-        title: "Error al guardar",
-        description: error.message,
-        variant: "destructive",
-      });
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error de validación",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error al guardar",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     } finally {
       setSaving(false);
     }
