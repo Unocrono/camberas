@@ -51,6 +51,8 @@ const RaceDetail = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
     phone: "",
     dni_passport: "",
     birth_date: "",
@@ -127,7 +129,7 @@ const RaceDetail = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("phone, dni_passport, birth_date, emergency_contact, emergency_phone")
+        .select("first_name, last_name, phone, dni_passport, birth_date, emergency_contact, emergency_phone")
         .eq("id", user!.id)
         .single();
 
@@ -135,6 +137,8 @@ const RaceDetail = () => {
 
       if (data) {
         setFormData({
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
           phone: data.phone || "",
           dni_passport: data.dni_passport || "",
           birth_date: data.birth_date || "",
@@ -219,6 +223,25 @@ const RaceDetail = () => {
         });
 
       if (registrationError) throw registrationError;
+
+      // Send confirmation email
+      try {
+        await supabase.functions.invoke('send-registration-confirmation', {
+          body: {
+            userEmail: user.email,
+            userName: `${formData.firstName} ${formData.lastName}`,
+            raceName: race!.name,
+            raceDate: race!.date,
+            raceLocation: race!.location,
+            distanceName: selectedDistance!.name,
+            price: selectedDistance!.price,
+          },
+        });
+        console.log("Registration confirmation email sent");
+      } catch (emailError) {
+        console.error("Failed to send confirmation email:", emailError);
+        // Don't fail the registration if email fails
+      }
 
       toast({
         title: "¡Inscripción exitosa!",
