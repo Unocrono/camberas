@@ -222,11 +222,15 @@ const RaceDetail = () => {
 
       toast({
         title: "¡Inscripción exitosa!",
-        description: `Te has inscrito correctamente a la distancia ${selectedDistance.name}`,
+        description: `Te has inscrito correctamente a la distancia ${selectedDistance.name}. Redirigiendo a tu dashboard...`,
       });
 
       setIsDialogOpen(false);
-      fetchRaceDetails(); // Refresh data
+      
+      // Redirect to dashboard after 1.5 seconds
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
