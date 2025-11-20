@@ -43,6 +43,8 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
+            <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>
+            <NavLink to="/support-chat">Soporte</NavLink>
             <NavLink to="/timing-shop">Tienda</NavLink>
             {user && <NavLink to="/dashboard">Dashboard</NavLink>}
             {isAdmin && (
@@ -80,6 +82,8 @@ const Navbar = () => {
             <nav className="flex flex-col gap-4 mt-8">
               <NavLink to="/">Inicio</NavLink>
               <NavLink to="/races">Carreras</NavLink>
+              <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>
+              <NavLink to="/support-chat">Soporte</NavLink>
               <NavLink to="/timing-shop">Tienda</NavLink>
               {user && <NavLink to="/dashboard">Dashboard</NavLink>}
               {isAdmin && (
