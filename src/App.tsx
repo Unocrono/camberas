@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import Races from "./pages/Races";
 import RaceDetail from "./pages/RaceDetail";
 import TimingShop from "./pages/TimingShop";
+import Auth from "./pages/Auth";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,8 @@ const App = () => (
           <Route path="/races" element={<Races />} />
           <Route path="/race/:id" element={<RaceDetail />} />
           <Route path="/timing-shop" element={<TimingShop />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

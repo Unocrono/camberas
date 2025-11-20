@@ -1,29 +1,69 @@
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Mountain } from "lucide-react";
+import { NavLink } from "./NavLink";
+import { Menu, User } from "lucide-react";
+import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
+  const { user } = useAuth();
+
   return (
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-            <Mountain className="h-6 w-6" />
             Camberas
           </Link>
-          
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/races" className="text-foreground hover:text-primary transition-colors">
-              Carreras
-            </Link>
-            <Link to="/timing-shop" className="text-foreground hover:text-primary transition-colors">
-              Cronometraje
-            </Link>
-            <Button asChild variant="default">
-              <Link to="/races">Inscríbete</Link>
-            </Button>
+          <nav className="hidden md:flex items-center gap-6">
+            <NavLink to="/">Inicio</NavLink>
+            <NavLink to="/races">Carreras</NavLink>
+            <NavLink to="/timing-shop">Tienda</NavLink>
+          </nav>
+          <div className="flex items-center gap-2">
+            {user ? (
+              <Button asChild variant="default">
+                <Link to="/profile">
+                  <User className="mr-2 h-4 w-4" />
+                  Mi Perfil
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild variant="default">
+                <Link to="/auth">Iniciar Sesión</Link>
+              </Button>
+            )}
           </div>
         </div>
+      </div>
+
+      <div className="md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="absolute top-4 right-4">
+              <Menu className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent>
+            <nav className="flex flex-col gap-4 mt-8">
+              <NavLink to="/">Inicio</NavLink>
+              <NavLink to="/races">Carreras</NavLink>
+              <NavLink to="/timing-shop">Tienda</NavLink>
+              {user ? (
+                <Button asChild variant="default" className="w-full">
+                  <Link to="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    Mi Perfil
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild variant="default" className="w-full">
+                  <Link to="/auth">Iniciar Sesión</Link>
+                </Button>
+              )}
+            </nav>
+          </SheetContent>
+        </Sheet>
       </div>
     </nav>
   );
