@@ -14,16 +14,215 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          birth_date: string | null
+          created_at: string
+          emergency_contact: string | null
+          emergency_phone: string | null
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          birth_date?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string | null
+          created_at?: string
+          emergency_contact?: string | null
+          emergency_phone?: string | null
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      race_distances: {
+        Row: {
+          created_at: string
+          cutoff_time: string | null
+          distance_km: number
+          elevation_gain: number | null
+          id: string
+          max_participants: number | null
+          name: string
+          price: number
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cutoff_time?: string | null
+          distance_km: number
+          elevation_gain?: number | null
+          id?: string
+          max_participants?: number | null
+          name: string
+          price: number
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cutoff_time?: string | null
+          distance_km?: number
+          elevation_gain?: number | null
+          id?: string
+          max_participants?: number | null
+          name?: string
+          price?: number
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_distances_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      races: {
+        Row: {
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          image_url: string | null
+          location: string
+          max_participants: number | null
+          name: string
+          registration_closes: string | null
+          registration_opens: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location: string
+          max_participants?: number | null
+          name: string
+          registration_closes?: string | null
+          registration_opens?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string
+          max_participants?: number | null
+          name?: string
+          registration_closes?: string | null
+          registration_opens?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      registrations: {
+        Row: {
+          bib_number: number | null
+          created_at: string
+          id: string
+          payment_status: string
+          race_distance_id: string
+          race_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bib_number?: number | null
+          created_at?: string
+          id?: string
+          payment_status?: string
+          race_distance_id: string
+          race_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bib_number?: number | null
+          created_at?: string
+          id?: string
+          payment_status?: string
+          race_distance_id?: string
+          race_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrations_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +349,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
