@@ -62,6 +62,44 @@ export type Database = {
         }
         Relationships: []
       }
+      race_checkpoints: {
+        Row: {
+          checkpoint_order: number
+          created_at: string
+          distance_km: number
+          id: string
+          name: string
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          checkpoint_order: number
+          created_at?: string
+          distance_km: number
+          id?: string
+          name: string
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          checkpoint_order?: number
+          created_at?: string
+          distance_km?: number
+          id?: string
+          name?: string
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_checkpoints_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_distances: {
         Row: {
           created_at: string
@@ -245,6 +283,47 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      split_times: {
+        Row: {
+          checkpoint_name: string
+          checkpoint_order: number
+          created_at: string
+          distance_km: number
+          id: string
+          race_result_id: string
+          split_time: unknown
+          updated_at: string
+        }
+        Insert: {
+          checkpoint_name: string
+          checkpoint_order: number
+          created_at?: string
+          distance_km: number
+          id?: string
+          race_result_id: string
+          split_time: unknown
+          updated_at?: string
+        }
+        Update: {
+          checkpoint_name?: string
+          checkpoint_order?: number
+          created_at?: string
+          distance_km?: number
+          id?: string
+          race_result_id?: string
+          split_time?: unknown
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "split_times_race_result_id_fkey"
+            columns: ["race_result_id"]
+            isOneToOne: false
+            referencedRelation: "race_results"
             referencedColumns: ["id"]
           },
         ]
