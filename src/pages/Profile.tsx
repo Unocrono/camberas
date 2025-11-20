@@ -14,10 +14,18 @@ import Footer from "@/components/Footer";
 import { z } from "zod";
 
 const profileSchema = z.object({
-  full_name: z.string()
+  first_name: z.string()
     .trim()
     .min(1, "El nombre es requerido")
-    .max(100, "El nombre debe tener menos de 100 caracteres"),
+    .max(50, "El nombre debe tener menos de 50 caracteres"),
+  last_name: z.string()
+    .trim()
+    .min(1, "Los apellidos son requeridos")
+    .max(100, "Los apellidos deben tener menos de 100 caracteres"),
+  dni_passport: z.string()
+    .trim()
+    .min(1, "El DNI/Pasaporte es requerido")
+    .max(20, "El DNI/Pasaporte debe tener menos de 20 caracteres"),
   phone: z.string()
     .trim()
     .regex(/^[+]?[\d\s()-]{7,20}$/, "Formato de teléfono inválido")
@@ -30,6 +38,18 @@ const profileSchema = z.object({
       const age = today.getFullYear() - birthDate.getFullYear();
       return age >= 0 && age <= 120;
     }, "Fecha de nacimiento inválida"),
+  city: z.string()
+    .trim()
+    .min(1, "La localidad es requerida")
+    .max(100, "La localidad debe tener menos de 100 caracteres"),
+  province: z.string()
+    .trim()
+    .min(1, "La provincia es requerida")
+    .max(100, "La provincia debe tener menos de 100 caracteres"),
+  autonomous_community: z.string()
+    .trim()
+    .min(1, "La comunidad autónoma es requerida")
+    .max(100, "La comunidad autónoma debe tener menos de 100 caracteres"),
   emergency_contact: z.string()
     .trim()
     .min(1, "El contacto de emergencia es requerido")
@@ -41,9 +61,14 @@ const profileSchema = z.object({
 });
 
 interface Profile {
-  full_name: string;
+  first_name: string;
+  last_name: string;
+  dni_passport: string;
   phone: string;
   birth_date: string;
+  city: string;
+  province: string;
+  autonomous_community: string;
   emergency_contact: string;
   emergency_phone: string;
 }
@@ -68,9 +93,14 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<Profile>({
-    full_name: "",
+    first_name: "",
+    last_name: "",
+    dni_passport: "",
     phone: "",
     birth_date: "",
+    city: "",
+    province: "",
+    autonomous_community: "",
     emergency_contact: "",
     emergency_phone: "",
   });
@@ -103,9 +133,14 @@ const Profile = () => {
 
       if (data) {
         setProfile({
-          full_name: data.full_name || "",
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          dni_passport: data.dni_passport || "",
           phone: data.phone || "",
           birth_date: data.birth_date || "",
+          city: data.city || "",
+          province: data.province || "",
+          autonomous_community: data.autonomous_community || "",
           emergency_contact: data.emergency_contact || "",
           emergency_phone: data.emergency_phone || "",
         });
@@ -203,60 +238,131 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSave} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name">Nombre</Label>
+                      <Input
+                        id="first_name"
+                        value={profile.first_name}
+                        onChange={(e) =>
+                          setProfile({ ...profile, first_name: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name">Apellidos</Label>
+                      <Input
+                        id="last_name"
+                        value={profile.last_name}
+                        onChange={(e) =>
+                          setProfile({ ...profile, last_name: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="full_name">Nombre Completo</Label>
+                    <Label htmlFor="dni_passport">DNI/Pasaporte</Label>
                     <Input
-                      id="full_name"
-                      value={profile.full_name}
+                      id="dni_passport"
+                      value={profile.dni_passport}
                       onChange={(e) =>
-                        setProfile({ ...profile, full_name: e.target.value })
+                        setProfile({ ...profile, dni_passport: e.target.value })
                       }
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Teléfono</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={profile.phone}
-                      onChange={(e) =>
-                        setProfile({ ...profile, phone: e.target.value })
-                      }
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Teléfono</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={profile.phone}
+                        onChange={(e) =>
+                          setProfile({ ...profile, phone: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
+                      <Input
+                        id="birth_date"
+                        type="date"
+                        value={profile.birth_date}
+                        onChange={(e) =>
+                          setProfile({ ...profile, birth_date: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
-                    <Input
-                      id="birth_date"
-                      type="date"
-                      value={profile.birth_date}
-                      onChange={(e) =>
-                        setProfile({ ...profile, birth_date: e.target.value })
-                      }
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="city">Localidad</Label>
+                      <Input
+                        id="city"
+                        value={profile.city}
+                        onChange={(e) =>
+                          setProfile({ ...profile, city: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="province">Provincia</Label>
+                      <Input
+                        id="province"
+                        value={profile.province}
+                        onChange={(e) =>
+                          setProfile({ ...profile, province: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="autonomous_community">Comunidad Autónoma</Label>
+                      <Input
+                        id="autonomous_community"
+                        value={profile.autonomous_community}
+                        onChange={(e) =>
+                          setProfile({ ...profile, autonomous_community: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emergency_contact">Contacto de Emergencia</Label>
-                    <Input
-                      id="emergency_contact"
-                      value={profile.emergency_contact}
-                      onChange={(e) =>
-                        setProfile({ ...profile, emergency_contact: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="emergency_phone">Teléfono de Emergencia</Label>
-                    <Input
-                      id="emergency_phone"
-                      type="tel"
-                      value={profile.emergency_phone}
-                      onChange={(e) =>
-                        setProfile({ ...profile, emergency_phone: e.target.value })
-                      }
-                    />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="emergency_contact">Contacto de Emergencia</Label>
+                      <Input
+                        id="emergency_contact"
+                        value={profile.emergency_contact}
+                        onChange={(e) =>
+                          setProfile({ ...profile, emergency_contact: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="emergency_phone">Teléfono de Emergencia</Label>
+                      <Input
+                        id="emergency_phone"
+                        type="tel"
+                        value={profile.emergency_phone}
+                        onChange={(e) =>
+                          setProfile({ ...profile, emergency_phone: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2">
