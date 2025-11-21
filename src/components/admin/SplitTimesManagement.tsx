@@ -49,7 +49,11 @@ interface SplitTime {
   distance_km: number;
 }
 
-export default function SplitTimesManagement() {
+interface SplitTimesManagementProps {
+  isOrganizer?: boolean;
+}
+
+export function SplitTimesManagement({ isOrganizer = false }: SplitTimesManagementProps) {
   const [races, setRaces] = useState<any[]>([]);
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -92,13 +96,23 @@ export default function SplitTimesManagement() {
   }, [selectedResultId]);
 
   const fetchRaces = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("races")
-      .select("id, name, date")
+      .select("id, name, date, organizer_id")
       .order("date", { ascending: false });
+    
+    // If organizer mode, filter by current user's races
+    if (isOrganizer) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        query = query.eq("organizer_id", user.id);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
-      toast.error("Failed to load races");
+      toast.error("Error al cargar carreras");
       return;
     }
 
