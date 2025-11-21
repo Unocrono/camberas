@@ -14,11 +14,12 @@ const TimingShop = () => {
       price: "350€",
       image: timingSystem,
       features: [
-        "Sistema de cronometraje RFID",
+        "Sistema de cronometraje RFID timing",
         "200 chips desechables incluidos",
         "1 línea de meta",
         "Software de gestión básico",
         "Clasificaciones en tiempo real",
+        "Grabación en vídeo de la meta",
         "Soporte técnico durante el evento",
       ],
       maxParticipants: "200",
@@ -30,14 +31,14 @@ const TimingShop = () => {
       popular: true,
       image: timingSystem,
       features: [
-        "Sistema de cronometraje RFID premium",
-        "500 chips reutilizables incluidos",
+        "Sistema de cronometraje RFID timing premium",
+        "500 chips desechables incluidos",
         "2 líneas (salida y meta)",
         "Software de gestión avanzado",
-        "Clasificaciones en tiempo real + históricos",
-        "Puntos intermedios de paso",
-        "Pantalla LED de resultados",
-        "Soporte técnico 24/7",
+        "Clasificaciones en tiempo real",
+        "1 Punto intermedios de paso",
+        "Streaming de la cámara de línea de meta",
+        "Soporte técnico durante el evento",
       ],
       maxParticipants: "500",
     },
@@ -47,16 +48,17 @@ const TimingShop = () => {
       price: "1.500€",
       image: timingSystem,
       features: [
-        "Sistema completo multi-punto",
-        "1000 chips reutilizables incluidos",
-        "Puntos de control ilimitados",
-        "Software profesional completo",
-        "App móvil para seguimiento live",
-        "Análisis detallado de rendimiento",
-        "2 pantallas LED de resultados",
-        "Fotografía automática en meta",
-        "Equipo técnico en sitio",
-        "Soporte premium 24/7",
+        "Sistema de cronometraje RFID timing ULTRA",
+        "1000 chips desechables incluidos",
+        "2 líneas (salida y meta)",
+        "Streaming de la cámara de línea de meta",
+        "2 puntos intermedios de paso",
+        "Streaming de la cámara de puntos de intermedios",
+        "Software profesional de cronometraje",
+        "Seguimiento live",
+        "Clasificaciones en tiempo real",
+        "Equipo técnico en la carrera",
+        "Soporte técnico previo al evento",
       ],
       maxParticipants: "1000+",
     },
@@ -65,7 +67,7 @@ const TimingShop = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Header */}
@@ -74,30 +76,23 @@ const TimingShop = () => {
               Alquiler de Sistemas de Cronometraje
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Equipos profesionales de cronometraje RFID para tu carrera de trail running. 
-              Precisión, fiabilidad y resultados en tiempo real.
+              Equipos profesionales de cronometraje RFID para tu carrera de trail running. Precisión, fiabilidad y
+              resultados en tiempo real.
             </p>
           </div>
 
           {/* Packages */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {timingPackages.map((pkg, index) => (
-              <Card 
-                key={index} 
-                className={`relative ${pkg.popular ? 'border-2 border-primary shadow-elevated' : ''}`}
-              >
+              <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
                   <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary">
                     Más Popular
                   </Badge>
                 )}
-                
+
                 <div className="relative h-48 overflow-hidden rounded-t-lg">
-                  <img 
-                    src={pkg.image} 
-                    alt={pkg.name}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={pkg.image} alt={pkg.name} className="w-full h-full object-cover" />
                 </div>
 
                 <CardHeader>
@@ -124,10 +119,7 @@ const TimingShop = () => {
                 </CardContent>
 
                 <CardFooter>
-                  <Button 
-                    className="w-full" 
-                    variant={pkg.popular ? "default" : "outline"}
-                  >
+                  <Button className="w-full" variant={pkg.popular ? "default" : "outline"}>
                     Solicitar Información
                   </Button>
                 </CardFooter>
@@ -145,8 +137,8 @@ const TimingShop = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <p>
-                Nuestro equipo puede diseñar una solución de cronometraje específica para las necesidades 
-                de tu evento, sin importar el tamaño o la complejidad del recorrido.
+                Nuestro equipo puede diseñar una solución de cronometraje específica para las necesidades de tu evento,
+                sin importar el tamaño o la complejidad del recorrido.
               </p>
               <ul className="space-y-2">
                 <li className="flex items-center gap-2">
