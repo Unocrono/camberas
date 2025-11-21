@@ -49,7 +49,7 @@ const TimingShop = () => {
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
-        "500 chips desechables incluidos"
+        "500 chips desechables incluidos",
         "500 dorsales trail ",
         "Cronometraje electrónico en salida y meta",
         "Streaming de la cámara de línea de meta",
