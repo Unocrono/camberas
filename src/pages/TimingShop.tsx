@@ -25,7 +25,7 @@ const TimingShop = () => {
       maxParticipants: "200",
     },
     {
-      name: "Profesional",
+      name: "Standard",
       description: "Ideal para carreras medianas hasta 500 participantes",
       price: "500€",
       popular: true,
@@ -33,7 +33,7 @@ const TimingShop = () => {
       features: [
         "Sistema de cronometraje RFID timing premium",
         "500 chips desechables incluidos",
-        "Cronometraje electrónico en salida y meta",
+        "Cronometraje electrónico en meta",
         "Software de gestión avanzado",
         "Clasificaciones en tiempo real",
         "1 Punto intermedios de paso",
@@ -43,13 +43,14 @@ const TimingShop = () => {
       maxParticipants: "500",
     },
     {
-      name: "Ultra",
-      description: "Para grandes eventos y ultra trails",
-      price: "1.500€",
+      name: "Profesional",
+      description: "Para grandes eventos",
+      price: "750€",
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
-        "1000 chips desechables incluidos",
+        "500 chips desechables incluidos"
+        "500 dorsales trail ",
         "Cronometraje electrónico en salida y meta",
         "Streaming de la cámara de línea de meta",
         "2 puntos intermedios de paso",
@@ -60,7 +61,7 @@ const TimingShop = () => {
         "Equipo técnico en la carrera",
         "Soporte técnico previo al evento",
       ],
-      maxParticipants: "1000+",
+      maxParticipants: "500+",
     },
   ];
 
