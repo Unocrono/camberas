@@ -4,63 +4,68 @@ import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import raceScene from "@/assets/race-scene.jpg";
+import penaPrietaImg from "@/assets/pena-prieta-skyrace.jpg";
+import trailCarabeosImg from "@/assets/trail-los-carabeos.jpg";
+import turtziozImg from "@/assets/turtzioz-walk-run.jpg";
+import loiuTrailImg from "@/assets/loiu-trail.jpg";
+import trailComillasImg from "@/assets/trail-comillas.jpg";
+import portalCabanerosImg from "@/assets/portal-cabaneros.jpg";
 
 const Races = () => {
   const allRaces = [
     {
       id: "1",
-      name: "Ultra Trail Sierra Norte",
-      date: "15 de Junio, 2025",
-      location: "Sierra Norte, España",
-      distances: ["50K", "30K", "15K"],
-      participants: 450,
-      imageUrl: raceScene,
+      name: "VI Trail Villa de Comillas",
+      date: "11 de Mayo, 2025",
+      location: "Comillas, Cantabria",
+      distances: ["25K", "16K", "14K"],
+      participants: 500,
+      imageUrl: trailComillasImg,
     },
     {
       id: "2",
-      name: "Camberas Mountain Race",
-      date: "22 de Julio, 2025",
-      location: "Picos de Europa",
-      distances: ["42K", "21K"],
-      participants: 320,
-      imageUrl: raceScene,
+      name: "II Loiu 500 Trail",
+      date: "1 de Junio, 2025",
+      location: "Loiu, Vizcaya",
+      distances: ["10K", "1.8K"],
+      participants: 350,
+      imageUrl: loiuTrailImg,
     },
     {
       id: "3",
-      name: "Trail Nocturno Luna Llena",
-      date: "10 de Agosto, 2025",
-      location: "Montseny",
-      distances: ["25K", "12K"],
+      name: "Turtzioz Walk Run",
+      date: "29 de Junio, 2025",
+      location: "Trucios-Turtzioz, Vizcaya",
+      distances: ["15K"],
       participants: 280,
-      imageUrl: raceScene,
+      imageUrl: turtziozImg,
     },
     {
       id: "4",
-      name: "Desafío Montaña Vertical",
-      date: "5 de Septiembre, 2025",
-      location: "Pirineos",
-      distances: ["100K", "50K"],
-      participants: 180,
-      imageUrl: raceScene,
+      name: "IX Trail Los Carabeos",
+      date: "27 de Julio, 2025",
+      location: "Los Carabeos, Cantabria",
+      distances: ["21K"],
+      participants: 320,
+      imageUrl: trailCarabeosImg,
     },
     {
       id: "5",
-      name: "Trail Running Festival",
-      date: "20 de Octubre, 2025",
-      location: "Granada",
-      distances: ["42K", "21K", "10K"],
-      participants: 520,
-      imageUrl: raceScene,
+      name: "Portal de Cabañeros",
+      date: "27 de Septiembre, 2025",
+      location: "Los Navalucillos, Toledo",
+      distances: ["42K", "21K"],
+      participants: 400,
+      imageUrl: portalCabanerosImg,
     },
     {
       id: "6",
-      name: "Carrera del Bosque",
-      date: "12 de Noviembre, 2025",
-      location: "Cantabria",
-      distances: ["30K", "15K"],
-      participants: 210,
-      imageUrl: raceScene,
+      name: "Peña Prieta SkyRace",
+      date: "4 de Octubre, 2025",
+      location: "Vega de Liébana, Cantabria",
+      distances: ["36K", "8K"],
+      participants: 450,
+      imageUrl: penaPrietaImg,
     },
   ];
 
