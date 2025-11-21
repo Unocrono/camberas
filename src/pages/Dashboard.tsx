@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Calendar, MapPin, Trophy, CreditCard, X } from "lucide-react";
+import { Calendar, MapPin, Trophy, CreditCard, X, Radio } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ interface Registration {
     date: string;
     location: string;
     image_url: string | null;
+    gps_tracking_enabled: boolean;
   };
   distance: {
     name: string;
@@ -65,7 +66,8 @@ const Dashboard = () => {
             name,
             date,
             location,
-            image_url
+            image_url,
+            gps_tracking_enabled
           ),
           distance:race_distances (
             name,
@@ -283,10 +285,21 @@ const Dashboard = () => {
                         <div className="flex flex-wrap gap-3">
                           <Button
                             variant="outline"
-                            onClick={() => navigate(`/races/${registration.race.id}`)}
+                            onClick={() => navigate(`/race/${registration.race.id}`)}
                           >
                             Ver Detalles
                           </Button>
+
+                          {registration.race.gps_tracking_enabled && registration.status === "confirmed" && (
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(`/race/${registration.race.id}/tracker`)}
+                              className="gap-2"
+                            >
+                              <Radio className="h-4 w-4" />
+                              GPS Tracker
+                            </Button>
+                          )}
 
                           {canCancel && (
                             <AlertDialog>

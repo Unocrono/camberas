@@ -46,6 +46,8 @@ export function RaceManagement() {
     date: "",
     max_participants: "",
     image_url: "",
+    gps_tracking_enabled: false,
+    gps_update_frequency: "30",
   });
 
   useEffect(() => {
@@ -82,6 +84,8 @@ export function RaceManagement() {
         date: race.date,
         max_participants: race.max_participants?.toString() || "",
         image_url: race.image_url || "",
+        gps_tracking_enabled: (race as any).gps_tracking_enabled || false,
+        gps_update_frequency: (race as any).gps_update_frequency?.toString() || "30",
       });
     } else {
       setEditingRace(null);
@@ -92,6 +96,8 @@ export function RaceManagement() {
         date: "",
         max_participants: "",
         image_url: "",
+        gps_tracking_enabled: false,
+        gps_update_frequency: "30",
       });
     }
     setIsDialogOpen(true);
@@ -119,6 +125,8 @@ export function RaceManagement() {
             date: validatedData.date,
             max_participants: validatedData.max_participants || null,
             image_url: validatedData.image_url || null,
+            gps_tracking_enabled: formData.gps_tracking_enabled,
+            gps_update_frequency: parseInt(formData.gps_update_frequency),
           })
           .eq("id", editingRace.id);
 
@@ -138,6 +146,8 @@ export function RaceManagement() {
             date: validatedData.date,
             max_participants: validatedData.max_participants || null,
             image_url: validatedData.image_url || null,
+            gps_tracking_enabled: formData.gps_tracking_enabled,
+            gps_update_frequency: parseInt(formData.gps_update_frequency),
           }]);
 
         if (error) throw error;
@@ -284,6 +294,38 @@ export function RaceManagement() {
                     onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold">Configuración GPS</h3>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="gps_tracking_enabled"
+                    checked={formData.gps_tracking_enabled}
+                    onChange={(e) => setFormData({ ...formData, gps_tracking_enabled: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
+                </div>
+
+                {formData.gps_tracking_enabled && (
+                  <div className="space-y-2">
+                    <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
+                    <Input
+                      id="gps_update_frequency"
+                      type="number"
+                      min="5"
+                      max="300"
+                      value={formData.gps_update_frequency}
+                      onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Frecuencia recomendada: 30-60 segundos para ahorrar batería
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
