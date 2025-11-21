@@ -15,8 +15,6 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import TrainingPlan from "./pages/TrainingPlan";
 import SupportChat from "./pages/SupportChat";
-import RaceOverlay from "./pages/RaceOverlay";
-import StreamingControl from "./pages/StreamingControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,8 +38,6 @@ const App = () => (
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/training-plan" element={<TrainingPlan />} />
           <Route path="/support-chat" element={<SupportChat />} />
-          <Route path="/race/:raceId/overlay" element={<RaceOverlay />} />
-          <Route path="/streaming" element={<StreamingControl />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
