@@ -8,6 +8,8 @@ import Races from "./pages/Races";
 import RaceDetail from "./pages/RaceDetail";
 import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
+import LiveGPSTracking from "./pages/LiveGPSTracking";
+import RunnerGPSTracker from "./pages/RunnerGPSTracker";
 import TimingShop from "./pages/TimingShop";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
@@ -31,6 +33,8 @@ const App = () => (
           <Route path="/race/:id" element={<RaceDetail />} />
           <Route path="/race/:id/results" element={<RaceResults />} />
           <Route path="/race/:id/live" element={<LiveResults />} />
+          <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
+          <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/profile" element={<Profile />} />

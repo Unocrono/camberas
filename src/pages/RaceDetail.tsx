@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -325,13 +325,18 @@ const RaceDetail = () => {
               </div>
               <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => navigate(`/race/${id}/results`)}>
                   Ver Resultados
                 </Button>
                 <Button variant="outline" onClick={() => navigate(`/race/${id}/live`)}>
                   Resultados en Vivo
                 </Button>
+                {race.gps_tracking_enabled && (
+                  <Button variant="outline" onClick={() => navigate(`/race/${id}/gps`)}>
+                    Mapa GPS en Vivo
+                  </Button>
+                )}
               </div>
             </CardHeader>
 
