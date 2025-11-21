@@ -22,6 +22,7 @@ interface Registration {
     id: string;
     name: string;
     date: string;
+    organizer_id?: string | null;
   };
   race_distance: {
     name: string;
@@ -35,7 +36,11 @@ interface Registration {
   };
 }
 
-export function RegistrationManagement() {
+interface RegistrationManagementProps {
+  isOrganizer?: boolean;
+}
+
+export function RegistrationManagement({ isOrganizer = false }: RegistrationManagementProps) {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([]);
@@ -62,16 +67,26 @@ export function RegistrationManagement() {
   const fetchData = async () => {
     try {
       // Fetch races
-      const { data: racesData, error: racesError } = await supabase
+      let racesQuery = supabase
         .from("races")
-        .select("id, name, date")
+        .select("id, name, date, organizer_id")
         .order("date", { ascending: false });
+      
+      // If organizer mode, filter by current user's races
+      if (isOrganizer) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          racesQuery = racesQuery.eq("organizer_id", user.id);
+        }
+      }
+
+      const { data: racesData, error: racesError } = await racesQuery;
 
       if (racesError) throw racesError;
       setRaces(racesData || []);
 
       // Fetch registrations with related data
-      const { data: registrationsData, error: registrationsError } = await supabase
+      let registrationsQuery = supabase
         .from("registrations")
         .select(`
           id,
@@ -83,7 +98,8 @@ export function RegistrationManagement() {
           race:races (
             id,
             name,
-            date
+            date,
+            organizer_id
           ),
           race_distance:race_distances (
             name,
@@ -98,8 +114,22 @@ export function RegistrationManagement() {
         `)
         .order("created_at", { ascending: false });
 
+      const { data: registrationsData, error: registrationsError } = await registrationsQuery;
+
       if (registrationsError) throw registrationsError;
-      setRegistrations(registrationsData as any);
+      
+      // Filter registrations for organizer mode
+      let filteredRegistrations = registrationsData as any;
+      if (isOrganizer) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          filteredRegistrations = (registrationsData as any)?.filter(
+            (reg: any) => reg.race.organizer_id === user.id
+          );
+        }
+      }
+      
+      setRegistrations(filteredRegistrations);
     } catch (error: any) {
       toast({
         title: "Error al cargar datos",

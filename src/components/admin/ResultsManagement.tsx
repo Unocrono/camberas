@@ -24,13 +24,17 @@ interface RaceResult {
   notes: string | null;
   registration: {
     bib_number: number | null;
-    race: { name: string };
+    race: { name: string; organizer_id?: string | null };
     race_distance: { name: string };
     profiles: { first_name: string | null; last_name: string | null };
   };
 }
 
-const ResultsManagement = () => {
+interface ResultsManagementProps {
+  isOrganizer?: boolean;
+}
+
+export function ResultsManagement({ isOrganizer = false }: ResultsManagementProps) {
   const { toast } = useToast();
   const [races, setRaces] = useState<any[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
@@ -73,10 +77,20 @@ const ResultsManagement = () => {
   }, [selectedRace]);
 
   const fetchRaces = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("races")
-      .select("id, name, date")
+      .select("id, name, date, organizer_id")
       .order("date", { ascending: false });
+    
+    // If organizer mode, filter by current user's races
+    if (isOrganizer) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        query = query.eq("organizer_id", user.id);
+      }
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       toast({ title: "Error loading races", description: error.message, variant: "destructive" });

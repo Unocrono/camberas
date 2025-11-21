@@ -6,6 +6,8 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOrganizer, setIsOrganizer] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -14,6 +16,16 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Check roles when session changes
+        if (session?.user) {
+          setTimeout(() => {
+            checkUserRoles(session.user.id);
+          }, 0);
+        } else {
+          setIsAdmin(false);
+          setIsOrganizer(false);
+        }
       }
     );
 
@@ -22,14 +34,36 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      if (session?.user) {
+        checkUserRoles(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkUserRoles = async (userId: string) => {
+    try {
+      const { data: adminData } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      setIsAdmin(adminData || false);
+
+      const { data: organizerData } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "organizer",
+      });
+      setIsOrganizer(organizerData || false);
+    } catch (error) {
+      console.error("Error checking user roles:", error);
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signOut };
+  return { user, session, loading, signOut, isAdmin, isOrganizer };
 };

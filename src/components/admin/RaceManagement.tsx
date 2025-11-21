@@ -29,9 +29,14 @@ interface Race {
   max_participants: number | null;
   image_url: string | null;
   created_at: string;
+  organizer_id: string | null;
 }
 
-export function RaceManagement() {
+interface RaceManagementProps {
+  isOrganizer?: boolean;
+}
+
+export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   const { toast } = useToast();
   const [races, setRaces] = useState<Race[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,10 +64,20 @@ export function RaceManagement() {
 
   const fetchRaces = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("races")
         .select("*")
         .order("date", { ascending: false });
+      
+      // If organizer mode, filter by current user's races
+      if (isOrganizer) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          query = query.eq("organizer_id", user.id);
+        }
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setRaces(data || []);
@@ -203,6 +218,8 @@ export function RaceManagement() {
         });
       } else {
         // Create race first to get ID
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { data: newRace, error: insertError } = await supabase
           .from("races")
           .insert([{
@@ -214,6 +231,7 @@ export function RaceManagement() {
             image_url: validatedData.image_url || null,
             gps_tracking_enabled: formData.gps_tracking_enabled,
             gps_update_frequency: parseInt(formData.gps_update_frequency),
+            organizer_id: isOrganizer ? user?.id : null,
           }])
           .select()
           .single();

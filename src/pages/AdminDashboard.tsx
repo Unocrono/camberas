@@ -7,8 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
-import ResultsManagement from "@/components/admin/ResultsManagement";
-import SplitTimesManagement from "@/components/admin/SplitTimesManagement";
+import { ResultsManagement } from "@/components/admin/ResultsManagement";
+import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { Loader2 } from "lucide-react";
 
 type AdminView = "races" | "registrations" | "results" | "splits";

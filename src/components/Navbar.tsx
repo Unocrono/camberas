@@ -1,37 +1,12 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield } from "lucide-react";
+import { Menu, User, Shield, Briefcase } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 const Navbar = () => {
-  const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      checkAdminRole();
-    } else {
-      setIsAdmin(false);
-    }
-  }, [user]);
-
-  const checkAdminRole = async () => {
-    try {
-      const { data, error } = await supabase.rpc("has_role", {
-        _user_id: user!.id,
-        _role: "admin",
-      });
-      if (!error && data) {
-        setIsAdmin(true);
-      }
-    } catch (error) {
-      console.error("Error checking admin role:", error);
-    }
-  };
+  const { user, isAdmin, isOrganizer } = useAuth();
 
   return (
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
@@ -47,6 +22,12 @@ const Navbar = () => {
             <NavLink to="/support-chat">Soporte</NavLink>
             <NavLink to="/timing-shop">Tienda</NavLink>
             {user && <NavLink to="/dashboard">Dashboard</NavLink>}
+            {isOrganizer && (
+              <NavLink to="/organizer" className="flex items-center gap-1">
+                <Briefcase className="h-4 w-4" />
+                Organizador
+              </NavLink>
+            )}
             {isAdmin && (
               <NavLink to="/admin" className="flex items-center gap-1">
                 <Shield className="h-4 w-4" />
@@ -86,6 +67,12 @@ const Navbar = () => {
               <NavLink to="/support-chat">Soporte</NavLink>
               <NavLink to="/timing-shop">Tienda</NavLink>
               {user && <NavLink to="/dashboard">Dashboard</NavLink>}
+              {isOrganizer && (
+                <NavLink to="/organizer" className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Organizador
+                </NavLink>
+              )}
               {isAdmin && (
                 <NavLink to="/admin" className="flex items-center gap-2">
                   <Shield className="h-4 w-4" />
