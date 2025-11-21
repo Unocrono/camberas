@@ -16,7 +16,7 @@ const TimingShop = () => {
       features: [
         "Sistema de cronometraje RFID timing",
         "200 chips desechables incluidos",
-        "1 línea de meta",
+        "Cronometraje electrónico en meta",
         "Software de gestión básico",
         "Clasificaciones en tiempo real",
         "Grabación en vídeo de la meta",
@@ -27,13 +27,13 @@ const TimingShop = () => {
     {
       name: "Profesional",
       description: "Ideal para carreras medianas hasta 500 participantes",
-      price: "750€",
+      price: "500€",
       popular: true,
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing premium",
         "500 chips desechables incluidos",
-        "2 líneas (salida y meta)",
+        "Cronometraje electrónico en salida y meta",
         "Software de gestión avanzado",
         "Clasificaciones en tiempo real",
         "1 Punto intermedios de paso",
@@ -50,7 +50,7 @@ const TimingShop = () => {
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
         "1000 chips desechables incluidos",
-        "2 líneas (salida y meta)",
+        "Cronometraje electrónico en salida y meta",
         "Streaming de la cámara de línea de meta",
         "2 puntos intermedios de paso",
         "Streaming de la cámara de puntos de intermedios",
