@@ -9,7 +9,6 @@ import trailCarabeosImg from "@/assets/trail-los-carabeos.jpg";
 import turtziozImg from "@/assets/turtzioz-walk-run.jpg";
 import loiuTrailImg from "@/assets/loiu-trail.jpg";
 import trailComillasImg from "@/assets/trail-comillas.jpg";
-import portalCabanerosImg from "@/assets/portal-cabaneros.jpg";
 
 const Races = () => {
   const allRaces = [
@@ -51,15 +50,6 @@ const Races = () => {
     },
     {
       id: "5",
-      name: "Portal de Cabañeros",
-      date: "27 de Septiembre, 2025",
-      location: "Los Navalucillos, Toledo",
-      distances: ["42K", "21K"],
-      participants: 400,
-      imageUrl: portalCabanerosImg,
-    },
-    {
-      id: "6",
       name: "Peña Prieta SkyRace",
       date: "4 de Octubre, 2025",
       location: "Vega de Liébana, Cantabria",
