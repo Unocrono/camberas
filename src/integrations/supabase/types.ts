@@ -70,6 +70,63 @@ export type Database = {
           },
         ]
       }
+      gps_tracking: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          battery_level: number | null
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          race_id: string
+          registration_id: string
+          speed: number | null
+          timestamp: string
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery_level?: number | null
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          race_id: string
+          registration_id: string
+          speed?: number | null
+          timestamp?: string
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery_level?: number | null
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          race_id?: string
+          registration_id?: string
+          speed?: number | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gps_tracking_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gps_tracking_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           autonomous_community: string | null
@@ -255,6 +312,8 @@ export type Database = {
           created_at: string
           date: string
           description: string | null
+          gps_tracking_enabled: boolean | null
+          gps_update_frequency: number | null
           id: string
           image_url: string | null
           location: string
@@ -268,6 +327,8 @@ export type Database = {
           created_at?: string
           date: string
           description?: string | null
+          gps_tracking_enabled?: boolean | null
+          gps_update_frequency?: number | null
           id?: string
           image_url?: string | null
           location: string
@@ -281,6 +342,8 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string | null
+          gps_tracking_enabled?: boolean | null
+          gps_update_frequency?: number | null
           id?: string
           image_url?: string | null
           location?: string
