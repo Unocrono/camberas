@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
+import GPXParser from 'gpxparser';
 
 interface RunnerPosition {
   id: string;
@@ -23,6 +24,7 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
+  const [gpxUrl, setGpxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
@@ -43,6 +45,7 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
       'top-right'
     );
 
+    fetchRaceGpx();
     fetchInitialPositions();
     setupRealtimeSubscription();
 
@@ -50,6 +53,103 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
       map.current?.remove();
     };
   }, [raceId, mapboxToken]);
+
+  const fetchRaceGpx = async () => {
+    const { data, error } = await supabase
+      .from('races')
+      .select('gpx_file_url')
+      .eq('id', raceId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching GPX URL:', error);
+      return;
+    }
+
+    if (data?.gpx_file_url) {
+      setGpxUrl(data.gpx_file_url);
+      loadGpxRoute(data.gpx_file_url);
+    }
+  };
+
+  const loadGpxRoute = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const gpxText = await response.text();
+      
+      const gpx = new GPXParser();
+      gpx.parse(gpxText);
+
+      if (!map.current || !gpx.tracks || gpx.tracks.length === 0) return;
+
+      // Wait for map to be loaded
+      if (!map.current.isStyleLoaded()) {
+        map.current.on('load', () => addGpxToMap(gpx));
+      } else {
+        addGpxToMap(gpx);
+      }
+    } catch (error) {
+      console.error('Error loading GPX:', error);
+    }
+  };
+
+  const addGpxToMap = (gpx: any) => {
+    if (!map.current) return;
+
+    const coordinates: [number, number][] = [];
+    
+    gpx.tracks.forEach((track: any) => {
+      track.points.forEach((point: any) => {
+        coordinates.push([point.lon, point.lat]);
+      });
+    });
+
+    if (coordinates.length === 0) return;
+
+    // Add the route as a line layer
+    if (map.current.getSource('route')) {
+      (map.current.getSource('route') as mapboxgl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: coordinates,
+        },
+      });
+    } else {
+      map.current.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'LineString',
+            coordinates: coordinates,
+          },
+        },
+      });
+
+      map.current.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round',
+        },
+        paint: {
+          'line-color': '#FF6B35',
+          'line-width': 4,
+          'line-opacity': 0.8,
+        },
+      });
+    }
+
+    // Fit map to route bounds
+    const bounds = new mapboxgl.LngLatBounds();
+    coordinates.forEach(coord => bounds.extend(coord));
+    map.current.fitBounds(bounds, { padding: 50 });
+  };
 
   const fetchInitialPositions = async () => {
     const { data, error } = await supabase
@@ -155,7 +255,8 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
       }
     });
 
-    if (positions.length > 0) {
+    // Only fit bounds to runners if no GPX route is loaded
+    if (positions.length > 0 && !gpxUrl) {
       const bounds = new mapboxgl.LngLatBounds();
       positions.forEach((pos) => {
         bounds.extend([pos.longitude, pos.latitude]);
