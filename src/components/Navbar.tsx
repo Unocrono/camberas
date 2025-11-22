@@ -19,7 +19,7 @@ const Navbar = () => {
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
             <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>
-            //<NavLink to="/support-chat">Soporte</NavLink>
+            <NavLink to="/support-chat">Soporte</NavLink>
             <NavLink to="/timing-shop">Tienda</NavLink>
             {user && <NavLink to="/dashboard">Dashboard</NavLink>}
             {isOrganizer && (
