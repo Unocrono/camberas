@@ -1,148 +1,108 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { OrganizerSidebar } from "@/components/OrganizerSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
+import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
-import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
-import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
+
+type OrganizerView = "races" | "form-fields" | "registrations" | "results" | "splits";
 
 const OrganizerDashboard = () => {
-  const { user, isOrganizer, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    totalRaces: 0,
-    activeRaces: 0,
-    totalRegistrations: 0,
-  });
+  const { toast } = useToast();
+  const [isOrganizer, setIsOrganizer] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
+  const [currentView, setCurrentView] = useState<OrganizerView>("races");
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate("/auth");
-    } else if (!loading && !isOrganizer) {
-      navigate("/");
     }
-  }, [user, isOrganizer, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (user && isOrganizer) {
-      fetchOrganizerStats();
+    if (user) {
+      checkOrganizerRole();
     }
-  }, [user, isOrganizer]);
+  }, [user]);
 
-  const fetchOrganizerStats = async () => {
+  const checkOrganizerRole = async () => {
     try {
-      // Fetch races organized by this user
-      const { data: races } = await supabase
-        .from("races")
-        .select("id, date")
-        .eq("organizer_id", user!.id);
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: user!.id,
+        _role: "organizer",
+      });
 
-      const totalRaces = races?.length || 0;
-      const activeRaces =
-        races?.filter((race) => new Date(race.date) >= new Date()).length || 0;
+      if (error) throw error;
 
-      // Fetch registrations for organizer's races
-      const raceIds = races?.map((r) => r.id) || [];
-      let totalRegistrations = 0;
-      
-      if (raceIds.length > 0) {
-        const { count } = await supabase
-          .from("registrations")
-          .select("*", { count: "exact", head: true })
-          .in("race_id", raceIds);
-        totalRegistrations = count || 0;
+      if (!data) {
+        toast({
+          title: "Acceso denegado",
+          description: "No tienes permisos de organizador",
+          variant: "destructive",
+        });
+        navigate("/");
+        return;
       }
 
-      setStats({
-        totalRaces,
-        activeRaces,
-        totalRegistrations,
+      setIsOrganizer(data);
+    } catch (error: any) {
+      console.error("Error checking organizer role:", error);
+      toast({
+        title: "Error de autenticación",
+        description: error.message,
+        variant: "destructive",
       });
-    } catch (error) {
-      console.error("Error fetching organizer stats:", error);
+      navigate("/");
+    } finally {
+      setCheckingRole(false);
     }
   };
 
-  if (loading || !user || !isOrganizer) {
+  if (authLoading || checkingRole) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Verificando permisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isOrganizer) {
     return null;
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <main className="flex-1 container mx-auto px-4 py-24">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-8">Panel de Organizador</h1>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-background">
+        <OrganizerSidebar currentView={currentView} onViewChange={setCurrentView} />
+        
+        <div className="flex-1 flex flex-col">
+          <header className="h-16 border-b border-border flex items-center px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+            <SidebarTrigger />
+            <h1 className="text-2xl font-bold ml-4">Panel de Organizador</h1>
+          </header>
 
-          <div className="grid gap-4 md:grid-cols-3 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Total de Carreras</CardTitle>
-                <CardDescription>Carreras creadas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalRaces}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Carreras Activas</CardTitle>
-                <CardDescription>Próximas carreras</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.activeRaces}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Inscripciones</CardTitle>
-                <CardDescription>Total en tus carreras</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{stats.totalRegistrations}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="races" className="space-y-4">
-            <TabsList className="flex flex-wrap h-auto">
-              <TabsTrigger value="races">Mis Carreras</TabsTrigger>
-              <TabsTrigger value="form-fields">Formularios</TabsTrigger>
-              <TabsTrigger value="registrations">Inscripciones</TabsTrigger>
-              <TabsTrigger value="results">Resultados</TabsTrigger>
-              <TabsTrigger value="splits">Tiempos Parciales</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="races" className="space-y-4">
-              <RaceManagement isOrganizer={true} />
-            </TabsContent>
-
-            <TabsContent value="form-fields" className="space-y-4">
-              <FormFieldsManagement isOrganizer={true} />
-            </TabsContent>
-
-            <TabsContent value="registrations" className="space-y-4">
-              <RegistrationManagement isOrganizer={true} />
-            </TabsContent>
-
-            <TabsContent value="results" className="space-y-4">
-              <ResultsManagement isOrganizer={true} />
-            </TabsContent>
-
-            <TabsContent value="splits" className="space-y-4">
-              <SplitTimesManagement isOrganizer={true} />
-            </TabsContent>
-          </Tabs>
+          <main className="flex-1 p-6">
+            {currentView === "races" && <RaceManagement isOrganizer={true} />}
+            {currentView === "form-fields" && <FormFieldsManagement isOrganizer={true} />}
+            {currentView === "registrations" && <RegistrationManagement isOrganizer={true} />}
+            {currentView === "results" && <ResultsManagement isOrganizer={true} />}
+            {currentView === "splits" && <SplitTimesManagement isOrganizer={true} />}
+          </main>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
