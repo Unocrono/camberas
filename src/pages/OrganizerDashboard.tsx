@@ -9,6 +9,7 @@ import { RaceManagement } from "@/components/admin/RaceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
+import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { supabase } from "@/integrations/supabase/client";
 
 const OrganizerDashboard = () => {
@@ -110,8 +111,9 @@ const OrganizerDashboard = () => {
           </div>
 
           <Tabs defaultValue="races" className="space-y-4">
-            <TabsList>
+            <TabsList className="flex flex-wrap h-auto">
               <TabsTrigger value="races">Mis Carreras</TabsTrigger>
+              <TabsTrigger value="form-fields">Formularios</TabsTrigger>
               <TabsTrigger value="registrations">Inscripciones</TabsTrigger>
               <TabsTrigger value="results">Resultados</TabsTrigger>
               <TabsTrigger value="splits">Tiempos Parciales</TabsTrigger>
@@ -119,6 +121,10 @@ const OrganizerDashboard = () => {
 
             <TabsContent value="races" className="space-y-4">
               <RaceManagement isOrganizer={true} />
+            </TabsContent>
+
+            <TabsContent value="form-fields" className="space-y-4">
+              <FormFieldsManagement isOrganizer={true} />
             </TabsContent>
 
             <TabsContent value="registrations" className="space-y-4">
