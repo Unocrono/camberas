@@ -15,6 +15,7 @@ const TimingShop = () => {
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing",
+        "Cronometro Reloj en meta",
         "200 chips desechables incluidos",
         "Cronometraje electrónico en meta",
         "Software de gestión básico",
@@ -32,6 +33,7 @@ const TimingShop = () => {
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing premium",
+        "Cronometro Reloj en meta",
         "500 chips desechables incluidos",
         "Cronometraje electrónico en meta",
         "Software de gestión avanzado",
@@ -49,6 +51,7 @@ const TimingShop = () => {
       image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
+        "Cronometro Reloj en meta",
         "500 chips desechables incluidos",
         "500 dorsales trail ",
         "Cronometraje electrónico en salida y meta",
