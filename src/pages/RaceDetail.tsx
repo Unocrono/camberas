@@ -221,8 +221,8 @@ const RaceDetail = () => {
 
       if (profileError) throw profileError;
 
-      // Create registration with custom form data stored as metadata
-      const { error: registrationError } = await supabase
+      // Create registration
+      const { data: newRegistration, error: registrationError } = await supabase
         .from("registrations")
         .insert({
           user_id: user.id,
@@ -230,12 +230,38 @@ const RaceDetail = () => {
           race_distance_id: selectedDistance.id,
           status: "pending",
           payment_status: "pending",
-        });
+        })
+        .select()
+        .single();
 
       if (registrationError) throw registrationError;
 
-      // TODO: Store custom form data in a separate table if needed
-      console.log("Custom form data:", customFormData);
+      // Fetch custom form fields for this race
+      const { data: formFields, error: fieldsError } = await supabase
+        .from("registration_form_fields")
+        .select("id, field_name")
+        .eq("race_id", id);
+
+      if (fieldsError) throw fieldsError;
+
+      // Store custom form field responses
+      if (formFields && formFields.length > 0) {
+        const responses = formFields
+          .filter(field => customFormData[field.field_name] !== undefined && customFormData[field.field_name] !== "")
+          .map(field => ({
+            registration_id: newRegistration.id,
+            field_id: field.id,
+            field_value: String(customFormData[field.field_name]),
+          }));
+
+        if (responses.length > 0) {
+          const { error: responsesError } = await supabase
+            .from("registration_responses")
+            .insert(responses);
+
+          if (responsesError) throw responsesError;
+        }
+      }
 
       // Send confirmation email
       try {

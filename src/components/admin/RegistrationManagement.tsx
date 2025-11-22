@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Download, Filter, Hash } from "lucide-react";
+import { RegistrationResponsesView } from "./RegistrationResponsesView";
 
 interface Registration {
   id: string;
@@ -383,53 +384,57 @@ export function RegistrationManagement({ isOrganizer = false }: RegistrationMana
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Dialog
-                          open={assigningBib === reg.id}
-                          onOpenChange={(open) => {
-                            if (!open) {
-                              setAssigningBib(null);
-                              setBibNumber("");
-                            }
-                          }}
-                        >
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setAssigningBib(reg.id);
-                                setBibNumber(reg.bib_number?.toString() || "");
-                              }}
-                            >
-                              <Hash className="h-4 w-4 mr-1" />
-                              Dorsal
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Asignar Dorsal</DialogTitle>
-                              <DialogDescription>
-                                Asignar número de dorsal a {reg.profile.first_name} {reg.profile.last_name}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 mt-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="bib">Número de Dorsal</Label>
-                                <Input
-                                  id="bib"
-                                  type="number"
-                                  min="1"
-                                  value={bibNumber}
-                                  onChange={(e) => setBibNumber(e.target.value)}
-                                  placeholder="Ej: 123"
-                                />
-                              </div>
-                              <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
-                                Asignar
+                        <div className="flex gap-2">
+                          <Dialog
+                            open={assigningBib === reg.id}
+                            onOpenChange={(open) => {
+                              if (!open) {
+                                setAssigningBib(null);
+                                setBibNumber("");
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setAssigningBib(reg.id);
+                                  setBibNumber(reg.bib_number?.toString() || "");
+                                }}
+                              >
+                                <Hash className="h-4 w-4 mr-1" />
+                                Dorsal
                               </Button>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Asignar Dorsal</DialogTitle>
+                                <DialogDescription>
+                                  Asignar número de dorsal a {reg.profile.first_name} {reg.profile.last_name}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4 mt-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="bib">Número de Dorsal</Label>
+                                  <Input
+                                    id="bib"
+                                    type="number"
+                                    min="1"
+                                    value={bibNumber}
+                                    onChange={(e) => setBibNumber(e.target.value)}
+                                    placeholder="Ej: 123"
+                                  />
+                                </div>
+                                <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
+                                  Asignar
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <RegistrationResponsesView registrationId={reg.id} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
