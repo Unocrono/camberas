@@ -4,9 +4,12 @@ import { Menu, User, Shield, Briefcase } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsFunctionEnabled } from "@/hooks/useEdgeFunctionFlags";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer } = useAuth();
+  const isTrainingPlanEnabled = useIsFunctionEnabled("generate-training-plan");
+  const isSupportChatEnabled = useIsFunctionEnabled("support-chat");
 
   return (
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
@@ -18,8 +21,8 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
-            <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>
-            <NavLink to="/support-chat">Soporte</NavLink>
+            {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
+            {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
             <NavLink to="/timing-shop">Tienda</NavLink>
             {user && <NavLink to="/dashboard">Dashboard</NavLink>}
             {isOrganizer && (
@@ -63,8 +66,8 @@ const Navbar = () => {
             <nav className="flex flex-col gap-4 mt-8">
               <NavLink to="/">Inicio</NavLink>
               <NavLink to="/races">Carreras</NavLink>
-              <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>
-              <NavLink to="/support-chat">Soporte</NavLink>
+              {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
+              {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
               <NavLink to="/timing-shop">Tienda</NavLink>
               {user && <NavLink to="/dashboard">Dashboard</NavLink>}
               {isOrganizer && (
