@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, FileText } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type OrganizerView = "races" | "form-fields" | "registrations" | "results" | "splits";
+type OrganizerView = "races" | "registrations" | "results" | "splits";
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
@@ -21,7 +21,6 @@ interface OrganizerSidebarProps {
 
 const menuItems = [
   { title: "Gestión de Carreras", view: "races" as OrganizerView, icon: Calendar },
-  { title: "Campos de Formulario", view: "form-fields" as OrganizerView, icon: FileText },
   { title: "Inscripciones", view: "registrations" as OrganizerView, icon: Users },
   { title: "Resultados", view: "results" as OrganizerView, icon: Trophy },
   { title: "Tiempos Parciales", view: "splits" as OrganizerView, icon: Timer },
