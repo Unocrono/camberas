@@ -6,12 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { OrganizerSidebar } from "@/components/OrganizerSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
+import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "registrations" | "results" | "splits";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -94,6 +95,7 @@ const OrganizerDashboard = () => {
 
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
+            {currentView === "distances" && <DistanceManagement isOrganizer={true} />}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} />}

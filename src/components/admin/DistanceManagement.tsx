@@ -1,0 +1,666 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload } from "lucide-react";
+import { z } from "zod";
+
+const distanceSchema = z.object({
+  name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
+  distance_km: z.number().positive("La distancia debe ser positiva"),
+  elevation_gain: z.number().positive("El desnivel debe ser positivo").optional(),
+  price: z.number().min(0, "El precio no puede ser negativo"),
+  max_participants: z.number().positive().optional(),
+  cutoff_time: z.string().max(50).optional(),
+  start_location: z.string().trim().max(200).optional(),
+  finish_location: z.string().trim().max(200).optional(),
+  image_url: z.string().url("URL inválida").optional().or(z.literal("")),
+  gpx_file_url: z.string().url("URL inválida").optional().or(z.literal("")),
+});
+
+interface Distance {
+  id: string;
+  race_id: string;
+  name: string;
+  distance_km: number;
+  elevation_gain: number | null;
+  price: number;
+  max_participants: number | null;
+  cutoff_time: string | null;
+  start_location: string | null;
+  finish_location: string | null;
+  image_url: string | null;
+  gpx_file_url: string | null;
+  created_at: string;
+}
+
+interface Race {
+  id: string;
+  name: string;
+  date: string;
+  location: string;
+}
+
+interface DistanceManagementProps {
+  isOrganizer?: boolean;
+}
+
+export function DistanceManagement({ isOrganizer = false }: DistanceManagementProps) {
+  const { toast } = useToast();
+  const [distances, setDistances] = useState<Distance[]>([]);
+  const [races, setRaces] = useState<Race[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingDistance, setEditingDistance] = useState<Distance | null>(null);
+  
+  const [formData, setFormData] = useState({
+    race_id: "",
+    name: "",
+    distance_km: "",
+    elevation_gain: "",
+    price: "",
+    max_participants: "",
+    cutoff_time: "",
+    start_location: "",
+    finish_location: "",
+    image_url: "",
+  });
+
+  const [gpxFile, setGpxFile] = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    fetchRaces();
+    fetchDistances();
+  }, []);
+
+  const fetchRaces = async () => {
+    try {
+      let query = supabase
+        .from("races")
+        .select("id, name, date, location")
+        .order("date", { ascending: false });
+      
+      if (isOrganizer) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          query = query.eq("organizer_id", user.id);
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setRaces(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error al cargar carreras",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchDistances = async () => {
+    try {
+      let query = supabase
+        .from("race_distances")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (isOrganizer) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get races from this organizer
+          const { data: userRaces } = await supabase
+            .from("races")
+            .select("id")
+            .eq("organizer_id", user.id);
+          
+          if (userRaces && userRaces.length > 0) {
+            const raceIds = userRaces.map(r => r.id);
+            query = query.in("race_id", raceIds);
+          }
+        }
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setDistances(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error al cargar distancias",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenDialog = (distance?: Distance) => {
+    if (distance) {
+      setEditingDistance(distance);
+      setFormData({
+        race_id: distance.race_id,
+        name: distance.name,
+        distance_km: distance.distance_km.toString(),
+        elevation_gain: distance.elevation_gain?.toString() || "",
+        price: distance.price.toString(),
+        max_participants: distance.max_participants?.toString() || "",
+        cutoff_time: distance.cutoff_time || "",
+        start_location: distance.start_location || "",
+        finish_location: distance.finish_location || "",
+        image_url: distance.image_url || "",
+      });
+    } else {
+      setEditingDistance(null);
+      setFormData({
+        race_id: "",
+        name: "",
+        distance_km: "",
+        elevation_gain: "",
+        price: "",
+        max_participants: "",
+        cutoff_time: "",
+        start_location: "",
+        finish_location: "",
+        image_url: "",
+      });
+    }
+    setGpxFile(null);
+    setImageFile(null);
+    setIsDialogOpen(true);
+  };
+
+  const uploadFile = async (file: File, bucket: string, prefix: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${prefix}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Error al subir archivo",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setUploading(true);
+
+    try {
+      const validatedData = distanceSchema.parse({
+        name: formData.name,
+        distance_km: parseFloat(formData.distance_km),
+        elevation_gain: formData.elevation_gain ? parseInt(formData.elevation_gain) : undefined,
+        price: parseFloat(formData.price),
+        max_participants: formData.max_participants ? parseInt(formData.max_participants) : undefined,
+        cutoff_time: formData.cutoff_time || undefined,
+        start_location: formData.start_location || undefined,
+        finish_location: formData.finish_location || undefined,
+        image_url: formData.image_url || undefined,
+      });
+
+      let gpxUrl = editingDistance?.gpx_file_url || null;
+      let imageUrl = formData.image_url || null;
+
+      // Upload files
+      if (gpxFile) {
+        const uploadedUrl = await uploadFile(gpxFile, 'race-gpx', `distance-${formData.race_id}`);
+        if (uploadedUrl) gpxUrl = uploadedUrl;
+      }
+
+      if (imageFile) {
+        const uploadedUrl = await uploadFile(imageFile, 'race-photos', `distance-${formData.race_id}`);
+        if (uploadedUrl) imageUrl = uploadedUrl;
+      }
+
+      const distanceData = {
+        race_id: formData.race_id,
+        name: validatedData.name,
+        distance_km: validatedData.distance_km,
+        elevation_gain: validatedData.elevation_gain || null,
+        price: validatedData.price,
+        max_participants: validatedData.max_participants || null,
+        cutoff_time: validatedData.cutoff_time || null,
+        start_location: validatedData.start_location || null,
+        finish_location: validatedData.finish_location || null,
+        image_url: imageUrl,
+        gpx_file_url: gpxUrl,
+      };
+
+      if (editingDistance) {
+        const { error } = await supabase
+          .from("race_distances")
+          .update(distanceData)
+          .eq("id", editingDistance.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Distancia actualizada",
+          description: "La distancia se ha actualizado exitosamente",
+        });
+      } else {
+        const { error } = await supabase
+          .from("race_distances")
+          .insert([distanceData]);
+
+        if (error) throw error;
+
+        toast({
+          title: "Distancia creada",
+          description: "La distancia se ha creado exitosamente",
+        });
+      }
+
+      setIsDialogOpen(false);
+      fetchDistances();
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error de validación",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsSubmitting(false);
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (distanceId: string) => {
+    try {
+      const { error } = await supabase
+        .from("race_distances")
+        .delete()
+        .eq("id", distanceId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Distancia eliminada",
+        description: "La distancia se ha eliminado exitosamente",
+      });
+
+      fetchDistances();
+    } catch (error: any) {
+      toast({
+        title: "Error al eliminar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getRaceName = (raceId: string) => {
+    const race = races.find(r => r.id === raceId);
+    return race ? race.name : "Carrera desconocida";
+  };
+
+  if (loading) {
+    return <div className="text-muted-foreground">Cargando distancias...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold">Gestión de Distancias</h2>
+          <p className="text-muted-foreground">Crea, edita y elimina distancias de tus carreras</p>
+        </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => handleOpenDialog()} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Nueva Distancia
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{editingDistance ? "Editar Distancia" : "Nueva Distancia"}</DialogTitle>
+              <DialogDescription>
+                {editingDistance ? "Modifica los datos de la distancia" : "Completa los datos para crear una nueva distancia"}
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="race_id">Carrera *</Label>
+                <Select 
+                  value={formData.race_id} 
+                  onValueChange={(value) => setFormData({ ...formData, race_id: value })}
+                  disabled={!!editingDistance}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una carrera" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {races.map((race) => (
+                      <SelectItem key={race.id} value={race.id}>
+                        {race.name} - {new Date(race.date).toLocaleDateString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="name">Nombre de la Distancia *</Label>
+                <Input
+                  id="name"
+                  placeholder="ej: Ultra Trail 100K"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="distance_km">Distancia (km) *</Label>
+                  <Input
+                    id="distance_km"
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    placeholder="42.195"
+                    value={formData.distance_km}
+                    onChange={(e) => setFormData({ ...formData, distance_km: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="elevation_gain">Desnivel Positivo (m)</Label>
+                  <Input
+                    id="elevation_gain"
+                    type="number"
+                    min="0"
+                    placeholder="2500"
+                    value={formData.elevation_gain}
+                    onChange={(e) => setFormData({ ...formData, elevation_gain: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Precio (€) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="45.00"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="max_participants">Plazas Máximas</Label>
+                  <Input
+                    id="max_participants"
+                    type="number"
+                    min="1"
+                    placeholder="500"
+                    value={formData.max_participants}
+                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cutoff_time">Tiempo Límite</Label>
+                <Input
+                  id="cutoff_time"
+                  placeholder="ej: 14 horas"
+                  value={formData.cutoff_time}
+                  onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start_location">Zona de Salida</Label>
+                  <Input
+                    id="start_location"
+                    placeholder="ej: Plaza Mayor"
+                    value={formData.start_location}
+                    onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="finish_location">Zona de Meta</Label>
+                  <Input
+                    id="finish_location"
+                    placeholder="ej: Parque Central"
+                    value={formData.finish_location}
+                    onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  Archivos
+                </h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="image_file">Imagen de la Distancia</Label>
+                  <Input
+                    id="image_file"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  />
+                  {formData.image_url && !imageFile && (
+                    <p className="text-xs text-muted-foreground">✓ Imagen cargada</p>
+                  )}
+                  {imageFile && (
+                    <p className="text-xs text-muted-foreground">
+                      Archivo seleccionado: {imageFile.name}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gpx_file">Archivo GPX del Recorrido</Label>
+                  <Input
+                    id="gpx_file"
+                    type="file"
+                    accept=".gpx"
+                    onChange={(e) => setGpxFile(e.target.files?.[0] || null)}
+                  />
+                  {editingDistance?.gpx_file_url && !gpxFile && (
+                    <p className="text-xs text-muted-foreground">✓ Archivo GPX cargado</p>
+                  )}
+                  {gpxFile && (
+                    <p className="text-xs text-muted-foreground">
+                      Archivo seleccionado: {gpxFile.name}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="image_url">URL de Imagen (alternativa)</Label>
+                  <Input
+                    id="image_url"
+                    type="url"
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                    value={formData.image_url}
+                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isSubmitting || uploading}>
+                {uploading ? "Subiendo archivos..." : isSubmitting ? "Guardando..." : editingDistance ? "Actualizar Distancia" : "Crear Distancia"}
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {distances.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Route className="h-16 w-16 text-muted-foreground mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No hay distancias</h3>
+              <p className="text-muted-foreground">Crea tu primera distancia para comenzar</p>
+            </CardContent>
+          </Card>
+        ) : (
+          distances.map((distance) => (
+            <Card key={distance.id}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <CardTitle className="text-2xl">{distance.name}</CardTitle>
+                    <CardDescription className="mt-1 text-base font-medium">
+                      {getRaceName(distance.race_id)}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="icon" onClick={() => handleOpenDialog(distance)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar distancia?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta acción no se puede deshacer. Se eliminará permanentemente la distancia.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(distance.id)}>
+                            Eliminar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Route className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Distancia</p>
+                      <p className="font-semibold">{distance.distance_km} km</p>
+                    </div>
+                  </div>
+                  
+                  {distance.elevation_gain && (
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Desnivel+</p>
+                        <p className="font-semibold">{distance.elevation_gain} m</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">€</span>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Precio</p>
+                      <p className="font-semibold">{distance.price.toFixed(2)} €</p>
+                    </div>
+                  </div>
+                  
+                  {distance.max_participants && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Plazas</p>
+                        <p className="font-semibold">{distance.max_participants}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {distance.cutoff_time && (
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Tiempo límite</p>
+                        <p className="font-semibold">{distance.cutoff_time}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {distance.start_location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-green-600" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Salida</p>
+                        <p className="font-semibold text-sm">{distance.start_location}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {distance.finish_location && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-red-600" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Meta</p>
+                        <p className="font-semibold text-sm">{distance.finish_location}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

@@ -246,6 +246,7 @@ export type Database = {
           cutoff_time: string | null
           distance_km: number
           elevation_gain: number | null
+          finish_location: string | null
           gpx_file_url: string | null
           id: string
           image_url: string | null
@@ -253,6 +254,7 @@ export type Database = {
           name: string
           price: number
           race_id: string
+          start_location: string | null
           updated_at: string
         }
         Insert: {
@@ -260,6 +262,7 @@ export type Database = {
           cutoff_time?: string | null
           distance_km: number
           elevation_gain?: number | null
+          finish_location?: string | null
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
@@ -267,6 +270,7 @@ export type Database = {
           name: string
           price: number
           race_id: string
+          start_location?: string | null
           updated_at?: string
         }
         Update: {
@@ -274,6 +278,7 @@ export type Database = {
           cutoff_time?: string | null
           distance_km?: number
           elevation_gain?: number | null
+          finish_location?: string | null
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
@@ -281,6 +286,7 @@ export type Database = {
           name?: string
           price?: number
           race_id?: string
+          start_location?: string | null
           updated_at?: string
         }
         Relationships: [
