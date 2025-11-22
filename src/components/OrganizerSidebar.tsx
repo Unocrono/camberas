@@ -27,11 +27,15 @@ const menuItems = [
 ];
 
 export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebarProps) {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
+  const { setOpenMobile } = useSidebar();
+
+  const handleItemClick = (view: OrganizerView) => {
+    onViewChange(view);
+    setOpenMobile(false); // Cierra el sidebar en móvil después de seleccionar
+  };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Organizador</SidebarGroupLabel>
@@ -40,7 +44,7 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.view}>
                   <SidebarMenuButton
-                    onClick={() => onViewChange(item.view)}
+                    onClick={() => handleItemClick(item.view)}
                     isActive={currentView === item.view}
                     tooltip={item.title}
                   >
