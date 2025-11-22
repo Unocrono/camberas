@@ -459,6 +459,48 @@ export type Database = {
           },
         ]
       }
+      registration_responses: {
+        Row: {
+          created_at: string
+          field_id: string
+          field_value: string
+          id: string
+          registration_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_id: string
+          field_value: string
+          id?: string
+          registration_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_id?: string
+          field_value?: string
+          id?: string
+          registration_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_responses_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "registration_form_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_responses_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registrations: {
         Row: {
           bib_number: number | null
