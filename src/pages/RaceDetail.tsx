@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -297,19 +297,77 @@ const RaceDetail = () => {
     );
   }
 
+  // Countdown timer
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    if (!race?.date) return;
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const raceDate = new Date(race.date).getTime();
+      const distance = raceDate - now;
+
+      if (distance > 0) {
+        setCountdown({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000),
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [race?.date]);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       
       <div className="pt-20">
-        {/* Hero Image */}
-        <div className="relative h-[50vh] overflow-hidden">
+        {/* Hero Cover Image */}
+        <div className="relative h-[60vh] overflow-hidden">
           <img 
-            src={race.image_url || raceScene} 
+            src={race.cover_image_url || race.image_url || raceScene} 
             alt={race.name}
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          
+          {/* Logo overlay */}
+          {race.logo_url && (
+            <div className="absolute top-8 left-8 bg-background/95 backdrop-blur-sm rounded-lg p-4 shadow-lg">
+              <img 
+                src={race.logo_url} 
+                alt={`${race.name} logo`}
+                className="h-20 w-auto object-contain"
+              />
+            </div>
+          )}
+          
+          {/* Countdown Timer */}
+          <div className="absolute bottom-8 right-8 bg-background/95 backdrop-blur-sm rounded-lg p-6 shadow-lg">
+            <p className="text-sm text-muted-foreground mb-2 text-center">Cuenta atrás</p>
+            <div className="flex gap-4">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{countdown.days}</div>
+                <div className="text-xs text-muted-foreground">días</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{countdown.hours}</div>
+                <div className="text-xs text-muted-foreground">hrs</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{countdown.minutes}</div>
+                <div className="text-xs text-muted-foreground">min</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-primary">{countdown.seconds}</div>
+                <div className="text-xs text-muted-foreground">seg</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
@@ -325,6 +383,27 @@ const RaceDetail = () => {
               </div>
               <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
+              
+              {/* Contact & Web Info */}
+              <div className="mt-4 flex flex-wrap gap-4">
+                {race.official_website_url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={race.official_website_url} target="_blank" rel="noopener noreferrer">
+                      <Globe className="h-4 w-4 mr-2" />
+                      Sitio Web Oficial
+                    </a>
+                  </Button>
+                )}
+                {race.organizer_email && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={`mailto:${race.organizer_email}`}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Contactar Organizador
+                    </a>
+                  </Button>
+                )}
+              </div>
+
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => navigate(`/race/${id}/results`)}>
                   Ver Resultados
@@ -391,7 +470,19 @@ const RaceDetail = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {race.distances.map((distance: any) => (
-                    <Card key={distance.id} className="border-2 hover:border-primary transition-all duration-300">
+                    <Card key={distance.id} className="border-2 hover:border-primary transition-all duration-300 overflow-hidden">
+                      {/* Distance Image */}
+                      {distance.image_url && (
+                        <div className="relative h-48 overflow-hidden">
+                          <img 
+                            src={distance.image_url} 
+                            alt={distance.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+                        </div>
+                      )}
+                      
                       <CardHeader>
                         <CardTitle className="text-3xl text-primary">{distance.name}</CardTitle>
                       </CardHeader>
@@ -422,6 +513,21 @@ const RaceDetail = () => {
                             </span>
                           </div>
                         </div>
+
+                        {/* GPX Download */}
+                        {distance.gpx_file_url && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            asChild
+                          >
+                            <a href={distance.gpx_file_url} download>
+                              <Download className="h-4 w-4 mr-2" />
+                              Descargar GPX
+                            </a>
+                          </Button>
+                        )}
                         
                         <div className="pt-4 border-t border-border">
                           <p className="text-2xl font-bold text-foreground mb-3">{distance.price}€</p>
