@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 import raceScene from "@/assets/race-scene.jpg";
+import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 
 const registrationSchema = z.object({
   phone: z.string()
@@ -59,6 +60,8 @@ const RaceDetail = () => {
     emergency_contact: "",
     emergency_phone: "",
   });
+  
+  const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchRaceDetails();
@@ -166,6 +169,13 @@ const RaceDetail = () => {
     setIsDialogOpen(true);
   };
 
+  const handleCustomFieldChange = (fieldName: string, value: any) => {
+    setCustomFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -174,7 +184,7 @@ const RaceDetail = () => {
     setIsSubmitting(true);
 
     try {
-      // Validate form data
+      // Validate standard form data
       const validatedData = registrationSchema.parse(formData);
 
       // Check if user is already registered for this race
@@ -211,7 +221,7 @@ const RaceDetail = () => {
 
       if (profileError) throw profileError;
 
-      // Create registration
+      // Create registration with custom form data stored as metadata
       const { error: registrationError } = await supabase
         .from("registrations")
         .insert({
@@ -223,6 +233,9 @@ const RaceDetail = () => {
         });
 
       if (registrationError) throw registrationError;
+
+      // TODO: Store custom form data in a separate table if needed
+      console.log("Custom form data:", customFormData);
 
       // Send confirmation email
       try {
@@ -554,31 +567,58 @@ const RaceDetail = () => {
                                 </DialogDescription>
                               </DialogHeader>
                               
-                              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="phone">Teléfono *</Label>
-                                    <Input
-                                      id="phone"
-                                      type="tel"
-                                      placeholder="+34 600 000 000"
-                                      value={formData.phone}
-                                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                      required
-                                    />
-                                  </div>
+                              <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+                                {/* Standard Profile Fields */}
+                                <div className="space-y-4 pb-4 border-b">
+                                  <h3 className="font-semibold text-lg">Datos Personales</h3>
                                   
-                                  <div className="space-y-2">
-                                    <Label htmlFor="dni_passport">DNI/Pasaporte *</Label>
-                                    <Input
-                                      id="dni_passport"
-                                      placeholder="12345678A"
-                                      value={formData.dni_passport}
-                                      onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
-                                      required
-                                    />
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="firstName">Nombre *</Label>
+                                      <Input
+                                        id="firstName"
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                                        required
+                                        disabled
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label htmlFor="lastName">Apellidos *</Label>
+                                      <Input
+                                        id="lastName"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                                        required
+                                        disabled
+                                      />
+                                    </div>
                                   </div>
-                                  
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="phone">Teléfono *</Label>
+                                      <Input
+                                        id="phone"
+                                        type="tel"
+                                        value={formData.phone}
+                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label htmlFor="dni_passport">DNI/Pasaporte *</Label>
+                                      <Input
+                                        id="dni_passport"
+                                        value={formData.dni_passport}
+                                        onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
+                                        required
+                                      />
+                                    </div>
+                                  </div>
+
                                   <div className="space-y-2">
                                     <Label htmlFor="birth_date">Fecha de Nacimiento *</Label>
                                     <Input
@@ -589,29 +629,39 @@ const RaceDetail = () => {
                                       required
                                     />
                                   </div>
-                                  
-                                  <div className="space-y-2">
-                                    <Label htmlFor="emergency_contact">Contacto de Emergencia *</Label>
-                                    <Input
-                                      id="emergency_contact"
-                                      placeholder="Nombre del contacto"
-                                      value={formData.emergency_contact}
-                                      onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-                                      required
-                                    />
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="emergency_contact">Contacto de Emergencia *</Label>
+                                      <Input
+                                        id="emergency_contact"
+                                        value={formData.emergency_contact}
+                                        onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                                        required
+                                      />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <Label htmlFor="emergency_phone">Teléfono de Emergencia *</Label>
+                                      <Input
+                                        id="emergency_phone"
+                                        type="tel"
+                                        value={formData.emergency_phone}
+                                        onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
+                                        required
+                                      />
+                                    </div>
                                   </div>
-                                  
-                                  <div className="space-y-2 md:col-span-2">
-                                    <Label htmlFor="emergency_phone">Teléfono de Emergencia *</Label>
-                                    <Input
-                                      id="emergency_phone"
-                                      type="tel"
-                                      placeholder="+34 600 000 000"
-                                      value={formData.emergency_phone}
-                                      onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
-                                      required
-                                    />
-                                  </div>
+                                </div>
+
+                                {/* Dynamic Custom Fields */}
+                                <div className="space-y-4">
+                                  <h3 className="font-semibold text-lg">Información Adicional</h3>
+                                  <DynamicRegistrationForm
+                                    raceId={id!}
+                                    formData={customFormData}
+                                    onChange={handleCustomFieldChange}
+                                  />
                                 </div>
                                 
                                 <div className="pt-4 border-t border-border">
