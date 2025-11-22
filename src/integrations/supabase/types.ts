@@ -70,6 +70,33 @@ export type Database = {
           },
         ]
       }
+      edge_function_flags: {
+        Row: {
+          created_at: string
+          description: string | null
+          function_name: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          function_name: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          function_name?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gps_tracking: {
         Row: {
           accuracy: number | null
