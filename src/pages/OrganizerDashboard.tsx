@@ -82,17 +82,17 @@ const OrganizerDashboard = () => {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={false}>
       <div className="min-h-screen flex w-full bg-background">
         <OrganizerSidebar currentView={currentView} onViewChange={setCurrentView} />
         
-        <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border flex items-center px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <SidebarTrigger />
-            <h1 className="text-2xl font-bold ml-4">Panel de Organizador</h1>
+        <div className="flex-1 flex flex-col w-full">
+          <header className="h-16 border-b border-border flex items-center px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+            <SidebarTrigger className="mr-2" />
+            <h1 className="text-xl md:text-2xl font-bold">Panel de Organizador</h1>
           </header>
 
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} />}
