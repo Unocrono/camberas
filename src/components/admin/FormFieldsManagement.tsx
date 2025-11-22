@@ -12,6 +12,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, GripVertical, FileText } from "lucide-react";
 import { z } from "zod";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const fieldSchema = z.object({
   field_name: z.string()
@@ -46,6 +63,107 @@ interface FormFieldsManagementProps {
   isOrganizer?: boolean;
 }
 
+interface SortableFieldItemProps {
+  field: FormField;
+  fieldTypeLabels: Record<string, string>;
+  onEdit: (field: FormField) => void;
+  onDelete: (fieldId: string) => void;
+}
+
+function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete }: SortableFieldItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || "transform 200ms ease",
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0,
+  };
+
+  return (
+    <Card ref={setNodeRef} style={style} className="cursor-default hover:shadow-md transition-shadow">
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div className="flex items-start gap-3 flex-1">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing mt-1 touch-none p-1 rounded hover:bg-muted/50 transition-colors"
+              aria-label="Arrastrar para reordenar"
+            >
+              <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">{field.field_label}</CardTitle>
+              <CardDescription className="mt-1">
+                <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
+                  {field.field_name}
+                </span>
+                <span className="mx-2">•</span>
+                <span>{fieldTypeLabels[field.field_type]}</span>
+                {field.is_required && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="text-destructive">Obligatorio</span>
+                  </>
+                )}
+              </CardDescription>
+              {field.help_text && (
+                <p className="text-sm text-muted-foreground mt-2">{field.help_text}</p>
+              )}
+              {field.field_options?.options && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-1">Opciones:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {field.field_options.options.map((opt: string, i: number) => (
+                      <span key={i} className="text-xs bg-muted px-2 py-1 rounded">
+                        {opt}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="icon" onClick={() => onEdit(field)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar campo?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta acción no se puede deshacer. El campo será eliminado permanentemente.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onDelete(field.id)}>
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+
 export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManagementProps) {
   const { toast } = useToast();
   const [races, setRaces] = useState<any[]>([]);
@@ -55,6 +173,13 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingField, setEditingField] = useState<FormField | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   const [formData, setFormData] = useState({
     field_name: "",
@@ -287,6 +412,50 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
     }
   };
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const oldIndex = fields.findIndex((f) => f.id === active.id);
+    const newIndex = fields.findIndex((f) => f.id === over.id);
+
+    const newFields = arrayMove(fields, oldIndex, newIndex);
+    setFields(newFields);
+
+    // Update field_order in database
+    try {
+      const updates = newFields.map((field, index) => ({
+        id: field.id,
+        field_order: index + 1,
+      }));
+
+      for (const update of updates) {
+        const { error } = await supabase
+          .from("registration_form_fields")
+          .update({ field_order: update.field_order })
+          .eq("id", update.id);
+
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Orden actualizado",
+        description: "El orden de los campos se ha actualizado exitosamente",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error al actualizar orden",
+        description: error.message,
+        variant: "destructive",
+      });
+      // Revert on error
+      fetchFields();
+    }
+  };
+
   const fieldTypeLabels: Record<string, string> = {
     text: "Texto",
     email: "Email",
@@ -321,7 +490,9 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
       <div className="flex flex-col gap-4 md:flex-row md:justify-between md:items-center">
         <div>
           <h2 className="text-3xl font-bold">Campos de Inscripción</h2>
-          <p className="text-muted-foreground">Personaliza el formulario de inscripción</p>
+          <p className="text-muted-foreground">
+            Personaliza el formulario de inscripción. Arrastra los campos para reordenarlos.
+          </p>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
@@ -490,74 +661,28 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
             </CardContent>
           </Card>
         ) : (
-          fields.map((field) => (
-            <Card key={field.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex items-start gap-3 flex-1">
-                    <GripVertical className="h-5 w-5 text-muted-foreground mt-1" />
-                    <div>
-                      <CardTitle className="text-xl">{field.field_label}</CardTitle>
-                      <CardDescription className="mt-1">
-                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                          {field.field_name}
-                        </span>
-                        <span className="mx-2">•</span>
-                        <span>{fieldTypeLabels[field.field_type]}</span>
-                        {field.is_required && (
-                          <>
-                            <span className="mx-2">•</span>
-                            <span className="text-destructive">Obligatorio</span>
-                          </>
-                        )}
-                      </CardDescription>
-                      {field.help_text && (
-                        <p className="text-sm text-muted-foreground mt-2">{field.help_text}</p>
-                      )}
-                      {field.field_options?.options && (
-                        <div className="mt-2">
-                          <p className="text-xs text-muted-foreground mb-1">Opciones:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {field.field_options.options.map((opt: string, i: number) => (
-                              <span key={i} className="text-xs bg-muted px-2 py-1 rounded">
-                                {opt}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="icon" onClick={() => handleOpenDialog(field)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar campo?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción no se puede deshacer. El campo será eliminado permanentemente.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleDelete(field.id)}>
-                            Eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              </CardHeader>
-            </Card>
-          ))
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={fields.map((f) => f.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {fields.map((field) => (
+                  <SortableFieldItem
+                    key={field.id}
+                    field={field}
+                    fieldTypeLabels={fieldTypeLabels}
+                    onEdit={handleOpenDialog}
+                    onDelete={handleDelete}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>
