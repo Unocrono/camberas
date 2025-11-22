@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -507,9 +507,9 @@ const RaceDetail = () => {
                   Elige tu Distancia
                 </h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {race.distances.map((distance: any) => (
-                    <Card key={distance.id} className="border-2 hover:border-primary transition-all duration-300 overflow-hidden">
+                    <Card key={distance.id} className="border-2 hover:border-primary hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
                       {/* Distance Image */}
                       {distance.image_url && (
                         <div className="relative h-48 overflow-hidden">
@@ -519,28 +519,35 @@ const RaceDetail = () => {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+                          <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground font-bold text-base px-3 py-1">
+                            {distance.price}€
+                          </Badge>
                         </div>
                       )}
                       
-                      <CardHeader>
-                        <CardTitle className="text-3xl text-primary">{distance.name}</CardTitle>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-2xl text-primary">{distance.name}</CardTitle>
+                        {!distance.image_url && (
+                          <div className="text-3xl font-bold text-primary mt-2">{distance.price}€</div>
+                        )}
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent className="space-y-4 flex-1 flex flex-col">
+                        {/* Main Stats */}
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <MountainIcon className="h-4 w-4" />
-                            <span className="text-sm">Distancia: {distance.distance_km}km</span>
+                          <div className="flex items-center gap-2 text-foreground font-medium">
+                            <MountainIcon className="h-5 w-5 text-primary" />
+                            <span>{distance.distance_km} km</span>
                           </div>
                           {distance.elevation_gain && (
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <MountainIcon className="h-4 w-4" />
-                              <span className="text-sm">Desnivel: +{distance.elevation_gain}m</span>
+                            <div className="flex items-center gap-2 text-foreground font-medium">
+                              <TrendingUp className="h-5 w-5 text-primary" />
+                              <span>+{distance.elevation_gain}m desnivel</span>
                             </div>
                           )}
                           {distance.cutoff_time && (
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              <span className="text-sm">Tiempo límite: {distance.cutoff_time}</span>
+                              <span className="text-sm">Límite: {distance.cutoff_time}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-2 text-muted-foreground">
@@ -553,6 +560,24 @@ const RaceDetail = () => {
                           </div>
                         </div>
 
+                        {/* Start/Finish Locations */}
+                        {(distance.start_location || distance.finish_location) && (
+                          <div className="space-y-1.5 pt-2 border-t">
+                            {distance.start_location && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Navigation className="h-4 w-4 text-green-600" />
+                                <span className="text-xs">Salida: {distance.start_location}</span>
+                              </div>
+                            )}
+                            {distance.finish_location && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Navigation className="h-4 w-4 text-red-600 rotate-180" />
+                                <span className="text-xs">Meta: {distance.finish_location}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* GPX Download */}
                         {distance.gpx_file_url && (
                           <Button 
@@ -563,13 +588,12 @@ const RaceDetail = () => {
                           >
                             <a href={distance.gpx_file_url} download>
                               <Download className="h-4 w-4 mr-2" />
-                              Descargar GPX
+                              Descargar Recorrido GPX
                             </a>
                           </Button>
                         )}
                         
-                        <div className="pt-4 border-t border-border">
-                          <p className="text-2xl font-bold text-foreground mb-3">{distance.price}€</p>
+                        <div className="pt-3 mt-auto">
                           <Dialog open={isDialogOpen && selectedDistance?.id === distance.id} onOpenChange={(open) => {
                             if (!open) {
                               setIsDialogOpen(false);
