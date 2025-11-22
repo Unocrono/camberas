@@ -246,7 +246,9 @@ export type Database = {
           cutoff_time: string | null
           distance_km: number
           elevation_gain: number | null
+          gpx_file_url: string | null
           id: string
+          image_url: string | null
           max_participants: number | null
           name: string
           price: number
@@ -258,7 +260,9 @@ export type Database = {
           cutoff_time?: string | null
           distance_km: number
           elevation_gain?: number | null
+          gpx_file_url?: string | null
           id?: string
+          image_url?: string | null
           max_participants?: number | null
           name: string
           price: number
@@ -270,7 +274,9 @@ export type Database = {
           cutoff_time?: string | null
           distance_km?: number
           elevation_gain?: number | null
+          gpx_file_url?: string | null
           id?: string
+          image_url?: string | null
           max_participants?: number | null
           name?: string
           price?: number
@@ -336,6 +342,7 @@ export type Database = {
       }
       races: {
         Row: {
+          cover_image_url: string | null
           created_at: string
           date: string
           description: string | null
@@ -345,14 +352,18 @@ export type Database = {
           id: string
           image_url: string | null
           location: string
+          logo_url: string | null
           max_participants: number | null
           name: string
+          official_website_url: string | null
+          organizer_email: string | null
           organizer_id: string | null
           registration_closes: string | null
           registration_opens: string | null
           updated_at: string
         }
         Insert: {
+          cover_image_url?: string | null
           created_at?: string
           date: string
           description?: string | null
@@ -362,14 +373,18 @@ export type Database = {
           id?: string
           image_url?: string | null
           location: string
+          logo_url?: string | null
           max_participants?: number | null
           name: string
+          official_website_url?: string | null
+          organizer_email?: string | null
           organizer_id?: string | null
           registration_closes?: string | null
           registration_opens?: string | null
           updated_at?: string
         }
         Update: {
+          cover_image_url?: string | null
           created_at?: string
           date?: string
           description?: string | null
@@ -379,14 +394,70 @@ export type Database = {
           id?: string
           image_url?: string | null
           location?: string
+          logo_url?: string | null
           max_participants?: number | null
           name?: string
+          official_website_url?: string | null
+          organizer_email?: string | null
           organizer_id?: string | null
           registration_closes?: string | null
           registration_opens?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      registration_form_fields: {
+        Row: {
+          created_at: string
+          field_label: string
+          field_name: string
+          field_options: Json | null
+          field_order: number
+          field_type: string
+          help_text: string | null
+          id: string
+          is_required: boolean
+          placeholder: string | null
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          field_label: string
+          field_name: string
+          field_options?: Json | null
+          field_order?: number
+          field_type: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          placeholder?: string | null
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          field_label?: string
+          field_name?: string
+          field_options?: Json | null
+          field_order?: number
+          field_type?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          placeholder?: string | null
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_form_fields_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registrations: {
         Row: {
