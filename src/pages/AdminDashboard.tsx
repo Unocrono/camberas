@@ -6,13 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
+import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "registrations" | "results" | "splits" | "edge-functions";
+type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -95,6 +96,7 @@ const AdminDashboard = () => {
 
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
+            {currentView === "distances" && <DistanceManagement />}
             {currentView === "registrations" && <RegistrationManagement />}
             {currentView === "results" && <ResultsManagement />}
             {currentView === "splits" && <SplitTimesManagement />}
