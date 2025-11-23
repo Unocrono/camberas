@@ -16,7 +16,7 @@ interface ImageCropperProps {
 }
 
 const ASPECT_RATIOS = {
-  race: { ratio: 4 / 3, label: "Carrera (4:3)" },
+  race: { ratio: 16 / 9, label: "Carrera (16:9)" },
   distance: { ratio: 5 / 3, label: "Distancia (5:3)" },
   logo: { ratio: 1, label: "Logo (1:1)" },
   cover: { ratio: 2.4, label: "Portada (2.4:1)" },
