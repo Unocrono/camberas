@@ -14,6 +14,7 @@ const TimingShop = () => {
       price: "350€",
       image: timingSystem,
       features: [
+        "0% comosión inscripciones ",
         "Sistema de cronometraje RFID timing",
         "Cronometro Reloj en meta",
         "200 chips desechables incluidos",
