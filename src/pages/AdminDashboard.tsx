@@ -96,7 +96,7 @@ const AdminDashboard = () => {
 
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
-            {currentView === "distances" && <DistanceManagement />}
+            {currentView === "distances" && <DistanceManagement isOrganizer={false} />}
             {currentView === "registrations" && <RegistrationManagement />}
             {currentView === "results" && <ResultsManagement />}
             {currentView === "splits" && <SplitTimesManagement />}
