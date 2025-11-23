@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +64,7 @@ const RaceDetail = () => {
   
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [faqs, setFaqs] = useState<any[]>([]);
 
   useEffect(() => {
     fetchRaceDetails();
@@ -144,6 +146,17 @@ const RaceDetail = () => {
           availablePlaces,
         };
       });
+
+      // Load FAQs
+      const { data: faqsData, error: faqsError } = await supabase
+        .from("race_faqs")
+        .select("*")
+        .eq("race_id", id)
+        .order("display_order");
+
+      if (!faqsError && faqsData) {
+        setFaqs(faqsData);
+      }
 
       setRace({
         ...raceData,
@@ -754,6 +767,29 @@ const RaceDetail = () => {
                   </CardHeader>
                   <CardContent className="space-y-2 text-muted-foreground whitespace-pre-line">
                     {race.additional_info}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* FAQs */}
+              {faqs.length > 0 && (
+                <Card className="bg-muted/30 border-0">
+                  <CardHeader>
+                    <CardTitle>Preguntas Frecuentes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Accordion type="single" collapsible className="w-full">
+                      {faqs.map((faq, index) => (
+                        <AccordionItem key={faq.id} value={`faq-${index}`}>
+                          <AccordionTrigger className="text-left">
+                            {faq.question}
+                          </AccordionTrigger>
+                          <AccordionContent className="text-muted-foreground whitespace-pre-line">
+                            {faq.answer}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
                   </CardContent>
                 </Card>
               )}

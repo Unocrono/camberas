@@ -154,6 +154,33 @@ export type Database = {
           },
         ]
       }
+      organizer_faqs: {
+        Row: {
+          answer: string
+          created_at: string
+          display_order: number
+          id: string
+          question: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           autonomous_community: string | null
@@ -292,6 +319,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "race_distances_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_faqs: {
+        Row: {
+          answer: string
+          created_at: string
+          display_order: number
+          id: string
+          question: string
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question: string
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          question?: string
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_faqs_race_id_fkey"
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"

@@ -11,6 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon } from "lucide-react";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
+import RaceFaqsManagement from "./RaceFaqsManagement";
 
 const raceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -796,7 +797,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex flex-wrap gap-4 text-sm mb-6">
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                     <span>
@@ -818,6 +819,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     </div>
                   )}
                 </div>
+                
+                <RaceFaqsManagement raceId={race.id} />
               </CardContent>
             </Card>
           ))

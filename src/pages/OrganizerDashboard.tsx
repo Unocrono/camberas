@@ -10,9 +10,10 @@ import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
+import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "faqs";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -99,6 +100,7 @@ const OrganizerDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} />}
+            {currentView === "faqs" && <OrganizerFaqsManagement isAdmin={false} />}
           </main>
         </div>
       </div>
