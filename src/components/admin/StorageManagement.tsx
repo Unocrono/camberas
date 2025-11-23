@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Upload, Trash2, Image as ImageIcon, FileText, Search } from "lucide-react";
+import { Loader2, Upload, Trash2, Image as ImageIcon, FileText, Search, Folder, ArrowLeft, Edit2, Check, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface FileItem {
@@ -37,17 +37,30 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
   const [uploading, setUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPath, setCurrentPath] = useState<string>("");
+  const [editingFile, setEditingFile] = useState<string | null>(null);
+  const [newFileName, setNewFileName] = useState("");
+
+  useEffect(() => {
+    setCurrentPath("");
+    loadFiles();
+  }, [selectedBucket, selectedRaceId]);
 
   useEffect(() => {
     loadFiles();
-  }, [selectedBucket, selectedRaceId]);
+  }, [currentPath]);
 
   const loadFiles = async () => {
     setLoading(true);
     try {
-      // Si hay una carrera seleccionada, buscar archivos en la carpeta de esa carrera
-      const path = selectedRaceId ? `${selectedRaceId}/` : '';
-      const { data, error } = await supabase.storage.from(selectedBucket).list(path);
+      // Combinar ruta base (si hay carrera) con ruta actual de navegación
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const fullPath = currentPath ? `${basePath}${currentPath}/` : basePath;
+      
+      const { data, error } = await supabase.storage.from(selectedBucket).list(fullPath.slice(0, -1), {
+        limit: 1000,
+        offset: 0,
+      });
 
       if (error) throw error;
 
@@ -79,10 +92,11 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
       const fileExt = uploadFile.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
       
-      // Si hay una carrera seleccionada, guardar en la carpeta de esa carrera
-      const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
+      // Combinar ruta base (si hay carrera) con ruta actual de navegación
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const fullPath = currentPath ? `${basePath}${currentPath}/${fileName}` : `${basePath}${fileName}`;
 
-      const { error } = await supabase.storage.from(selectedBucket).upload(filePath, uploadFile, {
+      const { error } = await supabase.storage.from(selectedBucket).upload(fullPath, uploadFile, {
         cacheControl: "3600",
         upsert: false,
       });
@@ -115,9 +129,10 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     if (!confirm(`¿Estás seguro de eliminar "${fileName}"?`)) return;
 
     try {
-      // Si hay una carrera seleccionada, el path incluye el race_id
-      const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
-      const { error } = await supabase.storage.from(selectedBucket).remove([filePath]);
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const fullPath = currentPath ? `${basePath}${currentPath}/${fileName}` : `${basePath}${fileName}`;
+      
+      const { error } = await supabase.storage.from(selectedBucket).remove([fullPath]);
 
       if (error) throw error;
 
@@ -137,10 +152,59 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     }
   };
 
+  const handleRename = async (oldName: string, newName: string) => {
+    if (!newName || newName === oldName) {
+      setEditingFile(null);
+      return;
+    }
+
+    try {
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const oldPath = currentPath ? `${basePath}${currentPath}/${oldName}` : `${basePath}${oldName}`;
+      const newPath = currentPath ? `${basePath}${currentPath}/${newName}` : `${basePath}${newName}`;
+
+      // Descargar el archivo
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(selectedBucket)
+        .download(oldPath);
+
+      if (downloadError) throw downloadError;
+
+      // Subir con nuevo nombre
+      const { error: uploadError } = await supabase.storage
+        .from(selectedBucket)
+        .upload(newPath, fileData, { upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Eliminar el archivo antiguo
+      const { error: deleteError } = await supabase.storage
+        .from(selectedBucket)
+        .remove([oldPath]);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Éxito",
+        description: "Archivo renombrado correctamente",
+      });
+
+      setEditingFile(null);
+      loadFiles();
+    } catch (error: any) {
+      console.error("Error renaming file:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo renombrar el archivo",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getPublicUrl = (fileName: string) => {
-    // Si hay una carrera seleccionada, el path incluye el race_id
-    const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
-    const { data } = supabase.storage.from(selectedBucket).getPublicUrl(filePath);
+    let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+    const fullPath = currentPath ? `${basePath}${currentPath}/${fileName}` : `${basePath}${fileName}`;
+    const { data } = supabase.storage.from(selectedBucket).getPublicUrl(fullPath);
     return data.publicUrl;
   };
 
@@ -157,6 +221,29 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
   const isImage = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
     return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext || "");
+  };
+
+  const isFolder = (file: FileItem) => {
+    return file.id === null;
+  };
+
+  const navigateToFolder = (folderName: string) => {
+    setCurrentPath(currentPath ? `${currentPath}/${folderName}` : folderName);
+    setSearchTerm("");
+  };
+
+  const navigateUp = () => {
+    const pathParts = currentPath.split("/");
+    pathParts.pop();
+    setCurrentPath(pathParts.join("/"));
+    setSearchTerm("");
+  };
+
+  const getBreadcrumbs = () => {
+    const parts = [];
+    if (selectedRaceId) parts.push("Carrera");
+    if (currentPath) parts.push(...currentPath.split("/"));
+    return parts;
   };
 
   return (
@@ -226,6 +313,37 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
 
           {/* Files List */}
           <div className="space-y-4">
+            {/* Breadcrumbs */}
+            {(selectedRaceId || currentPath) && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentPath("")}
+                  disabled={!currentPath}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Raíz
+                </Button>
+                {getBreadcrumbs().map((part, index) => (
+                  <span key={index} className="text-sm text-muted-foreground">
+                    / {part}
+                  </span>
+                ))}
+                {currentPath && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={navigateUp}
+                    className="ml-auto"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Volver
+                  </Button>
+                )}
+              </div>
+            )}
+
             <div className="flex items-center gap-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
@@ -242,17 +360,28 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
             ) : filteredFiles.length === 0 ? (
               <Alert>
                 <AlertDescription>
-                  {searchTerm ? "No se encontraron archivos" : "No hay archivos en este bucket"}
+                  {searchTerm ? "No se encontraron archivos" : "No hay archivos en esta carpeta"}
                 </AlertDescription>
               </Alert>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredFiles.map((file) => {
-                  const url = getPublicUrl(file.name);
+                  const isDir = isFolder(file);
+                  const url = !isDir ? getPublicUrl(file.name) : "";
+                  const isBeingEdited = editingFile === file.name;
+                  
                   return (
-                    <Card key={file.id} className="overflow-hidden">
+                    <Card 
+                      key={file.name} 
+                      className={`overflow-hidden ${isDir ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
+                      onClick={() => isDir && navigateToFolder(file.name)}
+                    >
                       <CardContent className="p-4 space-y-3">
-                        {isImage(file.name) ? (
+                        {isDir ? (
+                          <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
+                            <Folder className="h-16 w-16 text-primary" />
+                          </div>
+                        ) : isImage(file.name) ? (
                           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
                             <img src={url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
                           </div>
@@ -261,21 +390,73 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
                             <FileText className="h-12 w-12 text-muted-foreground" />
                           </div>
                         )}
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium truncate" title={file.name}>
-                            {file.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(file.created_at).toLocaleDateString()}
-                          </p>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" className="flex-1" onClick={() => copyToClipboard(url)}>
-                              Copiar URL
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(file.name)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          {isBeingEdited ? (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={newFileName}
+                                onChange={(e) => setNewFileName(e.target.value)}
+                                className="h-8 text-sm"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleRename(file.name, newFileName);
+                                  if (e.key === 'Escape') setEditingFile(null);
+                                }}
+                              />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRename(file.name, newFileName)}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingFile(null)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="text-sm font-medium truncate" title={file.name}>
+                              {isDir ? "📁 " : ""}{file.name}
+                            </p>
+                          )}
+                          {!isDir && (
+                            <>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(file.created_at).toLocaleDateString()}
+                              </p>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="flex-1" 
+                                  onClick={() => copyToClipboard(url)}
+                                >
+                                  Copiar URL
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingFile(file.name);
+                                    setNewFileName(file.name);
+                                  }}
+                                >
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="destructive" 
+                                  size="sm" 
+                                  onClick={() => handleDelete(file.name)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
