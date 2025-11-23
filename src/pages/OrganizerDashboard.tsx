@@ -23,6 +23,8 @@ const OrganizerDashboard = () => {
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<OrganizerView>("races");
+  const [selectedRaceId, setSelectedRaceId] = useState<string>("");
+  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string }>>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -35,6 +37,27 @@ const OrganizerDashboard = () => {
       checkOrganizerRole();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isOrganizer && user) {
+      fetchRaces();
+    }
+  }, [isOrganizer, user]);
+
+  const fetchRaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("races")
+        .select("id, name, date")
+        .eq("organizer_id", user!.id)
+        .order("date", { ascending: false });
+
+      if (error) throw error;
+      setRaces(data || []);
+    } catch (error: any) {
+      console.error("Error fetching races:", error);
+    }
+  };
 
   const checkOrganizerRole = async () => {
     try {
@@ -90,17 +113,38 @@ const OrganizerDashboard = () => {
         <OrganizerSidebar currentView={currentView} onViewChange={setCurrentView} />
         
         <div className="flex-1 flex flex-col w-full">
-          <header className="h-16 border-b border-border flex items-center px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+          <header className="h-16 border-b border-border flex items-center gap-4 px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
             <SidebarTrigger className="mr-2" />
             <h1 className="text-xl md:text-2xl font-bold">Panel de Organizador</h1>
+            
+            {currentView !== "races" && currentView !== "faqs" && (
+              <div className="ml-auto flex items-center gap-2">
+                <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
+                  Carrera:
+                </label>
+                <select
+                  id="race-selector"
+                  value={selectedRaceId}
+                  onChange={(e) => setSelectedRaceId(e.target.value)}
+                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
+                >
+                  <option value="">Todas</option>
+                  {races.map((race) => (
+                    <option key={race.id} value={race.id}>
+                      {race.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </header>
 
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
-            {currentView === "distances" && <DistanceManagement isOrganizer={true} />}
-            {currentView === "registrations" && <RegistrationManagement isOrganizer={true} />}
-            {currentView === "results" && <ResultsManagement isOrganizer={true} />}
-            {currentView === "splits" && <SplitTimesManagement isOrganizer={true} />}
+            {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement />}
             {currentView === "faqs" && <OrganizerFaqsManagement isAdmin={false} />}
           </main>

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Label } from "@/components/ui/label";
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
@@ -24,6 +25,8 @@ const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<AdminView>("races");
+  const [selectedRaceId, setSelectedRaceId] = useState<string>("");
+  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string }>>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -36,6 +39,26 @@ const AdminDashboard = () => {
       checkAdminRole();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchRaces();
+    }
+  }, [isAdmin]);
+
+  const fetchRaces = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("races")
+        .select("id, name, date")
+        .order("date", { ascending: false });
+
+      if (error) throw error;
+      setRaces(data || []);
+    } catch (error: any) {
+      console.error("Error fetching races:", error);
+    }
+  };
 
   const checkAdminRole = async () => {
     try {
@@ -91,17 +114,38 @@ const AdminDashboard = () => {
         <AdminSidebar currentView={currentView} onViewChange={setCurrentView} />
         
         <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border flex items-center px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+          <header className="h-16 border-b border-border flex items-center gap-4 px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
             <SidebarTrigger />
-            <h1 className="text-2xl font-bold ml-4">Panel de Administración</h1>
+            <h1 className="text-2xl font-bold">Panel de Administración</h1>
+            
+            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && (
+              <div className="ml-auto flex items-center gap-2">
+                <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                  Filtrar por carrera:
+                </Label>
+                <select
+                  id="race-selector"
+                  value={selectedRaceId}
+                  onChange={(e) => setSelectedRaceId(e.target.value)}
+                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                >
+                  <option value="">Todas las carreras</option>
+                  {races.map((race) => (
+                    <option key={race.id} value={race.id}>
+                      {race.name} - {new Date(race.date).toLocaleDateString()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </header>
 
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
-            {currentView === "distances" && <DistanceManagement isOrganizer={false} />}
-            {currentView === "registrations" && <RegistrationManagement />}
-            {currentView === "results" && <ResultsManagement />}
-            {currentView === "splits" && <SplitTimesManagement />}
+            {currentView === "distances" && <DistanceManagement isOrganizer={false} selectedRaceId={selectedRaceId} />}
+            {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
             {currentView === "edge-functions" && <EdgeFunctionsManagement />}

@@ -49,9 +49,10 @@ interface Race {
 
 interface DistanceManagementProps {
   isOrganizer?: boolean;
+  selectedRaceId?: string;
 }
 
-export function DistanceManagement({ isOrganizer = false }: DistanceManagementProps) {
+export function DistanceManagement({ isOrganizer = false, selectedRaceId }: DistanceManagementProps) {
   const { toast } = useToast();
   const [distances, setDistances] = useState<Distance[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
@@ -79,8 +80,11 @@ export function DistanceManagement({ isOrganizer = false }: DistanceManagementPr
 
   useEffect(() => {
     fetchRaces();
-    fetchDistances();
   }, []);
+
+  useEffect(() => {
+    fetchDistances();
+  }, [selectedRaceId]);
 
   const fetchRaces = async () => {
     try {
@@ -115,7 +119,10 @@ export function DistanceManagement({ isOrganizer = false }: DistanceManagementPr
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (isOrganizer) {
+      // Filter by selected race if provided
+      if (selectedRaceId) {
+        query = query.eq("race_id", selectedRaceId);
+      } else if (isOrganizer) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           // Get races from this organizer
