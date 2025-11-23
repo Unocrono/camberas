@@ -40,12 +40,14 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
 
   useEffect(() => {
     loadFiles();
-  }, [selectedBucket]);
+  }, [selectedBucket, selectedRaceId]);
 
   const loadFiles = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.storage.from(selectedBucket).list();
+      // Si hay una carrera seleccionada, buscar archivos en la carpeta de esa carrera
+      const path = selectedRaceId ? `${selectedRaceId}/` : '';
+      const { data, error } = await supabase.storage.from(selectedBucket).list(path);
 
       if (error) throw error;
 
@@ -76,8 +78,11 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     try {
       const fileExt = uploadFile.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
+      
+      // Si hay una carrera seleccionada, guardar en la carpeta de esa carrera
+      const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
 
-      const { error } = await supabase.storage.from(selectedBucket).upload(fileName, uploadFile, {
+      const { error } = await supabase.storage.from(selectedBucket).upload(filePath, uploadFile, {
         cacheControl: "3600",
         upsert: false,
       });
@@ -110,7 +115,9 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     if (!confirm(`¿Estás seguro de eliminar "${fileName}"?`)) return;
 
     try {
-      const { error } = await supabase.storage.from(selectedBucket).remove([fileName]);
+      // Si hay una carrera seleccionada, el path incluye el race_id
+      const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
+      const { error } = await supabase.storage.from(selectedBucket).remove([filePath]);
 
       if (error) throw error;
 
@@ -131,7 +138,9 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
   };
 
   const getPublicUrl = (fileName: string) => {
-    const { data } = supabase.storage.from(selectedBucket).getPublicUrl(fileName);
+    // Si hay una carrera seleccionada, el path incluye el race_id
+    const filePath = selectedRaceId ? `${selectedRaceId}/${fileName}` : fileName;
+    const { data } = supabase.storage.from(selectedBucket).getPublicUrl(filePath);
     return data.publicUrl;
   };
 
@@ -152,6 +161,13 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
 
   return (
     <div className="space-y-6">
+      {selectedRaceId && (
+        <Alert>
+          <AlertDescription>
+            Mostrando archivos de la carrera seleccionada. Los archivos se organizan por carrera automáticamente.
+          </AlertDescription>
+        </Alert>
+      )}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
