@@ -300,24 +300,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Carrera</Label>
-              <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las carreras" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las carreras</SelectItem>
-                  {races.map((race) => (
-                    <SelectItem key={race.id} value={race.id}>
-                      {race.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Estado</Label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
