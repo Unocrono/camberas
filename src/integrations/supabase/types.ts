@@ -348,6 +348,7 @@ export type Database = {
       }
       races: {
         Row: {
+          additional_info: string | null
           cover_image_url: string | null
           created_at: string
           date: string
@@ -369,6 +370,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          additional_info?: string | null
           cover_image_url?: string | null
           created_at?: string
           date: string
@@ -390,6 +392,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          additional_info?: string | null
           cover_image_url?: string | null
           created_at?: string
           date?: string

@@ -747,19 +747,16 @@ const RaceDetail = () => {
               </div>
 
               {/* Info Adicional */}
-              <Card className="bg-muted/30 border-0">
-                <CardHeader>
-                  <CardTitle>Información Adicional</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-muted-foreground">
-                  <p>• Cronometraje electrónico con chip</p>
-                  <p>• Avituallamientos líquidos y sólidos en carrera</p>
-                  <p>• Servicio médico en carrera y meta</p>
-                  <p>• Seguro de accidentes incluido</p>
-                  <p>• Camiseta técnica para todos los participantes</p>
-                  <p>• Trofeos para los 3 primeros de cada categoría</p>
-                </CardContent>
-              </Card>
+              {race.additional_info && (
+                <Card className="bg-muted/30 border-0">
+                  <CardHeader>
+                    <CardTitle>Información Adicional</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-muted-foreground whitespace-pre-line">
+                    {race.additional_info}
+                  </CardContent>
+                </Card>
+              )}
             </CardContent>
           </Card>
         </div>
