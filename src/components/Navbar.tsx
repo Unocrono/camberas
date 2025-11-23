@@ -21,10 +21,10 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
+            <NavLink to="/faqs">FAQs</NavLink>
             {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
             {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
-            <NavLink to="/timing-shop">Tienda</NavLink>
-            {user && <NavLink to="/dashboard">Dashboard</NavLink>}
+            {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
                 <Briefcase className="h-4 w-4" />
@@ -66,10 +66,10 @@ const Navbar = () => {
             <nav className="flex flex-col gap-4 mt-8">
               <NavLink to="/">Inicio</NavLink>
               <NavLink to="/races">Carreras</NavLink>
+              <NavLink to="/faqs">FAQs</NavLink>
               {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
               {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
-              <NavLink to="/timing-shop">Tienda</NavLink>
-              {user && <NavLink to="/dashboard">Dashboard</NavLink>}
+              {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
               {isOrganizer && (
                 <NavLink to="/organizer" className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4" />

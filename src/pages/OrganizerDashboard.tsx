@@ -10,11 +10,10 @@ import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
-import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "faqs" | "storage";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -117,7 +116,7 @@ const OrganizerDashboard = () => {
             <SidebarTrigger className="mr-2" />
             <h1 className="text-xl md:text-2xl font-bold">Panel de Organizador</h1>
             
-            {currentView !== "races" && currentView !== "faqs" && races.length > 0 && (
+            {currentView !== "races" && races.length > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
                   Carrera:
@@ -146,7 +145,6 @@ const OrganizerDashboard = () => {
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
-            {currentView === "faqs" && <OrganizerFaqsManagement isAdmin={false} />}
           </main>
         </div>
       </div>
