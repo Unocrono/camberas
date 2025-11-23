@@ -26,6 +26,7 @@ const Faqs = () => {
   const { toast } = useToast();
   const [faqs, setFaqs] = useState<OrganizerFaq[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesChecked, setRolesChecked] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -33,22 +34,31 @@ const Faqs = () => {
     }
   }, [user, authLoading, navigate]);
 
+  // Wait for roles to be checked before verifying access
   useEffect(() => {
-    if (!authLoading && user && !isOrganizer) {
-      toast({
-        title: "Acceso denegado",
-        description: "Solo organizadores pueden ver esta sección",
-        variant: "destructive",
-      });
-      navigate("/");
+    if (!authLoading && user) {
+      // Give time for roles to load
+      const timer = setTimeout(() => {
+        setRolesChecked(true);
+        if (!isOrganizer) {
+          toast({
+            title: "Acceso denegado",
+            description: "Solo organizadores pueden ver esta sección",
+            variant: "destructive",
+          });
+          navigate("/");
+        }
+      }, 500);
+      
+      return () => clearTimeout(timer);
     }
   }, [user, authLoading, isOrganizer, navigate, toast]);
 
   useEffect(() => {
-    if (isOrganizer) {
+    if (rolesChecked && isOrganizer) {
       loadFaqs();
     }
-  }, [isOrganizer]);
+  }, [isOrganizer, rolesChecked]);
 
   const loadFaqs = async () => {
     try {
@@ -71,7 +81,7 @@ const Faqs = () => {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || !rolesChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
