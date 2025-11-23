@@ -58,6 +58,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     gps_tracking_enabled: false,
     gps_update_frequency: "30",
     gpx_file_url: "",
+    additional_info: "",
   });
   const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [uploadingGpx, setUploadingGpx] = useState(false);
@@ -118,6 +119,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gps_tracking_enabled: (race as any).gps_tracking_enabled || false,
         gps_update_frequency: (race as any).gps_update_frequency?.toString() || "30",
         gpx_file_url: (race as any).gpx_file_url || "",
+        additional_info: (race as any).additional_info || "",
       });
     } else {
       setEditingRace(null);
@@ -134,6 +136,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gps_tracking_enabled: false,
         gps_update_frequency: "30",
         gpx_file_url: "",
+        additional_info: "",
       });
     }
     setGpxFile(null);
@@ -319,6 +322,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             gps_tracking_enabled: formData.gps_tracking_enabled,
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             gpx_file_url: gpxUrl || null,
+            additional_info: formData.additional_info || null,
           })
           .eq("id", editingRace.id);
 
@@ -346,6 +350,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             gps_tracking_enabled: formData.gps_tracking_enabled,
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             organizer_id: isOrganizer ? user?.id : null,
+            additional_info: formData.additional_info || null,
           }])
           .select()
           .single();
@@ -707,6 +712,20 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="additional_info">Información Adicional</Label>
+                <Textarea
+                  id="additional_info"
+                  value={formData.additional_info}
+                  onChange={(e) => setFormData({ ...formData, additional_info: e.target.value })}
+                  rows={8}
+                  placeholder="• Cronometraje electrónico con chip&#10;• Avituallamientos líquidos y sólidos en carrera&#10;• Servicio médico en carrera y meta&#10;• Seguro de accidentes incluido&#10;• Camiseta técnica para todos los participantes&#10;• Trofeos para los 3 primeros de cada categoría"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Información adicional sobre la carrera (servicios, premios, etc.). Usa saltos de línea para separar los puntos.
+                </p>
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting || uploadingImage}>
