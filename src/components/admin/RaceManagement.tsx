@@ -505,7 +505,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Imagen Principal (4:3 - 800x600px)</Label>
+                    <Label>Imagen Principal (16:9 - 1920x1080px)</Label>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -528,6 +528,15 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                         </Button>
                       )}
                     </div>
+                    {formData.image_url && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.image_url} 
+                          alt="Vista previa" 
+                          className="w-full h-32 object-cover rounded-md border"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -554,6 +563,15 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                         </Button>
                       )}
                     </div>
+                    {formData.cover_image_url && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.cover_image_url} 
+                          alt="Vista previa portada" 
+                          className="w-full h-24 object-cover rounded-md border"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -580,6 +598,15 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                         </Button>
                       )}
                     </div>
+                    {formData.logo_url && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.logo_url} 
+                          alt="Vista previa logo" 
+                          className="w-24 h-24 object-cover rounded-md border mx-auto"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -606,6 +633,15 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                         </Button>
                       )}
                     </div>
+                    {formData.poster_url && (
+                      <div className="mt-2">
+                        <img 
+                          src={formData.poster_url} 
+                          alt="Vista previa cartel" 
+                          className="w-32 h-48 object-cover rounded-md border mx-auto"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
