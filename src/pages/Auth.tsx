@@ -43,6 +43,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [isOrganizer, setIsOrganizer] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -55,7 +56,7 @@ const Auth = () => {
     });
   }, [navigate]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent, isOrganizerSignup: boolean = false) => {
     e.preventDefault();
     setIsLoading(true);
 
@@ -75,6 +76,7 @@ const Auth = () => {
           data: {
             first_name: validatedData.first_name,
             last_name: validatedData.last_name,
+            is_organizer: isOrganizerSignup,
           },
           emailRedirectTo: `${window.location.origin}/`,
         },
@@ -84,13 +86,16 @@ const Auth = () => {
 
       toast({
         title: "¡Cuenta creada!",
-        description: "Ya puedes iniciar sesión con tu email y contraseña.",
+        description: isOrganizerSignup 
+          ? "Por favor, revisa tu email para confirmar tu cuenta de organizador."
+          : "Por favor, revisa tu email para confirmar tu cuenta.",
       });
       
       setEmail("");
       setPassword("");
       setFirstName("");
       setLastName("");
+      setIsOrganizer(false);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -166,9 +171,10 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
                 <TabsTrigger value="register">Registrarse</TabsTrigger>
+                <TabsTrigger value="organizer">Organizador</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -209,7 +215,7 @@ const Auth = () => {
               </TabsContent>
               
               <TabsContent value="register">
-                <form onSubmit={handleSignUp} className="space-y-4">
+                <form onSubmit={(e) => handleSignUp(e, false)} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="register-firstname">Nombre</Label>
@@ -265,6 +271,73 @@ const Auth = () => {
                       </>
                     ) : (
                       "Crear Cuenta"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="organizer">
+                <form onSubmit={(e) => handleSignUp(e, true)} className="space-y-4">
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      Regístrate como organizador para crear y gestionar carreras en la plataforma.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="org-firstname">Nombre</Label>
+                      <Input
+                        id="org-firstname"
+                        type="text"
+                        placeholder="Juan"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="org-lastname">Apellidos</Label>
+                      <Input
+                        id="org-lastname"
+                        type="text"
+                        placeholder="Pérez García"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="org-email">Email</Label>
+                    <Input
+                      id="org-email"
+                      type="email"
+                      placeholder="organizador@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="org-password">Contraseña</Label>
+                    <Input
+                      id="org-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creando cuenta de organizador...
+                      </>
+                    ) : (
+                      "Registrarse como Organizador"
                     )}
                   </Button>
                 </form>
