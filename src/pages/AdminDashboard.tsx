@@ -15,9 +15,10 @@ import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagem
 import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
+import OrganizerApprovalManagement from "@/components/admin/OrganizerApprovalManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs";
+type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -119,7 +120,7 @@ const AdminDashboard = () => {
             <SidebarTrigger />
             <h1 className="text-2xl font-bold">Panel de Administración</h1>
             
-            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && races.length > 0 && (
+            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && currentView !== "organizer-approval" && races.length > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                   Filtrar por carrera:
@@ -149,6 +150,7 @@ const AdminDashboard = () => {
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
+            {currentView === "organizer-approval" && <OrganizerApprovalManagement />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
                 <RaceFaqsManagement raceId={selectedRaceId} />
