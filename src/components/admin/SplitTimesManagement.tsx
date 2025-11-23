@@ -297,27 +297,6 @@ export function SplitTimesManagement({ isOrganizer = false, selectedRaceId: prop
         <h2 className="text-2xl font-bold">Split Times Management</h2>
       </div>
 
-      {/* Race Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Select Race</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Choose a race" />
-            </SelectTrigger>
-            <SelectContent>
-              {races.map((race) => (
-                <SelectItem key={race.id} value={race.id}>
-                  {race.name} - {new Date(race.date).toLocaleDateString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
-
       {selectedRaceId && (
         <>
           {/* Checkpoints Management */}
