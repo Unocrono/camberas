@@ -12,9 +12,10 @@ import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagement";
 import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
+import { StorageManagement } from "@/components/admin/StorageManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs";
+type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -101,6 +102,7 @@ const AdminDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement />}
             {currentView === "results" && <ResultsManagement />}
             {currentView === "splits" && <SplitTimesManagement />}
+            {currentView === "storage" && <StorageManagement />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
             {currentView === "edge-functions" && <EdgeFunctionsManagement />}
           </main>
