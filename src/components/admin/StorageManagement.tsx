@@ -24,7 +24,11 @@ const BUCKETS = [
   { id: "race-gpx", name: "Archivos GPX" },
 ];
 
-export const StorageManagement = () => {
+interface StorageManagementProps {
+  selectedRaceId?: string;
+}
+
+export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) => {
   const { toast } = useToast();
   const [selectedBucket, setSelectedBucket] = useState(BUCKETS[0].id);
   const [files, setFiles] = useState<FileItem[]>([]);
