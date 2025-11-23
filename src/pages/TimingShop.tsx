@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import timingSystem from "@/assets/timing-system.jpg";
-import timingSystem2 from "https://rsahtxjpisnldxnsmupk.supabase.co/storage/v1/object/public/app-images/timing-system2.jpg";
 const TimingShop = () => {
   const timingPackages = [
     {
@@ -51,7 +50,7 @@ const TimingShop = () => {
       name: "Profesional",
       description: "Para grandes eventos",
       price: "750€",
-      image: timingSystem2,
+      image: timingSystem,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
         "Cronometro Reloj en meta",
