@@ -4,14 +4,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
-import timingSystem from "@/assets/timing-system.jpg";
+import timingSystem1 from "@/assets/timing-system1.jpg";
+import timingSystem2 from "@/assets/timing-system2.jpg";
+import timingSystem3 from "@/assets/timing-system3.jpg";
 const TimingShop = () => {
   const timingPackages = [
     {
       name: "Básico",
       description: "Perfecto para carreras pequeñas hasta 200 participantes",
       price: "350€",
-      image: timingSystem,
+      image: timingSystem1,
       features: [
         "0% comosión inscripciones",
         "Sistema de cronometraje RFID timing",
@@ -31,7 +33,7 @@ const TimingShop = () => {
       description: "Ideal para carreras medianas hasta 500 participantes",
       price: "500€",
       popular: true,
-      image: timingSystem,
+      image: timingSystem2,
       features: [
         "Sistema de cronometraje RFID timing premium",
         "Cronometro-Reloj en meta",
@@ -50,7 +52,7 @@ const TimingShop = () => {
       name: "Profesional",
       description: "Para grandes eventos",
       price: "750€",
-      image: timingSystem,
+      image: timingSystem3,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
         "Cronometro Reloj en meta",
