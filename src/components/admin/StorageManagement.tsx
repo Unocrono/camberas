@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Upload, Trash2, Image as ImageIcon, FileText, Search, Folder, ArrowLeft, Edit2, Check, X } from "lucide-react";
+import { Loader2, Upload, Trash2, Image as ImageIcon, FileText, Search, Folder, ArrowLeft, Edit2, Check, X, FolderPlus, ZoomIn, ZoomOut } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 
 interface FileItem {
   name: string;
@@ -40,6 +41,11 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
   const [currentPath, setCurrentPath] = useState<string>("");
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [newFileName, setNewFileName] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
+  const [createFolderOpen, setCreateFolderOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const [draggedFile, setDraggedFile] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentPath("");
@@ -246,6 +252,110 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     return parts;
   };
 
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre de la carpeta no puede estar vacío",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Crear un archivo placeholder para crear la carpeta
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const folderPath = currentPath ? `${basePath}${currentPath}/${newFolderName}/.placeholder` : `${basePath}${newFolderName}/.placeholder`;
+
+      const placeholderContent = new Blob([""], { type: "text/plain" });
+      
+      const { error } = await supabase.storage
+        .from(selectedBucket)
+        .upload(folderPath, placeholderContent, { upsert: false });
+
+      if (error) throw error;
+
+      toast({
+        title: "Éxito",
+        description: "Carpeta creada correctamente",
+      });
+
+      setNewFolderName("");
+      setCreateFolderOpen(false);
+      loadFiles();
+    } catch (error: any) {
+      console.error("Error creating folder:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo crear la carpeta",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, fileName: string) => {
+    setDraggedFile(fileName);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetFolder: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!draggedFile || draggedFile === targetFolder) {
+      setDraggedFile(null);
+      return;
+    }
+
+    try {
+      let basePath = selectedRaceId ? `${selectedRaceId}/` : '';
+      const sourcePath = currentPath ? `${basePath}${currentPath}/${draggedFile}` : `${basePath}${draggedFile}`;
+      const targetPath = currentPath ? `${basePath}${currentPath}/${targetFolder}/${draggedFile}` : `${basePath}${targetFolder}/${draggedFile}`;
+
+      // Descargar el archivo
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from(selectedBucket)
+        .download(sourcePath);
+
+      if (downloadError) throw downloadError;
+
+      // Subir al nuevo destino
+      const { error: uploadError } = await supabase.storage
+        .from(selectedBucket)
+        .upload(targetPath, fileData, { upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      // Eliminar del origen
+      const { error: deleteError } = await supabase.storage
+        .from(selectedBucket)
+        .remove([sourcePath]);
+
+      if (deleteError) throw deleteError;
+
+      toast({
+        title: "Éxito",
+        description: "Archivo movido correctamente",
+      });
+
+      loadFiles();
+    } catch (error: any) {
+      console.error("Error moving file:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo mover el archivo",
+        variant: "destructive",
+      });
+    } finally {
+      setDraggedFile(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {selectedRaceId && (
@@ -283,31 +393,72 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
           {/* Upload Section */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Subir Archivo</CardTitle>
+              <CardTitle className="text-lg">Gestión de Archivos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="file">Seleccionar archivo</Label>
-                <Input
-                  id="file"
-                  type="file"
-                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  disabled={uploading}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="file">Subir archivo</Label>
+                  <Input
+                    id="file"
+                    type="file"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                    disabled={uploading}
+                  />
+                  <Button onClick={handleUpload} disabled={!uploadFile || uploading} className="w-full">
+                    {uploading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Subiendo...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Subir Archivo
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <Label>Crear carpeta</Label>
+                  <Dialog open={createFolderOpen} onOpenChange={setCreateFolderOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        <FolderPlus className="mr-2 h-4 w-4" />
+                        Nueva Carpeta
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Crear Nueva Carpeta</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="folderName">Nombre de la carpeta</Label>
+                          <Input
+                            id="folderName"
+                            value={newFolderName}
+                            onChange={(e) => setNewFolderName(e.target.value)}
+                            placeholder="mi-carpeta"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCreateFolder();
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setCreateFolderOpen(false)}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={handleCreateFolder}>
+                          <FolderPlus className="mr-2 h-4 w-4" />
+                          Crear
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
-              <Button onClick={handleUpload} disabled={!uploadFile || uploading} className="w-full">
-                {uploading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Subir Archivo
-                  </>
-                )}
-              </Button>
             </CardContent>
           </Card>
 
@@ -373,8 +524,12 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
                   return (
                     <Card 
                       key={file.name} 
-                      className={`overflow-hidden ${isDir ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}`}
+                      className={`overflow-hidden ${isDir ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''} ${draggedFile === file.name ? 'opacity-50' : ''}`}
                       onClick={() => isDir && navigateToFolder(file.name)}
+                      onDragOver={isDir ? handleDragOver : undefined}
+                      onDrop={isDir ? (e) => handleDrop(e, file.name) : undefined}
+                      draggable={!isDir}
+                      onDragStart={!isDir ? (e) => handleDragStart(e, file.name) : undefined}
                     >
                       <CardContent className="p-4 space-y-3">
                         {isDir ? (
@@ -382,7 +537,14 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
                             <Folder className="h-16 w-16 text-primary" />
                           </div>
                         ) : isImage(file.name) ? (
-                          <div className="aspect-video rounded-lg overflow-hidden bg-muted">
+                          <div 
+                            className="aspect-video rounded-lg overflow-hidden bg-muted cursor-zoom-in hover:opacity-90 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(url);
+                              setZoomLevel(100);
+                            }}
+                          >
                             <img src={url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
                           </div>
                         ) : (
@@ -467,6 +629,59 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
           </div>
         </CardContent>
       </Card>
+
+      {/* Image Preview Lightbox */}
+      <Dialog open={!!previewImage} onOpenChange={() => setPreviewImage(null)}>
+        <DialogContent className="max-w-5xl w-full h-[90vh] p-0">
+          <div className="relative w-full h-full flex flex-col">
+            <DialogHeader className="px-6 py-4 border-b">
+              <div className="flex items-center justify-between">
+                <DialogTitle>Vista Previa</DialogTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setZoomLevel(Math.max(50, zoomLevel - 25))}
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium w-16 text-center">{zoomLevel}%</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setZoomLevel(Math.min(300, zoomLevel + 25))}
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setZoomLevel(100)}
+                  >
+                    Restablecer
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto bg-muted/50 flex items-center justify-center p-4">
+              {previewImage && (
+                <img
+                  src={previewImage}
+                  alt="Preview"
+                  style={{
+                    transform: `scale(${zoomLevel / 100})`,
+                    transition: 'transform 0.2s ease-in-out',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                  }}
+                  className="rounded-lg"
+                />
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
