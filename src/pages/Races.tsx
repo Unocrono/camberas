@@ -4,60 +4,72 @@ import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
-import penaPrietaImg from "@/assets/pena-prieta-skyrace.jpg";
-import trailCarabeosImg from "@/assets/trail-los-carabeos.jpg";
-import turtziozImg from "@/assets/turtzioz-walk-run.jpg";
-import loiuTrailImg from "@/assets/loiu-trail.jpg";
-import trailComillasImg from "@/assets/trail-comillas.jpg";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Races = () => {
-  const allRaces = [
-    {
-      id: "1",
-      name: "VI Trail Villa de Comillas",
-      date: "11 de Mayo, 2025",
-      location: "Comillas, Cantabria",
-      distances: ["25K", "16K", "14K"],
-      participants: 500,
-      imageUrl: trailComillasImg,
-    },
-    {
-      id: "2",
-      name: "II Loiu 500 Trail",
-      date: "1 de Junio, 2025",
-      location: "Loiu, Vizcaya",
-      distances: ["10K", "1.8K"],
-      participants: 350,
-      imageUrl: loiuTrailImg,
-    },
-    {
-      id: "3",
-      name: "Turtzioz Walk Run",
-      date: "29 de Junio, 2025",
-      location: "Trucios-Turtzioz, Vizcaya",
-      distances: ["15K"],
-      participants: 280,
-      imageUrl: turtziozImg,
-    },
-    {
-      id: "4",
-      name: "IX Trail Los Carabeos",
-      date: "27 de Julio, 2025",
-      location: "Los Carabeos, Cantabria",
-      distances: ["21K"],
-      participants: 320,
-      imageUrl: trailCarabeosImg,
-    },
-    {
-      id: "5",
-      name: "Peña Prieta SkyRace",
-      date: "4 de Octubre, 2025",
-      location: "Vega de Liébana, Cantabria",
-      distances: ["36K", "8K"],
-      participants: 450,
-      imageUrl: penaPrietaImg,
-    },
-  ];
+  const [allRaces, setAllRaces] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    fetchRaces();
+  }, []);
+
+  const fetchRaces = async () => {
+    try {
+      const { data: racesData, error: racesError } = await supabase
+        .from("races")
+        .select("*")
+        .order("date", { ascending: true });
+
+      if (racesError) throw racesError;
+
+      const racesWithDistances = await Promise.all(
+        (racesData || []).map(async (race) => {
+          const { data: distancesData, error: distancesError } = await supabase
+            .from("race_distances")
+            .select("name")
+            .eq("race_id", race.id);
+
+          if (distancesError) throw distancesError;
+
+          const { data: registrationsData, error: registrationsError } = await supabase
+            .from("registrations")
+            .select("id")
+            .eq("race_id", race.id);
+
+          if (registrationsError) throw registrationsError;
+
+          return {
+            id: race.id,
+            name: race.name,
+            date: new Date(race.date).toLocaleDateString("es-ES", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            location: race.location,
+            distances: (distancesData || []).map((d) => d.name),
+            participants: registrationsData?.length || 0,
+            imageUrl: race.image_url,
+          };
+        })
+      );
+
+      setAllRaces(racesWithDistances);
+    } catch (error) {
+      console.error("Error fetching races:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredRaces = allRaces.filter(
+    (race) =>
+      race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      race.location.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,6 +91,8 @@ const Races = () => {
                 <Input 
                   placeholder="Buscar carreras..." 
                   className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               
@@ -92,11 +106,21 @@ const Races = () => {
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {allRaces.map((race) => (
-              <RaceCard key={race.id} {...race} />
-            ))}
-          </div>
+          {loading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Cargando carreras...</p>
+            </div>
+          ) : filteredRaces.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {filteredRaces.map((race) => (
+                <RaceCard key={race.id} {...race} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No se encontraron carreras</p>
+            </div>
+          )}
         </div>
       </div>
 
