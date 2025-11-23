@@ -20,6 +20,8 @@ import TrainingPlan from "./pages/TrainingPlan";
 import SupportChat from "./pages/SupportChat";
 import Faqs from "./pages/Faqs";
 import OrganizerProfile from "./pages/OrganizerProfile";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,8 @@ const App = () => (
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
