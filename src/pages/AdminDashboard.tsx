@@ -118,7 +118,7 @@ const AdminDashboard = () => {
             <SidebarTrigger />
             <h1 className="text-2xl font-bold">Panel de Administración</h1>
             
-            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && (
+            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && races.length > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                   Filtrar por carrera:
@@ -146,7 +146,7 @@ const AdminDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} />}
-            {currentView === "storage" && <StorageManagement />}
+            {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
             {currentView === "edge-functions" && <EdgeFunctionsManagement />}
           </main>

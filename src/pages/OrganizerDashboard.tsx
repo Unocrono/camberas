@@ -117,7 +117,7 @@ const OrganizerDashboard = () => {
             <SidebarTrigger className="mr-2" />
             <h1 className="text-xl md:text-2xl font-bold">Panel de Organizador</h1>
             
-            {currentView !== "races" && currentView !== "faqs" && (
+            {currentView !== "races" && currentView !== "faqs" && races.length > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
                   Carrera:
@@ -145,7 +145,7 @@ const OrganizerDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
-            {currentView === "storage" && <StorageManagement />}
+            {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "faqs" && <OrganizerFaqsManagement isAdmin={false} />}
           </main>
         </div>
