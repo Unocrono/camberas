@@ -11,9 +11,10 @@ import { RegistrationManagement } from "@/components/admin/RegistrationManagemen
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
+import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -145,6 +146,15 @@ const OrganizerDashboard = () => {
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "race-faqs" && (
+              selectedRaceId ? (
+                <RaceFaqsManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus FAQs</p>
+                </div>
+              )
+            )}
           </main>
         </div>
       </div>

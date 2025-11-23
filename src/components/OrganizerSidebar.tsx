@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs";
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
@@ -26,6 +26,7 @@ const menuItems = [
   { title: "Resultados", view: "results" as OrganizerView, icon: Trophy },
   { title: "Tiempos Parciales", view: "splits" as OrganizerView, icon: Timer },
   { title: "Archivos Multimedia", view: "storage" as OrganizerView, icon: FolderOpen },
+  { title: "FAQs de Carreras", view: "race-faqs" as OrganizerView, icon: HelpCircle },
 ];
 
 export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebarProps) {
