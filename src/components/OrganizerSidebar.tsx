@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -64,6 +64,14 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
           <SidebarGroupLabel>Navegación</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Mi Perfil">
+                  <Link to="/organizer-profile">
+                    <UserCircle />
+                    <span>Mi Perfil</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Volver al sitio">
                   <Link to="/">

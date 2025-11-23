@@ -19,6 +19,7 @@ import OrganizerDashboard from "./pages/OrganizerDashboard";
 import TrainingPlan from "./pages/TrainingPlan";
 import SupportChat from "./pages/SupportChat";
 import Faqs from "./pages/Faqs";
+import OrganizerProfile from "./pages/OrganizerProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/training-plan" element={<TrainingPlan />} />
           <Route path="/support-chat" element={<SupportChat />} />
           <Route path="/faqs" element={<Faqs />} />
+          <Route path="/organizer-profile" element={<OrganizerProfile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
