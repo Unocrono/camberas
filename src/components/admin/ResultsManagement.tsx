@@ -46,6 +46,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<RaceResult | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<any[]>([]);
@@ -296,9 +297,15 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     const firstName = result.registration.profiles?.first_name?.toLowerCase() || "";
     const lastName = result.registration.profiles?.last_name?.toLowerCase() || "";
     
-    return bibNumber.includes(search) || 
+    // Filter by search term
+    const matchesSearch = bibNumber.includes(search) || 
            firstName.includes(search) || 
            lastName.includes(search);
+
+    // Filter by status
+    const matchesStatus = statusFilter === "all" || result.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -583,6 +590,22 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                       className="pl-9"
                     />
                   </div>
+                </div>
+
+                <div className="flex-1">
+                  <Label>Filter by Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="finished">Finished</SelectItem>
+                      <SelectItem value="dnf">DNF</SelectItem>
+                      <SelectItem value="dns">DNS</SelectItem>
+                      <SelectItem value="dq">Disqualified</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex items-end gap-2">

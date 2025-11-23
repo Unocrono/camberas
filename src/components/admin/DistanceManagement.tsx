@@ -60,6 +60,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingDistance, setEditingDistance] = useState<Distance | null>(null);
+  const [distanceFilter, setDistanceFilter] = useState<string>("all");
+  const [priceFilter, setPriceFilter] = useState<string>("all");
   
   const [formData, setFormData] = useState({
     race_id: "",
@@ -339,6 +341,24 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     return race ? race.name : "Carrera desconocida";
   };
 
+  const filteredDistances = distances.filter((distance) => {
+    // Filter by distance range
+    if (distanceFilter !== "all") {
+      if (distanceFilter === "short" && distance.distance_km > 21) return false;
+      if (distanceFilter === "medium" && (distance.distance_km <= 21 || distance.distance_km > 42)) return false;
+      if (distanceFilter === "long" && distance.distance_km <= 42) return false;
+    }
+
+    // Filter by price range
+    if (priceFilter !== "all") {
+      if (priceFilter === "economic" && distance.price > 30) return false;
+      if (priceFilter === "medium" && (distance.price <= 30 || distance.price > 60)) return false;
+      if (priceFilter === "premium" && distance.price <= 60) return false;
+    }
+
+    return true;
+  });
+
   if (loading) {
     return <div className="text-muted-foreground">Cargando distancias...</div>;
   }
@@ -547,17 +567,61 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         </Dialog>
       </div>
 
+      {/* Filters Section */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <Label htmlFor="distance-filter">Filtrar por Rango de Distancia</Label>
+              <Select value={distanceFilter} onValueChange={setDistanceFilter}>
+                <SelectTrigger id="distance-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las distancias</SelectItem>
+                  <SelectItem value="short">Corta (≤ 21 km)</SelectItem>
+                  <SelectItem value="medium">Media (21 - 42 km)</SelectItem>
+                  <SelectItem value="long">Larga (&gt; 42 km)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1">
+              <Label htmlFor="price-filter">Filtrar por Precio</Label>
+              <Select value={priceFilter} onValueChange={setPriceFilter}>
+                <SelectTrigger id="price-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los precios</SelectItem>
+                  <SelectItem value="economic">Económico (≤ 30€)</SelectItem>
+                  <SelectItem value="medium">Medio (30€ - 60€)</SelectItem>
+                  <SelectItem value="premium">Premium (&gt; 60€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">
+            Mostrando {filteredDistances.length} de {distances.length} distancias
+          </p>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4">
-        {distances.length === 0 ? (
+        {filteredDistances.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Route className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No hay distancias</h3>
-              <p className="text-muted-foreground">Crea tu primera distancia para comenzar</p>
+              <p className="text-muted-foreground">
+                {distances.length === 0 
+                  ? "Crea tu primera distancia para comenzar" 
+                  : "No hay distancias que coincidan con los filtros seleccionados"}
+              </p>
             </CardContent>
           </Card>
-        ) : (
-          distances.map((distance) => (
+          ) : (
+          filteredDistances.map((distance) => (
             <Card key={distance.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
