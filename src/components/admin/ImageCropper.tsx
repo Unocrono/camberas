@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,11 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
     reader.readAsDataURL(imageFile);
   }, [imageFile]);
 
-  useState(() => {
+  useEffect(() => {
     if (imageFile && open) {
       handleFileChange();
     }
-  });
+  }, [imageFile, open, handleFileChange]);
 
   const getCroppedImg = useCallback(async () => {
     if (!completedCrop || !imgRef.current) return;
