@@ -62,6 +62,7 @@ const RaceDetail = () => {
   });
   
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
     fetchRaceDetails();
@@ -73,15 +74,46 @@ const RaceDetail = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!race?.date) return;
+
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const raceDate = new Date(race.date).getTime();
+      const distance = raceDate - now;
+
+      if (distance > 0) {
+        setCountdown({
+          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((distance % (1000 * 60)) / 1000),
+        });
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [race?.date]);
+
   const fetchRaceDetails = async () => {
     try {
       const { data: raceData, error: raceError } = await supabase
         .from("races")
         .select("*")
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
       if (raceError) throw raceError;
+      
+      if (!raceData) {
+        toast({
+          title: "Carrera no encontrada",
+          description: "La carrera que buscas no existe",
+          variant: "destructive",
+        });
+        navigate("/races");
+        return;
+      }
 
       const { data: distancesData, error: distancesError } = await supabase
         .from("race_distances")
@@ -335,30 +367,6 @@ const RaceDetail = () => {
       </div>
     );
   }
-
-  // Countdown timer
-  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-
-  useEffect(() => {
-    if (!race?.date) return;
-
-    const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const raceDate = new Date(race.date).getTime();
-      const distance = raceDate - now;
-
-      if (distance > 0) {
-        setCountdown({
-          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((distance % (1000 * 60)) / 1000),
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [race?.date]);
 
   return (
     <div className="min-h-screen bg-background">
