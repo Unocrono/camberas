@@ -28,6 +28,14 @@
 - **Peso máximo**: 200 KB
 - **Uso**: Se muestra en la esquina superior de la página de detalle
 
+#### **Cartel de Carrera** (`poster_url`)
+- **Tamaño recomendado**: 800x1200 píxeles (ratio 2:3 - vertical)
+- **Tamaño mínimo**: 600x900 píxeles
+- **Tamaño máximo**: 1200x1800 píxeles
+- **Formato**: JPG o PNG
+- **Peso máximo**: 600 KB
+- **Uso**: Cartel promocional de la carrera
+
 ---
 
 ### Imágenes de Distancias (race_distances)

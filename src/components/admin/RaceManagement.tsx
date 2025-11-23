@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon } from "lucide-react";
 import { z } from "zod";
+import { ImageCropper } from "./ImageCropper";
 
 const raceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -51,12 +52,21 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     date: "",
     max_participants: "",
     image_url: "",
+    cover_image_url: "",
+    logo_url: "",
+    poster_url: "",
     gps_tracking_enabled: false,
     gps_update_frequency: "30",
     gpx_file_url: "",
   });
   const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [uploadingGpx, setUploadingGpx] = useState(false);
+  
+  // Image cropper states
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [currentImageFile, setCurrentImageFile] = useState<File | null>(null);
+  const [currentImageType, setCurrentImageType] = useState<"race" | "distance" | "logo" | "cover" | "poster">("race");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   useEffect(() => {
     fetchRaces();
@@ -102,6 +112,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         date: race.date,
         max_participants: race.max_participants?.toString() || "",
         image_url: race.image_url || "",
+        cover_image_url: (race as any).cover_image_url || "",
+        logo_url: (race as any).logo_url || "",
+        poster_url: (race as any).poster_url || "",
         gps_tracking_enabled: (race as any).gps_tracking_enabled || false,
         gps_update_frequency: (race as any).gps_update_frequency?.toString() || "30",
         gpx_file_url: (race as any).gpx_file_url || "",
@@ -115,6 +128,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         date: "",
         max_participants: "",
         image_url: "",
+        cover_image_url: "",
+        logo_url: "",
+        poster_url: "",
         gps_tracking_enabled: false,
         gps_update_frequency: "30",
         gpx_file_url: "",
@@ -136,6 +152,100 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         return;
       }
       setGpxFile(file);
+    }
+  };
+
+  const handleImageSelect = (type: "race" | "cover" | "logo" | "poster") => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = (e: any) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        setCurrentImageFile(file);
+        setCurrentImageType(type);
+        setCropperOpen(true);
+      }
+    };
+    input.click();
+  };
+
+  const generateFileName = (raceName: string, date: string, type: string): string => {
+    // Normalize race name for filename
+    const normalizedName = raceName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-");
+    
+    const year = new Date(date).getFullYear();
+    const extension = type === "logo" ? "png" : "jpg";
+    
+    return `${normalizedName}-${year}_${type}.${extension}`;
+  };
+
+  const getStoragePath = (raceName: string, date: string, type: string): string => {
+    const year = new Date(date).getFullYear();
+    const folderName = `${raceName} ${year}`;
+    const fileName = generateFileName(raceName, date, type);
+    
+    return `${year}/${folderName}/${fileName}`;
+  };
+
+  const uploadImage = async (blob: Blob, type: string): Promise<string | null> => {
+    if (!formData.name || !formData.date) {
+      toast({
+        title: "Error",
+        description: "Debes completar el nombre y fecha de la carrera antes de subir imágenes",
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    setUploadingImage(true);
+    try {
+      const filePath = getStoragePath(formData.name, formData.date, type);
+
+      const { error: uploadError } = await supabase.storage
+        .from("race-images")
+        .upload(filePath, blob, {
+          cacheControl: "3600",
+          upsert: true,
+          contentType: type === "logo" ? "image/png" : "image/jpeg",
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("race-images")
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      toast({
+        title: "Error al subir imagen",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob, _filename: string) => {
+    const imageUrl = await uploadImage(croppedBlob, currentImageType);
+    
+    if (imageUrl) {
+      const urlField = currentImageType === "race" ? "image_url" :
+                       currentImageType === "cover" ? "cover_image_url" :
+                       currentImageType === "logo" ? "logo_url" : "poster_url";
+      
+      setFormData({ ...formData, [urlField]: imageUrl });
+      
+      toast({
+        title: "Imagen subida",
+        description: "La imagen se ha subido correctamente",
+      });
     }
   };
 
@@ -204,6 +314,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             date: validatedData.date,
             max_participants: validatedData.max_participants || null,
             image_url: validatedData.image_url || null,
+            cover_image_url: formData.cover_image_url || null,
+            logo_url: formData.logo_url || null,
             gps_tracking_enabled: formData.gps_tracking_enabled,
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             gpx_file_url: gpxUrl || null,
@@ -229,6 +341,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             date: validatedData.date,
             max_participants: validatedData.max_participants || null,
             image_url: validatedData.image_url || null,
+            cover_image_url: formData.cover_image_url || null,
+            logo_url: formData.logo_url || null,
             gps_tracking_enabled: formData.gps_tracking_enabled,
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             organizer_id: isOrganizer ? user?.id : null,
@@ -372,27 +486,134 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="max_participants">Máximo de Participantes</Label>
-                  <Input
-                    id="max_participants"
-                    type="number"
-                    min="1"
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                  />
+              <div className="space-y-2">
+                <Label htmlFor="max_participants">Máximo de Participantes</Label>
+                <Input
+                  id="max_participants"
+                  type="number"
+                  min="1"
+                  value={formData.max_participants}
+                  onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold">Imágenes de la Carrera</h3>
+                <p className="text-sm text-muted-foreground">
+                  Las imágenes se recortarán automáticamente al tamaño correcto
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Imagen Principal (4:3 - 800x600px)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleImageSelect("race")}
+                        disabled={uploadingImage || !formData.name || !formData.date}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {formData.image_url ? "Cambiar" : "Subir"}
+                      </Button>
+                      {formData.image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(formData.image_url, "_blank")}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Imagen de Portada (2.4:1 - 1920x800px)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleImageSelect("cover")}
+                        disabled={uploadingImage || !formData.name || !formData.date}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {formData.cover_image_url ? "Cambiar" : "Subir"}
+                      </Button>
+                      {formData.cover_image_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(formData.cover_image_url, "_blank")}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Logo (1:1 - 400x400px)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleImageSelect("logo")}
+                        disabled={uploadingImage || !formData.name || !formData.date}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {formData.logo_url ? "Cambiar" : "Subir"}
+                      </Button>
+                      {formData.logo_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(formData.logo_url, "_blank")}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Cartel (2:3 - 800x1200px)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleImageSelect("poster")}
+                        disabled={uploadingImage || !formData.name || !formData.date}
+                        className="flex-1"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {formData.poster_url ? "Cambiar" : "Subir"}
+                      </Button>
+                      {formData.poster_url && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => window.open(formData.poster_url, "_blank")}
+                        >
+                          <ImageIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">URL de Imagen</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  />
-                </div>
+                {(!formData.name || !formData.date) && (
+                  <p className="text-xs text-muted-foreground">
+                    * Completa primero el nombre y fecha de la carrera para poder subir imágenes
+                  </p>
+                )}
               </div>
 
               <div className="space-y-4 border-t pt-4">
@@ -452,13 +673,21 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || uploadingImage}>
                 {isSubmitting ? "Guardando..." : editingRace ? "Actualizar Carrera" : "Crear Carrera"}
               </Button>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+
+      <ImageCropper
+        open={cropperOpen}
+        onClose={() => setCropperOpen(false)}
+        onCropComplete={handleCropComplete}
+        imageFile={currentImageFile}
+        imageType={currentImageType}
+      />
 
       <div className="grid grid-cols-1 gap-4">
         {races.length === 0 ? (
