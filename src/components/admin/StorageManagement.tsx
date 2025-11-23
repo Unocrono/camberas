@@ -22,6 +22,7 @@ const BUCKETS = [
   { id: "race-images", name: "Imágenes de Carreras" },
   { id: "race-photos", name: "Fotos de Resultados" },
   { id: "race-gpx", name: "Archivos GPX" },
+  { id: "app-images", name: "Imágenes de la APP" },
 ];
 
 interface StorageManagementProps {
@@ -76,12 +77,10 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
       const fileExt = uploadFile.name.split(".").pop();
       const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
 
-      const { error } = await supabase.storage
-        .from(selectedBucket)
-        .upload(fileName, uploadFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+      const { error } = await supabase.storage.from(selectedBucket).upload(fileName, uploadFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
       if (error) throw error;
 
@@ -93,7 +92,7 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
       setUploadFile(null);
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-      
+
       loadFiles();
     } catch (error: any) {
       console.error("Error uploading file:", error);
@@ -144,9 +143,7 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
     });
   };
 
-  const filteredFiles = files.filter((file) =>
-    file.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFiles = files.filter((file) => file.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const isImage = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase();
@@ -241,12 +238,7 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
                       <CardContent className="p-4 space-y-3">
                         {isImage(file.name) ? (
                           <div className="aspect-video rounded-lg overflow-hidden bg-muted">
-                            <img
-                              src={url}
-                              alt={file.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
+                            <img src={url} alt={file.name} className="w-full h-full object-cover" loading="lazy" />
                           </div>
                         ) : (
                           <div className="aspect-video rounded-lg overflow-hidden bg-muted flex items-center justify-center">
@@ -261,19 +253,10 @@ export const StorageManagement = ({ selectedRaceId }: StorageManagementProps) =>
                             {new Date(file.created_at).toLocaleDateString()}
                           </p>
                           <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                              onClick={() => copyToClipboard(url)}
-                            >
+                            <Button variant="outline" size="sm" className="flex-1" onClick={() => copyToClipboard(url)}>
                               Copiar URL
                             </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(file.name)}
-                            >
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(file.name)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
