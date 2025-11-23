@@ -17,18 +17,14 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface OrganizerRequest {
-  id: string;
+  role_id: string;
   user_id: string;
   role: string;
   status: string;
   created_at: string;
-  profiles: {
-    first_name: string | null;
-    last_name: string | null;
-  } | null;
-  auth_users: {
-    email: string;
-  } | null;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
 }
 
 const OrganizerApprovalManagement = () => {
@@ -47,42 +43,12 @@ const OrganizerApprovalManagement = () => {
     try {
       setLoading(true);
       
-      // Fetch all organizer role requests
-      const { data: rolesData, error: rolesError } = await supabase
-        .from("user_roles")
-        .select(`
-          id,
-          user_id,
-          role,
-          status,
-          created_at
-        `)
-        .eq("role", "organizer")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .rpc('get_organizer_requests');
 
-      if (rolesError) throw rolesError;
+      if (error) throw error;
 
-      // Fetch profile and auth data for each user
-      const enrichedRequests = await Promise.all(
-        (rolesData || []).map(async (role) => {
-          const { data: profileData } = await supabase
-            .from("profiles")
-            .select("first_name, last_name")
-            .eq("id", role.user_id)
-            .single();
-
-          // Get email from auth.users metadata
-          const { data: { user } } = await supabase.auth.admin.getUserById(role.user_id);
-
-          return {
-            ...role,
-            profiles: profileData,
-            auth_users: user ? { email: user.email || "" } : null,
-          };
-        })
-      );
-
-      setRequests(enrichedRequests);
+      setRequests(data || []);
     } catch (error: any) {
       console.error("Error fetching organizer requests:", error);
       toast({
@@ -95,14 +61,14 @@ const OrganizerApprovalManagement = () => {
     }
   };
 
-  const handleAction = async (requestId: string, newStatus: 'approved' | 'rejected') => {
+  const handleAction = async (roleId: string, newStatus: 'approved' | 'rejected') => {
     try {
-      setActionLoading(requestId);
+      setActionLoading(roleId);
 
       const { error } = await supabase
         .from("user_roles")
         .update({ status: newStatus })
-        .eq("id", requestId);
+        .eq("id", roleId);
 
       if (error) throw error;
 
@@ -165,15 +131,15 @@ const OrganizerApprovalManagement = () => {
       ) : (
         <div className="grid gap-4">
           {requests.map((request) => (
-            <Card key={request.id}>
+            <Card key={request.role_id}>
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
                     <CardTitle>
-                      {request.profiles?.first_name} {request.profiles?.last_name}
+                      {request.first_name} {request.last_name}
                     </CardTitle>
                     <CardDescription className="mt-1">
-                      {request.auth_users?.email}
+                      {request.email}
                     </CardDescription>
                   </div>
                   {getStatusBadge(request.status)}
@@ -200,9 +166,9 @@ const OrganizerApprovalManagement = () => {
                           setSelectedRequest(request);
                           setActionType('reject');
                         }}
-                        disabled={actionLoading === request.id}
+                        disabled={actionLoading === request.role_id}
                       >
-                        {actionLoading === request.id ? (
+                        {actionLoading === request.role_id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
@@ -217,9 +183,9 @@ const OrganizerApprovalManagement = () => {
                           setSelectedRequest(request);
                           setActionType('approve');
                         }}
-                        disabled={actionLoading === request.id}
+                        disabled={actionLoading === request.role_id}
                       >
-                        {actionLoading === request.id ? (
+                        {actionLoading === request.role_id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
@@ -248,15 +214,15 @@ const OrganizerApprovalManagement = () => {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {actionType === 'approve' 
-                ? `Estás a punto de aprobar la solicitud de ${selectedRequest?.profiles?.first_name} ${selectedRequest?.profiles?.last_name} como organizador. Podrá crear y gestionar carreras en la plataforma.`
-                : `Estás a punto de rechazar la solicitud de ${selectedRequest?.profiles?.first_name} ${selectedRequest?.profiles?.last_name} como organizador.`
+                ? `Estás a punto de aprobar la solicitud de ${selectedRequest?.first_name} ${selectedRequest?.last_name} como organizador. Podrá crear y gestionar carreras en la plataforma.`
+                : `Estás a punto de rechazar la solicitud de ${selectedRequest?.first_name} ${selectedRequest?.last_name} como organizador.`
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => selectedRequest && handleAction(selectedRequest.id, actionType === 'approve' ? 'approved' : 'rejected')}
+              onClick={() => selectedRequest && handleAction(selectedRequest.role_id, actionType === 'approve' ? 'approved' : 'rejected')}
               className={actionType === 'reject' ? 'bg-destructive hover:bg-destructive/90' : ''}
             >
               {actionType === 'approve' ? 'Aprobar' : 'Rechazar'}

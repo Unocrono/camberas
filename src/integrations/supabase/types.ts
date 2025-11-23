@@ -740,6 +740,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_organizer_requests: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          first_name: string
+          last_name: string
+          role: Database["public"]["Enums"]["app_role"]
+          role_id: string
+          status: string
+          user_id: string
+        }[]
+      }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
