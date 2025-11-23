@@ -39,9 +39,10 @@ interface Registration {
 
 interface RegistrationManagementProps {
   isOrganizer?: boolean;
+  selectedRaceId?: string;
 }
 
-export function RegistrationManagement({ isOrganizer = false }: RegistrationManagementProps) {
+export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([]);
@@ -59,7 +60,16 @@ export function RegistrationManagement({ isOrganizer = false }: RegistrationMana
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedRaceId]);
+
+  useEffect(() => {
+    // If selectedRaceId prop changes, update the internal filter
+    if (selectedRaceId) {
+      setSelectedRace(selectedRaceId);
+    } else {
+      setSelectedRace("all");
+    }
+  }, [selectedRaceId]);
 
   useEffect(() => {
     applyFilters();

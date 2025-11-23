@@ -32,9 +32,10 @@ interface RaceResult {
 
 interface ResultsManagementProps {
   isOrganizer?: boolean;
+  selectedRaceId?: string;
 }
 
-export function ResultsManagement({ isOrganizer = false }: ResultsManagementProps) {
+export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSelectedRaceId }: ResultsManagementProps) {
   const { toast } = useToast();
   const [races, setRaces] = useState<any[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
@@ -68,6 +69,15 @@ export function ResultsManagement({ isOrganizer = false }: ResultsManagementProp
   useEffect(() => {
     fetchRaces();
   }, []);
+
+  useEffect(() => {
+    // If propSelectedRaceId changes, update the internal selectedRace
+    if (propSelectedRaceId) {
+      setSelectedRace(propSelectedRaceId);
+    } else {
+      setSelectedRace("");
+    }
+  }, [propSelectedRaceId]);
 
   useEffect(() => {
     if (selectedRace) {

@@ -51,9 +51,10 @@ interface SplitTime {
 
 interface SplitTimesManagementProps {
   isOrganizer?: boolean;
+  selectedRaceId?: string;
 }
 
-export function SplitTimesManagement({ isOrganizer = false }: SplitTimesManagementProps) {
+export function SplitTimesManagement({ isOrganizer = false, selectedRaceId: propSelectedRaceId }: SplitTimesManagementProps) {
   const [races, setRaces] = useState<any[]>([]);
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -81,6 +82,15 @@ export function SplitTimesManagement({ isOrganizer = false }: SplitTimesManageme
   useEffect(() => {
     fetchRaces();
   }, []);
+
+  useEffect(() => {
+    // If propSelectedRaceId changes, update the internal selectedRaceId
+    if (propSelectedRaceId) {
+      setSelectedRaceId(propSelectedRaceId);
+    } else {
+      setSelectedRaceId("");
+    }
+  }, [propSelectedRaceId]);
 
   useEffect(() => {
     if (selectedRaceId) {
