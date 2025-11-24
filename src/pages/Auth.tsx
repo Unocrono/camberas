@@ -37,6 +37,25 @@ const signupSchema = loginSchema.extend({
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Los apellidos solo pueden contener letras"),
 });
 
+const organizerSchema = signupSchema.extend({
+  company_name: z.string()
+    .trim()
+    .min(1, "El nombre de la empresa es requerido")
+    .max(200, "El nombre debe tener menos de 200 caracteres"),
+  cif: z.string()
+    .trim()
+    .min(9, "El CIF debe tener 9 caracteres")
+    .max(9, "El CIF debe tener 9 caracteres")
+    .regex(/^[A-Z][0-9]{8}$/, "El CIF debe tener el formato: letra seguida de 8 números (ej: A12345678)"),
+  company_address: z.string()
+    .trim()
+    .min(1, "La dirección de la empresa es requerida")
+    .max(300, "La dirección debe tener menos de 300 caracteres"),
+  company_phone: z.string()
+    .trim()
+    .regex(/^(\+34)?[6-9][0-9]{8}$/, "El teléfono debe ser válido (ej: 612345678 o +34612345678)"),
+});
+
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
@@ -44,6 +63,10 @@ const Auth = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [cif, setCif] = useState("");
+  const [companyAddress, setCompanyAddress] = useState("");
+  const [companyPhone, setCompanyPhone] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -61,23 +84,46 @@ const Auth = () => {
     setIsLoading(true);
 
     try {
-      // Validate input data
-      const validatedData = signupSchema.parse({
+      // Validate input data based on user type
+      const baseData = {
         email,
         password,
         first_name: firstName,
         last_name: lastName,
-      });
+      };
+
+      let validatedData;
+      if (isOrganizerSignup) {
+        validatedData = organizerSchema.parse({
+          ...baseData,
+          company_name: companyName,
+          cif: cif.toUpperCase(),
+          company_address: companyAddress,
+          company_phone: companyPhone,
+        });
+      } else {
+        validatedData = signupSchema.parse(baseData);
+      }
+
+      const userData: any = {
+        first_name: validatedData.first_name,
+        last_name: validatedData.last_name,
+        is_organizer: isOrganizerSignup,
+      };
+
+      // Add organizer-specific data
+      if (isOrganizerSignup && 'company_name' in validatedData) {
+        userData.company_name = validatedData.company_name;
+        userData.cif = validatedData.cif;
+        userData.company_address = validatedData.company_address;
+        userData.company_phone = validatedData.company_phone;
+      }
 
       const { error } = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
         options: {
-          data: {
-            first_name: validatedData.first_name,
-            last_name: validatedData.last_name,
-            is_organizer: isOrganizerSignup,
-          },
+          data: userData,
           emailRedirectTo: `${window.location.origin}/`,
         },
       });
@@ -87,14 +133,19 @@ const Auth = () => {
       toast({
         title: "¡Cuenta creada!",
         description: isOrganizerSignup 
-          ? "Por favor, revisa tu email para confirmar tu cuenta de organizador."
+          ? "Tu solicitud como organizador será revisada. Por favor, revisa tu email para confirmar tu cuenta."
           : "Por favor, revisa tu email para confirmar tu cuenta.",
       });
       
+      // Clear form
       setEmail("");
       setPassword("");
       setFirstName("");
       setLastName("");
+      setCompanyName("");
+      setCif("");
+      setCompanyAddress("");
+      setCompanyPhone("");
       setIsOrganizer(false);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -275,6 +326,59 @@ const Auth = () => {
                         />
                       </div>
                     </div>
+                    
+                    {isOrganizer && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="register-company">Nombre de la Empresa</Label>
+                          <Input
+                            id="register-company"
+                            type="text"
+                            placeholder="Mi Empresa S.L."
+                            value={companyName}
+                            onChange={(e) => setCompanyName(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="register-cif">CIF</Label>
+                            <Input
+                              id="register-cif"
+                              type="text"
+                              placeholder="A12345678"
+                              value={cif}
+                              onChange={(e) => setCif(e.target.value.toUpperCase())}
+                              required
+                              maxLength={9}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="register-phone">Teléfono de Empresa</Label>
+                            <Input
+                              id="register-phone"
+                              type="tel"
+                              placeholder="612345678"
+                              value={companyPhone}
+                              onChange={(e) => setCompanyPhone(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="register-address">Dirección de la Empresa</Label>
+                          <Input
+                            id="register-address"
+                            type="text"
+                            placeholder="Calle Principal, 123, Madrid"
+                            value={companyAddress}
+                            onChange={(e) => setCompanyAddress(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
+                    
                     <div className="space-y-2">
                       <Label htmlFor="register-email">Email</Label>
                       <Input
