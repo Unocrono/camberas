@@ -185,9 +185,7 @@ export type Database = {
         Row: {
           autonomous_community: string | null
           birth_date: string | null
-          cif: string | null
           city: string | null
-          company_address: string | null
           company_name: string | null
           company_phone: string | null
           created_at: string
@@ -204,9 +202,7 @@ export type Database = {
         Insert: {
           autonomous_community?: string | null
           birth_date?: string | null
-          cif?: string | null
           city?: string | null
-          company_address?: string | null
           company_name?: string | null
           company_phone?: string | null
           created_at?: string
@@ -223,9 +219,7 @@ export type Database = {
         Update: {
           autonomous_community?: string | null
           birth_date?: string | null
-          cif?: string | null
           city?: string | null
-          company_address?: string | null
           company_name?: string | null
           company_phone?: string | null
           created_at?: string
