@@ -171,10 +171,9 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Iniciar Sesión</TabsTrigger>
                 <TabsTrigger value="register">Registrarse</TabsTrigger>
-                <TabsTrigger value="organizer">Organizador</TabsTrigger>
               </TabsList>
               
               <TabsContent value="login">
@@ -223,132 +222,94 @@ const Auth = () => {
               </TabsContent>
               
               <TabsContent value="register">
-                <form onSubmit={(e) => handleSignUp(e, false)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="register-firstname">Nombre</Label>
-                      <Input
-                        id="register-firstname"
-                        type="text"
-                        placeholder="Juan"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-lastname">Apellidos</Label>
-                      <Input
-                        id="register-lastname"
-                        type="text"
-                        placeholder="Pérez García"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="tu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Contraseña</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creando cuenta...
-                      </>
-                    ) : (
-                      "Crear Cuenta"
+                    <Label>Tipo de cuenta</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={!isOrganizer ? "default" : "outline"}
+                        className="w-full"
+                        onClick={() => setIsOrganizer(false)}
+                      >
+                        Corredor
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={isOrganizer ? "default" : "outline"}
+                        className="w-full"
+                        onClick={() => setIsOrganizer(true)}
+                      >
+                        Organizador
+                      </Button>
+                    </div>
+                    {isOrganizer && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Tu cuenta de organizador será revisada por nuestro equipo antes de ser aprobada.
+                      </p>
                     )}
-                  </Button>
-                </form>
-              </TabsContent>
-              
-              <TabsContent value="organizer">
-                <form onSubmit={(e) => handleSignUp(e, true)} className="space-y-4">
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm text-muted-foreground">
-                      Regístrate como organizador para crear y gestionar carreras en la plataforma.
-                    </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                  <form onSubmit={(e) => handleSignUp(e, isOrganizer)} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="register-firstname">Nombre</Label>
+                        <Input
+                          id="register-firstname"
+                          type="text"
+                          placeholder="Juan"
+                          value={firstName}
+                          onChange={(e) => setFirstName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="register-lastname">Apellidos</Label>
+                        <Input
+                          id="register-lastname"
+                          type="text"
+                          placeholder="Pérez García"
+                          value={lastName}
+                          onChange={(e) => setLastName(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      <Label htmlFor="org-firstname">Nombre</Label>
+                      <Label htmlFor="register-email">Email</Label>
                       <Input
-                        id="org-firstname"
-                        type="text"
-                        placeholder="Juan"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        id="register-email"
+                        type="email"
+                        placeholder={isOrganizer ? "organizador@email.com" : "tu@email.com"}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="org-lastname">Apellidos</Label>
+                      <Label htmlFor="register-password">Contraseña</Label>
                       <Input
-                        id="org-lastname"
-                        type="text"
-                        placeholder="Pérez García"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        id="register-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
                         required
+                        minLength={6}
                       />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="org-email">Email</Label>
-                    <Input
-                      id="org-email"
-                      type="email"
-                      placeholder="organizador@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="org-password">Contraseña</Label>
-                    <Input
-                      id="org-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creando cuenta de organizador...
-                      </>
-                    ) : (
-                      "Registrarse como Organizador"
-                    )}
-                  </Button>
-                </form>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creando cuenta...
+                        </>
+                      ) : (
+                        isOrganizer ? "Registrarse como Organizador" : "Registrarse como Corredor"
+                      )}
+                    </Button>
+                  </form>
+                </div>
               </TabsContent>
             </Tabs>
           </CardContent>
