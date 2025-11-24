@@ -96,7 +96,7 @@ const TimingShop = () => {
             {timingPackages.map((pkg, index) => (
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
                     Más Popular
                   </Badge>
                 )}
