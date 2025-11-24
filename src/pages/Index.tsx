@@ -56,7 +56,7 @@ const Index = () => {
             participants: registrationsData?.length || 0,
             imageUrl: race.image_url,
           };
-        })
+        }),
       );
 
       setUpcomingRaces(racesWithDistances);
@@ -70,26 +70,20 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="relative h-[90vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
-            alt="Trail running" 
-            className="w-full h-full object-cover"
-          />
+          <img src={heroImage} alt="Trail running" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background/90" />
         </div>
-        
+
         <div className="relative z-10 container mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6">
-            Camberas
-          </h1>
+          <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6">Camberas</h1>
           <p className="text-xl md:text-2xl text-primary-foreground/90 mb-8 max-w-3xl mx-auto">
             La plataforma integral para corredores y organizadores de trail running
           </p>
-          
+
           {/* Two Main Sections */}
           <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-12">
             {/* Para Corredores */}
@@ -164,11 +158,9 @@ const Index = () => {
                 <Mountain className="h-8 w-8 text-primary-foreground" />
               </div>
               <h3 className="text-xl font-bold mb-3 text-foreground">Carreras Épicas</h3>
-              <p className="text-muted-foreground">
-                Descubre rutas espectaculares en las mejores montañas de España
-              </p>
+              <p className="text-muted-foreground">Descubre rutas espectaculares en las mejores montañas de España</p>
             </div>
-            
+
             <div className="text-center p-8 rounded-lg bg-card shadow-sm hover:shadow-elevated transition-all duration-300">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
                 <Trophy className="h-8 w-8 text-primary-foreground" />
@@ -178,15 +170,13 @@ const Index = () => {
                 Elige la distancia perfecta para tu nivel, desde 10K hasta ultra trails
               </p>
             </div>
-            
+
             <div className="text-center p-8 rounded-lg bg-card shadow-sm hover:shadow-elevated transition-all duration-300">
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
                 <Timer className="h-8 w-8 text-primary-foreground" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">Cronometraje Pro</h3>
-              <p className="text-muted-foreground">
-                Alquila sistemas de cronometraje profesional para tu evento
-              </p>
+              <h3 className="text-xl font-bold mb-3 text-foreground">Cronometraje Profesional</h3>
+              <p className="text-muted-foreground">Alquila sistemas de cronometraje profesional para tu evento</p>
             </div>
           </div>
         </div>
@@ -197,11 +187,9 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-foreground mb-4">Próximas Carreras</h2>
-            <p className="text-xl text-muted-foreground">
-              Inscríbete ahora y asegura tu plaza
-            </p>
+            <p className="text-xl text-muted-foreground">Inscríbete ahora y asegura tu plaza</p>
           </div>
-          
+
           {loading ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Cargando carreras...</p>
@@ -213,7 +201,7 @@ const Index = () => {
                   <RaceCard key={race.id} {...race} />
                 ))}
               </div>
-              
+
               <div className="text-center mt-12">
                 <Button asChild size="lg" variant="outline">
                   <Link to="/races">
