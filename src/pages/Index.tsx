@@ -140,8 +140,8 @@ const Index = () => {
                 </div>
               </div>
               <Button asChild size="lg" variant="secondary" className="w-full">
-                <Link to="/timing-shop">
-                  Alquiler Cronometraje <ArrowRight className="ml-2 h-5 w-5" />
+                <Link to="/auth">
+                  ¿Eres Organizador? <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
             </div>
