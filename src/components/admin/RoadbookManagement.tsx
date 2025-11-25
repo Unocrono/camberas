@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface Roadbook {
   id: string;
-  race_id: string;
+  race_distance_id: string;
   name: string;
   description: string | null;
   start_time: string | null;
@@ -21,10 +21,10 @@ interface Roadbook {
 }
 
 interface RoadbookManagementProps {
-  raceId: string;
+  distanceId: string;
 }
 
-export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
+export function RoadbookManagement({ distanceId }: RoadbookManagementProps) {
   const [roadbooks, setRoadbooks] = useState<Roadbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -38,10 +38,10 @@ export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (raceId) {
+    if (distanceId) {
       fetchRoadbooks();
     }
-  }, [raceId]);
+  }, [distanceId]);
 
   const fetchRoadbooks = async () => {
     try {
@@ -49,7 +49,7 @@ export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
       const { data, error } = await supabase
         .from("roadbooks")
         .select("*")
-        .eq("race_id", raceId)
+        .eq("race_distance_id", distanceId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -107,7 +107,7 @@ export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
         });
       } else {
         const { error } = await supabase.from("roadbooks").insert({
-          race_id: raceId,
+          race_distance_id: distanceId,
           name: formData.name,
           description: formData.description || null,
           start_time: formData.start_time || null,
@@ -174,7 +174,7 @@ export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold">Gestión de Rutómetros</h2>
-          <p className="text-muted-foreground">Crea y gestiona los rutómetros de tu carrera</p>
+          <p className="text-muted-foreground">Crea y gestiona los rutómetros de esta distancia</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -245,7 +245,7 @@ export function RoadbookManagement({ raceId }: RoadbookManagementProps) {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Map className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground text-center">
-              No hay rutómetros creados para esta carrera.
+              No hay rutómetros creados para esta distancia.
               <br />
               Crea uno para comenzar.
             </p>
