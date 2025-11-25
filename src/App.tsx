@@ -23,6 +23,7 @@ import OrganizerProfile from "./pages/OrganizerProfile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import Roadbook from "./pages/Roadbook";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
+          <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />

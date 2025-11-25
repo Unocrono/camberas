@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Edit, Trash2, Map, Settings } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Map, Settings, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Roadbook {
@@ -290,12 +290,20 @@ export function RoadbookManagement({ distanceId }: RoadbookManagementProps) {
                     Hora de salida: {roadbook.start_time}
                   </p>
                 )}
-                <Button variant="outline" className="w-full" asChild>
-                  <a href={`/organizer/roadbook/${roadbook.id}`}>
-                    <Settings className="mr-2 h-4 w-4" />
-                    Gestionar Ítems
-                  </a>
-                </Button>
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1" asChild>
+                    <a href={`/roadbook/${roadbook.id}`} target="_blank" rel="noopener noreferrer">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver Público
+                    </a>
+                  </Button>
+                  <Button variant="outline" className="flex-1" asChild>
+                    <a href={`/organizer/roadbook/${roadbook.id}`}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Gestionar Ítems
+                    </a>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
