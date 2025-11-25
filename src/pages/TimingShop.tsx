@@ -58,7 +58,7 @@ const TimingShop = () => {
         "Cronometro Reloj en meta",
         "500 chips desechables incluidos",
         "500 dorsales trail ",
-        "Cronometraje electrónico en salida y meta",
+        "Cronometraje electrónico en meta",
         "Streaming de la cámara de línea de meta",
         "2 puntos intermedios con Cronometraje electrónico ",
         "Streaming de la cámara de puntos de intermedios",
