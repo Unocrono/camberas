@@ -370,6 +370,85 @@ export type Database = {
           },
         ]
       }
+      race_regulation_sections: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_required: boolean
+          regulation_id: string
+          section_order: number
+          section_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          regulation_id: string
+          section_order?: number
+          section_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          regulation_id?: string
+          section_order?: number
+          section_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_regulation_sections_regulation_id_fkey"
+            columns: ["regulation_id"]
+            isOneToOne: false
+            referencedRelation: "race_regulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_regulations: {
+        Row: {
+          created_at: string
+          id: string
+          published: boolean
+          race_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          published?: boolean
+          race_id: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          published?: boolean
+          race_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_regulations_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_results: {
         Row: {
           category_position: number | null
