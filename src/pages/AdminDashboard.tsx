@@ -16,9 +16,11 @@ import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement"
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
 import OrganizerApprovalManagement from "@/components/admin/OrganizerApprovalManagement";
+import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
+import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval";
+type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -28,7 +30,9 @@ const AdminDashboard = () => {
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<AdminView>("races");
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
+  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [races, setRaces] = useState<Array<{ id: string; name: string; date: string }>>([]);
+  const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -48,6 +52,15 @@ const AdminDashboard = () => {
     }
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (selectedRaceId) {
+      fetchDistances();
+    } else {
+      setDistances([]);
+      setSelectedDistanceId("");
+    }
+  }, [selectedRaceId]);
+
   const fetchRaces = async () => {
     try {
       const { data, error } = await supabase
@@ -59,6 +72,21 @@ const AdminDashboard = () => {
       setRaces(data || []);
     } catch (error: any) {
       console.error("Error fetching races:", error);
+    }
+  };
+
+  const fetchDistances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km")
+        .eq("race_id", selectedRaceId)
+        .order("distance_km", { ascending: false });
+
+      if (error) throw error;
+      setDistances(data || []);
+    } catch (error: any) {
+      console.error("Error fetching distances:", error);
     }
   };
 
@@ -138,6 +166,26 @@ const AdminDashboard = () => {
                     </option>
                   ))}
                 </select>
+                {currentView === "roadbooks" && distances.length > 0 && (
+                  <>
+                    <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                      Distancia:
+                    </Label>
+                    <select
+                      id="distance-selector"
+                      value={selectedDistanceId}
+                      onChange={(e) => setSelectedDistanceId(e.target.value)}
+                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                    >
+                      <option value="">Selecciona una distancia</option>
+                      {distances.map((distance) => (
+                        <option key={distance.id} value={distance.id}>
+                          {distance.name} ({distance.distance_km}km)
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
             )}
           </header>
@@ -145,6 +193,24 @@ const AdminDashboard = () => {
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
             {currentView === "distances" && <DistanceManagement isOrganizer={false} selectedRaceId={selectedRaceId} />}
+            {currentView === "roadbooks" && (
+              selectedDistanceId ? (
+                <RoadbookManagement distanceId={selectedDistanceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus rutómetros</p>
+                </div>
+              )
+            )}
+            {currentView === "regulations" && (
+              selectedRaceId ? (
+                <RaceRegulationManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar su reglamento</p>
+                </div>
+              )
+            )}
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} />}

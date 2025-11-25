@@ -26,7 +26,9 @@ const OrganizerDashboard = () => {
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<OrganizerView>("races");
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
+  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [races, setRaces] = useState<Array<{ id: string; name: string; date: string }>>([]);
+  const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -46,6 +48,15 @@ const OrganizerDashboard = () => {
     }
   }, [isOrganizer, user]);
 
+  useEffect(() => {
+    if (selectedRaceId) {
+      fetchDistances();
+    } else {
+      setDistances([]);
+      setSelectedDistanceId("");
+    }
+  }, [selectedRaceId]);
+
   const fetchRaces = async () => {
     try {
       const { data, error } = await supabase
@@ -58,6 +69,21 @@ const OrganizerDashboard = () => {
       setRaces(data || []);
     } catch (error: any) {
       console.error("Error fetching races:", error);
+    }
+  };
+
+  const fetchDistances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km")
+        .eq("race_id", selectedRaceId)
+        .order("distance_km", { ascending: false });
+
+      if (error) throw error;
+      setDistances(data || []);
+    } catch (error: any) {
+      console.error("Error fetching distances:", error);
     }
   };
 
@@ -130,13 +156,33 @@ const OrganizerDashboard = () => {
                   onChange={(e) => setSelectedRaceId(e.target.value)}
                   className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
                 >
-                  <option value="">Todas</option>
+                  <option value="">Selecciona</option>
                   {races.map((race) => (
                     <option key={race.id} value={race.id}>
                       {race.name}
                     </option>
                   ))}
                 </select>
+                {(currentView === "roadbooks") && distances.length > 0 && (
+                  <>
+                    <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
+                      Distancia:
+                    </label>
+                    <select
+                      id="distance-selector"
+                      value={selectedDistanceId}
+                      onChange={(e) => setSelectedDistanceId(e.target.value)}
+                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
+                    >
+                      <option value="">Selecciona</option>
+                      {distances.map((distance) => (
+                        <option key={distance.id} value={distance.id}>
+                          {distance.name} ({distance.distance_km}km)
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
             )}
           </header>
@@ -145,11 +191,11 @@ const OrganizerDashboard = () => {
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "roadbooks" && (
-              selectedRaceId ? (
-                <RoadbookManagement raceId={selectedRaceId} />
+              selectedDistanceId ? (
+                <RoadbookManagement distanceId={selectedDistanceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus rutómetros</p>
+                  <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus rutómetros</p>
                 </div>
               )
             )}

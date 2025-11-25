@@ -868,7 +868,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          race_id: string
+          race_distance_id: string
           start_time: string | null
           updated_at: string
         }
@@ -877,7 +877,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          race_id: string
+          race_distance_id: string
           start_time?: string | null
           updated_at?: string
         }
@@ -886,16 +886,16 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          race_id?: string
+          race_distance_id?: string
           start_time?: string | null
           updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "roadbooks_race_id_fkey"
-            columns: ["race_id"]
+            foreignKeyName: "roadbooks_race_distance_id_fkey"
+            columns: ["race_distance_id"]
             isOneToOne: false
-            referencedRelation: "races"
+            referencedRelation: "race_distances"
             referencedColumns: ["id"]
           },
         ]
