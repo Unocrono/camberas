@@ -51,7 +51,7 @@ const TimingShop = () => {
     {
       name: "Profesional",
       description: "Para grandes eventos",
-      price: "750€",
+      price: "700€",
       image: timingSystem3,
       features: [
         "Sistema de cronometraje RFID timing ULTRA",
