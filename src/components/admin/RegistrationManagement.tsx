@@ -29,7 +29,7 @@ interface Registration {
     name: string;
     distance_km: number;
   };
-  profile: {
+  profiles: {
     first_name: string | null;
     last_name: string | null;
     phone: string | null;
@@ -106,17 +106,17 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           bib_number,
           created_at,
           user_id,
-          race:races (
+          race:races!registrations_race_id_fkey (
             id,
             name,
             date,
             organizer_id
           ),
-          race_distance:race_distances (
+          race_distance:race_distances!registrations_race_distance_id_fkey (
             name,
             distance_km
           ),
-          profile:profiles (
+          profiles!registrations_user_id_fkey (
             first_name,
             last_name,
             phone,
@@ -167,9 +167,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (reg) =>
-          reg.profile.first_name?.toLowerCase().includes(term) ||
-          reg.profile.last_name?.toLowerCase().includes(term) ||
-          reg.profile.dni_passport?.toLowerCase().includes(term) ||
+          reg.profiles.first_name?.toLowerCase().includes(term) ||
+          reg.profiles.last_name?.toLowerCase().includes(term) ||
+          reg.profiles.dni_passport?.toLowerCase().includes(term) ||
           reg.bib_number?.toString().includes(term)
       );
     }
@@ -228,10 +228,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     ];
 
     const rows = filteredRegistrations.map((reg) => [
-      reg.profile.first_name || "",
-      reg.profile.last_name || "",
-      reg.profile.dni_passport || "",
-      reg.profile.phone || "",
+      reg.profiles.first_name || "",
+      reg.profiles.last_name || "",
+      reg.profiles.dni_passport || "",
+      reg.profiles.phone || "",
       reg.race.name,
       `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`,
       reg.bib_number || "",
@@ -356,9 +356,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   filteredRegistrations.map((reg) => (
                     <TableRow key={reg.id}>
                       <TableCell className="font-medium">
-                        {reg.profile.first_name} {reg.profile.last_name}
+                        {reg.profiles.first_name} {reg.profiles.last_name}
                       </TableCell>
-                      <TableCell>{reg.profile.dni_passport || "N/A"}</TableCell>
+                      <TableCell>{reg.profiles.dni_passport || "N/A"}</TableCell>
                       <TableCell>{reg.race.name}</TableCell>
                       <TableCell>
                         {reg.race_distance.name} ({reg.race_distance.distance_km}km)
@@ -404,7 +404,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                               <DialogHeader>
                                 <DialogTitle>Asignar Dorsal</DialogTitle>
                                 <DialogDescription>
-                                  Asignar número de dorsal a {reg.profile.first_name} {reg.profile.last_name}
+                                  Asignar número de dorsal a {reg.profiles.first_name} {reg.profiles.last_name}
                                 </DialogDescription>
                               </DialogHeader>
                               <div className="space-y-4 mt-4">
