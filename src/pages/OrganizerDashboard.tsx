@@ -12,9 +12,10 @@ import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
+import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -142,6 +143,15 @@ const OrganizerDashboard = () => {
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "roadbooks" && (
+              selectedRaceId ? (
+                <RoadbookManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus rutómetros</p>
+                </div>
+              )
+            )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}

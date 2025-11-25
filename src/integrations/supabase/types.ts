@@ -632,6 +632,195 @@ export type Database = {
           },
         ]
       }
+      roadbook_items: {
+        Row: {
+          altitude: number | null
+          created_at: string
+          description: string
+          icon_url: string | null
+          id: string
+          is_highlighted: boolean
+          item_order: number
+          item_type: string
+          km_partial: number | null
+          km_remaining: number | null
+          km_total: number
+          latitude: number | null
+          longitude: number | null
+          notes: string | null
+          photo_16_9_url: string | null
+          photo_9_16_url: string | null
+          roadbook_id: string
+          updated_at: string
+          via: string | null
+        }
+        Insert: {
+          altitude?: number | null
+          created_at?: string
+          description: string
+          icon_url?: string | null
+          id?: string
+          is_highlighted?: boolean
+          item_order?: number
+          item_type?: string
+          km_partial?: number | null
+          km_remaining?: number | null
+          km_total: number
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_16_9_url?: string | null
+          photo_9_16_url?: string | null
+          roadbook_id: string
+          updated_at?: string
+          via?: string | null
+        }
+        Update: {
+          altitude?: number | null
+          created_at?: string
+          description?: string
+          icon_url?: string | null
+          id?: string
+          is_highlighted?: boolean
+          item_order?: number
+          item_type?: string
+          km_partial?: number | null
+          km_remaining?: number | null
+          km_total?: number
+          latitude?: number | null
+          longitude?: number | null
+          notes?: string | null
+          photo_16_9_url?: string | null
+          photo_9_16_url?: string | null
+          roadbook_id?: string
+          updated_at?: string
+          via?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadbook_items_roadbook_id_fkey"
+            columns: ["roadbook_id"]
+            isOneToOne: false
+            referencedRelation: "roadbooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadbook_paces: {
+        Row: {
+          created_at: string
+          id: string
+          pace_minutes_per_km: number
+          pace_name: string
+          pace_order: number
+          roadbook_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pace_minutes_per_km: number
+          pace_name: string
+          pace_order?: number
+          roadbook_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pace_minutes_per_km?: number
+          pace_name?: string
+          pace_order?: number
+          roadbook_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadbook_paces_roadbook_id_fkey"
+            columns: ["roadbook_id"]
+            isOneToOne: false
+            referencedRelation: "roadbooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadbook_schedules: {
+        Row: {
+          created_at: string
+          estimated_time: unknown
+          id: string
+          roadbook_item_id: string
+          roadbook_pace_id: string
+        }
+        Insert: {
+          created_at?: string
+          estimated_time: unknown
+          id?: string
+          roadbook_item_id: string
+          roadbook_pace_id: string
+        }
+        Update: {
+          created_at?: string
+          estimated_time?: unknown
+          id?: string
+          roadbook_item_id?: string
+          roadbook_pace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadbook_schedules_roadbook_item_id_fkey"
+            columns: ["roadbook_item_id"]
+            isOneToOne: false
+            referencedRelation: "roadbook_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "roadbook_schedules_roadbook_pace_id_fkey"
+            columns: ["roadbook_pace_id"]
+            isOneToOne: false
+            referencedRelation: "roadbook_paces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roadbooks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          race_id: string
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          race_id: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          race_id?: string
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "roadbooks_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       split_times: {
         Row: {
           checkpoint_name: string
