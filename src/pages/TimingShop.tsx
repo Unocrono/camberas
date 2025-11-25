@@ -57,7 +57,6 @@ const TimingShop = () => {
         "Sistema de cronometraje RFID timing ULTRA",
         "Cronometro Reloj en meta",
         "500 chips desechables incluidos",
-        "500 dorsales trail ",
         "Cronometraje electrónico en meta",
         "Streaming de la cámara de línea de meta",
         "2 puntos intermedios con Cronometraje electrónico ",
