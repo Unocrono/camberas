@@ -25,6 +25,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Roadbook from "./pages/Roadbook";
 import RoadbookItemsManagement from "./pages/RoadbookItemsManagement";
+import BibDesignerPage from "./pages/BibDesignerPage";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
+          <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
           <Route path="/training-plan" element={<TrainingPlan />} />
           <Route path="/support-chat" element={<SupportChat />} />
           <Route path="/faqs" element={<Faqs />} />

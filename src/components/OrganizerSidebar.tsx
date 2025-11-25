@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -71,6 +71,14 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
                   <Link to="/organizer-profile">
                     <UserCircle />
                     <span>Mi Perfil</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Diseñador de Dorsales">
+                  <Link to="/organizer/bib-designer">
+                    <RectangleHorizontal />
+                    <span>Diseñador de Dorsales</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
