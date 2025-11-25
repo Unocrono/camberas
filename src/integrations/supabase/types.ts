@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      bib_designs: {
+        Row: {
+          background_color: string | null
+          canvas_json: Json
+          created_at: string
+          height_cm: number
+          id: string
+          name: string
+          race_id: string
+          updated_at: string
+          width_cm: number
+        }
+        Insert: {
+          background_color?: string | null
+          canvas_json?: Json
+          created_at?: string
+          height_cm?: number
+          id?: string
+          name?: string
+          race_id: string
+          updated_at?: string
+          width_cm?: number
+        }
+        Update: {
+          background_color?: string | null
+          canvas_json?: Json
+          created_at?: string
+          height_cm?: number
+          id?: string
+          name?: string
+          race_id?: string
+          updated_at?: string
+          width_cm?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bib_designs_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           created_at: string
