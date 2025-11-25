@@ -32,8 +32,8 @@ interface BibDesign {
 
 const BibDesignerPage = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user, loading: authLoading, isOrganizer, isAdmin } = useAuth();
   
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRaceId, setSelectedRaceId] = useState<string>(searchParams.get("raceId") || "");
@@ -53,22 +53,19 @@ const BibDesignerPage = () => {
       return;
     }
 
-    const checkRoleAndFetchRaces = async () => {
-      // Check if user is organizer or admin
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role, status")
-        .eq("user_id", user.id);
+    // Wait for role check to complete
+    if (!isOrganizer && !isAdmin) {
+      // Give time for roles to load
+      const timeout = setTimeout(() => {
+        if (!isOrganizer && !isAdmin) {
+          toast.error("No tienes permisos para acceder a esta página");
+          navigate("/");
+        }
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
 
-      const isOrganizer = roles?.some(r => r.role === "organizer" && r.status === "approved");
-      const isAdmin = roles?.some(r => r.role === "admin");
-
-      if (!isOrganizer && !isAdmin) {
-        toast.error("No tienes permisos para acceder a esta página");
-        navigate("/");
-        return;
-      }
-
+    const fetchRaces = async () => {
       // Fetch races for organizer
       let query = supabase.from("races").select("id, name").order("date", { ascending: false });
       
@@ -94,8 +91,8 @@ const BibDesignerPage = () => {
       setIsLoading(false);
     };
 
-    checkRoleAndFetchRaces();
-  }, [user, authLoading, navigate, selectedRaceId]);
+    fetchRaces();
+  }, [user, authLoading, navigate, selectedRaceId, isOrganizer, isAdmin]);
 
   // Fetch designs when race is selected
   useEffect(() => {
