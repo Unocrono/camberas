@@ -13,9 +13,10 @@ import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
+import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -149,6 +150,15 @@ const OrganizerDashboard = () => {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera para gestionar sus rutómetros</p>
+                </div>
+              )
+            )}
+            {currentView === "regulations" && (
+              selectedRaceId ? (
+                <RaceRegulationManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar su reglamento</p>
                 </div>
               )
             )}
