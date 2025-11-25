@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -65,6 +65,7 @@ const RaceDetail = () => {
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [faqs, setFaqs] = useState<any[]>([]);
+  const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
     fetchRaceDetails();
@@ -156,6 +157,25 @@ const RaceDetail = () => {
 
       if (!faqsError && faqsData) {
         setFaqs(faqsData);
+      }
+
+      // Load Roadbooks for all distances
+      const { data: roadbooksData, error: roadbooksError } = await supabase
+        .from("roadbooks")
+        .select("*")
+        .in("race_distance_id", distancesData.map((d: any) => d.id))
+        .order("created_at", { ascending: false });
+
+      if (!roadbooksError && roadbooksData) {
+        // Group roadbooks by distance_id
+        const roadbooksByDistance: Record<string, any[]> = {};
+        roadbooksData.forEach((roadbook: any) => {
+          if (!roadbooksByDistance[roadbook.race_distance_id]) {
+            roadbooksByDistance[roadbook.race_distance_id] = [];
+          }
+          roadbooksByDistance[roadbook.race_distance_id].push(roadbook);
+        });
+        setRoadbooks(roadbooksByDistance);
       }
 
       setRace({
@@ -612,6 +632,35 @@ const RaceDetail = () => {
                               Descargar Recorrido GPX
                             </a>
                           </Button>
+                        )}
+
+                        {/* Roadbooks */}
+                        {roadbooks[distance.id] && roadbooks[distance.id].length > 0 && (
+                          <div className="space-y-2 pt-2 border-t">
+                            <p className="text-sm font-semibold flex items-center gap-2">
+                              <Map className="h-4 w-4 text-primary" />
+                              Rutómetros Disponibles
+                            </p>
+                            {roadbooks[distance.id].map((roadbook: any) => (
+                              <Button
+                                key={roadbook.id}
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-start"
+                                asChild
+                              >
+                                <a href={`/roadbook/${roadbook.id}`} target="_blank" rel="noopener noreferrer">
+                                  <Map className="h-3 w-3 mr-2" />
+                                  {roadbook.name}
+                                  {roadbook.start_time && (
+                                    <span className="ml-auto text-xs text-muted-foreground">
+                                      {roadbook.start_time}
+                                    </span>
+                                  )}
+                                </a>
+                              </Button>
+                            ))}
+                          </div>
                         )}
                         
                         <div className="pt-3 mt-auto">
