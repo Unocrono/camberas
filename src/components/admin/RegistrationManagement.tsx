@@ -116,7 +116,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             name,
             distance_km
           ),
-          profiles!registrations_user_id_fkey (
+          profiles!registrations_user_id_profiles_fkey (
             first_name,
             last_name,
             phone,
