@@ -66,7 +66,7 @@ const TimingShop = () => {
         "Seguimiento live",
         "Seguimiento GPS",
         "Clasificaciones en tiempo real",
-        "Equipo técnico en la carrera",
+        "Una persona técnico de cronometraje en la carrera",
         "Soporte técnico previo al evento",
       ],
       maxParticipants: "500+",
