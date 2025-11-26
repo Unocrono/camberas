@@ -59,7 +59,7 @@ const Index = () => {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="relative h-[90vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[90vh] py-20 md:py-0 flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img src={heroImage} alt="Trail running" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background/90" />
