@@ -7,12 +7,15 @@ import RaceCard from "@/components/RaceCard";
 import heroImage from "@/assets/hero-trail-mtb.jpg";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
 const Index = () => {
   const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     fetchRaces();
   }, []);
+
   const fetchRaces = async () => {
     try {
       const {
@@ -55,7 +58,9 @@ const Index = () => {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen bg-background">
+
+  return (
+    <div className="min-h-screen bg-background">
       <Navbar />
 
       {/* Hero Section */}
@@ -72,30 +77,30 @@ const Index = () => {
           </p>
 
           {/* Two Main Sections */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mt-12">
+          <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto mt-8 md:mt-12">
             {/* Para Deportistas */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-primary/20">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-4">
+            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-primary/20">
+              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-hero mb-3 md:mb-4">
                 <div className="flex gap-1">
-                  <Mountain className="h-6 w-6 text-primary-foreground" />
-                  <Bike className="h-6 w-6 text-primary-foreground" />
+                  <Mountain className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
+                  <Bike className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
                 </div>
               </div>
-              <h2 className="text-3xl font-bold text-foreground mb-4">Para Deportistas</h2>
-              <p className="text-muted-foreground mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">Para Deportistas</h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-3 md:mb-6">
                 Descubre carreras de Trail y MTB, inscríbete online y sigue tus resultados en tiempo real
               </p>
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4 text-primary" />
+              <div className="space-y-1.5 md:space-y-2 mb-4 md:mb-6">
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                   <span>Calendario de Trail y MTB</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Trophy className="h-4 w-4 text-primary" />
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                   <span>Inscripción online</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Timer className="h-4 w-4 text-primary" />
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Timer className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                   <span>Resultados en vivo</span>
                 </div>
               </div>
@@ -107,24 +112,26 @@ const Index = () => {
             </div>
 
             {/* Para Organizadores */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-secondary/20">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary mb-4">
-                <Settings className="h-8 w-8 text-secondary-foreground" />
+            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-secondary/20">
+              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-secondary mb-3 md:mb-4">
+                <Settings className="h-6 w-6 md:h-8 md:w-8 text-secondary-foreground" />
               </div>
-              <h2 className="text-3xl font-bold text-foreground mb-4">Para Organizadores</h2>
-              <p className="text-muted-foreground mb-6">Gestiona inscripciones, reglamento, recorrido... incluso diseña el dorsal de tu carrera,</p>
-              <div className="space-y-2 mb-6">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4 text-secondary" />
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">Para Organizadores</h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-3 md:mb-6">
+                Gestiona inscripciones, reglamento, recorrido... incluso diseña el dorsal de tu carrera
+              </p>
+              <div className="space-y-1.5 md:space-y-2 mb-4 md:mb-6">
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Users className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
                   <span>Gestión de inscripciones</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Timer className="h-4 w-4 text-secondary" />
-                  <span>Integra el GPX y localiza a los corredores con nuestra APP</span>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Timer className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
+                  <span>Integra el GPX y localiza corredores</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Trophy className="h-4 w-4 text-secondary" />
-                  <span>Podrás cronometrar tu carrera, te ayudamos</span>
+                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                  <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
+                  <span>Cronometraje profesional</span>
                 </div>
               </div>
               <Button asChild size="lg" variant="secondary" className="w-full">
@@ -178,9 +185,12 @@ const Index = () => {
             <p className="text-xl text-muted-foreground">Inscríbete ahora y asegura tu plaza</p>
           </div>
 
-          {loading ? <div className="text-center py-12">
+          {loading ? (
+            <div className="text-center py-12">
               <p className="text-muted-foreground">Cargando carreras...</p>
-            </div> : upcomingRaces.length > 0 ? <>
+            </div>
+          ) : upcomingRaces.length > 0 ? (
+            <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {upcomingRaces.map(race => <RaceCard key={race.id} {...race} />)}
               </div>
@@ -192,13 +202,18 @@ const Index = () => {
                   </Link>
                 </Button>
               </div>
-            </> : <div className="text-center py-12">
+            </>
+          ) : (
+            <div className="text-center py-12">
               <p className="text-muted-foreground">No hay carreras próximas disponibles</p>
-            </div>}
+            </div>
+          )}
         </div>
       </section>
 
       <Footer />
-    </div>;
+    </div>
+  );
 };
+
 export default Index;
