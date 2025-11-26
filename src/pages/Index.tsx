@@ -4,7 +4,7 @@ import { ArrowRight, Trophy, Timer, Mountain, Users, Calendar, Settings, Bike } 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
-import heroImage from "@/assets/hero-trail.jpg";
+import heroImage from "@/assets/hero-trail-mtb.jpg";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 const Index = () => {
