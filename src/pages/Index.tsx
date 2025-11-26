@@ -120,7 +120,7 @@ const Index = () => {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Timer className="h-4 w-4 text-secondary" />
-                  <span>Intergra el GPX y localiza a los corredores con nuestra APP</span>
+                  <span>Integra el GPX y localiza a los corredores con nuestra APP</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Trophy className="h-4 w-4 text-secondary" />
