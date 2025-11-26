@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users } from "lucide-react";
+import { Calendar, MapPin, Users, Mountain, Bike } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +12,10 @@ interface RaceCardProps {
   distances: string[];
   participants: number;
   imageUrl?: string;
+  raceType?: 'trail' | 'mtb';
 }
 
-const RaceCard = ({ id, name, date, location, distances, participants, imageUrl }: RaceCardProps) => {
+const RaceCard = ({ id, name, date, location, distances, participants, imageUrl, raceType = 'trail' }: RaceCardProps) => {
   return (
     <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group">
       <div className="relative h-48 overflow-hidden">
@@ -23,6 +24,12 @@ const RaceCard = ({ id, name, date, location, distances, participants, imageUrl 
           alt={name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
+        <div className="absolute top-4 left-4">
+          <Badge variant="default" className="bg-primary/90 backdrop-blur-sm flex items-center gap-1">
+            {raceType === 'mtb' ? <Bike className="h-3 w-3" /> : <Mountain className="h-3 w-3" />}
+            {raceType === 'mtb' ? 'MTB' : 'Trail'}
+          </Badge>
+        </div>
         <div className="absolute top-4 right-4 flex gap-2">
           {distances.map((distance) => (
             <Badge key={distance} variant="secondary" className="bg-secondary/90 backdrop-blur-sm">

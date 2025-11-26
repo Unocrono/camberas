@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike } from "lucide-react";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
 
@@ -59,6 +59,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     gps_update_frequency: "30",
     gpx_file_url: "",
     additional_info: "",
+    race_type: "trail" as "trail" | "mtb",
   });
   const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [uploadingGpx, setUploadingGpx] = useState(false);
@@ -120,6 +121,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gps_update_frequency: (race as any).gps_update_frequency?.toString() || "30",
         gpx_file_url: (race as any).gpx_file_url || "",
         additional_info: (race as any).additional_info || "",
+        race_type: (race as any).race_type || "trail",
       });
     } else {
       setEditingRace(null);
@@ -137,6 +139,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gps_update_frequency: "30",
         gpx_file_url: "",
         additional_info: "",
+        race_type: "trail",
       });
     }
     setGpxFile(null);
@@ -323,6 +326,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             gpx_file_url: gpxUrl || null,
             additional_info: formData.additional_info || null,
+            race_type: formData.race_type,
           })
           .eq("id", editingRace.id);
 
@@ -351,6 +355,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             gps_update_frequency: parseInt(formData.gps_update_frequency),
             organizer_id: isOrganizer ? user?.id : null,
             additional_info: formData.additional_info || null,
+            race_type: formData.race_type,
           }])
           .select()
           .single();
@@ -466,6 +471,30 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Tipo de Carrera *</Label>
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant={formData.race_type === "trail" ? "default" : "outline"}
+                    onClick={() => setFormData({ ...formData, race_type: "trail" })}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Mountain className="h-4 w-4" />
+                    Trail Running
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.race_type === "mtb" ? "default" : "outline"}
+                    onClick={() => setFormData({ ...formData, race_type: "mtb" })}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Bike className="h-4 w-4" />
+                    MTB
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -759,7 +788,13 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-2xl">{race.name}</CardTitle>
+                    <div className="flex items-center gap-2 mb-1">
+                      <CardTitle className="text-2xl">{race.name}</CardTitle>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${(race as any).race_type === 'mtb' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+                        {(race as any).race_type === 'mtb' ? <Bike className="h-3 w-3" /> : <Mountain className="h-3 w-3" />}
+                        {(race as any).race_type === 'mtb' ? 'MTB' : 'Trail'}
+                      </span>
+                    </div>
                     <CardDescription className="mt-2">
                       {race.description || "Sin descripción"}
                     </CardDescription>

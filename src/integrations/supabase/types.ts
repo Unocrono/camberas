@@ -559,6 +559,7 @@ export type Database = {
           official_website_url: string | null
           organizer_email: string | null
           organizer_id: string | null
+          race_type: string
           registration_closes: string | null
           registration_opens: string | null
           updated_at: string
@@ -581,6 +582,7 @@ export type Database = {
           official_website_url?: string | null
           organizer_email?: string | null
           organizer_id?: string | null
+          race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
           updated_at?: string
@@ -603,6 +605,7 @@ export type Database = {
           official_website_url?: string | null
           organizer_email?: string | null
           organizer_id?: string | null
+          race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
           updated_at?: string

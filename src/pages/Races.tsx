@@ -3,14 +3,17 @@ import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Mountain, Bike } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+type RaceTypeFilter = 'all' | 'trail' | 'mtb';
 
 const Races = () => {
   const [allRaces, setAllRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [raceTypeFilter, setRaceTypeFilter] = useState<RaceTypeFilter>('all');
 
   useEffect(() => {
     fetchRaces();
@@ -53,6 +56,7 @@ const Races = () => {
             distances: (distancesData || []).map((d) => d.name),
             participants: registrationsData?.length || 0,
             imageUrl: race.image_url,
+            raceType: race.race_type as 'trail' | 'mtb',
           };
         })
       );
@@ -67,8 +71,9 @@ const Races = () => {
 
   const filteredRaces = allRaces.filter(
     (race) =>
-      race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      race.location.toLowerCase().includes(searchTerm.toLowerCase())
+      (race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      race.location.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (raceTypeFilter === 'all' || race.raceType === raceTypeFilter)
   );
 
   return (
@@ -82,7 +87,7 @@ const Races = () => {
               Todas las Carreras
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Encuentra tu próximo desafío en la montaña
+              Encuentra tu próximo desafío en Trail Running o MTB
             </p>
             
             <div className="max-w-xl mx-auto">
@@ -97,11 +102,31 @@ const Races = () => {
               </div>
               
               <div className="flex flex-wrap gap-2 mt-4 justify-center">
-                <Button variant="outline" size="sm">Todas</Button>
-                <Button variant="outline" size="sm">10K-21K</Button>
-                <Button variant="outline" size="sm">30K-42K</Button>
-                <Button variant="outline" size="sm">50K+</Button>
-                <Button variant="outline" size="sm">Ultra</Button>
+                <Button 
+                  variant={raceTypeFilter === 'all' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setRaceTypeFilter('all')}
+                >
+                  Todas
+                </Button>
+                <Button 
+                  variant={raceTypeFilter === 'trail' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setRaceTypeFilter('trail')}
+                  className="flex items-center gap-1"
+                >
+                  <Mountain className="h-4 w-4" />
+                  Trail
+                </Button>
+                <Button 
+                  variant={raceTypeFilter === 'mtb' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => setRaceTypeFilter('mtb')}
+                  className="flex items-center gap-1"
+                >
+                  <Bike className="h-4 w-4" />
+                  MTB
+                </Button>
               </div>
             </div>
           </div>
