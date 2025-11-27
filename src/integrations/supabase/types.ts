@@ -632,6 +632,7 @@ export type Database = {
           is_system_field: boolean
           is_visible: boolean
           placeholder: string | null
+          race_distance_id: string | null
           race_id: string
           updated_at: string
         }
@@ -648,6 +649,7 @@ export type Database = {
           is_system_field?: boolean
           is_visible?: boolean
           placeholder?: string | null
+          race_distance_id?: string | null
           race_id: string
           updated_at?: string
         }
@@ -664,10 +666,18 @@ export type Database = {
           is_system_field?: boolean
           is_visible?: boolean
           placeholder?: string | null
+          race_distance_id?: string | null
           race_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "registration_form_fields_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registration_form_fields_race_id_fkey"
             columns: ["race_id"]
@@ -1127,6 +1137,10 @@ export type Database = {
       }
       seed_default_registration_fields: {
         Args: { p_race_id: string }
+        Returns: undefined
+      }
+      seed_default_registration_fields_for_distance: {
+        Args: { p_distance_id: string }
         Returns: undefined
       }
     }

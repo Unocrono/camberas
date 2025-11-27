@@ -167,7 +167,7 @@ const AdminDashboard = () => {
                     </option>
                   ))}
                 </select>
-                {currentView === "roadbooks" && distances.length > 0 && (
+                {(currentView === "roadbooks" || currentView === "form-fields") && distances.length > 0 && (
                   <>
                     <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                       Distancia:
@@ -213,11 +213,11 @@ const AdminDashboard = () => {
               )
             )}
             {currentView === "form-fields" && (
-              selectedRaceId ? (
-                <FormFieldsManagement selectedRaceId={selectedRaceId} />
+              selectedDistanceId ? (
+                <FormFieldsManagement distanceId={selectedDistanceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus campos de formulario</p>
+                  <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus campos de formulario</p>
                 </div>
               )
             )}

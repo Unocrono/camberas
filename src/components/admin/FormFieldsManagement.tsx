@@ -64,7 +64,7 @@ interface FormField {
 
 interface FormFieldsManagementProps {
   isOrganizer?: boolean;
-  selectedRaceId?: string;
+  distanceId?: string;
 }
 
 interface SortableFieldItemProps {
@@ -213,10 +213,8 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
   );
 }
 
-export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: propRaceId }: FormFieldsManagementProps) {
+export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFieldsManagementProps) {
   const { toast } = useToast();
-  const [races, setRaces] = useState<any[]>([]);
-  const [selectedRaceId, setSelectedRaceId] = useState<string>(propRaceId || "");
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -243,61 +241,21 @@ export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: prop
   const [optionInput, setOptionInput] = useState("");
 
   useEffect(() => {
-    if (propRaceId) {
-      setSelectedRaceId(propRaceId);
-      setLoading(false);
-    } else {
-      fetchRaces();
-    }
-  }, [propRaceId]);
-
-  useEffect(() => {
-    if (selectedRaceId) {
+    if (distanceId) {
       fetchFields();
-    }
-  }, [selectedRaceId]);
-
-  const fetchRaces = async () => {
-    try {
-      let query = supabase
-        .from("races")
-        .select("id, name, date")
-        .order("date", { ascending: false });
-      
-      if (isOrganizer) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          query = query.eq("organizer_id", user.id);
-        }
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setRaces(data || []);
-      
-      if (data && data.length > 0) {
-        setSelectedRaceId(data[0].id);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error al cargar carreras",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
+    } else {
       setLoading(false);
     }
-  };
+  }, [distanceId]);
 
   const fetchFields = async () => {
-    if (!selectedRaceId) return;
+    if (!distanceId) return;
 
     try {
       const { data, error } = await supabase
         .from("registration_form_fields")
         .select("*")
-        .eq("race_id", selectedRaceId)
+        .eq("race_distance_id", distanceId)
         .order("field_order", { ascending: true });
 
       if (error) throw error;
@@ -308,6 +266,8 @@ export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: prop
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -461,7 +421,7 @@ export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: prop
           const { error } = await supabase
             .from("registration_form_fields")
             .insert([{
-              race_id: selectedRaceId,
+              race_distance_id: distanceId,
               field_name: validatedData.field_name,
               field_label: validatedData.field_label,
               field_type: validatedData.field_type,
@@ -589,18 +549,6 @@ export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: prop
     return <div className="text-muted-foreground">Cargando...</div>;
   }
 
-  if (!propRaceId && races.length === 0) {
-    return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No hay carreras</h3>
-          <p className="text-muted-foreground">Crea una carrera primero para añadir campos personalizados</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   const isSystemFieldEditing = editingField?.is_system_field === true;
 
   return (
@@ -614,21 +562,6 @@ export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: prop
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
-          {!propRaceId && (
-            <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
-              <SelectTrigger className="w-full sm:w-[280px]">
-                <SelectValue placeholder="Selecciona una carrera" />
-              </SelectTrigger>
-              <SelectContent>
-                {races.map((race) => (
-                  <SelectItem key={race.id} value={race.id}>
-                    {race.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenDialog()} className="gap-2">
