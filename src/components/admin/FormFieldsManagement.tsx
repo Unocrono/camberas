@@ -421,6 +421,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFi
           const { error } = await supabase
             .from("registration_form_fields")
             .insert([{
+              race_id: null,
               race_distance_id: distanceId,
               field_name: validatedData.field_name,
               field_label: validatedData.field_label,

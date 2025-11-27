@@ -23,28 +23,41 @@ interface FormField {
 }
 
 interface DynamicRegistrationFormProps {
-  raceId: string;
+  raceId?: string;
+  distanceId?: string;
   formData: Record<string, any>;
   onChange: (fieldName: string, value: any) => void;
 }
 
-export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicRegistrationFormProps) => {
+export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange }: DynamicRegistrationFormProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchFormFields();
-  }, [raceId]);
+  }, [raceId, distanceId]);
 
   const fetchFormFields = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("registration_form_fields")
         .select("*")
-        .eq("race_id", raceId)
         .eq("is_visible", true)
         .order("field_order", { ascending: true });
+
+      // Prefer distance-based fields, fallback to race-based
+      if (distanceId) {
+        query = query.eq("race_distance_id", distanceId);
+      } else if (raceId) {
+        query = query.eq("race_id", raceId);
+      } else {
+        setFields([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
