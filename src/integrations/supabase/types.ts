@@ -629,6 +629,8 @@ export type Database = {
           help_text: string | null
           id: string
           is_required: boolean
+          is_system_field: boolean
+          is_visible: boolean
           placeholder: string | null
           race_id: string
           updated_at: string
@@ -643,6 +645,8 @@ export type Database = {
           help_text?: string | null
           id?: string
           is_required?: boolean
+          is_system_field?: boolean
+          is_visible?: boolean
           placeholder?: string | null
           race_id: string
           updated_at?: string
@@ -657,6 +661,8 @@ export type Database = {
           help_text?: string | null
           id?: string
           is_required?: boolean
+          is_system_field?: boolean
+          is_visible?: boolean
           placeholder?: string | null
           race_id?: string
           updated_at?: string
@@ -1118,6 +1124,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      seed_default_registration_fields: {
+        Args: { p_race_id: string }
+        Returns: undefined
       }
     }
     Enums: {
