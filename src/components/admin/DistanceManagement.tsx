@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
+import { Switch } from "@/components/ui/switch";
 
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -38,6 +39,7 @@ interface Distance {
   image_url: string | null;
   gpx_file_url: string | null;
   created_at: string;
+  is_visible: boolean;
 }
 
 interface Race {
@@ -72,6 +74,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     start_location: "",
     finish_location: "",
     image_url: "",
+    is_visible: true,
   });
 
   const [gpxFile, setGpxFile] = useState<File | null>(null);
@@ -166,6 +169,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         start_location: distance.start_location || "",
         finish_location: distance.finish_location || "",
         image_url: distance.image_url || "",
+        is_visible: distance.is_visible ?? true,
       });
     } else {
       setEditingDistance(null);
@@ -180,6 +184,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         start_location: "",
         finish_location: "",
         image_url: "",
+        is_visible: true,
       });
     }
     setGpxFile(null);
@@ -261,6 +266,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         finish_location: validatedData.finish_location || null,
         image_url: imageUrl,
         gpx_file_url: gpxUrl,
+        is_visible: formData.is_visible,
       };
 
       if (editingDistance) {
@@ -539,6 +545,23 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 </div>
               </div>
 
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_visible_distance" className="flex items-center gap-2">
+                    {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    Visible para usuarios
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Si está desactivado, solo los organizadores y administradores podrán ver esta distancia
+                  </p>
+                </div>
+                <Switch
+                  id="is_visible_distance"
+                  checked={formData.is_visible}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                />
+              </div>
+
               <Button type="submit" className="w-full" disabled={isSubmitting || uploading}>
                 {uploading ? "Subiendo archivos..." : isSubmitting ? "Guardando..." : editingDistance ? "Actualizar Distancia" : "Crear Distancia"}
               </Button>
@@ -562,7 +585,15 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-2xl">{distance.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-2xl">{distance.name}</CardTitle>
+                      {!distance.is_visible && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                          <EyeOff className="h-3 w-3" />
+                          Oculta
+                        </span>
+                      )}
+                    </div>
                     <CardDescription className="mt-1 text-base font-medium">
                       {getRaceName(distance.race_id)}
                     </CardDescription>

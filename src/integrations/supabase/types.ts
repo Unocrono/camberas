@@ -327,6 +327,7 @@ export type Database = {
           gpx_file_url: string | null
           id: string
           image_url: string | null
+          is_visible: boolean
           max_participants: number | null
           name: string
           price: number
@@ -343,6 +344,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_visible?: boolean
           max_participants?: number | null
           name: string
           price: number
@@ -359,6 +361,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_visible?: boolean
           max_participants?: number | null
           name?: string
           price?: number
@@ -552,6 +555,7 @@ export type Database = {
           gpx_file_url: string | null
           id: string
           image_url: string | null
+          is_visible: boolean
           location: string
           logo_url: string | null
           max_participants: number | null
@@ -575,6 +579,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_visible?: boolean
           location: string
           logo_url?: string | null
           max_participants?: number | null
@@ -598,6 +603,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_visible?: boolean
           location?: string
           logo_url?: string | null
           max_participants?: number | null
