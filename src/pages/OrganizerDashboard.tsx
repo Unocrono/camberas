@@ -211,7 +211,7 @@ const OrganizerDashboard = () => {
             )}
             {currentView === "form-fields" && (
               selectedDistanceId ? (
-                <FormFieldsManagement isOrganizer={true} distanceId={selectedDistanceId} />
+                <FormFieldsManagement isOrganizer={true} distanceId={selectedDistanceId} raceId={selectedRaceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus campos de formulario</p>

@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock, Copy } from "lucide-react";
 import { z } from "zod";
 import {
   DndContext,
@@ -65,6 +65,13 @@ interface FormField {
 interface FormFieldsManagementProps {
   isOrganizer?: boolean;
   distanceId?: string;
+  raceId?: string;
+}
+
+interface DistanceOption {
+  id: string;
+  name: string;
+  fieldsCount: number;
 }
 
 interface SortableFieldItemProps {
@@ -213,13 +220,17 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
   );
 }
 
-export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFieldsManagementProps) {
+export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }: FormFieldsManagementProps) {
   const { toast } = useToast();
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingField, setEditingField] = useState<FormField | null>(null);
+  const [isCopyDialogOpen, setIsCopyDialogOpen] = useState(false);
+  const [availableDistances, setAvailableDistances] = useState<DistanceOption[]>([]);
+  const [selectedSourceDistance, setSelectedSourceDistance] = useState<string>("");
+  const [isCopying, setIsCopying] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -268,6 +279,157 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFi
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailableDistances = async () => {
+    if (!raceId || !distanceId) return;
+
+    try {
+      // Get all distances for this race except the current one
+      const { data: distances, error: distancesError } = await supabase
+        .from("race_distances")
+        .select("id, name")
+        .eq("race_id", raceId)
+        .neq("id", distanceId);
+
+      if (distancesError) throw distancesError;
+
+      // Get field counts for each distance
+      const distancesWithCounts: DistanceOption[] = [];
+      
+      for (const distance of distances || []) {
+        const { count, error: countError } = await supabase
+          .from("registration_form_fields")
+          .select("*", { count: "exact", head: true })
+          .eq("race_distance_id", distance.id);
+
+        if (countError) throw countError;
+
+        distancesWithCounts.push({
+          id: distance.id,
+          name: distance.name,
+          fieldsCount: count || 0,
+        });
+      }
+
+      setAvailableDistances(distancesWithCounts);
+    } catch (error: any) {
+      toast({
+        title: "Error al cargar distancias",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleOpenCopyDialog = async () => {
+    setSelectedSourceDistance("");
+    await fetchAvailableDistances();
+    setIsCopyDialogOpen(true);
+  };
+
+  const handleCopyFields = async () => {
+    if (!selectedSourceDistance || !distanceId) return;
+
+    setIsCopying(true);
+
+    try {
+      // Get fields from source distance (only non-system fields)
+      const { data: sourceFields, error: fetchError } = await supabase
+        .from("registration_form_fields")
+        .select("*")
+        .eq("race_distance_id", selectedSourceDistance)
+        .eq("is_system_field", false)
+        .order("field_order", { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      if (!sourceFields || sourceFields.length === 0) {
+        toast({
+          title: "Sin campos personalizados",
+          description: "La distancia seleccionada no tiene campos personalizados para copiar.",
+          variant: "default",
+        });
+        setIsCopyDialogOpen(false);
+        setIsCopying(false);
+        return;
+      }
+
+      // Get current max order
+      const maxOrder = fields.length > 0 
+        ? Math.max(...fields.map(f => f.field_order)) 
+        : 0;
+
+      // Create new fields for current distance
+      const newFields = sourceFields.map((field, index) => ({
+        race_id: null,
+        race_distance_id: distanceId,
+        field_name: field.field_name,
+        field_label: field.field_label,
+        field_type: field.field_type,
+        field_order: maxOrder + index + 1,
+        placeholder: field.placeholder,
+        help_text: field.help_text,
+        is_required: field.is_required,
+        field_options: field.field_options,
+        is_system_field: false,
+        is_visible: field.is_visible,
+      }));
+
+      // Check for duplicate field names
+      const existingFieldNames = fields.map(f => f.field_name);
+      const duplicates = newFields.filter(f => existingFieldNames.includes(f.field_name));
+
+      if (duplicates.length > 0) {
+        toast({
+          title: "Campos duplicados",
+          description: `Los siguientes campos ya existen: ${duplicates.map(d => d.field_label).join(", ")}. Se omitirán.`,
+          variant: "default",
+        });
+        
+        // Filter out duplicates
+        const fieldsToInsert = newFields.filter(f => !existingFieldNames.includes(f.field_name));
+        
+        if (fieldsToInsert.length === 0) {
+          setIsCopyDialogOpen(false);
+          setIsCopying(false);
+          return;
+        }
+
+        const { error: insertError } = await supabase
+          .from("registration_form_fields")
+          .insert(fieldsToInsert);
+
+        if (insertError) throw insertError;
+
+        toast({
+          title: "Campos copiados",
+          description: `Se han copiado ${fieldsToInsert.length} campos personalizados.`,
+        });
+      } else {
+        const { error: insertError } = await supabase
+          .from("registration_form_fields")
+          .insert(newFields);
+
+        if (insertError) throw insertError;
+
+        toast({
+          title: "Campos copiados",
+          description: `Se han copiado ${newFields.length} campos personalizados.`,
+        });
+      }
+
+      setIsCopyDialogOpen(false);
+      fetchFields();
+    } catch (error: any) {
+      toast({
+        title: "Error al copiar campos",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsCopying(false);
     }
   };
 
@@ -563,6 +725,12 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFi
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
+          {raceId && (
+            <Button variant="outline" onClick={handleOpenCopyDialog} className="gap-2">
+              <Copy className="h-4 w-4" />
+              Copiar de otra distancia
+            </Button>
+          )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => handleOpenDialog()} className="gap-2">
@@ -765,6 +933,69 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId }: FormFi
           </DndContext>
         )}
       </div>
+
+      {/* Copy Fields Dialog */}
+      <Dialog open={isCopyDialogOpen} onOpenChange={setIsCopyDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copiar campos de otra distancia</DialogTitle>
+            <DialogDescription>
+              Selecciona una distancia para copiar sus campos personalizados. Los campos del sistema no se copiarán.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-4">
+            {availableDistances.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No hay otras distancias disponibles en esta carrera.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>Distancia origen</Label>
+                  <Select
+                    value={selectedSourceDistance}
+                    onValueChange={setSelectedSourceDistance}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una distancia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDistances.map((distance) => (
+                        <SelectItem key={distance.id} value={distance.id}>
+                          {distance.name} ({distance.fieldsCount} campos)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsCopyDialogOpen(false)}
+                    disabled={isCopying}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button 
+                    onClick={handleCopyFields}
+                    disabled={!selectedSourceDistance || isCopying}
+                    className="gap-2"
+                  >
+                    {isCopying ? "Copiando..." : (
+                      <>
+                        <Copy className="h-4 w-4" />
+                        Copiar campos
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
