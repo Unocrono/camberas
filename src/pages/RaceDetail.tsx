@@ -162,7 +162,7 @@ const RaceDetail = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("first_name, last_name, phone, dni_passport, birth_date, emergency_contact, emergency_phone")
+        .select("first_name, last_name, phone, dni_passport, birth_date, gender, address, city, province, autonomous_community, club, team")
         .eq("id", user!.id)
         .single();
 
@@ -177,8 +177,13 @@ const RaceDetail = () => {
           phone: data.phone || "",
           document_number: data.dni_passport || "",
           birth_date: data.birth_date || "",
-          emergency_contact: data.emergency_contact || "",
-          emergency_phone: data.emergency_phone || "",
+          gender: data.gender || "",
+          address: data.address || "",
+          city: data.city || "",
+          province: data.province || "",
+          autonomous_community: data.autonomous_community || "",
+          club: data.club || "",
+          team: data.team || "",
           email: user!.email || "",
         }));
       }
