@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff, AlertTriangle, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 
@@ -270,9 +271,30 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       const bibEnd = formData.bib_end ? parseInt(formData.bib_end) : null;
       let nextBib = formData.next_bib ? parseInt(formData.next_bib) : null;
       
+      // Validate bib range
+      if (bibStart && bibEnd && bibStart > bibEnd) {
+        toast({
+          title: "Error de validación",
+          description: "El dorsal inicial no puede ser mayor que el dorsal final",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setUploading(false);
+        return;
+      }
+
       // If bib_start is set but next_bib is not, initialize next_bib to bib_start
       if (bibStart && !nextBib) {
         nextBib = bibStart;
+      }
+
+      // Warn if next_bib exceeds bib_end
+      if (nextBib && bibEnd && nextBib > bibEnd) {
+        toast({
+          title: "Advertencia",
+          description: "El siguiente dorsal supera el rango final. No se podrán asignar dorsales automáticamente.",
+          variant: "destructive",
+        });
       }
 
       const distanceData = {
@@ -539,6 +561,36 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     </p>
                   </div>
                 </div>
+
+                {/* Validation warnings */}
+                {formData.bib_start && formData.bib_end && parseInt(formData.bib_start) > parseInt(formData.bib_end) && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      El dorsal inicial no puede ser mayor que el dorsal final
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {formData.next_bib && formData.bib_end && parseInt(formData.next_bib) > parseInt(formData.bib_end) && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      El siguiente dorsal ({formData.next_bib}) supera el rango final ({formData.bib_end}). No se podrán asignar más dorsales automáticamente.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {formData.bib_start && formData.bib_end && formData.next_bib && 
+                 parseInt(formData.next_bib) <= parseInt(formData.bib_end) && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span>
+                      Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1} 
+                      ({formData.next_bib} - {formData.bib_end})
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -748,12 +800,28 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   
                   {distance.bib_start && distance.bib_end && (
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 text-muted-foreground" />
+                      {distance.next_bib && distance.next_bib > distance.bib_end ? (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      ) : distance.next_bib && (distance.bib_end - distance.next_bib + 1) <= 10 ? (
+                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                      ) : (
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      )}
                       <div>
                         <p className="text-xs text-muted-foreground">Dorsales</p>
                         <p className="font-semibold">{distance.bib_start} - {distance.bib_end}</p>
                         {distance.next_bib && (
-                          <p className="text-xs text-muted-foreground">Siguiente: {distance.next_bib}</p>
+                          <>
+                            {distance.next_bib > distance.bib_end ? (
+                              <p className="text-xs text-destructive font-medium">
+                                ¡Agotados! No hay dorsales disponibles
+                              </p>
+                            ) : (
+                              <p className={`text-xs ${(distance.bib_end - distance.next_bib + 1) <= 10 ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}`}>
+                                Disponibles: {distance.bib_end - distance.next_bib + 1} (Siguiente: {distance.next_bib})
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
