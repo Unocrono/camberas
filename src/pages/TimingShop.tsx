@@ -69,7 +69,7 @@ const TimingShop = () => {
         "Una persona técnico de cronometraje en la carrera",
         "Soporte técnico previo al evento",
       ],
-      maxParticipants: "500+",
+      maxParticipants: "500",
     },
   ];
 
