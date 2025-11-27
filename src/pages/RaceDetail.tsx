@@ -255,6 +255,14 @@ const RaceDetail = () => {
           return;
         }
 
+        // Get next bib number from distance
+        let assignedBib: number | null = null;
+        if (selectedDistance.next_bib && selectedDistance.bib_end) {
+          if (selectedDistance.next_bib <= selectedDistance.bib_end) {
+            assignedBib = selectedDistance.next_bib;
+          }
+        }
+
         // Create guest registration
         const { data: newRegistration, error: registrationError } = await supabase
           .from("registrations")
@@ -271,11 +279,20 @@ const RaceDetail = () => {
             guest_birth_date: birthDate || null,
             guest_emergency_contact: emergencyContact,
             guest_emergency_phone: emergencyPhone,
+            bib_number: assignedBib,
           })
           .select()
           .single();
 
         if (registrationError) throw registrationError;
+
+        // Update next_bib in the distance if a bib was assigned
+        if (assignedBib) {
+          await supabase
+            .from("race_distances")
+            .update({ next_bib: assignedBib + 1 })
+            .eq("id", selectedDistance.id);
+        }
 
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
@@ -346,6 +363,14 @@ const RaceDetail = () => {
 
         if (profileError) throw profileError;
 
+        // Get next bib number from distance
+        let assignedBib: number | null = null;
+        if (selectedDistance.next_bib && selectedDistance.bib_end) {
+          if (selectedDistance.next_bib <= selectedDistance.bib_end) {
+            assignedBib = selectedDistance.next_bib;
+          }
+        }
+
         // Create registration
         const { data: newRegistration, error: registrationError } = await supabase
           .from("registrations")
@@ -355,11 +380,20 @@ const RaceDetail = () => {
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
+            bib_number: assignedBib,
           })
           .select()
           .single();
 
         if (registrationError) throw registrationError;
+
+        // Update next_bib in the distance if a bib was assigned
+        if (assignedBib) {
+          await supabase
+            .from("race_distances")
+            .update({ next_bib: assignedBib + 1 })
+            .eq("id", selectedDistance.id);
+        }
 
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
