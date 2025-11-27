@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
 
@@ -31,6 +32,7 @@ interface Race {
   image_url: string | null;
   created_at: string;
   organizer_id: string | null;
+  is_visible: boolean;
 }
 
 interface RaceManagementProps {
@@ -60,6 +62,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     gpx_file_url: "",
     additional_info: "",
     race_type: "trail" as "trail" | "mtb",
+    is_visible: true,
   });
   const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [uploadingGpx, setUploadingGpx] = useState(false);
@@ -122,6 +125,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gpx_file_url: (race as any).gpx_file_url || "",
         additional_info: (race as any).additional_info || "",
         race_type: (race as any).race_type || "trail",
+        is_visible: race.is_visible ?? true,
       });
     } else {
       setEditingRace(null);
@@ -140,6 +144,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         gpx_file_url: "",
         additional_info: "",
         race_type: "trail",
+        is_visible: true,
       });
     }
     setGpxFile(null);
@@ -327,6 +332,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             gpx_file_url: gpxUrl || null,
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
+            is_visible: formData.is_visible,
           })
           .eq("id", editingRace.id);
 
@@ -356,6 +362,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             organizer_id: isOrganizer ? user?.id : null,
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
+            is_visible: formData.is_visible,
           }])
           .select()
           .single();
@@ -757,6 +764,23 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 </p>
               </div>
 
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_visible" className="flex items-center gap-2">
+                    {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    Visible para usuarios
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Si está desactivado, solo los organizadores y administradores podrán ver esta carrera
+                  </p>
+                </div>
+                <Switch
+                  id="is_visible"
+                  checked={formData.is_visible}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                />
+              </div>
+
               <Button type="submit" className="w-full" disabled={isSubmitting || uploadingImage}>
                 {isSubmitting ? "Guardando..." : editingRace ? "Actualizar Carrera" : "Crear Carrera"}
               </Button>
@@ -794,6 +818,12 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                         {(race as any).race_type === 'mtb' ? <Bike className="h-3 w-3" /> : <Mountain className="h-3 w-3" />}
                         {(race as any).race_type === 'mtb' ? 'MTB' : 'Trail'}
                       </span>
+                      {!race.is_visible && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                          <EyeOff className="h-3 w-3" />
+                          Oculta
+                        </span>
+                      )}
                     </div>
                     <CardDescription className="mt-2">
                       {race.description || "Sin descripción"}
