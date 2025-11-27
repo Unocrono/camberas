@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +18,8 @@ interface FormField {
   help_text?: string | null;
   field_options?: any;
   field_order: number;
+  is_visible?: boolean;
+  is_system_field?: boolean;
 }
 
 interface DynamicRegistrationFormProps {
@@ -40,6 +43,7 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
         .from("registration_form_fields")
         .select("*")
         .eq("race_id", raceId)
+        .eq("is_visible", true)
         .order("field_order", { ascending: true });
 
       if (error) throw error;
@@ -56,8 +60,17 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
     }
   };
 
+  // Get options from field_options - handle both formats (array or {options: []})
+  const getOptions = (field: FormField): string[] => {
+    if (Array.isArray(field.field_options)) {
+      return field.field_options;
+    }
+    return field.field_options?.options || [];
+  };
+
   const renderField = (field: FormField) => {
     const value = formData[field.field_name] || "";
+    const options = getOptions(field);
 
     switch (field.field_type) {
       case "text":
@@ -151,7 +164,6 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
         );
 
       case "select":
-        const options = field.field_options?.options || [];
         return (
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.field_name}>
@@ -207,25 +219,22 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
         );
 
       case "radio":
-        const radioOptions = field.field_options?.options || [];
         return (
           <div key={field.id} className="space-y-2">
             <Label>
               {field.field_label}
               {field.is_required && <span className="text-destructive ml-1">*</span>}
             </Label>
-            <div className="space-y-2">
-              {radioOptions.map((option: string, index: number) => (
+            <RadioGroup
+              value={value}
+              onValueChange={(val) => onChange(field.field_name, val)}
+              className="flex gap-4"
+            >
+              {options.map((option: string, index: number) => (
                 <div key={index} className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id={`${field.field_name}-${index}`}
-                    name={field.field_name}
+                  <RadioGroupItem
                     value={option}
-                    checked={value === option}
-                    onChange={(e) => onChange(field.field_name, e.target.value)}
-                    required={field.is_required}
-                    className="h-4 w-4 text-primary focus:ring-primary"
+                    id={`${field.field_name}-${index}`}
                   />
                   <Label
                     htmlFor={`${field.field_name}-${index}`}
@@ -235,7 +244,7 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
                   </Label>
                 </div>
               ))}
-            </div>
+            </RadioGroup>
             {field.help_text && (
               <p className="text-sm text-muted-foreground">{field.help_text}</p>
             )}
@@ -252,11 +261,7 @@ export const DynamicRegistrationForm = ({ raceId, formData, onChange }: DynamicR
   }
 
   if (fields.length === 0) {
-    return (
-      <p className="text-muted-foreground">
-        No hay campos personalizados configurados para esta carrera.
-      </p>
-    );
+    return null;
   }
 
   return (
