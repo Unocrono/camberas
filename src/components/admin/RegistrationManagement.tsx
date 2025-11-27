@@ -18,7 +18,12 @@ interface Registration {
   payment_status: string;
   bib_number: number | null;
   created_at: string;
-  user_id: string;
+  user_id: string | null;
+  guest_email: string | null;
+  guest_first_name: string | null;
+  guest_last_name: string | null;
+  guest_phone: string | null;
+  guest_dni_passport: string | null;
   race: {
     id: string;
     name: string;
@@ -34,7 +39,7 @@ interface Registration {
     last_name: string | null;
     phone: string | null;
     dni_passport: string | null;
-  };
+  } | null;
 }
 
 interface RegistrationManagementProps {
@@ -106,6 +111,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           bib_number,
           created_at,
           user_id,
+          guest_email,
+          guest_first_name,
+          guest_last_name,
+          guest_phone,
+          guest_dni_passport,
           race:races!registrations_race_id_fkey (
             id,
             name,
@@ -166,11 +176,19 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
-        (reg) =>
-          reg.profiles.first_name?.toLowerCase().includes(term) ||
-          reg.profiles.last_name?.toLowerCase().includes(term) ||
-          reg.profiles.dni_passport?.toLowerCase().includes(term) ||
-          reg.bib_number?.toString().includes(term)
+        (reg) => {
+          const firstName = reg.profiles?.first_name || reg.guest_first_name || "";
+          const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
+          const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
+          const email = reg.guest_email || "";
+          return (
+            firstName.toLowerCase().includes(term) ||
+            lastName.toLowerCase().includes(term) ||
+            dniPassport.toLowerCase().includes(term) ||
+            email.toLowerCase().includes(term) ||
+            reg.bib_number?.toString().includes(term)
+          );
+        }
       );
     }
 
@@ -219,6 +237,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       "Apellidos",
       "DNI/Pasaporte",
       "Teléfono",
+      "Email",
+      "Tipo",
       "Carrera",
       "Distancia",
       "Dorsal",
@@ -227,18 +247,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       "Fecha de Inscripción",
     ];
 
-    const rows = filteredRegistrations.map((reg) => [
-      reg.profiles.first_name || "",
-      reg.profiles.last_name || "",
-      reg.profiles.dni_passport || "",
-      reg.profiles.phone || "",
-      reg.race.name,
-      `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`,
-      reg.bib_number || "",
-      reg.status,
-      reg.payment_status,
-      new Date(reg.created_at).toLocaleDateString("es-ES"),
-    ]);
+    const rows = filteredRegistrations.map((reg) => {
+      const isGuest = !reg.user_id;
+      return [
+        reg.profiles?.first_name || reg.guest_first_name || "",
+        reg.profiles?.last_name || reg.guest_last_name || "",
+        reg.profiles?.dni_passport || reg.guest_dni_passport || "",
+        reg.profiles?.phone || reg.guest_phone || "",
+        reg.guest_email || "",
+        isGuest ? "Invitado" : "Registrado",
+        reg.race.name,
+        `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`,
+        reg.bib_number || "",
+        reg.status,
+        reg.payment_status,
+        new Date(reg.created_at).toLocaleDateString("es-ES"),
+      ];
+    });
 
     const csvContent = [
       headers.join(","),
@@ -337,6 +362,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 <TableRow>
                   <TableHead>Participante</TableHead>
                   <TableHead>DNI</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>Carrera</TableHead>
                   <TableHead>Distancia</TableHead>
                   <TableHead>Dorsal</TableHead>
@@ -348,89 +374,106 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <TableBody>
                 {filteredRegistrations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No se encontraron inscripciones
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRegistrations.map((reg) => (
-                    <TableRow key={reg.id}>
-                      <TableCell className="font-medium">
-                        {reg.profiles.first_name} {reg.profiles.last_name}
-                      </TableCell>
-                      <TableCell>{reg.profiles.dni_passport || "N/A"}</TableCell>
-                      <TableCell>{reg.race.name}</TableCell>
-                      <TableCell>
-                        {reg.race_distance.name} ({reg.race_distance.distance_km}km)
-                      </TableCell>
-                      <TableCell>
-                        {reg.bib_number ? (
-                          <Badge variant="outline">#{reg.bib_number}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">Sin asignar</span>
-                        )}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(reg.status)}</TableCell>
-                      <TableCell>
-                        <Badge variant={reg.payment_status === "completed" ? "default" : "secondary"}>
-                          {reg.payment_status === "completed" ? "Pagado" : "Pendiente"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Dialog
-                            open={assigningBib === reg.id}
-                            onOpenChange={(open) => {
-                              if (!open) {
-                                setAssigningBib(null);
-                                setBibNumber("");
-                              }
-                            }}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setAssigningBib(reg.id);
-                                  setBibNumber(reg.bib_number?.toString() || "");
-                                }}
-                              >
-                                <Hash className="h-4 w-4 mr-1" />
-                                Dorsal
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Asignar Dorsal</DialogTitle>
-                                <DialogDescription>
-                                  Asignar número de dorsal a {reg.profiles.first_name} {reg.profiles.last_name}
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4 mt-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="bib">Número de Dorsal</Label>
-                                  <Input
-                                    id="bib"
-                                    type="number"
-                                    min="1"
-                                    value={bibNumber}
-                                    onChange={(e) => setBibNumber(e.target.value)}
-                                    placeholder="Ej: 123"
-                                  />
-                                </div>
-                                <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
-                                  Asignar
+                  filteredRegistrations.map((reg) => {
+                    const isGuest = !reg.user_id;
+                    const firstName = reg.profiles?.first_name || reg.guest_first_name || "";
+                    const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
+                    const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
+                    
+                    return (
+                      <TableRow key={reg.id}>
+                        <TableCell className="font-medium">
+                          <div>
+                            {firstName} {lastName}
+                            {isGuest && reg.guest_email && (
+                              <div className="text-xs text-muted-foreground">{reg.guest_email}</div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{dniPassport || "N/A"}</TableCell>
+                        <TableCell>
+                          <Badge variant={isGuest ? "outline" : "secondary"}>
+                            {isGuest ? "Invitado" : "Registrado"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{reg.race.name}</TableCell>
+                        <TableCell>
+                          {reg.race_distance.name} ({reg.race_distance.distance_km}km)
+                        </TableCell>
+                        <TableCell>
+                          {reg.bib_number ? (
+                            <Badge variant="outline">#{reg.bib_number}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">Sin asignar</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(reg.status)}</TableCell>
+                        <TableCell>
+                          <Badge variant={reg.payment_status === "completed" ? "default" : "secondary"}>
+                            {reg.payment_status === "completed" ? "Pagado" : "Pendiente"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Dialog
+                              open={assigningBib === reg.id}
+                              onOpenChange={(open) => {
+                                if (!open) {
+                                  setAssigningBib(null);
+                                  setBibNumber("");
+                                }
+                              }}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setAssigningBib(reg.id);
+                                    setBibNumber(reg.bib_number?.toString() || "");
+                                  }}
+                                >
+                                  <Hash className="h-4 w-4 mr-1" />
+                                  Dorsal
                                 </Button>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          
-                          <RegistrationResponsesView registrationId={reg.id} />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Asignar Dorsal</DialogTitle>
+                                  <DialogDescription>
+                                    Asignar número de dorsal a {firstName} {lastName}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 mt-4">
+                                  <div className="space-y-2">
+                                    <Label htmlFor="bib">Número de Dorsal</Label>
+                                    <Input
+                                      id="bib"
+                                      type="number"
+                                      min="1"
+                                      value={bibNumber}
+                                      onChange={(e) => setBibNumber(e.target.value)}
+                                      placeholder="Ej: 123"
+                                    />
+                                  </div>
+                                  <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
+                                    Asignar
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                            
+                            <RegistrationResponsesView registrationId={reg.id} />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
