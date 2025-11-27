@@ -30,14 +30,14 @@ const TimingShop = () => {
     },
     {
       name: "Standard",
-      description: "Ideal para carreras medianas hasta 500 participantes",
+      description: "Ideal para carreras medianas hasta 350 participantes",
       price: "500€",
       popular: true,
       image: timingSystem2,
       features: [
         "Sistema de cronometraje RFID premium",
         "Cronometro-Reloj en meta",
-        "300 chips desechables incluidos",
+        "350 chips desechables incluidos",
         "Cronometraje electrónico en meta",
         "Infinitos puntos de Cronometraje manual",
         "Software de gestión avanzado",
