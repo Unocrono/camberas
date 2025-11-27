@@ -38,13 +38,10 @@ const signupSchema = loginSchema.extend({
 });
 
 const organizerSchema = signupSchema.extend({
-  company_name: z.string()
+  club: z.string()
     .trim()
     .min(1, "El nombre del club es requerido")
     .max(200, "El nombre debe tener menos de 200 caracteres"),
-  company_phone: z.string()
-    .trim()
-    .regex(/^(\+34)?[6-9][0-9]{8}$/, "El teléfono debe ser válido (ej: 612345678 o +34612345678)"),
 });
 
 const Auth = () => {
@@ -54,8 +51,7 @@ const Auth = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [isOrganizer, setIsOrganizer] = useState(false);
-  const [companyName, setCompanyName] = useState("");
-  const [companyPhone, setCompanyPhone] = useState("");
+  const [club, setClub] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -85,8 +81,7 @@ const Auth = () => {
       if (isOrganizerSignup) {
         validatedData = organizerSchema.parse({
           ...baseData,
-          company_name: companyName,
-          company_phone: companyPhone,
+          club,
         });
       } else {
         validatedData = signupSchema.parse(baseData);
@@ -99,9 +94,8 @@ const Auth = () => {
       };
 
       // Add organizer-specific data
-      if (isOrganizerSignup && 'company_name' in validatedData) {
-        userData.company_name = validatedData.company_name;
-        userData.company_phone = validatedData.company_phone;
+      if (isOrganizerSignup && 'club' in validatedData) {
+        userData.club = validatedData.club;
       }
 
       const { error } = await supabase.auth.signUp({
@@ -127,8 +121,7 @@ const Auth = () => {
       setPassword("");
       setFirstName("");
       setLastName("");
-      setCompanyName("");
-      setCompanyPhone("");
+      setClub("");
       setIsOrganizer(false);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -311,30 +304,17 @@ const Auth = () => {
                     </div>
                     
                     {isOrganizer && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="register-company">Nombre del Club</Label>
-                          <Input
-                            id="register-company"
-                            type="text"
-                            placeholder="Club Deportivo"
-                            value={companyName}
-                            onChange={(e) => setCompanyName(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="register-phone">Teléfono</Label>
-                          <Input
-                            id="register-phone"
-                            type="tel"
-                            placeholder="612345678"
-                            value={companyPhone}
-                            onChange={(e) => setCompanyPhone(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </>
+                      <div className="space-y-2">
+                        <Label htmlFor="register-club">Nombre del Club</Label>
+                        <Input
+                          id="register-club"
+                          type="text"
+                          placeholder="Club Deportivo"
+                          value={club}
+                          onChange={(e) => setClub(e.target.value)}
+                          required
+                        />
+                      </div>
                     )}
                     
                     <div className="space-y-2">

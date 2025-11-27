@@ -232,8 +232,6 @@ export type Database = {
           birth_date: string | null
           city: string | null
           club: string | null
-          company_name: string | null
-          company_phone: string | null
           created_at: string
           dni_passport: string | null
           first_name: string | null
@@ -251,8 +249,6 @@ export type Database = {
           birth_date?: string | null
           city?: string | null
           club?: string | null
-          company_name?: string | null
-          company_phone?: string | null
           created_at?: string
           dni_passport?: string | null
           first_name?: string | null
@@ -270,8 +266,6 @@ export type Database = {
           birth_date?: string | null
           city?: string | null
           club?: string | null
-          company_name?: string | null
-          company_phone?: string | null
           created_at?: string
           dni_passport?: string | null
           first_name?: string | null
