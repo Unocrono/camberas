@@ -40,6 +40,9 @@ interface Distance {
   gpx_file_url: string | null;
   created_at: string;
   is_visible: boolean;
+  bib_start: number | null;
+  bib_end: number | null;
+  next_bib: number | null;
 }
 
 interface Race {
@@ -75,6 +78,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     finish_location: "",
     image_url: "",
     is_visible: true,
+    bib_start: "",
+    bib_end: "",
+    next_bib: "",
   });
 
   const [gpxFile, setGpxFile] = useState<File | null>(null);
@@ -170,6 +176,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         finish_location: distance.finish_location || "",
         image_url: distance.image_url || "",
         is_visible: distance.is_visible ?? true,
+        bib_start: distance.bib_start?.toString() || "",
+        bib_end: distance.bib_end?.toString() || "",
+        next_bib: distance.next_bib?.toString() || "",
       });
     } else {
       setEditingDistance(null);
@@ -185,6 +194,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         finish_location: "",
         image_url: "",
         is_visible: true,
+        bib_start: "",
+        bib_end: "",
+        next_bib: "",
       });
     }
     setGpxFile(null);
@@ -254,6 +266,15 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         if (uploadedUrl) imageUrl = uploadedUrl;
       }
 
+      const bibStart = formData.bib_start ? parseInt(formData.bib_start) : null;
+      const bibEnd = formData.bib_end ? parseInt(formData.bib_end) : null;
+      let nextBib = formData.next_bib ? parseInt(formData.next_bib) : null;
+      
+      // If bib_start is set but next_bib is not, initialize next_bib to bib_start
+      if (bibStart && !nextBib) {
+        nextBib = bibStart;
+      }
+
       const distanceData = {
         race_id: formData.race_id,
         name: validatedData.name,
@@ -267,6 +288,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         image_url: imageUrl,
         gpx_file_url: gpxUrl,
         is_visible: formData.is_visible,
+        bib_start: bibStart,
+        bib_end: bibEnd,
+        next_bib: nextBib,
       };
 
       if (editingDistance) {
@@ -467,6 +491,54 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   value={formData.cutoff_time}
                   onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Gestión de Dorsales
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="bib_start">Dorsal Inicial</Label>
+                    <Input
+                      id="bib_start"
+                      type="number"
+                      min="1"
+                      placeholder="ej: 1"
+                      value={formData.bib_start}
+                      onChange={(e) => setFormData({ ...formData, bib_start: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bib_end">Dorsal Final</Label>
+                    <Input
+                      id="bib_end"
+                      type="number"
+                      min="1"
+                      placeholder="ej: 500"
+                      value={formData.bib_end}
+                      onChange={(e) => setFormData({ ...formData, bib_end: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="next_bib">Siguiente Dorsal</Label>
+                    <Input
+                      id="next_bib"
+                      type="number"
+                      min="1"
+                      placeholder="Auto"
+                      value={formData.next_bib}
+                      onChange={(e) => setFormData({ ...formData, next_bib: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Se asigna automáticamente si se deja vacío
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -670,6 +742,19 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       <div>
                         <p className="text-xs text-muted-foreground">Tiempo límite</p>
                         <p className="font-semibold">{distance.cutoff_time}</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {distance.bib_start && distance.bib_end && (
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Dorsales</p>
+                        <p className="font-semibold">{distance.bib_start} - {distance.bib_end}</p>
+                        {distance.next_bib && (
+                          <p className="text-xs text-muted-foreground">Siguiente: {distance.next_bib}</p>
+                        )}
                       </div>
                     </div>
                   )}

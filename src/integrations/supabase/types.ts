@@ -319,6 +319,8 @@ export type Database = {
       }
       race_distances: {
         Row: {
+          bib_end: number | null
+          bib_start: number | null
           created_at: string
           cutoff_time: string | null
           distance_km: number
@@ -330,12 +332,15 @@ export type Database = {
           is_visible: boolean
           max_participants: number | null
           name: string
+          next_bib: number | null
           price: number
           race_id: string
           start_location: string | null
           updated_at: string
         }
         Insert: {
+          bib_end?: number | null
+          bib_start?: number | null
           created_at?: string
           cutoff_time?: string | null
           distance_km: number
@@ -347,12 +352,15 @@ export type Database = {
           is_visible?: boolean
           max_participants?: number | null
           name: string
+          next_bib?: number | null
           price: number
           race_id: string
           start_location?: string | null
           updated_at?: string
         }
         Update: {
+          bib_end?: number | null
+          bib_start?: number | null
           created_at?: string
           cutoff_time?: string | null
           distance_km?: number
@@ -364,6 +372,7 @@ export type Database = {
           is_visible?: boolean
           max_participants?: number | null
           name?: string
+          next_bib?: number | null
           price?: number
           race_id?: string
           start_location?: string | null
