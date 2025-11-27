@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Sparkles, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock } from "lucide-react";
 import { z } from "zod";
 import {
   DndContext,
@@ -64,6 +64,7 @@ interface FormField {
 
 interface FormFieldsManagementProps {
   isOrganizer?: boolean;
+  selectedRaceId?: string;
 }
 
 interface SortableFieldItemProps {
@@ -212,16 +213,15 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
   );
 }
 
-export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManagementProps) {
+export function FormFieldsManagement({ isOrganizer = false, selectedRaceId: propRaceId }: FormFieldsManagementProps) {
   const { toast } = useToast();
   const [races, setRaces] = useState<any[]>([]);
-  const [selectedRaceId, setSelectedRaceId] = useState<string>("");
+  const [selectedRaceId, setSelectedRaceId] = useState<string>(propRaceId || "");
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingField, setEditingField] = useState<FormField | null>(null);
-  const [seedingFields, setSeedingFields] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -243,8 +243,13 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
   const [optionInput, setOptionInput] = useState("");
 
   useEffect(() => {
-    fetchRaces();
-  }, []);
+    if (propRaceId) {
+      setSelectedRaceId(propRaceId);
+      setLoading(false);
+    } else {
+      fetchRaces();
+    }
+  }, [propRaceId]);
 
   useEffect(() => {
     if (selectedRaceId) {
@@ -303,34 +308,6 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
         description: error.message,
         variant: "destructive",
       });
-    }
-  };
-
-  const handleSeedDefaultFields = async () => {
-    if (!selectedRaceId) return;
-
-    setSeedingFields(true);
-    try {
-      const { error } = await supabase.rpc("seed_default_registration_fields", {
-        p_race_id: selectedRaceId,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Campos creados",
-        description: "Los campos predeterminados se han creado exitosamente",
-      });
-
-      fetchFields();
-    } catch (error: any) {
-      toast({
-        title: "Error al crear campos",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSeedingFields(false);
     }
   };
 
@@ -608,13 +585,11 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
     radio: "Opción múltiple",
   };
 
-  const hasSystemFields = fields.some(f => f.is_system_field === true);
-
   if (loading) {
     return <div className="text-muted-foreground">Cargando...</div>;
   }
 
-  if (races.length === 0) {
+  if (!propRaceId && races.length === 0) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-12">
@@ -639,29 +614,19 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
-          <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
-            <SelectTrigger className="w-full sm:w-[280px]">
-              <SelectValue placeholder="Selecciona una carrera" />
-            </SelectTrigger>
-            <SelectContent>
-              {races.map((race) => (
-                <SelectItem key={race.id} value={race.id}>
-                  {race.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {!hasSystemFields && (
-            <Button 
-              variant="outline" 
-              onClick={handleSeedDefaultFields}
-              disabled={seedingFields}
-              className="gap-2"
-            >
-              <Sparkles className="h-4 w-4" />
-              {seedingFields ? "Creando..." : "Cargar Campos Predeterminados"}
-            </Button>
+          {!propRaceId && (
+            <Select value={selectedRaceId} onValueChange={setSelectedRaceId}>
+              <SelectTrigger className="w-full sm:w-[280px]">
+                <SelectValue placeholder="Selecciona una carrera" />
+              </SelectTrigger>
+              <SelectContent>
+                {races.map((race) => (
+                  <SelectItem key={race.id} value={race.id}>
+                    {race.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -836,7 +801,7 @@ export function FormFieldsManagement({ isOrganizer = false }: FormFieldsManageme
               <FileText className="h-16 w-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No hay campos configurados</h3>
               <p className="text-muted-foreground mb-4">
-                Haz clic en "Cargar Campos Predeterminados" para añadir los campos estándar del formulario de inscripción.
+                Los campos predeterminados se crean automáticamente al añadir distancias a la carrera. Haz clic en "Nuevo Campo" para añadir campos personalizados.
               </p>
             </CardContent>
           </Card>

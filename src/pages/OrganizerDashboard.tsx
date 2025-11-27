@@ -14,9 +14,10 @@ import { StorageManagement } from "@/components/admin/StorageManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
 import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
+import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -205,6 +206,15 @@ const OrganizerDashboard = () => {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera para gestionar su reglamento</p>
+                </div>
+              )
+            )}
+            {currentView === "form-fields" && (
+              selectedRaceId ? (
+                <FormFieldsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus campos de formulario</p>
                 </div>
               )
             )}
