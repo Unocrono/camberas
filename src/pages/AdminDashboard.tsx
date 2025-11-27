@@ -214,7 +214,7 @@ const AdminDashboard = () => {
             )}
             {currentView === "form-fields" && (
               selectedDistanceId ? (
-                <FormFieldsManagement distanceId={selectedDistanceId} />
+                <FormFieldsManagement distanceId={selectedDistanceId} raceId={selectedRaceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus campos de formulario</p>
