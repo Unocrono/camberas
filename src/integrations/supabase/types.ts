@@ -633,7 +633,7 @@ export type Database = {
           is_visible: boolean
           placeholder: string | null
           race_distance_id: string | null
-          race_id: string
+          race_id: string | null
           updated_at: string
         }
         Insert: {
@@ -650,7 +650,7 @@ export type Database = {
           is_visible?: boolean
           placeholder?: string | null
           race_distance_id?: string | null
-          race_id: string
+          race_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -667,7 +667,7 @@ export type Database = {
           is_visible?: boolean
           placeholder?: string | null
           race_distance_id?: string | null
-          race_id?: string
+          race_id?: string | null
           updated_at?: string
         }
         Relationships: [

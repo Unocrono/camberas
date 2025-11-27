@@ -923,7 +923,7 @@ const RaceDetail = () => {
                                 <div className="space-y-4">
                                   <h3 className="font-semibold text-lg">Información Adicional</h3>
                                   <DynamicRegistrationForm
-                                    raceId={id!}
+                                    distanceId={distance.id}
                                     formData={customFormData}
                                     onChange={handleCustomFieldChange}
                                   />
