@@ -227,54 +227,60 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           autonomous_community: string | null
           birth_date: string | null
           city: string | null
+          club: string | null
           company_name: string | null
           company_phone: string | null
           created_at: string
           dni_passport: string | null
-          emergency_contact: string | null
-          emergency_phone: string | null
           first_name: string | null
+          gender: string | null
           id: string
           last_name: string | null
           phone: string | null
           province: string | null
+          team: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
           autonomous_community?: string | null
           birth_date?: string | null
           city?: string | null
+          club?: string | null
           company_name?: string | null
           company_phone?: string | null
           created_at?: string
           dni_passport?: string | null
-          emergency_contact?: string | null
-          emergency_phone?: string | null
           first_name?: string | null
+          gender?: string | null
           id: string
           last_name?: string | null
           phone?: string | null
           province?: string | null
+          team?: string | null
           updated_at?: string
         }
         Update: {
+          address?: string | null
           autonomous_community?: string | null
           birth_date?: string | null
           city?: string | null
+          club?: string | null
           company_name?: string | null
           company_phone?: string | null
           created_at?: string
           dni_passport?: string | null
-          emergency_contact?: string | null
-          emergency_phone?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
           province?: string | null
+          team?: string | null
           updated_at?: string
         }
         Relationships: []
