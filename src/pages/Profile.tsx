@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, Calendar, MapPin, Trophy } from "lucide-react";
@@ -38,6 +38,14 @@ const profileSchema = z.object({
       const age = today.getFullYear() - birthDate.getFullYear();
       return age >= 0 && age <= 120;
     }, "Fecha de nacimiento inválida"),
+  gender: z.string()
+    .optional()
+    .nullable(),
+  address: z.string()
+    .trim()
+    .max(200, "La dirección debe tener menos de 200 caracteres")
+    .optional()
+    .nullable(),
   city: z.string()
     .trim()
     .min(1, "La localidad es requerida")
@@ -50,14 +58,16 @@ const profileSchema = z.object({
     .trim()
     .min(1, "La comunidad autónoma es requerida")
     .max(100, "La comunidad autónoma debe tener menos de 100 caracteres"),
-  emergency_contact: z.string()
+  club: z.string()
     .trim()
-    .min(1, "El contacto de emergencia es requerido")
-    .max(100, "El contacto debe tener menos de 100 caracteres"),
-  emergency_phone: z.string()
+    .max(100, "El club debe tener menos de 100 caracteres")
+    .optional()
+    .nullable(),
+  team: z.string()
     .trim()
-    .regex(/^[+]?[\d\s()-]{7,20}$/, "Formato de teléfono inválido")
-    .max(20, "El teléfono debe tener menos de 20 caracteres"),
+    .max(100, "El equipo debe tener menos de 100 caracteres")
+    .optional()
+    .nullable(),
 });
 
 interface Profile {
@@ -66,11 +76,13 @@ interface Profile {
   dni_passport: string;
   phone: string;
   birth_date: string;
+  gender: string;
+  address: string;
   city: string;
   province: string;
   autonomous_community: string;
-  emergency_contact: string;
-  emergency_phone: string;
+  club: string;
+  team: string;
 }
 
 interface Registration {
@@ -98,11 +110,13 @@ const Profile = () => {
     dni_passport: "",
     phone: "",
     birth_date: "",
+    gender: "",
+    address: "",
     city: "",
     province: "",
     autonomous_community: "",
-    emergency_contact: "",
-    emergency_phone: "",
+    club: "",
+    team: "",
   });
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const navigate = useNavigate();
@@ -138,11 +152,13 @@ const Profile = () => {
           dni_passport: data.dni_passport || "",
           phone: data.phone || "",
           birth_date: data.birth_date || "",
+          gender: data.gender || "",
+          address: data.address || "",
           city: data.city || "",
           province: data.province || "",
           autonomous_community: data.autonomous_community || "",
-          emergency_contact: data.emergency_contact || "",
-          emergency_phone: data.emergency_phone || "",
+          club: data.club || "",
+          team: data.team || "",
         });
       }
     } catch (error: any) {
@@ -237,8 +253,10 @@ const Profile = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSave} className="space-y-4">
+              <form onSubmit={handleSave} className="space-y-6">
+                {/* Datos personales */}
                 <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Datos Personales</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="first_name">Nombre</Label>
@@ -264,19 +282,18 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="dni_passport">DNI/Pasaporte</Label>
-                    <Input
-                      id="dni_passport"
-                      value={profile.dni_passport}
-                      onChange={(e) =>
-                        setProfile({ ...profile, dni_passport: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="dni_passport">DNI/Pasaporte</Label>
+                      <Input
+                        id="dni_passport"
+                        value={profile.dni_passport}
+                        onChange={(e) =>
+                          setProfile({ ...profile, dni_passport: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Teléfono</Label>
                       <Input
@@ -289,6 +306,9 @@ const Profile = () => {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
                       <Input
@@ -301,6 +321,41 @@ const Profile = () => {
                         required
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Género</Label>
+                      <RadioGroup
+                        value={profile.gender}
+                        onValueChange={(value) =>
+                          setProfile({ ...profile, gender: value })
+                        }
+                        className="flex gap-4 pt-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Masculino" id="gender-m" />
+                          <Label htmlFor="gender-m" className="cursor-pointer">Masculino</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="Femenino" id="gender-f" />
+                          <Label htmlFor="gender-f" className="cursor-pointer">Femenino</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dirección */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Dirección</h3>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Domicilio</Label>
+                    <Input
+                      id="address"
+                      value={profile.address}
+                      onChange={(e) =>
+                        setProfile({ ...profile, address: e.target.value })
+                      }
+                      placeholder="Calle, número, piso..."
+                    />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -338,34 +393,38 @@ const Profile = () => {
                       />
                     </div>
                   </div>
+                </div>
 
+                {/* Club y Equipo */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Club / Equipo</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="emergency_contact">Contacto de Emergencia</Label>
+                      <Label htmlFor="club">Club</Label>
                       <Input
-                        id="emergency_contact"
-                        value={profile.emergency_contact}
+                        id="club"
+                        value={profile.club}
                         onChange={(e) =>
-                          setProfile({ ...profile, emergency_contact: e.target.value })
+                          setProfile({ ...profile, club: e.target.value })
                         }
-                        required
+                        placeholder="Club deportivo (opcional)"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="emergency_phone">Teléfono de Emergencia</Label>
+                      <Label htmlFor="team">Equipo</Label>
                       <Input
-                        id="emergency_phone"
-                        type="tel"
-                        value={profile.emergency_phone}
+                        id="team"
+                        value={profile.team}
                         onChange={(e) =>
-                          setProfile({ ...profile, emergency_phone: e.target.value })
+                          setProfile({ ...profile, team: e.target.value })
                         }
-                        required
+                        placeholder="Equipo (opcional)"
                       />
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+
+                <div className="flex gap-2 pt-4">
                   <Button type="submit" disabled={saving}>
                     {saving ? (
                       <>

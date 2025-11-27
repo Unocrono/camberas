@@ -20,11 +20,13 @@ interface ProfileData {
   phone: string | null;
   dni_passport: string | null;
   birth_date: string | null;
+  gender: string | null;
+  address: string | null;
   city: string | null;
   province: string | null;
   autonomous_community: string | null;
-  emergency_contact: string | null;
-  emergency_phone: string | null;
+  club: string | null;
+  team: string | null;
 }
 
 const OrganizerProfile = () => {
@@ -39,11 +41,13 @@ const OrganizerProfile = () => {
     phone: "",
     dni_passport: "",
     birth_date: "",
+    gender: "",
+    address: "",
     city: "",
     province: "",
     autonomous_community: "",
-    emergency_contact: "",
-    emergency_phone: "",
+    club: "",
+    team: "",
   });
   const [rolesChecked, setRolesChecked] = useState(false);
 
@@ -329,29 +333,38 @@ const OrganizerProfile = () => {
 
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5" />
-                  Contacto de Emergencia
+                  <User className="h-5 w-5" />
+                  Datos Adicionales
                 </h3>
                 
+                <div className="space-y-2">
+                  <Label htmlFor="address">Domicilio</Label>
+                  <Input
+                    id="address"
+                    value={profileData.address || ""}
+                    onChange={(e) => handleInputChange("address", e.target.value)}
+                    placeholder="Calle, número, piso..."
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="emergency_contact">Nombre del Contacto</Label>
+                    <Label htmlFor="club">Club</Label>
                     <Input
-                      id="emergency_contact"
-                      value={profileData.emergency_contact || ""}
-                      onChange={(e) => handleInputChange("emergency_contact", e.target.value)}
-                      placeholder="Nombre completo"
+                      id="club"
+                      value={profileData.club || ""}
+                      onChange={(e) => handleInputChange("club", e.target.value)}
+                      placeholder="Club deportivo (opcional)"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="emergency_phone">Teléfono de Emergencia</Label>
+                    <Label htmlFor="team">Equipo</Label>
                     <Input
-                      id="emergency_phone"
-                      type="tel"
-                      value={profileData.emergency_phone || ""}
-                      onChange={(e) => handleInputChange("emergency_phone", e.target.value)}
-                      placeholder="+34 600 000 000"
+                      id="team"
+                      value={profileData.team || ""}
+                      onChange={(e) => handleInputChange("team", e.target.value)}
+                      placeholder="Equipo (opcional)"
                     />
                   </div>
                 </div>
