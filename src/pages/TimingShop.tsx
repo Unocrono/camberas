@@ -35,9 +35,9 @@ const TimingShop = () => {
       popular: true,
       image: timingSystem2,
       features: [
-        "Sistema de cronometraje RFID timing premium",
+        "Sistema de cronometraje RFID premium",
         "Cronometro-Reloj en meta",
-        "500 chips desechables incluidos",
+        "300 chips desechables incluidos",
         "Cronometraje electrónico en meta",
         "Infinitos puntos de Cronometraje manual",
         "Software de gestión avanzado",
@@ -46,7 +46,7 @@ const TimingShop = () => {
         "Streaming de la cámara de línea de meta",
         "Soporte técnico durante el evento",
       ],
-      maxParticipants: "500",
+      maxParticipants: "300",
     },
     {
       name: "Profesional",
@@ -54,7 +54,7 @@ const TimingShop = () => {
       price: "700€",
       image: timingSystem3,
       features: [
-        "Sistema de cronometraje RFID timing ULTRA",
+        "Sistema de cronometraje RFID ULTRA",
         "Cronometro Reloj en meta",
         "500 chips desechables incluidos",
         "Cronometraje electrónico en meta",
