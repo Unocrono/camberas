@@ -40,6 +40,41 @@ const registrationSchema = z.object({
     .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
 });
 
+const guestRegistrationSchema = z.object({
+  email: z.string()
+    .trim()
+    .email("El email no es válido")
+    .max(255, "El email debe tener menos de 255 caracteres"),
+  firstName: z.string()
+    .trim()
+    .min(1, "El nombre es requerido")
+    .max(100, "El nombre debe tener menos de 100 caracteres"),
+  lastName: z.string()
+    .trim()
+    .min(1, "Los apellidos son requeridos")
+    .max(100, "Los apellidos deben tener menos de 100 caracteres"),
+  phone: z.string()
+    .trim()
+    .min(9, "El teléfono debe tener al menos 9 dígitos")
+    .max(15, "El teléfono debe tener menos de 15 dígitos")
+    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
+  dni_passport: z.string()
+    .trim()
+    .min(1, "El DNI/Pasaporte es requerido")
+    .max(20, "El DNI/Pasaporte debe tener menos de 20 caracteres"),
+  birth_date: z.string()
+    .min(1, "La fecha de nacimiento es requerida"),
+  emergency_contact: z.string()
+    .trim()
+    .min(1, "El contacto de emergencia es requerido")
+    .max(100, "El contacto de emergencia debe tener menos de 100 caracteres"),
+  emergency_phone: z.string()
+    .trim()
+    .min(9, "El teléfono de emergencia debe tener al menos 9 dígitos")
+    .max(15, "El teléfono de emergencia debe tener menos de 15 dígitos")
+    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
+});
+
 const RaceDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -53,6 +88,7 @@ const RaceDetail = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
+    email: "",
     firstName: "",
     lastName: "",
     phone: "",
@@ -61,6 +97,7 @@ const RaceDetail = () => {
     emergency_contact: "",
     emergency_phone: "",
   });
+  const [isGuestRegistration, setIsGuestRegistration] = useState(false);
   
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -204,7 +241,8 @@ const RaceDetail = () => {
       if (error) throw error;
 
       if (data) {
-        setFormData({
+        setFormData(prev => ({
+          ...prev,
           firstName: data.first_name || "",
           lastName: data.last_name || "",
           phone: data.phone || "",
@@ -212,7 +250,8 @@ const RaceDetail = () => {
           birth_date: data.birth_date || "",
           emergency_contact: data.emergency_contact || "",
           emergency_phone: data.emergency_phone || "",
-        });
+          email: user!.email || "",
+        }));
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -220,17 +259,8 @@ const RaceDetail = () => {
   };
 
   const handleRegisterClick = (distance: any) => {
-    if (!user) {
-      toast({
-        title: "Autenticación requerida",
-        description: "Debes iniciar sesión para inscribirte",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return;
-    }
-
     setSelectedDistance(distance);
+    setIsGuestRegistration(!user);
     setIsDialogOpen(true);
   };
 
@@ -244,120 +274,174 @@ const RaceDetail = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !selectedDistance) return;
+    if (!selectedDistance) return;
     
     setIsSubmitting(true);
 
     try {
-      // Validate standard form data
-      const validatedData = registrationSchema.parse(formData);
+      if (isGuestRegistration) {
+        // Guest registration
+        const validatedData = guestRegistrationSchema.parse(formData);
 
-      // Check if user is already registered for this race
-      const { data: existingRegistration, error: checkError } = await supabase
-        .from("registrations")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("race_id", id)
-        .maybeSingle();
+        // Check if guest email is already registered for this race
+        const { data: existingRegistration, error: checkError } = await supabase
+          .from("registrations")
+          .select("id")
+          .eq("guest_email", validatedData.email)
+          .eq("race_id", id)
+          .maybeSingle();
 
-      if (checkError) throw checkError;
+        if (checkError) throw checkError;
 
-      if (existingRegistration) {
-        toast({
-          title: "Ya estás inscrito",
-          description: "Ya tienes una inscripción para esta carrera",
-          variant: "destructive",
-        });
-        setIsDialogOpen(false);
-        return;
-      }
-
-      // Update profile with registration data
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          phone: validatedData.phone,
-          dni_passport: validatedData.dni_passport,
-          birth_date: validatedData.birth_date,
-          emergency_contact: validatedData.emergency_contact,
-          emergency_phone: validatedData.emergency_phone,
-        })
-        .eq("id", user.id);
-
-      if (profileError) throw profileError;
-
-      // Create registration
-      const { data: newRegistration, error: registrationError } = await supabase
-        .from("registrations")
-        .insert({
-          user_id: user.id,
-          race_id: id,
-          race_distance_id: selectedDistance.id,
-          status: "pending",
-          payment_status: "pending",
-        })
-        .select()
-        .single();
-
-      if (registrationError) throw registrationError;
-
-      // Fetch custom form fields for this race
-      const { data: formFields, error: fieldsError } = await supabase
-        .from("registration_form_fields")
-        .select("id, field_name")
-        .eq("race_id", id);
-
-      if (fieldsError) throw fieldsError;
-
-      // Store custom form field responses
-      if (formFields && formFields.length > 0) {
-        const responses = formFields
-          .filter(field => customFormData[field.field_name] !== undefined && customFormData[field.field_name] !== "")
-          .map(field => ({
-            registration_id: newRegistration.id,
-            field_id: field.id,
-            field_value: String(customFormData[field.field_name]),
-          }));
-
-        if (responses.length > 0) {
-          const { error: responsesError } = await supabase
-            .from("registration_responses")
-            .insert(responses);
-
-          if (responsesError) throw responsesError;
+        if (existingRegistration) {
+          toast({
+            title: "Email ya inscrito",
+            description: "Este email ya tiene una inscripción para esta carrera",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
         }
-      }
 
-      // Send confirmation email
-      try {
-        await supabase.functions.invoke('send-registration-confirmation', {
-          body: {
-            userEmail: user.email,
-            userName: `${formData.firstName} ${formData.lastName}`,
-            raceName: race!.name,
-            raceDate: race!.date,
-            raceLocation: race!.location,
-            distanceName: selectedDistance!.name,
-            price: selectedDistance!.price,
-          },
+        // Create guest registration
+        const { data: newRegistration, error: registrationError } = await supabase
+          .from("registrations")
+          .insert({
+            race_id: id,
+            race_distance_id: selectedDistance.id,
+            status: "pending",
+            payment_status: "pending",
+            guest_email: validatedData.email,
+            guest_first_name: validatedData.firstName,
+            guest_last_name: validatedData.lastName,
+            guest_phone: validatedData.phone,
+            guest_dni_passport: validatedData.dni_passport,
+            guest_birth_date: validatedData.birth_date,
+            guest_emergency_contact: validatedData.emergency_contact,
+            guest_emergency_phone: validatedData.emergency_phone,
+          })
+          .select()
+          .single();
+
+        if (registrationError) throw registrationError;
+
+        // Store custom form field responses
+        await saveCustomFormResponses(newRegistration.id);
+
+        // Send confirmation email
+        try {
+          await supabase.functions.invoke('send-registration-confirmation', {
+            body: {
+              userEmail: validatedData.email,
+              userName: `${validatedData.firstName} ${validatedData.lastName}`,
+              raceName: race!.name,
+              raceDate: race!.date,
+              raceLocation: race!.location,
+              distanceName: selectedDistance!.name,
+              price: selectedDistance!.price,
+              isGuest: true,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+        }
+
+        toast({
+          title: "¡Inscripción exitosa!",
+          description: `Te has inscrito correctamente como invitado. Revisa tu email (${validatedData.email}) para más información.`,
         });
-        console.log("Registration confirmation email sent");
-      } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-        // Don't fail the registration if email fails
+
+        setIsDialogOpen(false);
+        fetchRaceDetails(); // Refresh to update available spots
+        
+      } else {
+        // Authenticated user registration
+        if (!user) return;
+        
+        const validatedData = registrationSchema.parse(formData);
+
+        // Check if user is already registered for this race
+        const { data: existingRegistration, error: checkError } = await supabase
+          .from("registrations")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("race_id", id)
+          .maybeSingle();
+
+        if (checkError) throw checkError;
+
+        if (existingRegistration) {
+          toast({
+            title: "Ya estás inscrito",
+            description: "Ya tienes una inscripción para esta carrera",
+            variant: "destructive",
+          });
+          setIsDialogOpen(false);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Update profile with registration data
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            phone: validatedData.phone,
+            dni_passport: validatedData.dni_passport,
+            birth_date: validatedData.birth_date,
+            emergency_contact: validatedData.emergency_contact,
+            emergency_phone: validatedData.emergency_phone,
+          })
+          .eq("id", user.id);
+
+        if (profileError) throw profileError;
+
+        // Create registration
+        const { data: newRegistration, error: registrationError } = await supabase
+          .from("registrations")
+          .insert({
+            user_id: user.id,
+            race_id: id,
+            race_distance_id: selectedDistance.id,
+            status: "pending",
+            payment_status: "pending",
+          })
+          .select()
+          .single();
+
+        if (registrationError) throw registrationError;
+
+        // Store custom form field responses
+        await saveCustomFormResponses(newRegistration.id);
+
+        // Send confirmation email
+        try {
+          await supabase.functions.invoke('send-registration-confirmation', {
+            body: {
+              userEmail: user.email,
+              userName: `${formData.firstName} ${formData.lastName}`,
+              raceName: race!.name,
+              raceDate: race!.date,
+              raceLocation: race!.location,
+              distanceName: selectedDistance!.name,
+              price: selectedDistance!.price,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+        }
+
+        toast({
+          title: "¡Inscripción exitosa!",
+          description: `Te has inscrito correctamente a la distancia ${selectedDistance.name}. Redirigiendo a tu dashboard...`,
+        });
+
+        setIsDialogOpen(false);
+        
+        // Redirect to dashboard after 1.5 seconds
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 1500);
       }
-
-      toast({
-        title: "¡Inscripción exitosa!",
-        description: `Te has inscrito correctamente a la distancia ${selectedDistance.name}. Redirigiendo a tu dashboard...`,
-      });
-
-      setIsDialogOpen(false);
-      
-      // Redirect to dashboard after 1.5 seconds
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1500);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -374,6 +458,35 @@ const RaceDetail = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const saveCustomFormResponses = async (registrationId: string) => {
+    // Fetch custom form fields for this race
+    const { data: formFields, error: fieldsError } = await supabase
+      .from("registration_form_fields")
+      .select("id, field_name")
+      .eq("race_id", id);
+
+    if (fieldsError) throw fieldsError;
+
+    // Store custom form field responses
+    if (formFields && formFields.length > 0) {
+      const responses = formFields
+        .filter(field => customFormData[field.field_name] !== undefined && customFormData[field.field_name] !== "")
+        .map(field => ({
+          registration_id: registrationId,
+          field_id: field.id,
+          field_value: String(customFormData[field.field_name]),
+        }));
+
+      if (responses.length > 0) {
+        const { error: responsesError } = await supabase
+          .from("registration_responses")
+          .insert(responses);
+
+        if (responsesError) throw responsesError;
+      }
     }
   };
 
@@ -683,14 +796,46 @@ const RaceDetail = () => {
                               <DialogHeader>
                                 <DialogTitle>Inscripción - {distance.name}</DialogTitle>
                                 <DialogDescription>
-                                  Completa tus datos para inscribirte a la carrera
+                                  {isGuestRegistration 
+                                    ? "Completa tus datos para inscribirte como invitado. Si ya tienes cuenta, puedes iniciar sesión para vincular tu inscripción."
+                                    : "Completa tus datos para inscribirte a la carrera"
+                                  }
                                 </DialogDescription>
                               </DialogHeader>
+                              
+                              {isGuestRegistration && (
+                                <div className="bg-muted/50 p-4 rounded-lg border border-border">
+                                  <p className="text-sm text-muted-foreground">
+                                    ¿Ya tienes cuenta?{" "}
+                                    <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
+                                      Inicia sesión
+                                    </Button>
+                                    {" "}para vincular tu inscripción a tu perfil.
+                                  </p>
+                                </div>
+                              )}
                               
                               <form onSubmit={handleSubmit} className="space-y-6 mt-4">
                                 {/* Standard Profile Fields */}
                                 <div className="space-y-4 pb-4 border-b">
                                   <h3 className="font-semibold text-lg">Datos Personales</h3>
+                                  
+                                  {isGuestRegistration && (
+                                    <div className="space-y-2">
+                                      <Label htmlFor="email">Email *</Label>
+                                      <Input
+                                        id="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        placeholder="tu@email.com"
+                                        required
+                                      />
+                                      <p className="text-xs text-muted-foreground">
+                                        Recibirás la confirmación de tu inscripción en este email
+                                      </p>
+                                    </div>
+                                  )}
                                   
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -700,7 +845,7 @@ const RaceDetail = () => {
                                         value={formData.firstName}
                                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                         required
-                                        disabled
+                                        disabled={!isGuestRegistration}
                                       />
                                     </div>
 
@@ -711,7 +856,7 @@ const RaceDetail = () => {
                                         value={formData.lastName}
                                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                         required
-                                        disabled
+                                        disabled={!isGuestRegistration}
                                       />
                                     </div>
                                   </div>
@@ -795,7 +940,7 @@ const RaceDetail = () => {
                                     className="w-full" 
                                     disabled={isSubmitting}
                                   >
-                                    {isSubmitting ? "Procesando..." : "Confirmar Inscripción"}
+                                    {isSubmitting ? "Procesando..." : isGuestRegistration ? "Inscribirme como Invitado" : "Confirmar Inscripción"}
                                   </Button>
                                 </div>
                               </form>

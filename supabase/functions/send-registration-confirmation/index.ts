@@ -18,6 +18,7 @@ const requestSchema = z.object({
   raceLocation: z.string().trim().min(1).max(200),
   distanceName: z.string().trim().min(1).max(100),
   price: z.number().nonnegative().max(100000),
+  isGuest: z.boolean().optional().default(false),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -26,38 +27,42 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      console.error("Missing authorization header");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized: Missing authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error("Authentication failed:", authError);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Authenticated user:", user.id);
-
-    // Validate and parse input
+    
+    // Parse and validate input first
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
     
-    const { userEmail, userName, raceName, raceDate, raceLocation, distanceName, price } = input;
+    const { userEmail, userName, raceName, raceDate, raceLocation, distanceName, price, isGuest } = input;
+
+    // For non-guest registrations, verify authentication
+    if (!isGuest) {
+      if (!authHeader) {
+        console.error("Missing authorization header for authenticated registration");
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Missing authorization header" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error("Authentication failed:", authError);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized: Invalid token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log("Authenticated user:", user.id);
+    } else {
+      console.log("Processing guest registration for:", userEmail);
+    }
 
     console.log("Sending registration confirmation to:", userEmail);
 
@@ -79,6 +84,12 @@ const handler = async (req: Request): Promise<Response> => {
             <p><strong>Location:</strong> ${raceLocation}</p>
             <p><strong>Registration Fee:</strong> €${price.toFixed(2)}</p>
           </div>
+          
+          ${isGuest ? `
+          <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #f59e0b;">
+            <p style="margin: 0; color: #92400e;"><strong>Note:</strong> You registered as a guest. Create an account with this email to manage your registration and access additional features.</p>
+          </div>
+          ` : ''}
           
           <p><strong>Payment Status:</strong> Pending - Please complete your payment to confirm your spot.</p>
           

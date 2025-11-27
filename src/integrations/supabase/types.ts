@@ -717,35 +717,59 @@ export type Database = {
         Row: {
           bib_number: number | null
           created_at: string
+          guest_birth_date: string | null
+          guest_dni_passport: string | null
+          guest_email: string | null
+          guest_emergency_contact: string | null
+          guest_emergency_phone: string | null
+          guest_first_name: string | null
+          guest_last_name: string | null
+          guest_phone: string | null
           id: string
           payment_status: string
           race_distance_id: string
           race_id: string
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           bib_number?: number | null
           created_at?: string
+          guest_birth_date?: string | null
+          guest_dni_passport?: string | null
+          guest_email?: string | null
+          guest_emergency_contact?: string | null
+          guest_emergency_phone?: string | null
+          guest_first_name?: string | null
+          guest_last_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           race_distance_id: string
           race_id: string
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           bib_number?: number | null
           created_at?: string
+          guest_birth_date?: string | null
+          guest_dni_passport?: string | null
+          guest_email?: string | null
+          guest_emergency_contact?: string | null
+          guest_emergency_phone?: string | null
+          guest_first_name?: string | null
+          guest_last_name?: string | null
+          guest_phone?: string | null
           id?: string
           payment_status?: string
           race_distance_id?: string
           race_id?: string
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
