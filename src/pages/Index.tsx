@@ -79,7 +79,7 @@ const Index = () => {
           {/* Two Main Sections */}
           <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto mt-8 md:mt-12">
             {/* Para Deportistas */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-primary/20 animate-fade-in opacity-0 [animation-delay:200ms] [animation-fill-mode:forwards]">
+            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-primary/20 animate-fade-in [animation-delay:200ms] [animation-fill-mode:forwards]">
               <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-hero mb-3 md:mb-4">
                 <div className="flex gap-1">
                   <Mountain className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
@@ -112,7 +112,7 @@ const Index = () => {
             </div>
 
             {/* Para Organizadores */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-secondary/20 animate-fade-in opacity-0 [animation-delay:400ms] [animation-fill-mode:forwards]">
+            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-secondary/20 animate-fade-in [animation-delay:400ms] [animation-fill-mode:forwards]">
               <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-secondary mb-3 md:mb-4">
                 <Settings className="h-6 w-6 md:h-8 md:w-8 text-secondary-foreground" />
               </div>
