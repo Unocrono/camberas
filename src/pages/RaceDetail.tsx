@@ -8,72 +8,11 @@ import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { z } from "zod";
 import raceScene from "@/assets/race-scene.jpg";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
-
-const registrationSchema = z.object({
-  phone: z.string()
-    .trim()
-    .min(9, "El teléfono debe tener al menos 9 dígitos")
-    .max(15, "El teléfono debe tener menos de 15 dígitos")
-    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
-  dni_passport: z.string()
-    .trim()
-    .min(1, "El DNI/Pasaporte es requerido")
-    .max(20, "El DNI/Pasaporte debe tener menos de 20 caracteres"),
-  birth_date: z.string()
-    .min(1, "La fecha de nacimiento es requerida"),
-  emergency_contact: z.string()
-    .trim()
-    .min(1, "El contacto de emergencia es requerido")
-    .max(100, "El contacto de emergencia debe tener menos de 100 caracteres"),
-  emergency_phone: z.string()
-    .trim()
-    .min(9, "El teléfono de emergencia debe tener al menos 9 dígitos")
-    .max(15, "El teléfono de emergencia debe tener menos de 15 dígitos")
-    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
-});
-
-const guestRegistrationSchema = z.object({
-  email: z.string()
-    .trim()
-    .email("El email no es válido")
-    .max(255, "El email debe tener menos de 255 caracteres"),
-  firstName: z.string()
-    .trim()
-    .min(1, "El nombre es requerido")
-    .max(100, "El nombre debe tener menos de 100 caracteres"),
-  lastName: z.string()
-    .trim()
-    .min(1, "Los apellidos son requeridos")
-    .max(100, "Los apellidos deben tener menos de 100 caracteres"),
-  phone: z.string()
-    .trim()
-    .min(9, "El teléfono debe tener al menos 9 dígitos")
-    .max(15, "El teléfono debe tener menos de 15 dígitos")
-    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
-  dni_passport: z.string()
-    .trim()
-    .min(1, "El DNI/Pasaporte es requerido")
-    .max(20, "El DNI/Pasaporte debe tener menos de 20 caracteres"),
-  birth_date: z.string()
-    .min(1, "La fecha de nacimiento es requerida"),
-  emergency_contact: z.string()
-    .trim()
-    .min(1, "El contacto de emergencia es requerido")
-    .max(100, "El contacto de emergencia debe tener menos de 100 caracteres"),
-  emergency_phone: z.string()
-    .trim()
-    .min(9, "El teléfono de emergencia debe tener al menos 9 dígitos")
-    .max(15, "El teléfono de emergencia debe tener menos de 15 dígitos")
-    .regex(/^[0-9+\s-]+$/, "El teléfono solo puede contener números, +, espacios y guiones"),
-});
 
 const RaceDetail = () => {
   const { id } = useParams();
@@ -87,18 +26,7 @@ const RaceDetail = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    phone: "",
-    dni_passport: "",
-    birth_date: "",
-    emergency_contact: "",
-    emergency_phone: "",
-  });
   const [isGuestRegistration, setIsGuestRegistration] = useState(false);
-  
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -241,12 +169,13 @@ const RaceDetail = () => {
       if (error) throw error;
 
       if (data) {
-        setFormData(prev => ({
+        // Pre-fill customFormData with profile data for system fields
+        setCustomFormData(prev => ({
           ...prev,
-          firstName: data.first_name || "",
-          lastName: data.last_name || "",
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
           phone: data.phone || "",
-          dni_passport: data.dni_passport || "",
+          document_number: data.dni_passport || "",
           birth_date: data.birth_date || "",
           emergency_contact: data.emergency_contact || "",
           emergency_phone: data.emergency_phone || "",
@@ -279,15 +208,33 @@ const RaceDetail = () => {
     setIsSubmitting(true);
 
     try {
+      // Extract system field data from customFormData
+      const firstName = customFormData.first_name || "";
+      const lastName = customFormData.last_name || "";
+      const email = customFormData.email || "";
+      const phone = customFormData.phone || "";
+      const documentNumber = customFormData.document_number || "";
+      const birthDate = customFormData.birth_date || "";
+      const emergencyContact = customFormData.emergency_contact || "";
+      const emergencyPhone = customFormData.emergency_phone || "";
+
       if (isGuestRegistration) {
-        // Guest registration
-        const validatedData = guestRegistrationSchema.parse(formData);
+        // Validate required fields for guest
+        if (!email || !firstName || !lastName) {
+          toast({
+            title: "Campos requeridos",
+            description: "Por favor completa todos los campos obligatorios",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
 
         // Check if guest email is already registered for this race
         const { data: existingRegistration, error: checkError } = await supabase
           .from("registrations")
           .select("id")
-          .eq("guest_email", validatedData.email)
+          .eq("guest_email", email)
           .eq("race_id", id)
           .maybeSingle();
 
@@ -311,29 +258,29 @@ const RaceDetail = () => {
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
-            guest_email: validatedData.email,
-            guest_first_name: validatedData.firstName,
-            guest_last_name: validatedData.lastName,
-            guest_phone: validatedData.phone,
-            guest_dni_passport: validatedData.dni_passport,
-            guest_birth_date: validatedData.birth_date,
-            guest_emergency_contact: validatedData.emergency_contact,
-            guest_emergency_phone: validatedData.emergency_phone,
+            guest_email: email,
+            guest_first_name: firstName,
+            guest_last_name: lastName,
+            guest_phone: phone,
+            guest_dni_passport: documentNumber,
+            guest_birth_date: birthDate || null,
+            guest_emergency_contact: emergencyContact,
+            guest_emergency_phone: emergencyPhone,
           })
           .select()
           .single();
 
         if (registrationError) throw registrationError;
 
-        // Store custom form field responses
-        await saveCustomFormResponses(newRegistration.id);
+        // Store all form field responses
+        await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
         // Send confirmation email
         try {
           await supabase.functions.invoke('send-registration-confirmation', {
             body: {
-              userEmail: validatedData.email,
-              userName: `${validatedData.firstName} ${validatedData.lastName}`,
+              userEmail: email,
+              userName: `${firstName} ${lastName}`,
               raceName: race!.name,
               raceDate: race!.date,
               raceLocation: race!.location,
@@ -348,17 +295,16 @@ const RaceDetail = () => {
 
         toast({
           title: "¡Inscripción exitosa!",
-          description: `Te has inscrito correctamente como invitado. Revisa tu email (${validatedData.email}) para más información.`,
+          description: `Te has inscrito correctamente como invitado. Revisa tu email (${email}) para más información.`,
         });
 
         setIsDialogOpen(false);
+        setCustomFormData({});
         fetchRaceDetails(); // Refresh to update available spots
         
       } else {
         // Authenticated user registration
         if (!user) return;
-        
-        const validatedData = registrationSchema.parse(formData);
 
         // Check if user is already registered for this race
         const { data: existingRegistration, error: checkError } = await supabase
@@ -385,11 +331,11 @@ const RaceDetail = () => {
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
-            phone: validatedData.phone,
-            dni_passport: validatedData.dni_passport,
-            birth_date: validatedData.birth_date,
-            emergency_contact: validatedData.emergency_contact,
-            emergency_phone: validatedData.emergency_phone,
+            phone: phone || undefined,
+            dni_passport: documentNumber || undefined,
+            birth_date: birthDate || undefined,
+            emergency_contact: emergencyContact || undefined,
+            emergency_phone: emergencyPhone || undefined,
           })
           .eq("id", user.id);
 
@@ -410,15 +356,15 @@ const RaceDetail = () => {
 
         if (registrationError) throw registrationError;
 
-        // Store custom form field responses
-        await saveCustomFormResponses(newRegistration.id);
+        // Store all form field responses
+        await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
         // Send confirmation email
         try {
           await supabase.functions.invoke('send-registration-confirmation', {
             body: {
               userEmail: user.email,
-              userName: `${formData.firstName} ${formData.lastName}`,
+              userName: `${firstName} ${lastName}`,
               raceName: race!.name,
               raceDate: race!.date,
               raceLocation: race!.location,
@@ -436,6 +382,7 @@ const RaceDetail = () => {
         });
 
         setIsDialogOpen(false);
+        setCustomFormData({});
         
         // Redirect to dashboard after 1.5 seconds
         setTimeout(() => {
@@ -443,36 +390,28 @@ const RaceDetail = () => {
         }, 1500);
       }
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast({
-          title: "Error de validación",
-          description: error.errors[0].message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error al inscribirse",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error al inscribirse",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const saveCustomFormResponses = async (registrationId: string) => {
-    // Fetch custom form fields for this race
-    const { data: formFields, error: fieldsError } = await supabase
+  const saveCustomFormResponses = async (registrationId: string, distanceId: string) => {
+    // Fetch form fields for this distance
+    const { data: fields, error: fieldsError } = await supabase
       .from("registration_form_fields")
       .select("id, field_name")
-      .eq("race_id", id);
+      .eq("race_distance_id", distanceId);
 
     if (fieldsError) throw fieldsError;
 
-    // Store custom form field responses
-    if (formFields && formFields.length > 0) {
-      const responses = formFields
+    // Store all form field responses
+    if (fields && fields.length > 0) {
+      const responses = fields
         .filter(field => customFormData[field.field_name] !== undefined && customFormData[field.field_name] !== "")
         .map(field => ({
           registration_id: registrationId,
@@ -816,118 +755,12 @@ const RaceDetail = () => {
                               )}
                               
                               <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-                                {/* Standard Profile Fields */}
-                                <div className="space-y-4 pb-4 border-b">
-                                  <h3 className="font-semibold text-lg">Datos Personales</h3>
-                                  
-                                  {isGuestRegistration && (
-                                    <div className="space-y-2">
-                                      <Label htmlFor="email">Email *</Label>
-                                      <Input
-                                        id="email"
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        placeholder="tu@email.com"
-                                        required
-                                      />
-                                      <p className="text-xs text-muted-foreground">
-                                        Recibirás la confirmación de tu inscripción en este email
-                                      </p>
-                                    </div>
-                                  )}
-                                  
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label htmlFor="firstName">Nombre *</Label>
-                                      <Input
-                                        id="firstName"
-                                        value={formData.firstName}
-                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                                        required
-                                        disabled={!isGuestRegistration}
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="lastName">Apellidos *</Label>
-                                      <Input
-                                        id="lastName"
-                                        value={formData.lastName}
-                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                                        required
-                                        disabled={!isGuestRegistration}
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label htmlFor="phone">Teléfono *</Label>
-                                      <Input
-                                        id="phone"
-                                        type="tel"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        required
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="dni_passport">DNI/Pasaporte *</Label>
-                                      <Input
-                                        id="dni_passport"
-                                        value={formData.dni_passport}
-                                        onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
-                                        required
-                                      />
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <Label htmlFor="birth_date">Fecha de Nacimiento *</Label>
-                                    <Input
-                                      id="birth_date"
-                                      type="date"
-                                      value={formData.birth_date}
-                                      onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                                      required
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <Label htmlFor="emergency_contact">Contacto de Emergencia *</Label>
-                                      <Input
-                                        id="emergency_contact"
-                                        value={formData.emergency_contact}
-                                        onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
-                                        required
-                                      />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                      <Label htmlFor="emergency_phone">Teléfono de Emergencia *</Label>
-                                      <Input
-                                        id="emergency_phone"
-                                        type="tel"
-                                        value={formData.emergency_phone}
-                                        onChange={(e) => setFormData({ ...formData, emergency_phone: e.target.value })}
-                                        required
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Dynamic Custom Fields */}
-                                <div className="space-y-4">
-                                  <h3 className="font-semibold text-lg">Información Adicional</h3>
-                                  <DynamicRegistrationForm
-                                    distanceId={distance.id}
-                                    formData={customFormData}
-                                    onChange={handleCustomFieldChange}
-                                  />
-                                </div>
+                                {/* Dynamic Form Fields - All configurable */}
+                                <DynamicRegistrationForm
+                                  distanceId={distance.id}
+                                  formData={customFormData}
+                                  onChange={handleCustomFieldChange}
+                                />
                                 
                                 <div className="pt-4 border-t border-border">
                                   <div className="flex justify-between items-center mb-4">
