@@ -287,7 +287,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       }
     });
 
-    return Math.round(resultKm * 100) / 100; // Round to 2 decimal places
+    return Math.round(resultKm * 1000) / 1000; // Round to 3 decimal places
   };
 
   const drawGpxRoute = () => {
@@ -824,7 +824,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           }
         });
         
-        return Math.round(resultKm * 100) / 100;
+        return Math.round(resultKm * 1000) / 1000;
       };
       
       // Process waypoints with distances calculated from imported track
@@ -900,20 +900,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             ele: undefined,
             desc: "Punto de llegada (extraído del track)",
             selected: true,
-            distanceKm: Math.round(totalTrackDistance * 100) / 100,
+            distanceKm: Math.round(totalTrackDistance * 1000) / 1000,
           });
           console.log("Added Meta from track at", lastPoint.lat, lastPoint.lon, "distance:", totalTrackDistance);
         }
         
         if (!hasSalida || !hasMeta) {
-          toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track (${Math.round(totalTrackDistance * 100) / 100} km)`);
+          toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track (${(totalTrackDistance).toFixed(3)} km)`);
         }
         
         // Recalculate distances for all waypoints using imported route
         waypoints = waypoints.map(wp => ({
           ...wp,
           distanceKm: wp.name === "Salida" ? 0 : 
-                      wp.name === "Meta" ? Math.round(totalTrackDistance * 100) / 100 :
+                      wp.name === "Meta" ? Math.round(totalTrackDistance * 1000) / 1000 :
                       findDistanceOnImportedRoute(wp.lat, wp.lon)
         }));
       }
@@ -986,7 +986,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       } else if (wp.distanceKm && wp.distanceKm > 0) {
         cumulativeDistance = wp.distanceKm;
       }
-      return { ...wp, calculatedDistance: Math.round(cumulativeDistance * 100) / 100 };
+      return { ...wp, calculatedDistance: Math.round(cumulativeDistance * 1000) / 1000 };
     });
 
     const checkpointsToInsert = waypointsWithDistances.map((wp, index) => ({
@@ -1251,7 +1251,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     </TableCell>
                     <TableCell className="font-medium">{checkpoint.name}</TableCell>
                     <TableCell className="text-muted-foreground">{checkpoint.lugar || "-"}</TableCell>
-                    <TableCell className="text-right">{checkpoint.distance_km}</TableCell>
+                    <TableCell className="text-right">{checkpoint.distance_km.toFixed(3)}</TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
                         <Badge variant="secondary" className="text-xs">
@@ -1340,7 +1340,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             <DialogDescription>
               Selecciona los waypoints que deseas importar como puntos de control.
               {gpxPreviewRoute.length > 0 
-                ? ` Track de ${(gpxPreviewRoute[gpxPreviewRoute.length - 1]?.cumulativeDistance || 0).toFixed(2)} km detectado.`
+                ? ` Track de ${(gpxPreviewRoute[gpxPreviewRoute.length - 1]?.cumulativeDistance || 0).toFixed(3)} km detectado.`
                 : " No se detectó track en el archivo GPX."}
             </DialogDescription>
           </DialogHeader>
@@ -1407,7 +1407,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     <TableCell className="font-medium">{wp.name}</TableCell>
                     <TableCell className="text-right">
                       {wp.distanceKm !== undefined ? (
-                        <Badge variant="secondary">{wp.distanceKm.toFixed(2)} km</Badge>
+                        <Badge variant="secondary">{wp.distanceKm.toFixed(3)} km</Badge>
                       ) : "-"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
