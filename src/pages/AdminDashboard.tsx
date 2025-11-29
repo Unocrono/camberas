@@ -19,9 +19,10 @@ import OrganizerApprovalManagement from "@/components/admin/OrganizerApprovalMan
 import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
 import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
 import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
+import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields";
+type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -167,7 +168,7 @@ const AdminDashboard = () => {
                     </option>
                   ))}
                 </select>
-                {(currentView === "roadbooks" || currentView === "form-fields") && distances.length > 0 && (
+                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints") && distances.length > 0 && (
                   <>
                     <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                       Distancia:
@@ -194,6 +195,9 @@ const AdminDashboard = () => {
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
             {currentView === "distances" && <DistanceManagement isOrganizer={false} selectedRaceId={selectedRaceId} />}
+            {currentView === "checkpoints" && (
+              <CheckpointsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
+            )}
             {currentView === "roadbooks" && (
               selectedDistanceId ? (
                 <RoadbookManagement distanceId={selectedDistanceId} />

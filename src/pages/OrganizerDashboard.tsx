@@ -16,9 +16,10 @@ import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
 import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
 import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
+import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes";
+type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -165,7 +166,7 @@ const OrganizerDashboard = () => {
                     </option>
                   ))}
                 </select>
-                {(currentView === "roadbooks" || currentView === "form-fields") && distances.length > 0 && (
+                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints") && distances.length > 0 && (
                   <>
                     <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
                       Distancia:
@@ -192,6 +193,9 @@ const OrganizerDashboard = () => {
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "checkpoints" && (
+              <CheckpointsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
+            )}
             {currentView === "roadbooks" && (
               selectedDistanceId ? (
                 <RoadbookManagement distanceId={selectedDistanceId} />
