@@ -61,9 +61,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [isEditing, setIsEditing] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [showFormMap, setShowFormMap] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
+  const formMapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  const formMap = useRef<mapboxgl.Map | null>(null);
+  const formMarker = useRef<mapboxgl.Marker | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
   
   const [formData, setFormData] = useState({
@@ -97,6 +101,30 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     }
   }, [checkpoints, map.current]);
 
+  useEffect(() => {
+    if (showFormMap && mapboxToken && formMapContainer.current && !formMap.current) {
+      initializeFormMap();
+    }
+    return () => {
+      if (formMap.current && !showFormMap) {
+        formMap.current.remove();
+        formMap.current = null;
+        formMarker.current = null;
+      }
+    };
+  }, [showFormMap, mapboxToken]);
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setShowFormMap(false);
+      if (formMap.current) {
+        formMap.current.remove();
+        formMap.current = null;
+        formMarker.current = null;
+      }
+    }
+  }, [isDialogOpen]);
+
   const fetchMapboxToken = async () => {
     try {
       const { data, error } = await supabase.functions.invoke("get-mapbox-token");
@@ -125,6 +153,51 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
     map.current.on("load", () => {
       updateMapMarkers();
+    });
+  };
+
+  const initializeFormMap = () => {
+    if (!formMapContainer.current || !mapboxToken) return;
+
+    mapboxgl.accessToken = mapboxToken;
+
+    const initialLat = formData.latitude ? parseFloat(formData.latitude) : 40.4168;
+    const initialLng = formData.longitude ? parseFloat(formData.longitude) : -3.7038;
+
+    formMap.current = new mapboxgl.Map({
+      container: formMapContainer.current,
+      style: "mapbox://styles/mapbox/outdoors-v12",
+      center: [initialLng, initialLat],
+      zoom: formData.latitude && formData.longitude ? 14 : 6,
+    });
+
+    formMap.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    // Add marker if coordinates exist
+    if (formData.latitude && formData.longitude) {
+      formMarker.current = new mapboxgl.Marker({ color: "hsl(var(--primary))" })
+        .setLngLat([initialLng, initialLat])
+        .addTo(formMap.current);
+    }
+
+    // Handle click to set coordinates
+    formMap.current.on("click", (e) => {
+      const { lng, lat } = e.lngLat;
+      
+      setFormData((prev) => ({
+        ...prev,
+        latitude: lat.toFixed(6),
+        longitude: lng.toFixed(6),
+      }));
+
+      // Update or create marker
+      if (formMarker.current) {
+        formMarker.current.setLngLat([lng, lat]);
+      } else if (formMap.current) {
+        formMarker.current = new mapboxgl.Marker({ color: "hsl(var(--primary))" })
+          .setLngLat([lng, lat])
+          .addTo(formMap.current);
+      }
     });
   };
 
@@ -473,10 +546,31 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     </div>
                   </div>
                   <div className="border-t pt-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Navigation className="h-4 w-4 text-muted-foreground" />
-                      <Label className="text-sm font-medium">Coordenadas GPS (opcional)</Label>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Navigation className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-sm font-medium">Coordenadas GPS (opcional)</Label>
+                      </div>
+                      {mapboxToken && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowFormMap(!showFormMap)}
+                        >
+                          <MapPin className="mr-1 h-3 w-3" />
+                          {showFormMap ? "Ocultar" : "Seleccionar en mapa"}
+                        </Button>
+                      )}
                     </div>
+                    {showFormMap && mapboxToken && (
+                      <div className="mb-4">
+                        <div ref={formMapContainer} className="w-full h-[200px] rounded-lg border" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Haz clic en el mapa para seleccionar las coordenadas
+                        </p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="latitude">Latitud</Label>
