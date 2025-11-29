@@ -213,10 +213,22 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     setIsDialogOpen(true);
   };
 
-  const uploadFile = async (file: File, bucket: string, prefix: string): Promise<string | null> => {
+  // Helper to sanitize filename (remove special characters)
+  const sanitizeFilename = (name: string): string => {
+    return name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replace(/[^a-zA-Z0-9\s-]/g, "") // Remove special characters
+      .replace(/\s+/g, "_") // Replace spaces with underscores
+      .trim();
+  };
+
+  const uploadFile = async (file: File, bucket: string, prefix: string, customName?: string): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${prefix}-${Date.now()}.${fileExt}`;
+      const fileExt = file.name.split('.').pop()?.toLowerCase();
+      const fileName = customName 
+        ? `${sanitizeFilename(customName)}.${fileExt}`
+        : `${prefix}-${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -266,7 +278,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
       // Upload files
       if (gpxFile) {
-        const uploadedUrl = await uploadFile(gpxFile, 'race-gpx', `distance-${formData.race_id}`);
+        const raceName = getRaceName(formData.race_id);
+        const gpxCustomName = `${raceName} - ${validatedData.name}`;
+        const uploadedUrl = await uploadFile(gpxFile, 'race-gpx', `distance-${formData.race_id}`, gpxCustomName);
         if (uploadedUrl) gpxUrl = uploadedUrl;
       }
 
