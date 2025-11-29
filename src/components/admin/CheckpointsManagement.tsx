@@ -63,6 +63,13 @@ interface GpxWaypoint {
   ele?: number;
   desc?: string;
   selected: boolean;
+  distanceKm?: number;
+}
+
+interface GpxRoutePoint {
+  lat: number;
+  lon: number;
+  cumulativeDistance: number;
 }
 
 export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: CheckpointsManagementProps) {
@@ -78,6 +85,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [showFormMap, setShowFormMap] = useState(false);
   const [gpxWaypoints, setGpxWaypoints] = useState<GpxWaypoint[]>([]);
   const [importingGpx, setImportingGpx] = useState(false);
+  const [gpxRoute, setGpxRoute] = useState<GpxRoutePoint[]>([]);
+  const [distanceGpxUrl, setDistanceGpxUrl] = useState<string | null>(null);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -103,6 +112,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   useEffect(() => {
     if (selectedDistanceId) {
       fetchCheckpoints();
+      fetchDistanceGpx();
+    } else {
+      setGpxRoute([]);
+      setDistanceGpxUrl(null);
     }
   }, [selectedDistanceId]);
 
@@ -117,6 +130,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       updateMapMarkers();
     }
   }, [checkpoints, map.current]);
+
+  useEffect(() => {
+    if (map.current && gpxRoute.length > 0) {
+      drawGpxRoute();
+    }
+  }, [gpxRoute, map.current]);
 
   useEffect(() => {
     if (showFormMap && mapboxToken && formMapContainer.current && !formMap.current) {
@@ -154,6 +173,139 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     }
   };
 
+  const fetchDistanceGpx = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("gpx_file_url")
+        .eq("id", selectedDistanceId)
+        .single();
+
+      if (error) throw error;
+      
+      if (data?.gpx_file_url) {
+        setDistanceGpxUrl(data.gpx_file_url);
+        await parseGpxRoute(data.gpx_file_url);
+      } else {
+        setDistanceGpxUrl(null);
+        setGpxRoute([]);
+      }
+    } catch (error) {
+      console.error("Error fetching distance GPX:", error);
+    }
+  };
+
+  const parseGpxRoute = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const text = await response.text();
+      const gpx = new GpxParser();
+      gpx.parse(text);
+
+      if (gpx.tracks.length === 0) {
+        console.log("No tracks found in GPX");
+        return;
+      }
+
+      const track = gpx.tracks[0];
+      const points: GpxRoutePoint[] = [];
+      let cumulativeDistance = 0;
+
+      track.points.forEach((point: any, index: number) => {
+        if (index > 0) {
+          const prevPoint = track.points[index - 1];
+          cumulativeDistance += calculateHaversineDistance(
+            prevPoint.lat,
+            prevPoint.lon,
+            point.lat,
+            point.lon
+          );
+        }
+        points.push({
+          lat: point.lat,
+          lon: point.lon,
+          cumulativeDistance,
+        });
+      });
+
+      setGpxRoute(points);
+    } catch (error) {
+      console.error("Error parsing GPX route:", error);
+    }
+  };
+
+  // Calculate distance between two points using Haversine formula
+  const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Find the closest point on the route and return its cumulative distance
+  const findDistanceOnRoute = (lat: number, lon: number): number => {
+    if (gpxRoute.length === 0) return 0;
+
+    let closestDistance = Infinity;
+    let resultKm = 0;
+
+    gpxRoute.forEach((point) => {
+      const dist = calculateHaversineDistance(lat, lon, point.lat, point.lon);
+      if (dist < closestDistance) {
+        closestDistance = dist;
+        resultKm = point.cumulativeDistance;
+      }
+    });
+
+    return Math.round(resultKm * 100) / 100; // Round to 2 decimal places
+  };
+
+  const drawGpxRoute = () => {
+    if (!map.current || gpxRoute.length === 0) return;
+
+    const coordinates = gpxRoute.map((p) => [p.lon, p.lat]);
+
+    // Remove existing gpx-route layer and source
+    if (map.current.getLayer("gpx-route")) {
+      map.current.removeLayer("gpx-route");
+    }
+    if (map.current.getSource("gpx-route")) {
+      map.current.removeSource("gpx-route");
+    }
+
+    map.current.addSource("gpx-route", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates,
+        },
+      },
+    });
+
+    map.current.addLayer({
+      id: "gpx-route",
+      type: "line",
+      source: "gpx-route",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#3b82f6",
+        "line-width": 4,
+        "line-opacity": 0.7,
+      },
+    });
+  };
+
   const initializeMap = () => {
     if (!mapContainer.current || !mapboxToken) return;
 
@@ -169,6 +321,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     map.current.on("load", () => {
+      if (gpxRoute.length > 0) {
+        drawGpxRoute();
+      }
       updateMapMarkers();
     });
   };
@@ -229,9 +384,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       (cp) => cp.latitude !== null && cp.longitude !== null
     );
 
-    if (checkpointsWithCoords.length === 0) return;
-
-    // Añadir marcadores
+    // Añadir marcadores si hay checkpoints con coordenadas
     checkpointsWithCoords.forEach((checkpoint) => {
       const el = document.createElement("div");
       el.className = "checkpoint-marker";
@@ -313,12 +466,24 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       }
     }
 
-    // Ajustar vista a los checkpoints
+    // Ajustar vista a los checkpoints y/o ruta GPX
     const bounds = new mapboxgl.LngLatBounds();
+    
+    // Incluir checkpoints en los bounds
     checkpointsWithCoords.forEach((cp) => {
       bounds.extend([cp.longitude!, cp.latitude!]);
     });
-    map.current.fitBounds(bounds, { padding: 50 });
+    
+    // Incluir ruta GPX en los bounds si existe
+    if (gpxRoute.length > 0) {
+      gpxRoute.forEach((point) => {
+        bounds.extend([point.lon, point.lat]);
+      });
+    }
+    
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds, { padding: 50 });
+    }
   };
 
   const fetchCheckpoints = async () => {
@@ -457,19 +622,41 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       const gpx = new GpxParser();
       gpx.parse(text);
 
-      if (gpx.waypoints.length === 0) {
+      // Try to get waypoints first
+      let waypoints: GpxWaypoint[] = [];
+      
+      if (gpx.waypoints.length > 0) {
+        waypoints = gpx.waypoints.map((wp: any) => {
+          const distanceKm = gpxRoute.length > 0 
+            ? findDistanceOnRoute(wp.lat, wp.lon) 
+            : 0;
+          return {
+            name: wp.name || "Sin nombre",
+            lat: wp.lat,
+            lon: wp.lon,
+            ele: wp.ele,
+            desc: wp.desc,
+            selected: true,
+            distanceKm,
+          };
+        });
+      }
+      
+      // If no waypoints, try to use track points as checkpoints
+      if (waypoints.length === 0 && gpx.tracks.length > 0) {
+        toast.info("No se encontraron waypoints, pero hay una ruta. Los waypoints se deben crear manualmente o usar un GPX con waypoints definidos.");
+        return;
+      }
+
+      if (waypoints.length === 0) {
         toast.error("No se encontraron waypoints en el archivo GPX");
         return;
       }
 
-      const waypoints: GpxWaypoint[] = gpx.waypoints.map((wp: any) => ({
-        name: wp.name || "Sin nombre",
-        lat: wp.lat,
-        lon: wp.lon,
-        ele: wp.ele,
-        desc: wp.desc,
-        selected: true,
-      }));
+      // Sort by distance if we have route data
+      if (gpxRoute.length > 0) {
+        waypoints.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+      }
 
       setGpxWaypoints(waypoints);
       setIsGpxDialogOpen(true);
@@ -510,7 +697,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       name: wp.name,
       lugar: wp.desc || null,
       checkpoint_order: startOrder + index,
-      distance_km: 0, // Will need to be calculated or edited manually
+      distance_km: wp.distanceKm || 0,
       latitude: wp.lat,
       longitude: wp.lon,
     }));
@@ -564,12 +751,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5" />
-            Puntos de Control
-          </CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Puntos de Control
+            </CardTitle>
+            {gpxRoute.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                <Navigation className="h-3 w-3 mr-1" />
+                Ruta GPX cargada
+              </Badge>
+            )}
+          </div>
           <div className="flex gap-2 flex-wrap">
-            {mapboxToken && checkpointsWithCoords.length > 0 && (
+            {mapboxToken && (checkpointsWithCoords.length > 0 || gpxRoute.length > 0) && (
               <Button
                 variant="outline"
                 onClick={() => setShowMap(!showMap)}
@@ -822,8 +1017,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               Importar Waypoints desde GPX
             </DialogTitle>
             <DialogDescription>
-              Selecciona los waypoints que deseas importar como puntos de control. 
-              Deberás ajustar manualmente la distancia (km) después de importar.
+              Selecciona los waypoints que deseas importar como puntos de control.
+              {gpxRoute.length > 0 
+                ? " Las distancias se calculan automáticamente basándose en la ruta GPX de la distancia."
+                : " No hay ruta GPX asociada a esta distancia, las distancias se establecerán en 0."}
             </DialogDescription>
           </DialogHeader>
           
@@ -855,9 +1052,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                 <TableRow>
                   <TableHead className="w-12"></TableHead>
                   <TableHead>Nombre</TableHead>
+                  <TableHead className="text-right">Km</TableHead>
                   <TableHead>Coordenadas</TableHead>
                   <TableHead>Elevación</TableHead>
-                  <TableHead>Descripción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -870,13 +1067,15 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       />
                     </TableCell>
                     <TableCell className="font-medium">{wp.name}</TableCell>
+                    <TableCell className="text-right">
+                      {wp.distanceKm !== undefined ? (
+                        <Badge variant="secondary">{wp.distanceKm.toFixed(2)} km</Badge>
+                      ) : "-"}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
                     </TableCell>
                     <TableCell>{wp.ele ? `${wp.ele.toFixed(0)}m` : "-"}</TableCell>
-                    <TableCell className="text-muted-foreground text-sm max-w-[150px] truncate">
-                      {wp.desc || "-"}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
