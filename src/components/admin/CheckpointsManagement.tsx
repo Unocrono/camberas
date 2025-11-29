@@ -652,8 +652,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         });
       }
       
-      // If no valid waypoints, try to extract start/end from track
-      if (waypoints.length === 0 && gpx.tracks.length > 0) {
+      // Always try to add Salida and Meta from track if they don't exist in waypoints
+      if (gpx.tracks.length > 0) {
         const track = gpx.tracks[0];
         console.log("Using track with", track.points.length, "points");
         if (track.points.length > 0) {
@@ -661,8 +661,25 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           const lastPoint = track.points[track.points.length - 1];
           const totalDistance = calculateTrackDistance(track);
           
-          waypoints = [
-            {
+          // Check if Salida exists (by name or by being at distance 0)
+          const hasSalida = waypoints.some(wp => 
+            wp.name.toLowerCase().includes('salida') || 
+            wp.name.toLowerCase().includes('start') ||
+            wp.name.toLowerCase().includes('inicio') ||
+            wp.distanceKm === 0
+          );
+          
+          // Check if Meta exists (by name or by being at max distance)
+          const hasMeta = waypoints.some(wp => 
+            wp.name.toLowerCase().includes('meta') || 
+            wp.name.toLowerCase().includes('finish') ||
+            wp.name.toLowerCase().includes('llegada') ||
+            wp.name.toLowerCase().includes('end')
+          );
+          
+          // Add Salida if not present
+          if (!hasSalida) {
+            waypoints.unshift({
               name: "Salida",
               lat: firstPoint.lat,
               lon: firstPoint.lon,
@@ -670,8 +687,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               desc: "Punto de salida (extraído del track)",
               selected: true,
               distanceKm: 0,
-            },
-            {
+            });
+            console.log("Added Salida from track");
+          }
+          
+          // Add Meta if not present
+          if (!hasMeta) {
+            waypoints.push({
               name: "Meta",
               lat: lastPoint.lat,
               lon: lastPoint.lon,
@@ -679,10 +701,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               desc: "Punto de llegada (extraído del track)",
               selected: true,
               distanceKm: Math.round(totalDistance * 100) / 100,
-            },
-          ];
+            });
+            console.log("Added Meta from track");
+          }
           
-          toast.info(`Se extrajeron salida y meta del track (${waypoints[1].distanceKm} km)`);
+          if (!hasSalida || !hasMeta) {
+            toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track`);
+          }
         }
       }
 
