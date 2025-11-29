@@ -705,19 +705,48 @@ const RaceDetail = () => {
                           </div>
                         )}
 
-                        {/* GPX Download */}
+                        {/* GPX View & Download */}
                         {distance.gpx_file_url && (
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            asChild
-                          >
-                            <a href={distance.gpx_file_url} download>
-                              <Download className="h-4 w-4 mr-2" />
-                              Descargar Recorrido GPX
-                            </a>
-                          </Button>
+                          <div className="space-y-2">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full"
+                                >
+                                  <Map className="h-4 w-4 mr-2" />
+                                  Ver Recorrido
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[90vh]">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <Map className="h-5 w-5 text-primary" />
+                                    Recorrido - {distance.name}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    {distance.distance_km} km {distance.elevation_gain && `• +${distance.elevation_gain}m desnivel`}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <RoutePreviewMap 
+                                  gpxUrl={distance.gpx_file_url} 
+                                  distanceName={distance.name}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full"
+                              asChild
+                            >
+                              <a href={distance.gpx_file_url} download>
+                                <Download className="h-4 w-4 mr-2" />
+                                Descargar GPX
+                              </a>
+                            </Button>
+                          </div>
                         )}
 
                         {/* Roadbooks */}
@@ -820,8 +849,6 @@ const RaceDetail = () => {
                 </div>
               </div>
 
-              {/* Mapa del Recorrido */}
-              <RoutePreviewMap distances={race.distances} />
 
               {/* Info Adicional */}
               {race.additional_info && (

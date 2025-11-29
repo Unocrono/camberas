@@ -2,57 +2,29 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
-import GPXParser from 'gpxparser';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Map, Mountain } from 'lucide-react';
-
-interface Distance {
-  id: string;
-  name: string;
-  distance_km: number;
-  gpx_file_url: string | null;
-}
+import { parseGpxFile } from '@/lib/gpxParser';
 
 interface RoutePreviewMapProps {
-  distances: Distance[];
+  gpxUrl: string;
+  distanceName: string;
 }
 
-export function RoutePreviewMap({ distances }: RoutePreviewMapProps) {
+export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
-  const [selectedDistanceId, setSelectedDistanceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Filter distances that have GPX files
-  const distancesWithGpx = distances.filter(d => d.gpx_file_url);
 
   useEffect(() => {
     fetchMapboxToken();
   }, []);
 
   useEffect(() => {
-    if (distancesWithGpx.length > 0 && !selectedDistanceId) {
-      setSelectedDistanceId(distancesWithGpx[0].id);
-    }
-  }, [distancesWithGpx, selectedDistanceId]);
-
-  useEffect(() => {
     if (mapboxToken && mapContainer.current && !map.current) {
       initializeMap();
     }
   }, [mapboxToken]);
-
-  useEffect(() => {
-    if (map.current && selectedDistanceId) {
-      const distance = distancesWithGpx.find(d => d.id === selectedDistanceId);
-      if (distance?.gpx_file_url) {
-        loadGpxRoute(distance.gpx_file_url);
-      }
-    }
-  }, [selectedDistanceId, map.current]);
 
   const fetchMapboxToken = async () => {
     try {
@@ -79,7 +51,7 @@ export function RoutePreviewMap({ distances }: RoutePreviewMapProps) {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [-3.7, 40.4],
+      center: [0, 0],
       zoom: 10,
     });
 
@@ -90,38 +62,37 @@ export function RoutePreviewMap({ distances }: RoutePreviewMapProps) {
 
     map.current.addControl(new mapboxgl.FullscreenControl(), 'top-right');
 
-    // Load GPX once map is ready
     map.current.on('load', () => {
-      if (selectedDistanceId) {
-        const distance = distancesWithGpx.find(d => d.id === selectedDistanceId);
-        if (distance?.gpx_file_url) {
-          loadGpxRoute(distance.gpx_file_url);
-        }
-      }
+      loadGpxRoute();
     });
   };
 
-  const loadGpxRoute = async (url: string) => {
+  const loadGpxRoute = async () => {
     if (!map.current) return;
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(gpxUrl);
       const gpxText = await response.text();
 
-      const gpx = new GPXParser();
-      gpx.parse(gpxText);
+      const parsedGpx = parseGpxFile(gpxText);
 
-      if (!gpx.tracks || gpx.tracks.length === 0) return;
+      if (!parsedGpx.tracks || parsedGpx.tracks.length === 0) {
+        setError('No se encontró recorrido en el archivo GPX');
+        return;
+      }
 
       const coordinates: [number, number][] = [];
 
-      gpx.tracks.forEach((track: any) => {
-        track.points.forEach((point: any) => {
+      parsedGpx.tracks.forEach((track) => {
+        track.points.forEach((point) => {
           coordinates.push([point.lon, point.lat]);
         });
       });
 
-      if (coordinates.length === 0) return;
+      if (coordinates.length === 0) {
+        setError('No se encontraron coordenadas en el recorrido');
+        return;
+      }
 
       // Remove existing route layer and source
       if (map.current.getLayer('route')) {
@@ -193,6 +164,21 @@ export function RoutePreviewMap({ distances }: RoutePreviewMapProps) {
         .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML('<strong>Meta</strong>'))
         .addTo(map.current);
 
+      // Add waypoints from GPX if available
+      parsedGpx.waypoints.forEach((waypoint) => {
+        const waypointEl = document.createElement('div');
+        waypointEl.className = 'route-marker';
+        waypointEl.innerHTML = `
+          <div class="flex items-center justify-center w-6 h-6 bg-blue-500 text-white rounded-full shadow-md text-xs">
+            ●
+          </div>
+        `;
+        new mapboxgl.Marker(waypointEl)
+          .setLngLat([waypoint.lon, waypoint.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${waypoint.name}</strong>${waypoint.desc ? `<br/>${waypoint.desc}` : ''}`))
+          .addTo(map.current!);
+      });
+
       // Fit map to route bounds
       const bounds = new mapboxgl.LngLatBounds();
       coordinates.forEach(coord => bounds.extend(coord));
@@ -200,79 +186,40 @@ export function RoutePreviewMap({ distances }: RoutePreviewMapProps) {
 
     } catch (err) {
       console.error('Error loading GPX:', err);
+      setError('Error al cargar el recorrido');
     }
   };
 
-  // Don't render if no distances have GPX files
-  if (distancesWithGpx.length === 0) {
-    return null;
-  }
-
   if (loading) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">Cargando mapa del recorrido...</p>
-        </CardContent>
-      </Card>
+      <div className="w-full h-[400px] flex items-center justify-center bg-muted/50 rounded-lg">
+        <p className="text-muted-foreground">Cargando mapa...</p>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">{error}</p>
-        </CardContent>
-      </Card>
+      <div className="w-full h-[400px] flex items-center justify-center bg-muted/50 rounded-lg">
+        <p className="text-muted-foreground">{error}</p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="flex items-center gap-2">
-            <Map className="h-6 w-6 text-primary" />
-            Mapa del Recorrido
-          </CardTitle>
-          
-          {distancesWithGpx.length > 1 && (
-            <Select
-              value={selectedDistanceId || ''}
-              onValueChange={setSelectedDistanceId}
-            >
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Selecciona distancia" />
-              </SelectTrigger>
-              <SelectContent>
-                {distancesWithGpx.map((distance) => (
-                  <SelectItem key={distance.id} value={distance.id}>
-                    <span className="flex items-center gap-2">
-                      <Mountain className="h-4 w-4" />
-                      {distance.name} ({distance.distance_km} km)
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
-          <div ref={mapContainer} className="absolute inset-0" />
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span> Salida
-          </span>
-          <span className="mx-3">|</span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span> Meta
-          </span>
-        </p>
-      </CardContent>
-    </Card>
+    <div className="space-y-2">
+      <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
+        <div ref={mapContainer} className="absolute inset-0" />
+      </div>
+      <p className="text-xs text-muted-foreground text-center">
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span> Salida
+        </span>
+        <span className="mx-3">|</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span> Meta
+        </span>
+      </p>
+    </div>
   );
 }
