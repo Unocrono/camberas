@@ -743,7 +743,17 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     }
 
     setImportingGpx(true);
-    const startOrder = checkpoints.length + 1;
+    
+    // Get max checkpoint_order for the ENTIRE race (not just this distance) to avoid unique constraint violation
+    const { data: maxOrderData } = await supabase
+      .from("race_checkpoints")
+      .select("checkpoint_order")
+      .eq("race_id", selectedRaceId)
+      .order("checkpoint_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
 
     // Calculate cumulative distances if not already set from route
     let cumulativeDistance = 0;
