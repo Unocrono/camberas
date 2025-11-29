@@ -285,6 +285,8 @@ export type Database = {
           created_at: string
           distance_km: number
           id: string
+          latitude: number | null
+          longitude: number | null
           lugar: string | null
           name: string
           race_distance_id: string | null
@@ -296,6 +298,8 @@ export type Database = {
           created_at?: string
           distance_km: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           lugar?: string | null
           name: string
           race_distance_id?: string | null
@@ -307,6 +311,8 @@ export type Database = {
           created_at?: string
           distance_km?: number
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           lugar?: string | null
           name?: string
           race_distance_id?: string | null
