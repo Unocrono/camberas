@@ -582,7 +582,7 @@ const RaceDetail = () => {
                 <Button variant="outline" onClick={() => navigate(`/race/${id}/live`)}>
                   Resultados en Vivo
                 </Button>
-                {race.gps_tracking_enabled && (
+                {race.distances?.some((d: any) => d.gps_tracking_enabled) && (
                   <Button variant="outline" onClick={() => navigate(`/race/${id}/gps`)}>
                     Mapa GPS en Vivo
                   </Button>
