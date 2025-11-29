@@ -65,35 +65,56 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
   }, [imageFile, open, handleFileChange]);
 
   const getCroppedImg = useCallback(async () => {
-    if (!completedCrop || !imgRef.current) return;
+    if (!completedCrop || !imgRef.current || !imageFile) return;
 
     setProcessing(true);
     const image = imgRef.current;
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { 
+      alpha: true,
+      willReadFrequently: false 
+    });
 
     if (!ctx) {
       setProcessing(false);
       return;
     }
 
+    // Usar devicePixelRatio para mejor calidad en pantallas de alta densidad
+    const pixelRatio = window.devicePixelRatio || 1;
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
 
-    canvas.width = completedCrop.width * scaleX;
-    canvas.height = completedCrop.height * scaleY;
+    // Calcular dimensiones finales usando la resolución natural
+    const cropWidth = Math.round(completedCrop.width * scaleX);
+    const cropHeight = Math.round(completedCrop.height * scaleY);
 
+    // Establecer el tamaño del canvas a la resolución final deseada
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
+
+    // Configurar el contexto para máxima calidad
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // Dibujar la imagen recortada
     ctx.drawImage(
       image,
-      completedCrop.x * scaleX,
-      completedCrop.y * scaleY,
-      completedCrop.width * scaleX,
-      completedCrop.height * scaleY,
+      Math.round(completedCrop.x * scaleX),
+      Math.round(completedCrop.y * scaleY),
+      cropWidth,
+      cropHeight,
       0,
       0,
-      canvas.width,
-      canvas.height
+      cropWidth,
+      cropHeight
     );
+
+    // Determinar el formato de salida basado en el archivo original
+    const originalExtension = imageFile.name.split(".").pop()?.toLowerCase();
+    const isPng = originalExtension === "png";
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    const quality = isPng ? undefined : 1.0; // PNG no usa calidad, JPEG al máximo
 
     return new Promise<Blob | null>((resolve) => {
       canvas.toBlob(
@@ -101,11 +122,11 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
           setProcessing(false);
           resolve(blob);
         },
-        "image/jpeg",
-        0.95
+        mimeType,
+        quality
       );
     });
-  }, [completedCrop]);
+  }, [completedCrop, imageFile]);
 
   const handleSave = async () => {
     const croppedBlob = await getCroppedImg();
