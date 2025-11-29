@@ -548,9 +548,6 @@ const RaceDetail = () => {
                 <Badge variant="secondary" className="text-base py-1">
                   Trail Running
                 </Badge>
-                <Badge variant="outline" className="text-base py-1">
-                  Múltiples Distancias
-                </Badge>
               </div>
               <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
@@ -576,11 +573,8 @@ const RaceDetail = () => {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => navigate(`/race/${id}/results`)}>
-                  Ver Resultados
-                </Button>
-                <Button variant="outline" onClick={() => navigate(`/race/${id}/live`)}>
-                  Resultados en Vivo
+                <Button variant="outline" onClick={() => navigate(`/race/${id}/regulation`)}>
+                  Reglamento
                 </Button>
                 {race.distances?.some((d: any) => d.gps_tracking_enabled) && (
                   <Button variant="outline" onClick={() => navigate(`/race/${id}/gps`)}>

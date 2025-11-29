@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Races from "./pages/Races";
 import RaceDetail from "./pages/RaceDetail";
+import RaceRegulation from "./pages/RaceRegulation";
 import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/races" element={<Races />} />
           <Route path="/race/:id" element={<RaceDetail />} />
+          <Route path="/race/:id/regulation" element={<RaceRegulation />} />
           <Route path="/race/:id/results" element={<RaceResults />} />
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
