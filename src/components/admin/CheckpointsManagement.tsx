@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp, RefreshCw } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -88,6 +88,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [gpxRoute, setGpxRoute] = useState<GpxRoutePoint[]>([]);
   const [distanceGpxUrl, setDistanceGpxUrl] = useState<string | null>(null);
   const [gpxPreviewRoute, setGpxPreviewRoute] = useState<GpxRoutePoint[]>([]);
+  const [recalculatingDistances, setRecalculatingDistances] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -1028,6 +1029,64 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     setImportingGpx(false);
   };
 
+  // Recalculate distances for existing checkpoints using the linked GPX file
+  const handleRecalculateDistances = async () => {
+    if (!distanceGpxUrl || gpxRoute.length === 0) {
+      toast.error("No hay archivo GPX vinculado para recalcular");
+      return;
+    }
+
+    if (checkpoints.length === 0) {
+      toast.error("No hay puntos de control para recalcular");
+      return;
+    }
+
+    setRecalculatingDistances(true);
+
+    try {
+      // Recalculate distance for each checkpoint that has coordinates
+      const updates = checkpoints.map((cp) => {
+        if (cp.latitude !== null && cp.longitude !== null) {
+          const newDistance = findDistanceOnRoute(cp.latitude, cp.longitude);
+          return {
+            id: cp.id,
+            distance_km: newDistance,
+          };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (updates.length === 0) {
+        toast.error("No hay puntos de control con coordenadas para recalcular");
+        setRecalculatingDistances(false);
+        return;
+      }
+
+      // Update each checkpoint
+      for (const update of updates) {
+        if (update) {
+          const { error } = await supabase
+            .from("race_checkpoints")
+            .update({ distance_km: update.distance_km })
+            .eq("id", update.id);
+
+          if (error) {
+            console.error("Error updating checkpoint:", error);
+            throw error;
+          }
+        }
+      }
+
+      toast.success(`Distancias recalculadas para ${updates.length} puntos de control`);
+      fetchCheckpoints();
+    } catch (error) {
+      console.error("Error recalculating distances:", error);
+      toast.error("Error al recalcular las distancias");
+    }
+
+    setRecalculatingDistances(false);
+  };
+
   if (!selectedRaceId) {
     return (
       <Card>
@@ -1089,13 +1148,24 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               onChange={handleGpxFileChange}
               className="hidden"
             />
-            <Button
-              variant="outline"
-              onClick={() => gpxFileInputRef.current?.click()}
-            >
-              <FileUp className="mr-2 h-4 w-4" />
-              Importar GPX
-            </Button>
+            {distanceGpxUrl ? (
+              <Button
+                variant="outline"
+                onClick={handleRecalculateDistances}
+                disabled={recalculatingDistances || gpxRoute.length === 0}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${recalculatingDistances ? 'animate-spin' : ''}`} />
+                {recalculatingDistances ? "Recalculando..." : "Recalcular Distancias"}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => gpxFileInputRef.current?.click()}
+              >
+                <FileUp className="mr-2 h-4 w-4" />
+                Importar GPX
+              </Button>
+            )}
             <Dialog
               open={isDialogOpen}
               onOpenChange={(open) => {
