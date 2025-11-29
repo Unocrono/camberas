@@ -37,7 +37,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
-import GpxParser from "gpxparser";
+import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
 
 interface Checkpoint {
   id: string;
@@ -199,8 +199,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     try {
       const response = await fetch(url);
       const text = await response.text();
-      const gpx = new GpxParser();
-      gpx.parse(text);
+      const gpx = parseGpxFile(text);
 
       if (gpx.tracks.length === 0) {
         console.log("No tracks found in GPX");
@@ -211,7 +210,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       const points: GpxRoutePoint[] = [];
       let cumulativeDistance = 0;
 
-      track.points.forEach((point: any, index: number) => {
+      track.points.forEach((point, index) => {
         if (index > 0) {
           const prevPoint = track.points[index - 1];
           cumulativeDistance += calculateHaversineDistance(
@@ -620,62 +619,36 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     try {
       const text = await file.text();
       
-      // Validate GPX structure before parsing
-      if (!text.includes('<gpx') || !text.includes('</gpx>')) {
-        toast.error("El archivo no parece ser un GPX válido");
-        return;
-      }
-      
-      const gpx = new GpxParser();
-      gpx.parse(text);
+      // Use custom GPX parser
+      const gpx = parseGpxFile(text);
 
       // Try to get waypoints first
       let waypoints: GpxWaypoint[] = [];
       
-      if (gpx.waypoints && gpx.waypoints.length > 0) {
-        waypoints = gpx.waypoints
-          .filter((wp: any) => {
-            // Filter out waypoints with invalid coordinates (0,0 or NaN)
-            const hasValidLat = wp.lat && !isNaN(wp.lat) && wp.lat !== 0;
-            const hasValidLon = wp.lon && !isNaN(wp.lon) && wp.lon !== 0;
-            if (!hasValidLat || !hasValidLon) {
-              console.warn(`Waypoint "${wp.name}" omitido por coordenadas inválidas: lat=${wp.lat}, lon=${wp.lon}`);
-            }
-            return hasValidLat && hasValidLon;
-          })
-          .map((wp: any) => {
-            const distanceKm = gpxRoute.length > 0 
-              ? findDistanceOnRoute(wp.lat, wp.lon) 
-              : 0;
-            return {
-              name: wp.name || "Sin nombre",
-              lat: wp.lat,
-              lon: wp.lon,
-              ele: wp.ele,
-              desc: wp.desc || wp.cmt || "",
-              selected: true,
-              distanceKm,
-            };
-          });
+      if (gpx.waypoints.length > 0) {
+        waypoints = gpx.waypoints.map((wp) => {
+          const distanceKm = gpxRoute.length > 0 
+            ? findDistanceOnRoute(wp.lat, wp.lon) 
+            : 0;
+          return {
+            name: wp.name,
+            lat: wp.lat,
+            lon: wp.lon,
+            ele: wp.ele,
+            desc: wp.desc || wp.cmt || "",
+            selected: true,
+            distanceKm,
+          };
+        });
       }
       
       // If no valid waypoints, try to extract start/end from track
-      if (waypoints.length === 0 && gpx.tracks && gpx.tracks.length > 0) {
+      if (waypoints.length === 0 && gpx.tracks.length > 0) {
         const track = gpx.tracks[0];
-        if (track.points && track.points.length > 0) {
+        if (track.points.length > 0) {
           const firstPoint = track.points[0];
           const lastPoint = track.points[track.points.length - 1];
-          
-          // Calculate total distance
-          let totalDistance = 0;
-          for (let i = 1; i < track.points.length; i++) {
-            totalDistance += calculateHaversineDistance(
-              track.points[i - 1].lat,
-              track.points[i - 1].lon,
-              track.points[i].lat,
-              track.points[i].lon
-            );
-          }
+          const totalDistance = calculateTrackDistance(track);
           
           waypoints = [
             {
