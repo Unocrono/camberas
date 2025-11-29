@@ -12,6 +12,7 @@ import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
+import { parseGpxFile } from "@/lib/gpxParser";
 
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -255,6 +256,203 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     }
   };
 
+  // Calculate distance between two points using Haversine formula
+  const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Import checkpoints from GPX file
+  const importCheckpointsFromGpx = async (
+    gpxFileContent: string,
+    raceId: string,
+    distanceId: string
+  ): Promise<number> => {
+    try {
+      const gpx = parseGpxFile(gpxFileContent);
+      
+      // Build route points from track for distance calculation
+      interface RoutePoint {
+        lat: number;
+        lon: number;
+        cumulativeDistance: number;
+      }
+      
+      let routePoints: RoutePoint[] = [];
+      let totalTrackDistance = 0;
+      
+      if (gpx.tracks.length > 0) {
+        const track = gpx.tracks[0];
+        let cumulativeDist = 0;
+        
+        track.points.forEach((point, index) => {
+          if (index > 0) {
+            const prevPoint = track.points[index - 1];
+            cumulativeDist += calculateHaversineDistance(
+              prevPoint.lat,
+              prevPoint.lon,
+              point.lat,
+              point.lon
+            );
+          }
+          routePoints.push({
+            lat: point.lat,
+            lon: point.lon,
+            cumulativeDistance: cumulativeDist,
+          });
+        });
+        totalTrackDistance = cumulativeDist;
+      }
+      
+      // Helper function to find distance along route
+      const findDistanceOnRoute = (lat: number, lon: number): number => {
+        if (routePoints.length === 0) return 0;
+        
+        let closestDistance = Infinity;
+        let resultKm = 0;
+        
+        routePoints.forEach((point) => {
+          const dist = calculateHaversineDistance(lat, lon, point.lat, point.lon);
+          if (dist < closestDistance) {
+            closestDistance = dist;
+            resultKm = point.cumulativeDistance;
+          }
+        });
+        
+        return Math.round(resultKm * 1000) / 1000;
+      };
+      
+      // Process waypoints
+      interface GpxWaypoint {
+        name: string;
+        lat: number;
+        lon: number;
+        ele?: number;
+        desc?: string;
+        distanceKm: number;
+      }
+      
+      let waypoints: GpxWaypoint[] = [];
+      
+      // Filter valid waypoints
+      const validWaypoints = gpx.waypoints.filter(wp => 
+        wp.lat !== 0 && wp.lon !== 0 && !isNaN(wp.lat) && !isNaN(wp.lon)
+      );
+      
+      if (validWaypoints.length > 0) {
+        waypoints = validWaypoints.map((wp) => ({
+          name: wp.name,
+          lat: wp.lat,
+          lon: wp.lon,
+          ele: wp.ele,
+          desc: wp.desc || wp.cmt || "",
+          distanceKm: routePoints.length > 0 ? findDistanceOnRoute(wp.lat, wp.lon) : 0,
+        }));
+      }
+      
+      // Add Salida and Meta from track if they don't exist
+      if (gpx.tracks.length > 0 && routePoints.length > 0) {
+        const firstPoint = routePoints[0];
+        const lastPoint = routePoints[routePoints.length - 1];
+        
+        const hasSalida = waypoints.some(wp => {
+          const name = wp.name.toLowerCase();
+          return name.includes('salida') || name.includes('start') || name.includes('inicio');
+        });
+        
+        const hasMeta = waypoints.some(wp => {
+          const name = wp.name.toLowerCase();
+          return name.includes('meta') || name.includes('finish') || name.includes('llegada') || name.includes('fin');
+        });
+        
+        if (!hasSalida) {
+          waypoints.unshift({
+            name: "Salida",
+            lat: firstPoint.lat,
+            lon: firstPoint.lon,
+            desc: "Punto de salida",
+            distanceKm: 0,
+          });
+        }
+        
+        if (!hasMeta) {
+          waypoints.push({
+            name: "Meta",
+            lat: lastPoint.lat,
+            lon: lastPoint.lon,
+            desc: "Punto de llegada",
+            distanceKm: Math.round(totalTrackDistance * 1000) / 1000,
+          });
+        }
+        
+        // Recalculate distances
+        waypoints = waypoints.map(wp => ({
+          ...wp,
+          distanceKm: wp.name === "Salida" ? 0 : 
+                      wp.name === "Meta" ? Math.round(totalTrackDistance * 1000) / 1000 :
+                      findDistanceOnRoute(wp.lat, wp.lon)
+        }));
+      }
+      
+      if (waypoints.length === 0) {
+        return 0;
+      }
+      
+      // Sort waypoints by distance
+      waypoints.sort((a, b) => a.distanceKm - b.distanceKm);
+      
+      // Delete existing checkpoints for this distance
+      await supabase
+        .from("race_checkpoints")
+        .delete()
+        .eq("race_distance_id", distanceId);
+      
+      // Get max checkpoint_order for the race to avoid conflicts
+      const { data: maxOrderData } = await supabase
+        .from("race_checkpoints")
+        .select("checkpoint_order")
+        .eq("race_id", raceId)
+        .order("checkpoint_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
+      
+      // Create checkpoints
+      const checkpointsToInsert = waypoints.map((wp, index) => ({
+        race_id: raceId,
+        race_distance_id: distanceId,
+        name: wp.name,
+        lugar: wp.desc || null,
+        checkpoint_order: startOrder + index,
+        distance_km: wp.distanceKm,
+        latitude: wp.lat,
+        longitude: wp.lon,
+      }));
+      
+      const { error } = await supabase
+        .from("race_checkpoints")
+        .insert(checkpointsToInsert);
+      
+      if (error) {
+        console.error("Error inserting checkpoints:", error);
+        throw error;
+      }
+      
+      return waypoints.length;
+    } catch (error) {
+      console.error("Error importing checkpoints from GPX:", error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -347,21 +545,61 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
-        toast({
-          title: "Distancia actualizada",
-          description: "La distancia se ha actualizado exitosamente",
-        });
+        // Import checkpoints from GPX if a new GPX file was uploaded
+        if (gpxFile) {
+          try {
+            const gpxContent = await gpxFile.text();
+            const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, editingDistance.id);
+            toast({
+              title: "Distancia actualizada",
+              description: `Se han importado ${importedCount} puntos de control desde el GPX`,
+            });
+          } catch (gpxError) {
+            console.error("Error importing checkpoints:", gpxError);
+            toast({
+              title: "Distancia actualizada",
+              description: "La distancia se ha actualizado pero hubo un error al importar los puntos de control",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Distancia actualizada",
+            description: "La distancia se ha actualizado exitosamente",
+          });
+        }
       } else {
-        const { error } = await supabase
+        const { data: insertedDistance, error } = await supabase
           .from("race_distances")
-          .insert([distanceData]);
+          .insert([distanceData])
+          .select()
+          .single();
 
         if (error) throw error;
 
-        toast({
-          title: "Distancia creada",
-          description: "La distancia se ha creado exitosamente",
-        });
+        // Import checkpoints from GPX if a GPX file was uploaded
+        if (gpxFile && insertedDistance) {
+          try {
+            const gpxContent = await gpxFile.text();
+            const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, insertedDistance.id);
+            toast({
+              title: "Distancia creada",
+              description: `Se han importado ${importedCount} puntos de control desde el GPX`,
+            });
+          } catch (gpxError) {
+            console.error("Error importing checkpoints:", gpxError);
+            toast({
+              title: "Distancia creada",
+              description: "La distancia se ha creado pero hubo un error al importar los puntos de control",
+              variant: "destructive",
+            });
+          }
+        } else {
+          toast({
+            title: "Distancia creada",
+            description: "La distancia se ha creado exitosamente",
+          });
+        }
       }
 
       setIsDialogOpen(false);
