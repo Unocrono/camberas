@@ -724,7 +724,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   <Input
                     id="distance_km"
                     type="number"
-                    step="0.1"
+                    step="0.001"
                     min="0"
                     placeholder="42.195"
                     value={formData.distance_km}
