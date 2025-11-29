@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -30,10 +32,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map, Navigation } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import GpxParser from "gpxparser";
 
 interface Checkpoint {
   id: string;
@@ -52,16 +56,28 @@ interface CheckpointsManagementProps {
   selectedDistanceId: string;
 }
 
+interface GpxWaypoint {
+  name: string;
+  lat: number;
+  lon: number;
+  ele?: number;
+  desc?: string;
+  selected: boolean;
+}
+
 export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: CheckpointsManagementProps) {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isGpxDialogOpen, setIsGpxDialogOpen] = useState(false);
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [showFormMap, setShowFormMap] = useState(false);
+  const [gpxWaypoints, setGpxWaypoints] = useState<GpxWaypoint[]>([]);
+  const [importingGpx, setImportingGpx] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -69,6 +85,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const formMap = useRef<mapboxgl.Map | null>(null);
   const formMarker = useRef<mapboxgl.Marker | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const gpxFileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -431,6 +448,90 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     fetchCheckpoints();
   };
 
+  const handleGpxFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const gpx = new GpxParser();
+      gpx.parse(text);
+
+      if (gpx.waypoints.length === 0) {
+        toast.error("No se encontraron waypoints en el archivo GPX");
+        return;
+      }
+
+      const waypoints: GpxWaypoint[] = gpx.waypoints.map((wp: any) => ({
+        name: wp.name || "Sin nombre",
+        lat: wp.lat,
+        lon: wp.lon,
+        ele: wp.ele,
+        desc: wp.desc,
+        selected: true,
+      }));
+
+      setGpxWaypoints(waypoints);
+      setIsGpxDialogOpen(true);
+    } catch (error) {
+      console.error("Error parsing GPX:", error);
+      toast.error("Error al leer el archivo GPX");
+    }
+
+    // Reset input
+    if (gpxFileInputRef.current) {
+      gpxFileInputRef.current.value = "";
+    }
+  };
+
+  const toggleWaypointSelection = (index: number) => {
+    setGpxWaypoints((prev) =>
+      prev.map((wp, i) => (i === index ? { ...wp, selected: !wp.selected } : wp))
+    );
+  };
+
+  const toggleAllWaypoints = (selected: boolean) => {
+    setGpxWaypoints((prev) => prev.map((wp) => ({ ...wp, selected })));
+  };
+
+  const handleImportGpxWaypoints = async () => {
+    const selectedWaypoints = gpxWaypoints.filter((wp) => wp.selected);
+    if (selectedWaypoints.length === 0) {
+      toast.error("Selecciona al menos un waypoint para importar");
+      return;
+    }
+
+    setImportingGpx(true);
+    const startOrder = checkpoints.length + 1;
+
+    const checkpointsToInsert = selectedWaypoints.map((wp, index) => ({
+      race_id: selectedRaceId,
+      race_distance_id: selectedDistanceId,
+      name: wp.name,
+      lugar: wp.desc || null,
+      checkpoint_order: startOrder + index,
+      distance_km: 0, // Will need to be calculated or edited manually
+      latitude: wp.lat,
+      longitude: wp.lon,
+    }));
+
+    const { error } = await supabase
+      .from("race_checkpoints")
+      .insert(checkpointsToInsert);
+
+    if (error) {
+      console.error(error);
+      toast.error("Error al importar los puntos de control");
+    } else {
+      toast.success(`${selectedWaypoints.length} puntos de control importados`);
+      setIsGpxDialogOpen(false);
+      setGpxWaypoints([]);
+      fetchCheckpoints();
+    }
+
+    setImportingGpx(false);
+  };
+
   if (!selectedRaceId) {
     return (
       <Card>
@@ -467,7 +568,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             <MapPin className="h-5 w-5" />
             Puntos de Control
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {mapboxToken && checkpointsWithCoords.length > 0 && (
               <Button
                 variant="outline"
@@ -477,6 +578,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                 {showMap ? "Ocultar Mapa" : "Ver Mapa"}
               </Button>
             )}
+            <input
+              ref={gpxFileInputRef}
+              type="file"
+              accept=".gpx"
+              onChange={handleGpxFileChange}
+              className="hidden"
+            />
+            <Button
+              variant="outline"
+              onClick={() => gpxFileInputRef.current?.click()}
+            >
+              <FileUp className="mr-2 h-4 w-4" />
+              Importar GPX
+            </Button>
             <Dialog
               open={isDialogOpen}
               onOpenChange={(open) => {
@@ -698,6 +813,95 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isGpxDialogOpen} onOpenChange={setIsGpxDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileUp className="h-5 w-5" />
+              Importar Waypoints desde GPX
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona los waypoints que deseas importar como puntos de control. 
+              Deberás ajustar manualmente la distancia (km) después de importar.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex items-center justify-between py-2">
+            <span className="text-sm text-muted-foreground">
+              {gpxWaypoints.filter((wp) => wp.selected).length} de {gpxWaypoints.length} seleccionados
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleAllWaypoints(true)}
+              >
+                Seleccionar todos
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toggleAllWaypoints(false)}
+              >
+                Deseleccionar todos
+              </Button>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[300px] border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12"></TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Coordenadas</TableHead>
+                  <TableHead>Elevación</TableHead>
+                  <TableHead>Descripción</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {gpxWaypoints.map((wp, index) => (
+                  <TableRow key={index} className="cursor-pointer" onClick={() => toggleWaypointSelection(index)}>
+                    <TableCell>
+                      <Checkbox
+                        checked={wp.selected}
+                        onCheckedChange={() => toggleWaypointSelection(index)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{wp.name}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {wp.lat.toFixed(5)}, {wp.lon.toFixed(5)}
+                    </TableCell>
+                    <TableCell>{wp.ele ? `${wp.ele.toFixed(0)}m` : "-"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm max-w-[150px] truncate">
+                      {wp.desc || "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsGpxDialogOpen(false);
+                setGpxWaypoints([]);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleImportGpxWaypoints}
+              disabled={importingGpx || gpxWaypoints.filter((wp) => wp.selected).length === 0}
+            >
+              {importingGpx ? "Importando..." : "Importar seleccionados"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
