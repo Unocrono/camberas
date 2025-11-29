@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import raceScene from "@/assets/race-scene.jpg";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
+import { RoutePreviewMap } from "@/components/RoutePreviewMap";
 
 const RaceDetail = () => {
   const { id } = useParams();
@@ -818,6 +819,9 @@ const RaceDetail = () => {
                   ))}
                 </div>
               </div>
+
+              {/* Mapa del Recorrido */}
+              <RoutePreviewMap distances={race.distances} />
 
               {/* Info Adicional */}
               {race.additional_info && (
