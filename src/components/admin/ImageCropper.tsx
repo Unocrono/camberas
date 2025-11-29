@@ -5,7 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+type QualityLevel = "high" | "medium" | "low";
+
+const QUALITY_OPTIONS: Record<QualityLevel, { value: number; label: string; description: string }> = {
+  high: { value: 1.0, label: "Alta", description: "Máxima calidad, archivo más grande" },
+  medium: { value: 0.85, label: "Media", description: "Buen balance calidad/tamaño" },
+  low: { value: 0.6, label: "Baja", description: "Archivo pequeño, menor calidad" },
+};
 
 interface ImageCropperProps {
   open: boolean;
@@ -28,6 +37,7 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [processing, setProcessing] = useState(false);
+  const [quality, setQuality] = useState<QualityLevel>("high");
   const imgRef = useRef<HTMLImageElement>(null);
 
   const aspectRatio = ASPECT_RATIOS[imageType].ratio;
@@ -114,7 +124,7 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
     const originalExtension = imageFile.name.split(".").pop()?.toLowerCase();
     const isPng = originalExtension === "png";
     const mimeType = isPng ? "image/png" : "image/jpeg";
-    const quality = isPng ? undefined : 1.0; // PNG no usa calidad, JPEG al máximo
+    const qualityValue = isPng ? undefined : QUALITY_OPTIONS[quality].value;
 
     return new Promise<Blob | null>((resolve) => {
       canvas.toBlob(
@@ -123,10 +133,10 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
           resolve(blob);
         },
         mimeType,
-        quality
+        qualityValue
       );
     });
-  }, [completedCrop, imageFile]);
+  }, [completedCrop, imageFile, quality]);
 
   const handleSave = async () => {
     const croppedBlob = await getCroppedImg();
@@ -163,6 +173,37 @@ export function ImageCropper({ open, onClose, onCropComplete, imageFile, imageTy
                 />
               </ReactCrop>
             )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="quality-select">Calidad JPEG:</Label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Solo aplica a imágenes JPEG. Los PNG mantienen calidad sin pérdida.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Select value={quality} onValueChange={(value: QualityLevel) => setQuality(value)}>
+              <SelectTrigger id="quality-select" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(QUALITY_OPTIONS).map(([key, option]) => (
+                  <SelectItem key={key} value={key}>
+                    <div className="flex flex-col">
+                      <span>{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="text-sm text-muted-foreground">
