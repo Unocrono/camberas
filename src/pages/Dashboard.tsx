@@ -23,12 +23,12 @@ interface Registration {
     date: string;
     location: string;
     image_url: string | null;
-    gps_tracking_enabled: boolean;
   };
   distance: {
     name: string;
     distance_km: number;
     price: number;
+    gps_tracking_enabled: boolean | null;
   };
 }
 
@@ -66,13 +66,13 @@ const Dashboard = () => {
             name,
             date,
             location,
-            image_url,
-            gps_tracking_enabled
+            image_url
           ),
           distance:race_distances (
             name,
             distance_km,
-            price
+            price,
+            gps_tracking_enabled
           )
         `)
         .eq("user_id", user!.id)
@@ -290,7 +290,7 @@ const Dashboard = () => {
                             Ver Detalles
                           </Button>
 
-                          {registration.race.gps_tracking_enabled && registration.status === "confirmed" && (
+                          {registration.distance.gps_tracking_enabled && registration.status === "confirmed" && (
                             <Button
                               variant="outline"
                               onClick={() => navigate(`/race/${registration.race.id}/tracker`)}

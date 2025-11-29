@@ -326,6 +326,8 @@ export type Database = {
           distance_km: number
           elevation_gain: number | null
           finish_location: string | null
+          gps_tracking_enabled: boolean | null
+          gps_update_frequency: number | null
           gpx_file_url: string | null
           id: string
           image_url: string | null
@@ -346,6 +348,8 @@ export type Database = {
           distance_km: number
           elevation_gain?: number | null
           finish_location?: string | null
+          gps_tracking_enabled?: boolean | null
+          gps_update_frequency?: number | null
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
@@ -366,6 +370,8 @@ export type Database = {
           distance_km?: number
           elevation_gain?: number | null
           finish_location?: string | null
+          gps_tracking_enabled?: boolean | null
+          gps_update_frequency?: number | null
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null

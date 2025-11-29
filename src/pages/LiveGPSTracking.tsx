@@ -14,14 +14,20 @@ interface Race {
   name: string;
   date: string;
   location: string;
-  gps_tracking_enabled: boolean;
-  gps_update_frequency: number;
+}
+
+interface Distance {
+  id: string;
+  name: string;
+  gps_tracking_enabled: boolean | null;
+  gps_update_frequency: number | null;
 }
 
 const LiveGPSTracking = () => {
   const { id } = useParams();
   const { toast } = useToast();
   const [race, setRace] = useState<Race | null>(null);
+  const [gpsDistance, setGpsDistance] = useState<Distance | null>(null);
   const [loading, setLoading] = useState(true);
   const [mapboxToken, setMapboxToken] = useState<string>('');
 
@@ -31,23 +37,36 @@ const LiveGPSTracking = () => {
 
   const fetchRaceAndToken = async () => {
     try {
+      // Fetch race info
       const { data: raceData, error: raceError } = await supabase
         .from('races')
-        .select('*')
+        .select('id, name, date, location')
         .eq('id', id)
         .single();
 
       if (raceError) throw raceError;
+      setRace(raceData);
 
-      if (!raceData.gps_tracking_enabled) {
+      // Fetch distances with GPS enabled
+      const { data: distancesData, error: distancesError } = await supabase
+        .from('race_distances')
+        .select('id, name, gps_tracking_enabled, gps_update_frequency')
+        .eq('race_id', id)
+        .eq('gps_tracking_enabled', true);
+
+      if (distancesError) throw distancesError;
+
+      if (!distancesData || distancesData.length === 0) {
         toast({
           title: 'GPS no disponible',
-          description: 'El seguimiento GPS no está habilitado para esta carrera',
+          description: 'El seguimiento GPS no está habilitado para ninguna distancia de esta carrera',
           variant: 'destructive',
         });
+        setGpsDistance(null);
+      } else {
+        // Use the first distance with GPS enabled
+        setGpsDistance(distancesData[0]);
       }
-
-      setRace(raceData);
 
       const { data: { MAPBOX_PUBLIC_TOKEN } } = await supabase.functions.invoke('get-mapbox-token');
       setMapboxToken(MAPBOX_PUBLIC_TOKEN || '');
@@ -91,7 +110,7 @@ const LiveGPSTracking = () => {
     );
   }
 
-  if (!race.gps_tracking_enabled) {
+  if (!gpsDistance) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -101,7 +120,7 @@ const LiveGPSTracking = () => {
               <Radio className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">GPS no disponible</h3>
               <p className="text-muted-foreground mb-4">
-                El seguimiento GPS no está habilitado para esta carrera
+                El seguimiento GPS no está habilitado para ninguna distancia de esta carrera
               </p>
               <Button asChild>
                 <Link to={`/race/${race.id}`}>
@@ -146,7 +165,7 @@ const LiveGPSTracking = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Actualización cada {race.gps_update_frequency} segundos
+              Actualización cada {gpsDistance.gps_update_frequency || 30} segundos
             </p>
           </CardContent>
         </Card>

@@ -44,6 +44,8 @@ interface Distance {
   bib_start: number | null;
   bib_end: number | null;
   next_bib: number | null;
+  gps_tracking_enabled: boolean | null;
+  gps_update_frequency: number | null;
 }
 
 interface Race {
@@ -82,6 +84,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     bib_start: "",
     bib_end: "",
     next_bib: "",
+    gps_tracking_enabled: false,
+    gps_update_frequency: "30",
   });
 
   const [gpxFile, setGpxFile] = useState<File | null>(null);
@@ -180,6 +184,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         bib_start: distance.bib_start?.toString() || "",
         bib_end: distance.bib_end?.toString() || "",
         next_bib: distance.next_bib?.toString() || "",
+        gps_tracking_enabled: distance.gps_tracking_enabled ?? false,
+        gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
       });
     } else {
       setEditingDistance(null);
@@ -198,6 +204,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         bib_start: "",
         bib_end: "",
         next_bib: "",
+        gps_tracking_enabled: false,
+        gps_update_frequency: "30",
       });
     }
     setGpxFile(null);
@@ -313,6 +321,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         bib_start: bibStart,
         bib_end: bibEnd,
         next_bib: nextBib,
+        gps_tracking_enabled: formData.gps_tracking_enabled,
+        gps_update_frequency: parseInt(formData.gps_update_frequency) || 30,
       };
 
       if (editingDistance) {
@@ -667,6 +677,41 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Configuración GPS
+                </h3>
+                
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="gps_tracking_enabled"
+                    checked={formData.gps_tracking_enabled}
+                    onChange={(e) => setFormData({ ...formData, gps_tracking_enabled: e.target.checked })}
+                    className="rounded border-gray-300"
+                  />
+                  <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
+                </div>
+
+                {formData.gps_tracking_enabled && (
+                  <div className="space-y-2">
+                    <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
+                    <Input
+                      id="gps_update_frequency"
+                      type="number"
+                      min="5"
+                      max="300"
+                      value={formData.gps_update_frequency}
+                      onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Frecuencia recomendada: 30-60 segundos para ahorrar batería
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between border-t pt-4">

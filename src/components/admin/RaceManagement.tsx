@@ -57,15 +57,10 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     cover_image_url: "",
     logo_url: "",
     poster_url: "",
-    gps_tracking_enabled: false,
-    gps_update_frequency: "30",
-    gpx_file_url: "",
     additional_info: "",
     race_type: "trail" as "trail" | "mtb",
     is_visible: true,
   });
-  const [gpxFile, setGpxFile] = useState<File | null>(null);
-  const [uploadingGpx, setUploadingGpx] = useState(false);
   
   // Image cropper states
   const [cropperOpen, setCropperOpen] = useState(false);
@@ -120,9 +115,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         cover_image_url: (race as any).cover_image_url || "",
         logo_url: (race as any).logo_url || "",
         poster_url: (race as any).poster_url || "",
-        gps_tracking_enabled: (race as any).gps_tracking_enabled || false,
-        gps_update_frequency: (race as any).gps_update_frequency?.toString() || "30",
-        gpx_file_url: (race as any).gpx_file_url || "",
         additional_info: (race as any).additional_info || "",
         race_type: (race as any).race_type || "trail",
         is_visible: race.is_visible ?? true,
@@ -139,31 +131,12 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         cover_image_url: "",
         logo_url: "",
         poster_url: "",
-        gps_tracking_enabled: false,
-        gps_update_frequency: "30",
-        gpx_file_url: "",
         additional_info: "",
         race_type: "trail",
         is_visible: true,
       });
     }
-    setGpxFile(null);
     setIsDialogOpen(true);
-  };
-
-  const handleGpxFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.name.toLowerCase().endsWith('.gpx')) {
-        toast({
-          title: "Archivo inválido",
-          description: "Por favor selecciona un archivo GPX válido",
-          variant: "destructive",
-        });
-        return;
-      }
-      setGpxFile(file);
-    }
   };
 
   const handleImageSelect = (type: "race" | "cover" | "logo" | "poster") => {
@@ -260,41 +233,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     }
   };
 
-  const uploadGpxFile = async (raceId: string): Promise<string | null> => {
-    if (!gpxFile) return null;
-
-    setUploadingGpx(true);
-    try {
-      const fileExt = gpxFile.name.split('.').pop();
-      const fileName = `${raceId}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError, data } = await supabase.storage
-        .from('race-gpx')
-        .upload(filePath, gpxFile, {
-          cacheControl: '3600',
-          upsert: true
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('race-gpx')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
-    } catch (error: any) {
-      toast({
-        title: "Error al subir archivo GPX",
-        description: error.message,
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setUploadingGpx(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -307,15 +245,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         description: formData.description || undefined,
       });
 
-      let gpxUrl = formData.gpx_file_url;
-
       if (editingRace) {
-        // Upload GPX if new file selected
-        if (gpxFile) {
-          const uploadedUrl = await uploadGpxFile(editingRace.id);
-          if (uploadedUrl) gpxUrl = uploadedUrl;
-        }
-
         const { error } = await supabase
           .from("races")
           .update({
@@ -327,9 +257,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             image_url: validatedData.image_url || null,
             cover_image_url: formData.cover_image_url || null,
             logo_url: formData.logo_url || null,
-            gps_tracking_enabled: formData.gps_tracking_enabled,
-            gps_update_frequency: parseInt(formData.gps_update_frequency),
-            gpx_file_url: gpxUrl || null,
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
             is_visible: formData.is_visible,
@@ -346,7 +273,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         // Create race first to get ID
         const { data: { user } } = await supabase.auth.getUser();
         
-        const { data: newRace, error: insertError } = await supabase
+        const { error: insertError } = await supabase
           .from("races")
           .insert([{
             name: validatedData.name,
@@ -357,30 +284,13 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             image_url: validatedData.image_url || null,
             cover_image_url: formData.cover_image_url || null,
             logo_url: formData.logo_url || null,
-            gps_tracking_enabled: formData.gps_tracking_enabled,
-            gps_update_frequency: parseInt(formData.gps_update_frequency),
             organizer_id: isOrganizer ? user?.id : null,
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
             is_visible: formData.is_visible,
-          }])
-          .select()
-          .single();
+          }]);
 
         if (insertError) throw insertError;
-
-        // Upload GPX if file selected
-        if (gpxFile && newRace) {
-          const uploadedUrl = await uploadGpxFile(newRace.id);
-          if (uploadedUrl) {
-            const { error: updateError } = await supabase
-              .from("races")
-              .update({ gpx_file_url: uploadedUrl })
-              .eq("id", newRace.id);
-            
-            if (updateError) throw updateError;
-          }
-        }
 
         toast({
           title: "Carrera creada",
@@ -690,63 +600,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <p className="text-xs text-muted-foreground">
                     * Completa primero el nombre y fecha de la carrera para poder subir imágenes
                   </p>
-                )}
-              </div>
-
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold">Configuración GPS</h3>
-                
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="gps_tracking_enabled"
-                    checked={formData.gps_tracking_enabled}
-                    onChange={(e) => setFormData({ ...formData, gps_tracking_enabled: e.target.checked })}
-                    className="rounded border-gray-300"
-                  />
-                  <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
-                </div>
-
-                {formData.gps_tracking_enabled && (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
-                      <Input
-                        id="gps_update_frequency"
-                        type="number"
-                        min="5"
-                        max="300"
-                        value={formData.gps_update_frequency}
-                        onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Frecuencia recomendada: 30-60 segundos para ahorrar batería
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="gpx_file">Archivo GPX de la ruta</Label>
-                      <Input
-                        id="gpx_file"
-                        type="file"
-                        accept=".gpx"
-                        onChange={handleGpxFileChange}
-                      />
-                      {formData.gpx_file_url && !gpxFile && (
-                        <p className="text-xs text-muted-foreground">
-                          ✓ Archivo GPX cargado
-                        </p>
-                      )}
-                      {gpxFile && (
-                        <p className="text-xs text-muted-foreground">
-                          Archivo seleccionado: {gpxFile.name}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Sube el archivo GPX con el recorrido de la carrera para mostrarlo en el mapa GPS
-                      </p>
-                    </div>
-                  </div>
                 )}
               </div>
 
