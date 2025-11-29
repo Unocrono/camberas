@@ -616,17 +616,27 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log("Processing GPX file:", file.name);
+
     try {
       const text = await file.text();
+      console.log("GPX content length:", text.length);
       
       // Use custom GPX parser
       const gpx = parseGpxFile(text);
+      console.log("Parsed GPX:", { waypoints: gpx.waypoints.length, tracks: gpx.tracks.length });
 
       // Try to get waypoints first
       let waypoints: GpxWaypoint[] = [];
       
-      if (gpx.waypoints.length > 0) {
-        waypoints = gpx.waypoints.map((wp) => {
+      // Filter valid waypoints (not 0,0 coordinates)
+      const validWaypoints = gpx.waypoints.filter(wp => 
+        wp.lat !== 0 && wp.lon !== 0 && !isNaN(wp.lat) && !isNaN(wp.lon)
+      );
+      console.log("Valid waypoints:", validWaypoints.length);
+      
+      if (validWaypoints.length > 0) {
+        waypoints = validWaypoints.map((wp) => {
           const distanceKm = gpxRoute.length > 0 
             ? findDistanceOnRoute(wp.lat, wp.lon) 
             : 0;
@@ -645,6 +655,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       // If no valid waypoints, try to extract start/end from track
       if (waypoints.length === 0 && gpx.tracks.length > 0) {
         const track = gpx.tracks[0];
+        console.log("Using track with", track.points.length, "points");
         if (track.points.length > 0) {
           const firstPoint = track.points[0];
           const lastPoint = track.points[track.points.length - 1];
@@ -680,9 +691,24 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         return;
       }
 
-      // Sort by distance if we have route data
+      console.log("Final waypoints to import:", waypoints);
+
+      // Sort by distance if we have route data, otherwise calculate cumulative
       if (gpxRoute.length > 0) {
         waypoints.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+      } else {
+        // Calculate cumulative distances between waypoints
+        let cumulativeDistance = 0;
+        waypoints = waypoints.map((wp, index) => {
+          if (index > 0) {
+            const prevWp = waypoints[index - 1];
+            cumulativeDistance += calculateHaversineDistance(
+              prevWp.lat, prevWp.lon,
+              wp.lat, wp.lon
+            );
+          }
+          return { ...wp, distanceKm: Math.round(cumulativeDistance * 100) / 100 };
+        });
       }
 
       setGpxWaypoints(waypoints);
@@ -719,25 +745,44 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     setImportingGpx(true);
     const startOrder = checkpoints.length + 1;
 
-    const checkpointsToInsert = selectedWaypoints.map((wp, index) => ({
+    // Calculate cumulative distances if not already set from route
+    let cumulativeDistance = 0;
+    const waypointsWithDistances = selectedWaypoints.map((wp, index) => {
+      if (index > 0 && (!wp.distanceKm || wp.distanceKm === 0)) {
+        const prevWp = selectedWaypoints[index - 1];
+        cumulativeDistance += calculateHaversineDistance(
+          prevWp.lat, prevWp.lon,
+          wp.lat, wp.lon
+        );
+      } else if (wp.distanceKm && wp.distanceKm > 0) {
+        cumulativeDistance = wp.distanceKm;
+      }
+      return { ...wp, calculatedDistance: Math.round(cumulativeDistance * 100) / 100 };
+    });
+
+    const checkpointsToInsert = waypointsWithDistances.map((wp, index) => ({
       race_id: selectedRaceId,
       race_distance_id: selectedDistanceId,
       name: wp.name,
       lugar: wp.desc || null,
       checkpoint_order: startOrder + index,
-      distance_km: wp.distanceKm || 0,
+      distance_km: wp.distanceKm && wp.distanceKm > 0 ? wp.distanceKm : wp.calculatedDistance,
       latitude: wp.lat,
       longitude: wp.lon,
     }));
 
-    const { error } = await supabase
+    console.log("Inserting checkpoints:", checkpointsToInsert);
+
+    const { data, error } = await supabase
       .from("race_checkpoints")
-      .insert(checkpointsToInsert);
+      .insert(checkpointsToInsert)
+      .select();
 
     if (error) {
-      console.error(error);
-      toast.error("Error al importar los puntos de control");
+      console.error("Supabase insert error:", error);
+      toast.error(`Error al importar: ${error.message}`);
     } else {
+      console.log("Inserted successfully:", data);
       toast.success(`${selectedWaypoints.length} puntos de control importados`);
       setIsGpxDialogOpen(false);
       setGpxWaypoints([]);
