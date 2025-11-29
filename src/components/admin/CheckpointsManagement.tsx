@@ -87,13 +87,17 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [importingGpx, setImportingGpx] = useState(false);
   const [gpxRoute, setGpxRoute] = useState<GpxRoutePoint[]>([]);
   const [distanceGpxUrl, setDistanceGpxUrl] = useState<string | null>(null);
+  const [gpxPreviewRoute, setGpxPreviewRoute] = useState<GpxRoutePoint[]>([]);
   
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
+  const gpxPreviewMapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const formMap = useRef<mapboxgl.Map | null>(null);
+  const gpxPreviewMap = useRef<mapboxgl.Map | null>(null);
   const formMarker = useRef<mapboxgl.Marker | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const gpxPreviewMarkers = useRef<mapboxgl.Marker[]>([]);
   const gpxFileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -160,6 +164,28 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       }
     }
   }, [isDialogOpen]);
+
+  // Initialize GPX preview map when dialog opens with waypoints
+  useEffect(() => {
+    if (isGpxDialogOpen && mapboxToken && gpxPreviewMapContainer.current && !gpxPreviewMap.current && gpxWaypoints.length > 0) {
+      initializeGpxPreviewMap();
+    }
+    return () => {
+      if (!isGpxDialogOpen && gpxPreviewMap.current) {
+        gpxPreviewMap.current.remove();
+        gpxPreviewMap.current = null;
+        gpxPreviewMarkers.current.forEach(m => m.remove());
+        gpxPreviewMarkers.current = [];
+      }
+    };
+  }, [isGpxDialogOpen, mapboxToken, gpxWaypoints]);
+
+  // Update preview markers when waypoints selection changes
+  useEffect(() => {
+    if (gpxPreviewMap.current && gpxWaypoints.length > 0) {
+      updateGpxPreviewMarkers();
+    }
+  }, [gpxWaypoints]);
 
   const fetchMapboxToken = async () => {
     try {
@@ -369,6 +395,125 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           .setLngLat([lng, lat])
           .addTo(formMap.current);
       }
+    });
+  };
+
+  const initializeGpxPreviewMap = () => {
+    if (!gpxPreviewMapContainer.current || !mapboxToken) return;
+
+    mapboxgl.accessToken = mapboxToken;
+
+    // Calculate center from waypoints
+    let centerLat = 40.4168;
+    let centerLng = -3.7038;
+    
+    if (gpxWaypoints.length > 0) {
+      centerLat = gpxWaypoints.reduce((sum, wp) => sum + wp.lat, 0) / gpxWaypoints.length;
+      centerLng = gpxWaypoints.reduce((sum, wp) => sum + wp.lon, 0) / gpxWaypoints.length;
+    }
+
+    gpxPreviewMap.current = new mapboxgl.Map({
+      container: gpxPreviewMapContainer.current,
+      style: "mapbox://styles/mapbox/outdoors-v12",
+      center: [centerLng, centerLat],
+      zoom: 10,
+    });
+
+    gpxPreviewMap.current.addControl(new mapboxgl.NavigationControl(), "top-right");
+
+    gpxPreviewMap.current.on("load", () => {
+      // Draw the track if exists
+      if (gpxPreviewRoute.length > 0) {
+        const coordinates = gpxPreviewRoute.map((p) => [p.lon, p.lat]);
+        
+        gpxPreviewMap.current!.addSource("gpx-preview-route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates,
+            },
+          },
+        });
+
+        gpxPreviewMap.current!.addLayer({
+          id: "gpx-preview-route",
+          type: "line",
+          source: "gpx-preview-route",
+          layout: {
+            "line-join": "round",
+            "line-cap": "round",
+          },
+          paint: {
+            "line-color": "#3b82f6",
+            "line-width": 4,
+            "line-opacity": 0.7,
+          },
+        });
+      }
+
+      updateGpxPreviewMarkers();
+      
+      // Fit bounds to show everything
+      const bounds = new mapboxgl.LngLatBounds();
+      
+      gpxWaypoints.forEach((wp) => {
+        bounds.extend([wp.lon, wp.lat]);
+      });
+      
+      gpxPreviewRoute.forEach((point) => {
+        bounds.extend([point.lon, point.lat]);
+      });
+      
+      if (!bounds.isEmpty()) {
+        gpxPreviewMap.current!.fitBounds(bounds, { padding: 40 });
+      }
+    });
+  };
+
+  const updateGpxPreviewMarkers = () => {
+    if (!gpxPreviewMap.current) return;
+
+    // Clear existing markers
+    gpxPreviewMarkers.current.forEach((marker) => marker.remove());
+    gpxPreviewMarkers.current = [];
+
+    gpxWaypoints.forEach((wp, index) => {
+      const el = document.createElement("div");
+      el.style.cssText = `
+        width: 24px;
+        height: 24px;
+        background: ${wp.selected ? 'hsl(142, 76%, 36%)' : 'hsl(0, 0%, 60%)'};
+        border: 2px solid white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 10px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      el.innerText = (index + 1).toString();
+
+      const popup = new mapboxgl.Popup({ offset: 15 }).setHTML(`
+        <div style="padding: 4px;">
+          <strong>${wp.name}</strong>
+          <br><span style="font-size: 11px;">Km ${wp.distanceKm?.toFixed(2) || 0}</span>
+          ${wp.ele ? `<br><span style="font-size: 11px;">${wp.ele.toFixed(0)}m</span>` : ''}
+        </div>
+      `);
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([wp.lon, wp.lat])
+        .setPopup(popup)
+        .addTo(gpxPreviewMap.current!);
+
+      gpxPreviewMarkers.current.push(marker);
     });
   };
 
@@ -783,6 +928,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       
       console.log("Final waypoints to import:", waypoints);
 
+      // Store route for preview map
+      setGpxPreviewRoute(importedRoutePoints);
       setGpxWaypoints(waypoints);
       setIsGpxDialogOpen(true);
     } catch (error: any) {
@@ -868,6 +1015,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       toast.success(`${selectedWaypoints.length} puntos de control importados`);
       setIsGpxDialogOpen(false);
       setGpxWaypoints([]);
+      setGpxPreviewRoute([]);
+      if (gpxPreviewMap.current) {
+        gpxPreviewMap.current.remove();
+        gpxPreviewMap.current = null;
+      }
+      gpxPreviewMarkers.current.forEach(m => m.remove());
+      gpxPreviewMarkers.current = [];
       fetchCheckpoints();
     }
 
@@ -1164,8 +1318,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={isGpxDialogOpen} onOpenChange={setIsGpxDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      <Dialog open={isGpxDialogOpen} onOpenChange={(open) => {
+        setIsGpxDialogOpen(open);
+        if (!open) {
+          setGpxWaypoints([]);
+          setGpxPreviewRoute([]);
+          if (gpxPreviewMap.current) {
+            gpxPreviewMap.current.remove();
+            gpxPreviewMap.current = null;
+          }
+          gpxPreviewMarkers.current.forEach(m => m.remove());
+          gpxPreviewMarkers.current = [];
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileUp className="h-5 w-5" />
@@ -1173,11 +1339,28 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             </DialogTitle>
             <DialogDescription>
               Selecciona los waypoints que deseas importar como puntos de control.
-              {gpxRoute.length > 0 
-                ? " Las distancias se calculan automáticamente basándose en la ruta GPX de la distancia."
-                : " No hay ruta GPX asociada a esta distancia, las distancias se establecerán en 0."}
+              {gpxPreviewRoute.length > 0 
+                ? ` Track de ${(gpxPreviewRoute[gpxPreviewRoute.length - 1]?.cumulativeDistance || 0).toFixed(2)} km detectado.`
+                : " No se detectó track en el archivo GPX."}
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Map Preview */}
+          {mapboxToken && (
+            <div className="border rounded-md overflow-hidden">
+              <div className="bg-muted/50 px-3 py-2 text-sm font-medium flex items-center gap-2">
+                <Map className="h-4 w-4" />
+                Preview del recorrido
+                <Badge variant="outline" className="ml-auto">
+                  {gpxWaypoints.filter((wp) => wp.selected).length} waypoints seleccionados
+                </Badge>
+              </div>
+              <div 
+                ref={gpxPreviewMapContainer} 
+                className="w-full h-[250px]"
+              />
+            </div>
+          )}
           
           <div className="flex items-center justify-between py-2">
             <span className="text-sm text-muted-foreground">
@@ -1201,7 +1384,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             </div>
           </div>
 
-          <ScrollArea className="h-[300px] border rounded-md">
+          <ScrollArea className="h-[200px] border rounded-md">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1243,6 +1426,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               onClick={() => {
                 setIsGpxDialogOpen(false);
                 setGpxWaypoints([]);
+                setGpxPreviewRoute([]);
+                if (gpxPreviewMap.current) {
+                  gpxPreviewMap.current.remove();
+                  gpxPreviewMap.current = null;
+                }
+                gpxPreviewMarkers.current.forEach(m => m.remove());
+                gpxPreviewMarkers.current = [];
               }}
             >
               Cancelar
