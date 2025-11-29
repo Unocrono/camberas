@@ -473,12 +473,21 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
       let gpxUrl = editingDistance?.gpx_file_url || null;
       let imageUrl = formData.image_url || null;
+      let gpxContent: string | null = null;
+
+      // Read GPX content BEFORE uploading (file can only be read once)
+      if (gpxFile) {
+        gpxContent = await gpxFile.text();
+      }
 
       // Upload files
-      if (gpxFile) {
+      if (gpxFile && gpxContent) {
         const raceName = getRaceName(formData.race_id);
         const gpxCustomName = `${raceName} - ${validatedData.name}`;
-        const uploadedUrl = await uploadFile(gpxFile, 'race-gpx', `distance-${formData.race_id}`, gpxCustomName);
+        // Create a new Blob from the content for upload
+        const gpxBlob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+        const gpxFileForUpload = new File([gpxBlob], gpxFile.name, { type: 'application/gpx+xml' });
+        const uploadedUrl = await uploadFile(gpxFileForUpload, 'race-gpx', `distance-${formData.race_id}`, gpxCustomName);
         if (uploadedUrl) gpxUrl = uploadedUrl;
       }
 
@@ -546,9 +555,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         if (error) throw error;
 
         // Import checkpoints from GPX if a new GPX file was uploaded
-        if (gpxFile) {
+        if (gpxContent) {
           try {
-            const gpxContent = await gpxFile.text();
             const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, editingDistance.id);
             toast({
               title: "Distancia actualizada",
@@ -578,9 +586,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         if (error) throw error;
 
         // Import checkpoints from GPX if a GPX file was uploaded
-        if (gpxFile && insertedDistance) {
+        if (gpxContent && insertedDistance) {
           try {
-            const gpxContent = await gpxFile.text();
             const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, insertedDistance.id);
             toast({
               title: "Distancia creada",
