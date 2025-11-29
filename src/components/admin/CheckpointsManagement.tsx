@@ -1224,7 +1224,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       <Input
                         id="distance"
                         type="number"
-                        step="0.1"
+                        step="0.001"
                         min="0"
                         value={formData.distance_km}
                         onChange={(e) =>

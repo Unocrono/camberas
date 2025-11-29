@@ -357,7 +357,7 @@ export function SplitTimesManagement({ isOrganizer = false, selectedRaceId: prop
                       <Input
                         id="distance"
                         type="number"
-                        step="0.1"
+                        step="0.001"
                         min="0"
                         value={checkpointForm.distance_km}
                         onChange={(e) =>
