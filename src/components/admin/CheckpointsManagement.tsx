@@ -619,37 +619,91 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
     try {
       const text = await file.text();
+      
+      // Validate GPX structure before parsing
+      if (!text.includes('<gpx') || !text.includes('</gpx>')) {
+        toast.error("El archivo no parece ser un GPX válido");
+        return;
+      }
+      
       const gpx = new GpxParser();
       gpx.parse(text);
 
       // Try to get waypoints first
       let waypoints: GpxWaypoint[] = [];
       
-      if (gpx.waypoints.length > 0) {
-        waypoints = gpx.waypoints.map((wp: any) => {
-          const distanceKm = gpxRoute.length > 0 
-            ? findDistanceOnRoute(wp.lat, wp.lon) 
-            : 0;
-          return {
-            name: wp.name || "Sin nombre",
-            lat: wp.lat,
-            lon: wp.lon,
-            ele: wp.ele,
-            desc: wp.desc,
-            selected: true,
-            distanceKm,
-          };
-        });
+      if (gpx.waypoints && gpx.waypoints.length > 0) {
+        waypoints = gpx.waypoints
+          .filter((wp: any) => {
+            // Filter out waypoints with invalid coordinates (0,0 or NaN)
+            const hasValidLat = wp.lat && !isNaN(wp.lat) && wp.lat !== 0;
+            const hasValidLon = wp.lon && !isNaN(wp.lon) && wp.lon !== 0;
+            if (!hasValidLat || !hasValidLon) {
+              console.warn(`Waypoint "${wp.name}" omitido por coordenadas inválidas: lat=${wp.lat}, lon=${wp.lon}`);
+            }
+            return hasValidLat && hasValidLon;
+          })
+          .map((wp: any) => {
+            const distanceKm = gpxRoute.length > 0 
+              ? findDistanceOnRoute(wp.lat, wp.lon) 
+              : 0;
+            return {
+              name: wp.name || "Sin nombre",
+              lat: wp.lat,
+              lon: wp.lon,
+              ele: wp.ele,
+              desc: wp.desc || wp.cmt || "",
+              selected: true,
+              distanceKm,
+            };
+          });
       }
       
-      // If no waypoints, try to use track points as checkpoints
-      if (waypoints.length === 0 && gpx.tracks.length > 0) {
-        toast.info("No se encontraron waypoints, pero hay una ruta. Los waypoints se deben crear manualmente o usar un GPX con waypoints definidos.");
-        return;
+      // If no valid waypoints, try to extract start/end from track
+      if (waypoints.length === 0 && gpx.tracks && gpx.tracks.length > 0) {
+        const track = gpx.tracks[0];
+        if (track.points && track.points.length > 0) {
+          const firstPoint = track.points[0];
+          const lastPoint = track.points[track.points.length - 1];
+          
+          // Calculate total distance
+          let totalDistance = 0;
+          for (let i = 1; i < track.points.length; i++) {
+            totalDistance += calculateHaversineDistance(
+              track.points[i - 1].lat,
+              track.points[i - 1].lon,
+              track.points[i].lat,
+              track.points[i].lon
+            );
+          }
+          
+          waypoints = [
+            {
+              name: "Salida",
+              lat: firstPoint.lat,
+              lon: firstPoint.lon,
+              ele: firstPoint.ele,
+              desc: "Punto de salida (extraído del track)",
+              selected: true,
+              distanceKm: 0,
+            },
+            {
+              name: "Meta",
+              lat: lastPoint.lat,
+              lon: lastPoint.lon,
+              ele: lastPoint.ele,
+              desc: "Punto de llegada (extraído del track)",
+              selected: true,
+              distanceKm: Math.round(totalDistance * 100) / 100,
+            },
+          ];
+          
+          toast.info(`Se extrajeron salida y meta del track (${waypoints[1].distanceKm} km)`);
+        }
       }
 
       if (waypoints.length === 0) {
-        toast.error("No se encontraron waypoints en el archivo GPX");
+        toast.error("No se encontraron puntos válidos en el archivo GPX");
         return;
       }
 
@@ -660,9 +714,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
       setGpxWaypoints(waypoints);
       setIsGpxDialogOpen(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error parsing GPX:", error);
-      toast.error("Error al leer el archivo GPX");
+      const errorMessage = error?.message || "Error desconocido";
+      toast.error(`Error al leer el archivo GPX: ${errorMessage}`);
     }
 
     // Reset input
