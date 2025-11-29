@@ -661,21 +661,32 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           const lastPoint = track.points[track.points.length - 1];
           const totalDistance = calculateTrackDistance(track);
           
-          // Check if Salida exists (by name or by being at distance 0)
-          const hasSalida = waypoints.some(wp => 
-            wp.name.toLowerCase().includes('salida') || 
-            wp.name.toLowerCase().includes('start') ||
-            wp.name.toLowerCase().includes('inicio') ||
-            wp.distanceKm === 0
-          );
+          console.log("Track total distance:", totalDistance, "km");
+          console.log("First point:", firstPoint.lat, firstPoint.lon);
+          console.log("Last point:", lastPoint.lat, lastPoint.lon);
           
-          // Check if Meta exists (by name or by being at max distance)
-          const hasMeta = waypoints.some(wp => 
-            wp.name.toLowerCase().includes('meta') || 
-            wp.name.toLowerCase().includes('finish') ||
-            wp.name.toLowerCase().includes('llegada') ||
-            wp.name.toLowerCase().includes('end')
-          );
+          // Check if Salida exists (by name only, not by distance since all might be 0)
+          const hasSalida = waypoints.some(wp => {
+            const name = wp.name.toLowerCase();
+            return name.includes('salida') || 
+              name.includes('start') ||
+              name.includes('inicio') ||
+              name === 'sal' ||
+              name === 's';
+          });
+          
+          // Check if Meta exists (by name only)
+          const hasMeta = waypoints.some(wp => {
+            const name = wp.name.toLowerCase();
+            return name.includes('meta') || 
+              name.includes('finish') ||
+              name.includes('llegada') ||
+              name.includes('end') ||
+              name.includes('fin') ||
+              name === 'm';
+          });
+          
+          console.log("Has Salida:", hasSalida, "Has Meta:", hasMeta);
           
           // Add Salida if not present
           if (!hasSalida) {
@@ -688,7 +699,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               selected: true,
               distanceKm: 0,
             });
-            console.log("Added Salida from track");
+            console.log("Added Salida from track at", firstPoint.lat, firstPoint.lon);
           }
           
           // Add Meta if not present
@@ -702,11 +713,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               selected: true,
               distanceKm: Math.round(totalDistance * 100) / 100,
             });
-            console.log("Added Meta from track");
+            console.log("Added Meta from track at", lastPoint.lat, lastPoint.lon, "distance:", totalDistance);
           }
           
           if (!hasSalida || !hasMeta) {
-            toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track`);
+            toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track (${Math.round(totalDistance * 100) / 100} km)`);
           }
         }
       }
