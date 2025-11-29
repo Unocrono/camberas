@@ -635,11 +635,60 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       );
       console.log("Valid waypoints:", validWaypoints.length);
       
+      // Build route points from track for distance calculation
+      let importedRoutePoints: GpxRoutePoint[] = [];
+      let totalTrackDistance = 0;
+      
+      if (gpx.tracks.length > 0) {
+        const track = gpx.tracks[0];
+        console.log("Building route from track with", track.points.length, "points");
+        let cumulativeDist = 0;
+        
+        track.points.forEach((point, index) => {
+          if (index > 0) {
+            const prevPoint = track.points[index - 1];
+            cumulativeDist += calculateHaversineDistance(
+              prevPoint.lat,
+              prevPoint.lon,
+              point.lat,
+              point.lon
+            );
+          }
+          importedRoutePoints.push({
+            lat: point.lat,
+            lon: point.lon,
+            cumulativeDistance: cumulativeDist,
+          });
+        });
+        totalTrackDistance = cumulativeDist;
+        console.log("Track total distance:", totalTrackDistance, "km");
+      }
+      
+      // Helper function to find distance along imported route
+      const findDistanceOnImportedRoute = (lat: number, lon: number): number => {
+        if (importedRoutePoints.length === 0) return 0;
+        
+        let closestDistance = Infinity;
+        let resultKm = 0;
+        
+        importedRoutePoints.forEach((point) => {
+          const dist = calculateHaversineDistance(lat, lon, point.lat, point.lon);
+          if (dist < closestDistance) {
+            closestDistance = dist;
+            resultKm = point.cumulativeDistance;
+          }
+        });
+        
+        return Math.round(resultKm * 100) / 100;
+      };
+      
+      // Process waypoints with distances calculated from imported track
       if (validWaypoints.length > 0) {
         waypoints = validWaypoints.map((wp) => {
-          const distanceKm = gpxRoute.length > 0 
-            ? findDistanceOnRoute(wp.lat, wp.lon) 
-            : 0;
+          // Prefer imported route, then existing gpxRoute, then 0
+          const distanceKm = importedRoutePoints.length > 0 
+            ? findDistanceOnImportedRoute(wp.lat, wp.lon)
+            : (gpxRoute.length > 0 ? findDistanceOnRoute(wp.lat, wp.lon) : 0);
           return {
             name: wp.name,
             lat: wp.lat,
@@ -653,73 +702,75 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       }
       
       // Always try to add Salida and Meta from track if they don't exist in waypoints
-      if (gpx.tracks.length > 0) {
-        const track = gpx.tracks[0];
-        console.log("Using track with", track.points.length, "points");
-        if (track.points.length > 0) {
-          const firstPoint = track.points[0];
-          const lastPoint = track.points[track.points.length - 1];
-          const totalDistance = calculateTrackDistance(track);
-          
-          console.log("Track total distance:", totalDistance, "km");
-          console.log("First point:", firstPoint.lat, firstPoint.lon);
-          console.log("Last point:", lastPoint.lat, lastPoint.lon);
-          
-          // Check if Salida exists (by name only, not by distance since all might be 0)
-          const hasSalida = waypoints.some(wp => {
-            const name = wp.name.toLowerCase();
-            return name.includes('salida') || 
-              name.includes('start') ||
-              name.includes('inicio') ||
-              name === 'sal' ||
-              name === 's';
+      if (gpx.tracks.length > 0 && importedRoutePoints.length > 0) {
+        const firstPoint = importedRoutePoints[0];
+        const lastPoint = importedRoutePoints[importedRoutePoints.length - 1];
+        
+        console.log("First point:", firstPoint.lat, firstPoint.lon);
+        console.log("Last point:", lastPoint.lat, lastPoint.lon);
+        
+        // Check if Salida exists (by name only, not by distance since all might be 0)
+        const hasSalida = waypoints.some(wp => {
+          const name = wp.name.toLowerCase();
+          return name.includes('salida') || 
+            name.includes('start') ||
+            name.includes('inicio') ||
+            name === 'sal' ||
+            name === 's';
+        });
+        
+        // Check if Meta exists (by name only)
+        const hasMeta = waypoints.some(wp => {
+          const name = wp.name.toLowerCase();
+          return name.includes('meta') || 
+            name.includes('finish') ||
+            name.includes('llegada') ||
+            name.includes('end') ||
+            name.includes('fin') ||
+            name === 'm';
+        });
+        
+        console.log("Has Salida:", hasSalida, "Has Meta:", hasMeta);
+        
+        // Add Salida if not present
+        if (!hasSalida) {
+          waypoints.unshift({
+            name: "Salida",
+            lat: firstPoint.lat,
+            lon: firstPoint.lon,
+            ele: undefined,
+            desc: "Punto de salida (extraído del track)",
+            selected: true,
+            distanceKm: 0,
           });
-          
-          // Check if Meta exists (by name only)
-          const hasMeta = waypoints.some(wp => {
-            const name = wp.name.toLowerCase();
-            return name.includes('meta') || 
-              name.includes('finish') ||
-              name.includes('llegada') ||
-              name.includes('end') ||
-              name.includes('fin') ||
-              name === 'm';
-          });
-          
-          console.log("Has Salida:", hasSalida, "Has Meta:", hasMeta);
-          
-          // Add Salida if not present
-          if (!hasSalida) {
-            waypoints.unshift({
-              name: "Salida",
-              lat: firstPoint.lat,
-              lon: firstPoint.lon,
-              ele: firstPoint.ele,
-              desc: "Punto de salida (extraído del track)",
-              selected: true,
-              distanceKm: 0,
-            });
-            console.log("Added Salida from track at", firstPoint.lat, firstPoint.lon);
-          }
-          
-          // Add Meta if not present
-          if (!hasMeta) {
-            waypoints.push({
-              name: "Meta",
-              lat: lastPoint.lat,
-              lon: lastPoint.lon,
-              ele: lastPoint.ele,
-              desc: "Punto de llegada (extraído del track)",
-              selected: true,
-              distanceKm: Math.round(totalDistance * 100) / 100,
-            });
-            console.log("Added Meta from track at", lastPoint.lat, lastPoint.lon, "distance:", totalDistance);
-          }
-          
-          if (!hasSalida || !hasMeta) {
-            toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track (${Math.round(totalDistance * 100) / 100} km)`);
-          }
+          console.log("Added Salida from track at", firstPoint.lat, firstPoint.lon);
         }
+        
+        // Add Meta if not present
+        if (!hasMeta) {
+          waypoints.push({
+            name: "Meta",
+            lat: lastPoint.lat,
+            lon: lastPoint.lon,
+            ele: undefined,
+            desc: "Punto de llegada (extraído del track)",
+            selected: true,
+            distanceKm: Math.round(totalTrackDistance * 100) / 100,
+          });
+          console.log("Added Meta from track at", lastPoint.lat, lastPoint.lon, "distance:", totalTrackDistance);
+        }
+        
+        if (!hasSalida || !hasMeta) {
+          toast.info(`Se añadieron ${!hasSalida ? 'Salida' : ''}${!hasSalida && !hasMeta ? ' y ' : ''}${!hasMeta ? 'Meta' : ''} desde el track (${Math.round(totalTrackDistance * 100) / 100} km)`);
+        }
+        
+        // Recalculate distances for all waypoints using imported route
+        waypoints = waypoints.map(wp => ({
+          ...wp,
+          distanceKm: wp.name === "Salida" ? 0 : 
+                      wp.name === "Meta" ? Math.round(totalTrackDistance * 100) / 100 :
+                      findDistanceOnImportedRoute(wp.lat, wp.lon)
+        }));
       }
 
       if (waypoints.length === 0) {
@@ -727,25 +778,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         return;
       }
 
+      // Sort waypoints by distance along route
+      waypoints.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
+      
       console.log("Final waypoints to import:", waypoints);
-
-      // Sort by distance if we have route data, otherwise calculate cumulative
-      if (gpxRoute.length > 0) {
-        waypoints.sort((a, b) => (a.distanceKm || 0) - (b.distanceKm || 0));
-      } else {
-        // Calculate cumulative distances between waypoints
-        let cumulativeDistance = 0;
-        waypoints = waypoints.map((wp, index) => {
-          if (index > 0) {
-            const prevWp = waypoints[index - 1];
-            cumulativeDistance += calculateHaversineDistance(
-              prevWp.lat, prevWp.lon,
-              wp.lat, wp.lon
-            );
-          }
-          return { ...wp, distanceKm: Math.round(cumulativeDistance * 100) / 100 };
-        });
-      }
 
       setGpxWaypoints(waypoints);
       setIsGpxDialogOpen(true);
@@ -883,7 +919,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             )}
           </div>
           <div className="flex gap-2 flex-wrap">
-            {mapboxToken && (checkpointsWithCoords.length > 0 || gpxRoute.length > 0) && (
+            {mapboxToken && (
               <Button
                 variant="outline"
                 onClick={() => setShowMap(!showMap)}
