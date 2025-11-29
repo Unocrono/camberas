@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields";
+type OrganizerView = "races" | "distances" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes";
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
@@ -26,6 +26,7 @@ const menuItems = [
   { title: "Reglamento", view: "regulations" as OrganizerView, icon: Scale },
   { title: "Campos de Formulario", view: "form-fields" as OrganizerView, icon: FileText },
   { title: "Inscripciones", view: "registrations" as OrganizerView, icon: Users },
+  { title: "Resumen de Tallas", view: "tshirt-sizes" as OrganizerView, icon: Shirt },
   { title: "Resultados", view: "results" as OrganizerView, icon: Trophy },
   { title: "Tiempos Parciales", view: "splits" as OrganizerView, icon: Timer },
   { title: "Archivos Multimedia", view: "storage" as OrganizerView, icon: FolderOpen },
