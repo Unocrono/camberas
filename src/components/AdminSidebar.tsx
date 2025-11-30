@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users";
+type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -24,6 +24,7 @@ const menuItems = [
   { title: "Distancias", view: "distances" as AdminView, icon: Route },
   { title: "Puntos de Control", view: "checkpoints" as AdminView, icon: MapPin },
   { title: "Rutómetros", view: "roadbooks" as AdminView, icon: Map },
+  { title: "Tipos de Ítem Rutómetro", view: "roadbook-item-types" as AdminView, icon: Tag },
   { title: "Reglamentos", view: "regulations" as AdminView, icon: Scale },
   { title: "Campos de Formulario", view: "form-fields" as AdminView, icon: FileText },
   { title: "Inscripciones", view: "registrations" as AdminView, icon: Users },

@@ -838,6 +838,42 @@ export type Database = {
           },
         ]
       }
+      roadbook_item_types: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          icon: string
+          id: string
+          is_active: boolean
+          label: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       roadbook_items: {
         Row: {
           altitude: number | null
@@ -848,6 +884,7 @@ export type Database = {
           is_highlighted: boolean
           item_order: number
           item_type: string
+          item_type_id: string | null
           km_partial: number | null
           km_remaining: number | null
           km_total: number
@@ -869,6 +906,7 @@ export type Database = {
           is_highlighted?: boolean
           item_order?: number
           item_type?: string
+          item_type_id?: string | null
           km_partial?: number | null
           km_remaining?: number | null
           km_total: number
@@ -890,6 +928,7 @@ export type Database = {
           is_highlighted?: boolean
           item_order?: number
           item_type?: string
+          item_type_id?: string | null
           km_partial?: number | null
           km_remaining?: number | null
           km_total?: number
@@ -903,6 +942,13 @@ export type Database = {
           via?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "roadbook_items_item_type_id_fkey"
+            columns: ["item_type_id"]
+            isOneToOne: false
+            referencedRelation: "roadbook_item_types"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "roadbook_items_roadbook_id_fkey"
             columns: ["roadbook_id"]
