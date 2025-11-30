@@ -20,9 +20,10 @@ import { RoadbookManagement } from "@/components/admin/RoadbookManagement";
 import RaceRegulationManagement from "@/components/admin/RaceRegulationManagement";
 import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement";
+import { UsersManagement } from "@/components/admin/UsersManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields";
+type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -150,7 +151,7 @@ const AdminDashboard = () => {
             <SidebarTrigger />
             <h1 className="text-2xl font-bold">Panel de Administración</h1>
             
-            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && currentView !== "organizer-approval" && races.length > 0 && (
+            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && currentView !== "organizer-approval" && currentView !== "users" && races.length > 0 && (
               <div className="ml-auto flex items-center gap-2">
                 <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                   Filtrar por carrera:
@@ -241,6 +242,7 @@ const AdminDashboard = () => {
               )
             )}
             {currentView === "edge-functions" && <EdgeFunctionsManagement />}
+            {currentView === "users" && <UsersManagement />}
           </main>
         </div>
       </div>
