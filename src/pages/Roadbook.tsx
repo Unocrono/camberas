@@ -2,17 +2,25 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Loader2, MapPin, Mountain, Clock, TrendingUp, Image as ImageIcon, ArrowLeft, Navigation } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Loader2, MapPin, Mountain, Clock, ArrowLeft, Flag, Trophy,
+  Droplet, AlertTriangle, Camera, CircleDot, GlassWater, Timer
+} from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+interface RoadbookItemType {
+  id: string;
+  name: string;
+  label: string;
+  icon: string;
+}
 
 interface RoadbookItem {
   id: string;
   item_type: string;
+  item_type_id: string | null;
   description: string;
   via: string | null;
   km_total: number;
@@ -26,20 +34,8 @@ interface RoadbookItem {
   photo_9_16_url: string | null;
   icon_url: string | null;
   is_highlighted: boolean;
+  is_checkpoint: boolean;
   item_order: number;
-}
-
-interface RoadbookPace {
-  id: string;
-  pace_name: string;
-  pace_minutes_per_km: number;
-  pace_order: number;
-}
-
-interface RoadbookSchedule {
-  roadbook_item_id: string;
-  roadbook_pace_id: string;
-  estimated_time: string;
 }
 
 interface Roadbook {
@@ -62,14 +58,28 @@ interface Race {
   location: string;
 }
 
+// Icon mapping for item types
+const iconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
+  Flag,
+  MapPin,
+  Droplet,
+  GlassWater,
+  AlertTriangle,
+  Camera,
+  Trophy,
+  Mountain,
+  CircleDot,
+  Timer,
+  Clock,
+};
+
 export default function Roadbook() {
   const { roadbookId } = useParams<{ roadbookId: string }>();
   const [roadbook, setRoadbook] = useState<Roadbook | null>(null);
   const [distance, setDistance] = useState<Distance | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [items, setItems] = useState<RoadbookItem[]>([]);
-  const [paces, setPaces] = useState<RoadbookPace[]>([]);
-  const [schedules, setSchedules] = useState<RoadbookSchedule[]>([]);
+  const [itemTypes, setItemTypes] = useState<RoadbookItemType[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -112,37 +122,25 @@ export default function Roadbook() {
       if (raceError) throw raceError;
       setRace(raceData);
 
-      // Fetch items
+      // Fetch item types
+      const { data: typesData, error: typesError } = await supabase
+        .from("roadbook_item_types")
+        .select("id, name, label, icon")
+        .eq("is_active", true);
+
+      if (typesError) throw typesError;
+      setItemTypes(typesData || []);
+
+      // Fetch only highlighted items
       const { data: itemsData, error: itemsError } = await supabase
         .from("roadbook_items")
         .select("*")
         .eq("roadbook_id", roadbookId)
+        .eq("is_highlighted", true)
         .order("item_order");
 
       if (itemsError) throw itemsError;
       setItems(itemsData || []);
-
-      // Fetch paces
-      const { data: pacesData, error: pacesError } = await supabase
-        .from("roadbook_paces")
-        .select("*")
-        .eq("roadbook_id", roadbookId)
-        .order("pace_order");
-
-      if (pacesError) throw pacesError;
-      setPaces(pacesData || []);
-
-      // Fetch schedules
-      const { data: schedulesData, error: schedulesError } = await supabase
-        .from("roadbook_schedules")
-        .select("*")
-        .in("roadbook_item_id", itemsData?.map(i => i.id) || []);
-
-      if (schedulesError) throw schedulesError;
-      setSchedules((schedulesData || []).map(s => ({
-        ...s,
-        estimated_time: String(s.estimated_time)
-      })));
 
     } catch (error: any) {
       console.error("Error fetching roadbook data:", error);
@@ -156,71 +154,38 @@ export default function Roadbook() {
     }
   };
 
-  const formatTime = (intervalString: string): string => {
-    // Parse PostgreSQL interval format (e.g., "02:30:00")
-    const match = intervalString.match(/(\d+):(\d+):(\d+)/);
-    if (!match) return intervalString;
+  const getItemTypeInfo = (item: RoadbookItem): { icon: React.ReactNode; label: string } => {
+    // Find the item type by item_type_id or item_type name
+    const itemType = itemTypes.find(t => t.id === item.item_type_id || t.name === item.item_type);
     
-    const hours = parseInt(match[1]);
-    const minutes = parseInt(match[2]);
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+    if (itemType) {
+      // Special case: checkpoint type uses Timer icon
+      if (itemType.name === "checkpoint" || item.is_checkpoint) {
+        return {
+          icon: <Timer className="h-5 w-5 text-primary" />,
+          label: itemType.label
+        };
+      }
+      
+      const IconComponent = iconComponents[itemType.icon];
+      if (IconComponent) {
+        return {
+          icon: <IconComponent className="h-5 w-5 text-primary" />,
+          label: itemType.label
+        };
+      }
+      return { icon: null, label: itemType.label };
     }
-    return `${minutes}m`;
-  };
-
-  const calculateArrivalTime = (startTime: string, durationInterval: string): string => {
-    if (!startTime) return "-";
     
-    // Parse start time (HH:MM format)
-    const [startHours, startMinutes] = startTime.split(":").map(Number);
-    
-    // Parse duration interval
-    const match = durationInterval.match(/(\d+):(\d+):(\d+)/);
-    if (!match) return "-";
-    
-    const durationHours = parseInt(match[1]);
-    const durationMinutes = parseInt(match[2]);
-    
-    // Calculate arrival
-    let totalMinutes = (startHours * 60 + startMinutes) + (durationHours * 60 + durationMinutes);
-    const arrivalHours = Math.floor(totalMinutes / 60) % 24;
-    const arrivalMinutes = totalMinutes % 60;
-    
-    return `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
-  };
-
-  const getScheduleForItem = (itemId: string, paceId: string): RoadbookSchedule | undefined => {
-    return schedules.find(s => s.roadbook_item_id === itemId && s.roadbook_pace_id === paceId);
-  };
-
-  const getItemTypeIcon = (type: string) => {
-    switch (type) {
-      case "checkpoint":
-        return <MapPin className="h-5 w-5" />;
-      case "aid_station":
-        return <TrendingUp className="h-5 w-5" />;
-      case "summit":
-        return <Mountain className="h-5 w-5" />;
-      default:
-        return <Navigation className="h-5 w-5" />;
+    // Fallback for is_checkpoint
+    if (item.is_checkpoint) {
+      return {
+        icon: <Timer className="h-5 w-5 text-primary" />,
+        label: "Control"
+      };
     }
-  };
-
-  const getItemTypeName = (type: string) => {
-    const types: Record<string, string> = {
-      checkpoint: "Control",
-      aid_station: "Avituallamiento",
-      summit: "Cumbre",
-      water_point: "Punto de Agua",
-      technical_zone: "Zona Técnica",
-      danger_zone: "Zona Peligrosa",
-      viewpoint: "Mirador",
-      start: "Salida",
-      finish: "Meta",
-    };
-    return types[type] || type;
+    
+    return { icon: null, label: item.item_type };
   };
 
   if (loading) {
@@ -280,192 +245,43 @@ export default function Roadbook() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="visual" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-            <TabsTrigger value="visual">Vista Visual</TabsTrigger>
-            <TabsTrigger value="table">Tabla Completa</TabsTrigger>
-          </TabsList>
-
-          {/* Visual View */}
-          <TabsContent value="visual" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Puntos Destacados</CardTitle>
+          </CardHeader>
+          <CardContent>
             {items.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">
-                    No hay ítems en este rutómetro todavía.
-                  </p>
-                </CardContent>
-              </Card>
+              <p className="text-muted-foreground text-center py-8">
+                No hay puntos destacados en este rutómetro.
+              </p>
             ) : (
-              items.map((item, index) => (
-                <Card key={item.id} className={item.is_highlighted ? "border-primary shadow-lg" : ""}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="mt-1">
-                          {getItemTypeIcon(item.item_type)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <CardTitle className="text-xl">{item.description}</CardTitle>
-                            <Badge variant={item.is_highlighted ? "default" : "secondary"}>
-                              {getItemTypeName(item.item_type)}
-                            </Badge>
-                          </div>
-                          {item.via && (
-                            <CardDescription className="mt-1">
-                              Vía: {item.via}
-                            </CardDescription>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-primary">
-                          KM {item.km_total.toFixed(1)}
-                        </div>
-                        {item.altitude && (
-                          <div className="text-sm text-muted-foreground flex items-center gap-1 justify-end mt-1">
-                            <Mountain className="h-3 w-3" />
-                            {item.altitude}m
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Photos */}
-                    {(item.photo_16_9_url || item.photo_9_16_url) && (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {item.photo_16_9_url && (
-                          <img
-                            src={item.photo_16_9_url}
-                            alt={item.description}
-                            className="rounded-lg w-full h-48 object-cover"
-                          />
-                        )}
-                        {item.photo_9_16_url && (
-                          <img
-                            src={item.photo_9_16_url}
-                            alt={item.description}
-                            className="rounded-lg w-full h-48 object-cover"
-                          />
-                        )}
-                      </div>
-                    )}
-
-                    {/* Details */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      {item.km_partial !== null && (
-                        <div>
-                          <span className="text-muted-foreground">KM Parcial:</span>
-                          <div className="font-semibold">{item.km_partial.toFixed(1)} km</div>
-                        </div>
-                      )}
-                      {item.km_remaining !== null && (
-                        <div>
-                          <span className="text-muted-foreground">KM Restantes:</span>
-                          <div className="font-semibold">{item.km_remaining.toFixed(1)} km</div>
-                        </div>
-                      )}
-                      {item.latitude && item.longitude && (
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Coordenadas:</span>
-                          <div className="font-mono text-xs">
-                            {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {item.notes && (
-                      <div className="bg-muted/50 p-3 rounded-md">
-                        <p className="text-sm">{item.notes}</p>
-                      </div>
-                    )}
-
-                    {/* Schedules by Pace */}
-                    {paces.length > 0 && (
-                      <div>
-                        <Separator className="mb-3" />
-                        <h4 className="font-semibold mb-2 flex items-center gap-2">
-                          <Clock className="h-4 w-4" />
-                          Horarios Estimados
-                        </h4>
-                        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                          {paces.map((pace) => {
-                            const schedule = getScheduleForItem(item.id, pace.id);
-                            return (
-                              <div key={pace.id} className="flex items-center justify-between p-2 bg-muted/30 rounded">
-                                <span className="text-sm font-medium">{pace.pace_name}</span>
-                                {schedule && roadbook.start_time ? (
-                                  <div className="text-right">
-                                    <div className="text-sm font-bold">
-                                      {calculateArrivalTime(roadbook.start_time, schedule.estimated_time)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      ({formatTime(schedule.estimated_time)})
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-sm text-muted-foreground">-</span>
-                                )}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">Tipo</TableHead>
+                      <TableHead>Punto</TableHead>
+                      <TableHead className="text-right w-20">TOTAL</TableHead>
+                      <TableHead className="text-right w-20">PARCIAL</TableHead>
+                      <TableHead className="text-right w-20">FALTAN</TableHead>
+                      <TableHead className="w-32">Vía</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => {
+                      const typeInfo = getItemTypeInfo(item);
+                      return (
+                        <TableRow key={item.id}>
+                          <TableCell className="text-center">
+                            {typeInfo.icon ? (
+                              <div className="flex justify-center" title={typeInfo.label}>
+                                {typeInfo.icon}
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </TabsContent>
-
-          {/* Table View */}
-          <TabsContent value="table">
-            <Card>
-              <CardHeader>
-                <CardTitle>Rutómetro Completo</CardTitle>
-                <CardDescription>
-                  Vista de tabla con todos los detalles y horarios estimados
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Punto</TableHead>
-                        <TableHead className="text-right">KM Total</TableHead>
-                        <TableHead className="text-right">KM Parcial</TableHead>
-                        <TableHead className="text-right">Altitud</TableHead>
-                        {paces.map((pace) => (
-                          <TableHead key={pace.id} className="text-center">
-                            {pace.pace_name}
-                            <div className="text-xs text-muted-foreground font-normal">
-                              ({pace.pace_minutes_per_km.toFixed(1)} min/km)
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item, index) => (
-                        <TableRow key={item.id} className={item.is_highlighted ? "bg-primary/5" : ""}>
-                          <TableCell className="font-medium">{index + 1}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="whitespace-nowrap">
-                              {getItemTypeName(item.item_type)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{item.description}</div>
-                            {item.via && (
-                              <div className="text-xs text-muted-foreground">Vía: {item.via}</div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{typeInfo.label}</span>
                             )}
                           </TableCell>
+                          <TableCell className="font-medium">{item.description}</TableCell>
                           <TableCell className="text-right font-semibold">
                             {item.km_total.toFixed(1)}
                           </TableCell>
@@ -473,50 +289,20 @@ export default function Roadbook() {
                             {item.km_partial !== null ? item.km_partial.toFixed(1) : "-"}
                           </TableCell>
                           <TableCell className="text-right">
-                            {item.altitude ? `${item.altitude}m` : "-"}
+                            {item.km_remaining !== null ? item.km_remaining.toFixed(1) : "-"}
                           </TableCell>
-                          {paces.map((pace) => {
-                            const schedule = getScheduleForItem(item.id, pace.id);
-                            return (
-                              <TableCell key={pace.id} className="text-center">
-                                {schedule && roadbook.start_time ? (
-                                  <div>
-                                    <div className="font-semibold">
-                                      {calculateArrivalTime(roadbook.start_time, schedule.estimated_time)}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      {formatTime(schedule.estimated_time)}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
-                            );
-                          })}
+                          <TableCell className="text-muted-foreground">
+                            {item.via || "-"}
+                          </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {paces.length > 0 && (
-                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                    <h4 className="font-semibold mb-2">Ritmos Configurados:</h4>
-                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                      {paces.map((pace) => (
-                        <div key={pace.id} className="flex items-center justify-between">
-                          <span className="font-medium">{pace.pace_name}:</span>
-                          <span className="text-muted-foreground">{pace.pace_minutes_per_km.toFixed(1)} min/km</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
