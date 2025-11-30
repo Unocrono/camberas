@@ -32,14 +32,15 @@ const ForgotPassword = () => {
       // Validate email
       const validatedData = emailSchema.parse({ email });
 
-      const { error } = await supabase.auth.resetPasswordForEmail(
-        validatedData.email,
-        {
+      // Call custom edge function to send password reset email in Spanish
+      const response = await supabase.functions.invoke("send-password-reset", {
+        body: {
+          email: validatedData.email,
           redirectTo: `${window.location.origin}/reset-password`,
-        }
-      );
+        },
+      });
 
-      if (error) throw error;
+      if (response.error) throw response.error;
 
       setEmailSent(true);
       toast({
