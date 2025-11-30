@@ -68,20 +68,20 @@ export function UsersManagement() {
 
       if (rolesError) throw rolesError;
 
-      // Get emails from auth.users via a query (admin can see this)
-      const userIds = profiles?.map(p => p.id) || [];
-      
-      // We need to get emails - let's use a different approach
-      // Query the profiles and join with a subquery for emails
-      const { data: usersWithEmails, error: emailsError } = await supabase
-        .rpc("get_users_with_emails");
-
-      // If the RPC doesn't exist, we'll work without emails
+      // Get emails using the admin-only RPC function
       let emailMap: Record<string, string> = {};
-      if (!emailsError && usersWithEmails) {
-        usersWithEmails.forEach((u: any) => {
-          emailMap[u.user_id] = u.email;
-        });
+      try {
+        const { data: usersWithEmails, error: emailsError } = await supabase
+          .rpc("get_users_with_emails" as any);
+
+        if (!emailsError && usersWithEmails) {
+          (usersWithEmails as Array<{ user_id: string; email: string }>).forEach((u) => {
+            emailMap[u.user_id] = u.email;
+          });
+        }
+      } catch {
+        // If function doesn't exist or fails, continue without emails
+        console.log("Could not fetch user emails");
       }
 
       // Build user list
