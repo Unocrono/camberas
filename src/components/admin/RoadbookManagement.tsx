@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Map, Eye, ChevronLeft, ChevronRight, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet, Trophy, Camera, GlassWater, Utensils, Home, Star, CircleDot } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Map as MapIcon, Eye, ChevronLeft, ChevronRight, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet, Trophy, Camera, GlassWater, Utensils, Home, Star, CircleDot, Upload, FileUp } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { parseGpxFile } from "@/lib/gpxParser";
 
 interface Roadbook {
   id: string;
@@ -49,6 +50,14 @@ interface RoadbookItemType {
   race_type: string;
 }
 
+interface DistanceInfo {
+  id: string;
+  name: string;
+  race_id: string;
+  distance_km: number;
+  gpx_file_url: string | null;
+}
+
 interface RoadbookManagementProps {
   distanceId: string;
   raceType?: string;
@@ -62,14 +71,54 @@ const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPi
 
 const ITEMS_PER_PAGE = 50;
 
+// Calculate distance between two points using Haversine formula
+const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Determine item type based on waypoint name
+const determineItemType = (name: string): string => {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes('salida') || lowerName.includes('start') || lowerName.includes('inicio')) {
+    return 'start';
+  }
+  if (lowerName.includes('meta') || lowerName.includes('finish') || lowerName.includes('llegada') || lowerName.includes('fin')) {
+    return 'finish';
+  }
+  if (lowerName.includes('avituallamiento') || lowerName.includes('avit') || lowerName.includes('aid')) {
+    return 'aid_station';
+  }
+  if (lowerName.includes('agua') || lowerName.includes('water') || lowerName.includes('refresco')) {
+    return 'refreshment';
+  }
+  if (lowerName.includes('peligro') || lowerName.includes('danger') || lowerName.includes('técnic')) {
+    return 'technical';
+  }
+  if (lowerName.includes('foto') || lowerName.includes('mirador') || lowerName.includes('vista') || lowerName.includes('poi')) {
+    return 'poi';
+  }
+  return 'checkpoint';
+};
+
 export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookManagementProps) {
+  const [distanceInfo, setDistanceInfo] = useState<DistanceInfo | null>(null);
   const [roadbook, setRoadbook] = useState<Roadbook | null>(null);
   const [items, setItems] = useState<RoadbookItem[]>([]);
   const [itemTypes, setItemTypes] = useState<RoadbookItemType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  const gpxInputRef = useRef<HTMLInputElement>(null);
   
   // Dialog states
   const [roadbookDialogOpen, setRoadbookDialogOpen] = useState(false);
@@ -102,6 +151,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
 
   useEffect(() => {
     if (distanceId) {
+      fetchDistanceInfo();
       fetchItemTypes();
       fetchRoadbook();
     }
@@ -112,6 +162,18 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       fetchItems();
     }
   }, [roadbook, currentPage]);
+
+  const fetchDistanceInfo = async () => {
+    const { data, error } = await supabase
+      .from("race_distances")
+      .select("id, name, race_id, distance_km, gpx_file_url")
+      .eq("id", distanceId)
+      .single();
+    
+    if (!error && data) {
+      setDistanceInfo(data);
+    }
+  };
 
   const fetchItemTypes = async () => {
     const { data } = await supabase
@@ -211,6 +273,249 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       fetchRoadbook();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  // Create roadbook from GPX file
+  const createRoadbookFromGpx = async (gpxFileContent: string): Promise<number> => {
+    if (!distanceInfo) throw new Error("No distance info available");
+
+    const gpx = parseGpxFile(gpxFileContent);
+    
+    // Build route points from track with cumulative distance
+    interface RoutePoint {
+      lat: number;
+      lon: number;
+      ele?: number;
+      cumulativeDistance: number;
+    }
+    
+    let routePoints: RoutePoint[] = [];
+    let totalTrackDistance = 0;
+    
+    if (gpx.tracks.length > 0) {
+      const track = gpx.tracks[0];
+      let cumulativeDist = 0;
+      
+      track.points.forEach((point, index) => {
+        if (index > 0) {
+          const prevPoint = track.points[index - 1];
+          cumulativeDist += calculateHaversineDistance(
+            prevPoint.lat,
+            prevPoint.lon,
+            point.lat,
+            point.lon
+          );
+        }
+        routePoints.push({
+          lat: point.lat,
+          lon: point.lon,
+          ele: point.ele,
+          cumulativeDistance: cumulativeDist,
+        });
+      });
+      totalTrackDistance = cumulativeDist;
+    }
+    
+    // Use distance_km from distance info or calculated distance
+    const finalTotalDistance = distanceInfo.distance_km > 0 ? distanceInfo.distance_km : totalTrackDistance;
+    
+    // Delete existing roadbook items if roadbook exists
+    if (roadbook) {
+      await supabase
+        .from("roadbook_items")
+        .delete()
+        .eq("roadbook_id", roadbook.id);
+      
+      // Update roadbook description
+      await supabase
+        .from("roadbooks")
+        .update({
+          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
+        })
+        .eq("id", roadbook.id);
+    } else {
+      // Create new roadbook
+      const { data: race } = await supabase
+        .from("races")
+        .select("name")
+        .eq("id", distanceInfo.race_id)
+        .single();
+      
+      const roadbookName = `${race?.name || 'Carrera'} - ${distanceInfo.name}`;
+      const { data: newRoadbook, error: roadbookError } = await supabase
+        .from("roadbooks")
+        .insert({
+          race_distance_id: distanceId,
+          name: roadbookName,
+          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
+        })
+        .select()
+        .single();
+      
+      if (roadbookError) throw roadbookError;
+      setRoadbook(newRoadbook);
+    }
+    
+    const currentRoadbookId = roadbook?.id;
+    if (!currentRoadbookId && !roadbook) {
+      // Fetch the newly created roadbook
+      const { data: freshRoadbook } = await supabase
+        .from("roadbooks")
+        .select("*")
+        .eq("race_distance_id", distanceId)
+        .single();
+      
+      if (!freshRoadbook) throw new Error("Could not find roadbook");
+      setRoadbook(freshRoadbook);
+    }
+    
+    // Get the roadbook ID to use
+    const targetRoadbookId = roadbook?.id || (await supabase
+      .from("roadbooks")
+      .select("id")
+      .eq("race_distance_id", distanceId)
+      .single()).data?.id;
+    
+    if (!targetRoadbookId) throw new Error("Could not find roadbook ID");
+    
+    // Fetch item type IDs
+    const { data: itemTypesData } = await supabase
+      .from("roadbook_item_types")
+      .select("id, name");
+    
+    const itemTypeMap = new Map<string, string>();
+    if (itemTypesData) {
+      itemTypesData.forEach(t => {
+        itemTypeMap.set(t.name, t.id);
+      });
+    }
+    
+    // Process waypoints to mark special points
+    const waypointPositions = new Map<string, { name: string; itemType: string }>();
+    
+    gpx.waypoints.forEach(wp => {
+      if (wp.lat !== 0 && wp.lon !== 0) {
+        // Find closest track point
+        let minDist = Infinity;
+        let closestIdx = 0;
+        routePoints.forEach((rp, idx) => {
+          const dist = calculateHaversineDistance(wp.lat, wp.lon, rp.lat, rp.lon);
+          if (dist < minDist) {
+            minDist = dist;
+            closestIdx = idx;
+          }
+        });
+        if (minDist < 0.1) { // Within 100m
+          waypointPositions.set(closestIdx.toString(), {
+            name: wp.name,
+            itemType: determineItemType(wp.name),
+          });
+        }
+      }
+    });
+    
+    // Create roadbook items from ALL track points
+    const roadbookItems = routePoints.map((point, index) => {
+      const prevPoint = index > 0 ? routePoints[index - 1] : null;
+      const kmTotal = Math.round(point.cumulativeDistance * 1000) / 1000;
+      const kmPartial = prevPoint 
+        ? Math.round((point.cumulativeDistance - prevPoint.cumulativeDistance) * 1000) / 1000 
+        : 0;
+      const kmRemaining = Math.round((finalTotalDistance - point.cumulativeDistance) * 1000) / 1000;
+      
+      // Determine item type and description
+      let itemType = 'checkpoint';
+      let description = `Punto ${index + 1}`;
+      let isHighlighted = false;
+      
+      // Check if this is a special waypoint
+      const wpInfo = waypointPositions.get(index.toString());
+      if (wpInfo) {
+        itemType = wpInfo.itemType;
+        description = wpInfo.name;
+        isHighlighted = true;
+      }
+      
+      // First point is start
+      if (index === 0) {
+        itemType = 'start';
+        description = 'Salida';
+        isHighlighted = true;
+      }
+      
+      // Last point is finish
+      if (index === routePoints.length - 1) {
+        itemType = 'finish';
+        description = 'Meta';
+        isHighlighted = true;
+      }
+      
+      return {
+        roadbook_id: targetRoadbookId,
+        item_order: index,
+        item_type: itemType,
+        item_type_id: itemTypeMap.get(itemType) || null,
+        description: description,
+        km_total: kmTotal,
+        km_partial: kmPartial,
+        km_remaining: kmRemaining,
+        altitude: point.ele ? Math.round(point.ele) : null,
+        latitude: point.lat,
+        longitude: point.lon,
+        is_highlighted: isHighlighted,
+      };
+    });
+    
+    // Insert in batches to avoid payload size limits
+    const batchSize = 500;
+    for (let i = 0; i < roadbookItems.length; i += batchSize) {
+      const batch = roadbookItems.slice(i, i + batchSize);
+      const { error: itemsError } = await supabase
+        .from("roadbook_items")
+        .insert(batch);
+      
+      if (itemsError) throw itemsError;
+    }
+    
+    return routePoints.length;
+  };
+
+  const handleGpxFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.gpx')) {
+      toast({ title: "Error", description: "Por favor selecciona un archivo GPX", variant: "destructive" });
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const gpxContent = await file.text();
+      const itemCount = await createRoadbookFromGpx(gpxContent);
+      
+      toast({ 
+        title: "GPX importado", 
+        description: `Se han creado ${itemCount} puntos en el rutómetro` 
+      });
+      
+      // Refresh data
+      await fetchRoadbook();
+      setCurrentPage(1);
+    } catch (error: any) {
+      console.error("Error importing GPX:", error);
+      toast({ 
+        title: "Error al importar GPX", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setImporting(false);
+      // Reset input
+      if (gpxInputRef.current) {
+        gpxInputRef.current.value = '';
+      }
     }
   };
 
@@ -351,13 +656,22 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
 
   return (
     <div className="space-y-4">
+      {/* Hidden GPX input */}
+      <input
+        ref={gpxInputRef}
+        type="file"
+        accept=".gpx"
+        onChange={handleGpxFileSelect}
+        className="hidden"
+      />
+
       {/* Roadbook Header */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <Map className="h-5 w-5" />
+                <MapIcon className="h-5 w-5" />
                 {roadbook ? roadbook.name : "Sin rutómetro"}
               </CardTitle>
               {roadbook?.description && (
@@ -420,6 +734,39 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
               </Dialog>
             </div>
           </div>
+          
+          {/* GPX Import button - shown below title */}
+          <div className="flex items-center gap-4 pt-2 border-t mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => gpxInputRef.current?.click()}
+              disabled={importing}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importando...
+                </>
+              ) : distanceInfo?.gpx_file_url ? (
+                <>
+                  <FileUp className="mr-2 h-4 w-4" />
+                  Editar GPX
+                </>
+              ) : (
+                <>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Importar GPX
+                </>
+              )}
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              {distanceInfo?.gpx_file_url 
+                ? "Ya hay un GPX asignado a esta distancia" 
+                : "Importa un archivo GPX para generar puntos automáticamente"}
+            </span>
+          </div>
+
           {roadbook && (
             <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
               <span>{totalItems} puntos</span>
