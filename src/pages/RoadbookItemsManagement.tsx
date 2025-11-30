@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Plus, Edit, Trash2, ArrowLeft, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, ArrowLeft, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet, Trophy, Camera, GlassWater, Utensils, Home, Star, CircleDot } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface RoadbookItem {
@@ -21,6 +21,7 @@ interface RoadbookItem {
   roadbook_id: string;
   item_order: number;
   item_type: string;
+  item_type_id: string | null;
   description: string;
   km_total: number;
   km_partial: number | null;
@@ -43,16 +44,35 @@ interface Roadbook {
   race_distance_id: string;
 }
 
-const itemTypes = [
-  { value: "start", label: "Salida", icon: Flag },
-  { value: "checkpoint", label: "Punto de Control", icon: MapPin },
-  { value: "aid_station", label: "Avituallamiento", icon: Coffee },
-  { value: "water_point", label: "Punto de Agua", icon: Droplet },
-  { value: "summit", label: "Cima", icon: Mountain },
-  { value: "danger", label: "Zona Peligrosa", icon: AlertTriangle },
-  { value: "finish", label: "Meta", icon: Flag },
-  { value: "other", label: "Otro", icon: MapPin },
-];
+interface RoadbookItemType {
+  id: string;
+  name: string;
+  label: string;
+  icon: string;
+  description: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+
+const iconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
+  Flag,
+  MapPin,
+  Droplet,
+  GlassWater,
+  AlertTriangle,
+  Camera,
+  Trophy,
+  Mountain,
+  Coffee,
+  Utensils,
+  Home,
+  Star,
+  CircleDot,
+};
+
+const getIconComponent = (iconName: string) => {
+  return iconComponents[iconName] || MapPin;
+};
 
 export default function RoadbookItemsManagement() {
   const { roadbookId } = useParams<{ roadbookId: string }>();
@@ -62,12 +82,14 @@ export default function RoadbookItemsManagement() {
   
   const [roadbook, setRoadbook] = useState<Roadbook | null>(null);
   const [items, setItems] = useState<RoadbookItem[]>([]);
+  const [itemTypes, setItemTypes] = useState<RoadbookItemType[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<RoadbookItem | null>(null);
   const [formData, setFormData] = useState({
     item_type: "checkpoint",
+    item_type_id: "",
     description: "",
     km_total: "",
     km_partial: "",
@@ -94,6 +116,16 @@ export default function RoadbookItemsManagement() {
     try {
       setLoading(true);
       
+      // Fetch item types
+      const { data: typesData, error: typesError } = await supabase
+        .from("roadbook_item_types")
+        .select("*")
+        .eq("is_active", true)
+        .order("display_order");
+
+      if (typesError) throw typesError;
+      setItemTypes(typesData || []);
+
       // Fetch roadbook
       const { data: roadbookData, error: roadbookError } = await supabase
         .from("roadbooks")
@@ -140,6 +172,7 @@ export default function RoadbookItemsManagement() {
       setSelectedItem(item);
       setFormData({
         item_type: item.item_type,
+        item_type_id: item.item_type_id || "",
         description: item.description,
         km_total: String(item.km_total),
         km_partial: item.km_partial ? String(item.km_partial) : "",
@@ -155,6 +188,7 @@ export default function RoadbookItemsManagement() {
       setSelectedItem(null);
       setFormData({
         item_type: "checkpoint",
+        item_type_id: "",
         description: "",
         km_total: "",
         km_partial: "",
@@ -174,9 +208,13 @@ export default function RoadbookItemsManagement() {
     e.preventDefault();
 
     try {
+      // Find the item type ID based on the selected type name
+      const selectedType = itemTypes.find(t => t.name === formData.item_type);
+      
       const itemData = {
         roadbook_id: roadbookId!,
         item_type: formData.item_type,
+        item_type_id: selectedType?.id || null,
         description: formData.description,
         km_total: parseFloat(formData.km_total),
         km_partial: formData.km_partial ? parseFloat(formData.km_partial) : null,
@@ -259,7 +297,8 @@ export default function RoadbookItemsManagement() {
   };
 
   const getItemTypeInfo = (type: string) => {
-    return itemTypes.find(t => t.value === type) || itemTypes[itemTypes.length - 1];
+    const found = itemTypes.find(t => t.name === type);
+    return found || { name: type, label: type, icon: 'MapPin', description: null, display_order: 999, is_active: true, id: '' };
   };
 
   if (authLoading || loading) {
@@ -323,7 +362,7 @@ export default function RoadbookItemsManagement() {
                         </SelectTrigger>
                         <SelectContent>
                           {itemTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
+                            <SelectItem key={type.name} value={type.name}>
                               {type.label}
                             </SelectItem>
                           ))}
@@ -481,13 +520,13 @@ export default function RoadbookItemsManagement() {
             <div className="space-y-3">
               {items.map((item, index) => {
                 const typeInfo = getItemTypeInfo(item.item_type);
-                const IconComponent = typeInfo.icon;
+                const IconComp = getIconComponent(typeInfo.icon);
                 return (
                   <Card key={item.id} className={item.is_highlighted ? "border-primary" : ""}>
                     <CardContent className="py-4">
                       <div className="flex items-center gap-4">
                         <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-                          <IconComponent className="h-5 w-5 text-primary" />
+                          <IconComp className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
