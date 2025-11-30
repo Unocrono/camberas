@@ -20,9 +20,16 @@ interface RoadbookItemType {
   description: string | null;
   display_order: number;
   is_active: boolean;
+  race_type: 'trail' | 'mtb' | 'both';
   created_at: string;
   updated_at: string;
 }
+
+const raceTypeOptions = [
+  { value: "trail", label: "Trail" },
+  { value: "mtb", label: "MTB" },
+  { value: "both", label: "Ambos" },
+];
 
 const availableIcons = [
   { value: "Flag", label: "Bandera", Icon: Flag },
@@ -59,6 +66,7 @@ export function RoadbookItemTypesManagement() {
     description: "",
     display_order: "0",
     is_active: true,
+    race_type: "both" as 'trail' | 'mtb' | 'both',
   });
 
   useEffect(() => {
@@ -74,7 +82,7 @@ export function RoadbookItemTypesManagement() {
         .order("display_order", { ascending: true });
 
       if (error) throw error;
-      setItemTypes(data || []);
+      setItemTypes((data as RoadbookItemType[]) || []);
     } catch (error: any) {
       console.error("Error fetching item types:", error);
       toast({
@@ -97,6 +105,7 @@ export function RoadbookItemTypesManagement() {
         description: type.description || "",
         display_order: String(type.display_order),
         is_active: type.is_active,
+        race_type: type.race_type,
       });
     } else {
       setSelectedType(null);
@@ -108,6 +117,7 @@ export function RoadbookItemTypesManagement() {
         description: "",
         display_order: String(maxOrder),
         is_active: true,
+        race_type: "both",
       });
     }
     setDialogOpen(true);
@@ -124,6 +134,7 @@ export function RoadbookItemTypesManagement() {
         description: formData.description || null,
         display_order: parseInt(formData.display_order) || 0,
         is_active: formData.is_active,
+        race_type: formData.race_type,
       };
 
       if (selectedType) {
@@ -297,6 +308,25 @@ export function RoadbookItemTypesManagement() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="race_type">Tipo de Carrera *</Label>
+                <Select
+                  value={formData.race_type}
+                  onValueChange={(value: 'trail' | 'mtb' | 'both') => setFormData({ ...formData, race_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {raceTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="is_active"
@@ -374,6 +404,9 @@ export function RoadbookItemTypesManagement() {
                   )}
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span>Orden: {type.display_order}</span>
+                    <span className="px-2 py-0.5 rounded bg-muted">
+                      {type.race_type === 'both' ? 'Ambos' : type.race_type.toUpperCase()}
+                    </span>
                     <span className={type.is_active ? "text-green-600" : "text-red-500"}>
                       {type.is_active ? "Activo" : "Inactivo"}
                     </span>
