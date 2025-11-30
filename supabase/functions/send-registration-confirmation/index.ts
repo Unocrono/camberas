@@ -67,39 +67,39 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending registration confirmation to:", userEmail);
 
     const emailResponse = await resend.emails.send({
-      from: "Race Registration <onboarding@resend.dev>",
+      from: "Camberas <onboarding@resend.dev>",
       to: [userEmail],
-      subject: `Registration Confirmed: ${raceName}`,
+      subject: `Inscripción Confirmada: ${raceName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">Registration Confirmed!</h1>
-          <p>Hello ${userName},</p>
-          <p>Thank you for registering for <strong>${raceName}</strong>!</p>
+          <h1 style="color: #2563eb;">¡Inscripción Confirmada!</h1>
+          <p>Hola ${userName},</p>
+          <p>¡Gracias por inscribirte en <strong>${raceName}</strong>!</p>
           
           <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h2 style="margin-top: 0; color: #1f2937;">Race Details</h2>
-            <p><strong>Race:</strong> ${raceName}</p>
-            <p><strong>Distance:</strong> ${distanceName}</p>
-            <p><strong>Date:</strong> ${new Date(raceDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-            <p><strong>Location:</strong> ${raceLocation}</p>
-            <p><strong>Registration Fee:</strong> €${price.toFixed(2)}</p>
+            <h2 style="margin-top: 0; color: #1f2937;">Detalles de la Carrera</h2>
+            <p><strong>Carrera:</strong> ${raceName}</p>
+            <p><strong>Distancia:</strong> ${distanceName}</p>
+            <p><strong>Fecha:</strong> ${new Date(raceDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p><strong>Ubicación:</strong> ${raceLocation}</p>
+            <p><strong>Precio de Inscripción:</strong> ${price.toFixed(2)}€</p>
           </div>
           
           ${isGuest ? `
           <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #f59e0b;">
-            <p style="margin: 0; color: #92400e;"><strong>Note:</strong> You registered as a guest. Create an account with this email to manage your registration and access additional features.</p>
+            <p style="margin: 0; color: #92400e;"><strong>Nota:</strong> Te has inscrito como invitado. Crea una cuenta con este email para gestionar tu inscripción y acceder a funciones adicionales.</p>
           </div>
           ` : ''}
           
-          <p><strong>Payment Status:</strong> Pending - Please complete your payment to confirm your spot.</p>
+          <p><strong>Estado del Pago:</strong> Pendiente - Por favor, completa tu pago para confirmar tu plaza.</p>
           
-          <p style="margin-top: 30px;">We'll send you a race reminder 7 days before the event with important race day information.</p>
+          <p style="margin-top: 30px;">Te enviaremos un recordatorio 7 días antes del evento con información importante para el día de la carrera.</p>
           
-          <p>If you have any questions, please don't hesitate to contact us.</p>
+          <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
           
           <p style="margin-top: 30px;">
-            Best regards,<br>
-            The Race Team
+            Un saludo,<br>
+            El equipo de <strong>camberas.com</strong>
           </p>
         </div>
       `,
