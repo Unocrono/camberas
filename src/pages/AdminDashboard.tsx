@@ -35,7 +35,7 @@ const AdminDashboard = () => {
   const [currentView, setCurrentView] = useState<AdminView>("races");
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
-  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string }>>([]);
+  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string; race_type: string }>>([]);
   const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
 
   useEffect(() => {
@@ -69,7 +69,7 @@ const AdminDashboard = () => {
     try {
       const { data, error } = await supabase
         .from("races")
-        .select("id, name, date")
+        .select("id, name, date, race_type")
         .order("date", { ascending: false });
 
       if (error) throw error;
@@ -202,7 +202,7 @@ const AdminDashboard = () => {
             )}
             {currentView === "roadbooks" && (
               selectedDistanceId ? (
-                <RoadbookManagement distanceId={selectedDistanceId} />
+                <RoadbookManagement distanceId={selectedDistanceId} raceType={races.find(r => r.id === selectedRaceId)?.race_type} />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera y una distancia para gestionar sus rutómetros</p>
