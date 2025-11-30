@@ -487,7 +487,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     }
   };
 
-  // Create roadbook and items from GPX file
+  // Create roadbook and items from GPX file - now includes ALL trackpoints
   const createRoadbookFromGpx = async (
     gpxFileContent: string,
     raceName: string,
@@ -498,7 +498,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     try {
       const gpx = parseGpxFile(gpxFileContent);
       
-      // Build route points from track for distance calculation
+      // Build route points from track with cumulative distance
       interface RoutePoint {
         lat: number;
         lon: number;
@@ -536,116 +536,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       // Use provided totalDistanceKm or calculated distance
       const finalTotalDistance = totalDistanceKm > 0 ? totalDistanceKm : totalTrackDistance;
       
-      // Helper function to find distance along route
-      const findDistanceOnRoute = (lat: number, lon: number): number => {
-        if (routePoints.length === 0) return 0;
-        
-        let closestDistance = Infinity;
-        let resultKm = 0;
-        
-        routePoints.forEach((point) => {
-          const dist = calculateHaversineDistance(lat, lon, point.lat, point.lon);
-          if (dist < closestDistance) {
-            closestDistance = dist;
-            resultKm = point.cumulativeDistance;
-          }
-        });
-        
-        return Math.round(resultKm * 1000) / 1000;
-      };
-
-      // Helper to find elevation at a point
-      const findElevationOnRoute = (lat: number, lon: number): number | null => {
-        if (routePoints.length === 0) return null;
-        
-        let closestDistance = Infinity;
-        let elevation: number | null = null;
-        
-        routePoints.forEach((point) => {
-          const dist = calculateHaversineDistance(lat, lon, point.lat, point.lon);
-          if (dist < closestDistance) {
-            closestDistance = dist;
-            elevation = point.ele || null;
-          }
-        });
-        
-        return elevation;
-      };
-      
-      // Process waypoints
-      interface GpxWaypointExtended {
-        name: string;
-        lat: number;
-        lon: number;
-        ele?: number;
-        desc?: string;
-        distanceKm: number;
-        itemType: string;
-      }
-      
-      let waypoints: GpxWaypointExtended[] = [];
-      
-      // Filter valid waypoints
-      const validWaypoints = gpx.waypoints.filter(wp => 
-        wp.lat !== 0 && wp.lon !== 0 && !isNaN(wp.lat) && !isNaN(wp.lon)
-      );
-      
-      if (validWaypoints.length > 0) {
-        waypoints = validWaypoints.map((wp) => ({
-          name: wp.name,
-          lat: wp.lat,
-          lon: wp.lon,
-          ele: wp.ele || findElevationOnRoute(wp.lat, wp.lon) || undefined,
-          desc: wp.desc || wp.cmt || "",
-          distanceKm: routePoints.length > 0 ? findDistanceOnRoute(wp.lat, wp.lon) : 0,
-          itemType: determineItemType(wp.name),
-        }));
-      }
-      
-      // Add Salida and Meta from track if they don't exist
-      if (gpx.tracks.length > 0 && routePoints.length > 0) {
-        const firstPoint = routePoints[0];
-        const lastPoint = routePoints[routePoints.length - 1];
-        
-        const hasSalida = waypoints.some(wp => wp.itemType === 'start');
-        const hasMeta = waypoints.some(wp => wp.itemType === 'finish');
-        
-        if (!hasSalida) {
-          waypoints.unshift({
-            name: "Salida",
-            lat: firstPoint.lat,
-            lon: firstPoint.lon,
-            ele: firstPoint.ele,
-            desc: "Punto de salida",
-            distanceKm: 0,
-            itemType: 'start',
-          });
-        }
-        
-        if (!hasMeta) {
-          waypoints.push({
-            name: "Meta",
-            lat: lastPoint.lat,
-            lon: lastPoint.lon,
-            ele: lastPoint.ele,
-            desc: "Punto de llegada",
-            distanceKm: Math.round(finalTotalDistance * 1000) / 1000,
-            itemType: 'finish',
-          });
-        }
-        
-        // Recalculate distances for start and finish
-        waypoints = waypoints.map(wp => ({
-          ...wp,
-          distanceKm: wp.itemType === 'start' ? 0 : 
-                      wp.itemType === 'finish' ? Math.round(finalTotalDistance * 1000) / 1000 :
-                      findDistanceOnRoute(wp.lat, wp.lon)
-        }));
-      }
-      
-      // Sort waypoints by distance
-      waypoints.sort((a, b) => a.distanceKm - b.distanceKm);
-      
       // Delete existing roadbooks for this distance
       const { data: existingRoadbooks } = await supabase
         .from("roadbooks")
@@ -653,14 +543,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         .eq("race_distance_id", distanceId);
       
       if (existingRoadbooks && existingRoadbooks.length > 0) {
-        // Delete existing roadbook items first
         for (const rb of existingRoadbooks) {
           await supabase
             .from("roadbook_items")
             .delete()
             .eq("roadbook_id", rb.id);
         }
-        // Delete existing roadbooks
         await supabase
           .from("roadbooks")
           .delete()
@@ -674,7 +562,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         .insert({
           race_distance_id: distanceId,
           name: roadbookName,
-          description: `Rutómetro generado automáticamente desde GPX`,
+          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
         })
         .select()
         .single();
@@ -688,36 +576,94 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       
       const itemTypeMap = new Map(itemTypes?.map(t => [t.name, t.id]) || []);
       
-      // Create roadbook items
-      const roadbookItems = waypoints.map((wp, index) => {
-        const prevWp = index > 0 ? waypoints[index - 1] : null;
-        const kmPartial = prevWp ? Math.round((wp.distanceKm - prevWp.distanceKm) * 1000) / 1000 : 0;
-        const kmRemaining = Math.round((finalTotalDistance - wp.distanceKm) * 1000) / 1000;
+      // Process waypoints to mark special points
+      const waypointPositions = new Map<string, { name: string; itemType: string }>();
+      
+      gpx.waypoints.forEach(wp => {
+        if (wp.lat !== 0 && wp.lon !== 0) {
+          // Find closest track point
+          let minDist = Infinity;
+          let closestIdx = 0;
+          routePoints.forEach((rp, idx) => {
+            const dist = calculateHaversineDistance(wp.lat, wp.lon, rp.lat, rp.lon);
+            if (dist < minDist) {
+              minDist = dist;
+              closestIdx = idx;
+            }
+          });
+          if (minDist < 0.1) { // Within 100m
+            waypointPositions.set(closestIdx.toString(), {
+              name: wp.name,
+              itemType: determineItemType(wp.name),
+            });
+          }
+        }
+      });
+      
+      // Create roadbook items from ALL track points
+      const roadbookItems = routePoints.map((point, index) => {
+        const prevPoint = index > 0 ? routePoints[index - 1] : null;
+        const kmTotal = Math.round(point.cumulativeDistance * 1000) / 1000;
+        const kmPartial = prevPoint 
+          ? Math.round((point.cumulativeDistance - prevPoint.cumulativeDistance) * 1000) / 1000 
+          : 0;
+        const kmRemaining = Math.round((finalTotalDistance - point.cumulativeDistance) * 1000) / 1000;
+        
+        // Determine item type and description
+        let itemType = 'checkpoint';
+        let description = `Punto ${index + 1}`;
+        let isHighlighted = false;
+        
+        // Check if this is a special waypoint
+        const wpInfo = waypointPositions.get(index.toString());
+        if (wpInfo) {
+          itemType = wpInfo.itemType;
+          description = wpInfo.name;
+          isHighlighted = true;
+        }
+        
+        // First point is start
+        if (index === 0) {
+          itemType = 'start';
+          description = 'Salida';
+          isHighlighted = true;
+        }
+        
+        // Last point is finish
+        if (index === routePoints.length - 1) {
+          itemType = 'finish';
+          description = 'Meta';
+          isHighlighted = true;
+        }
         
         return {
           roadbook_id: newRoadbook.id,
           item_order: index,
-          item_type: wp.itemType,
-          item_type_id: itemTypeMap.get(wp.itemType) || null,
-          description: wp.name,
-          km_total: wp.distanceKm,
+          item_type: itemType,
+          item_type_id: itemTypeMap.get(itemType) || null,
+          description: description,
+          km_total: kmTotal,
           km_partial: kmPartial,
           km_remaining: kmRemaining,
-          altitude: wp.ele ? Math.round(wp.ele) : null,
-          latitude: wp.lat,
-          longitude: wp.lon,
-          notes: wp.desc || null,
-          is_highlighted: wp.itemType === 'start' || wp.itemType === 'finish' || wp.itemType === 'aid_station',
+          altitude: point.ele ? Math.round(point.ele) : null,
+          latitude: point.lat,
+          longitude: point.lon,
+          is_highlighted: isHighlighted,
         };
       });
       
-      const { error: itemsError } = await supabase
-        .from("roadbook_items")
-        .insert(roadbookItems);
+      // Insert in batches to avoid payload size limits
+      const batchSize = 500;
+      for (let i = 0; i < roadbookItems.length; i += batchSize) {
+        const batch = roadbookItems.slice(i, i + batchSize);
+        const { error: itemsError } = await supabase
+          .from("roadbook_items")
+          .insert(batch);
+        
+        if (itemsError) throw itemsError;
+      }
       
-      if (itemsError) throw itemsError;
-      
-      return { roadbookId: newRoadbook.id, itemCount: waypoints.length };
+      return { roadbookId: newRoadbook.id, itemCount: routePoints.length };
     } catch (error) {
       console.error("Error creating roadbook from GPX:", error);
       throw error;
