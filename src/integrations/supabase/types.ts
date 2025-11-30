@@ -884,6 +884,7 @@ export type Database = {
           description: string
           icon_url: string | null
           id: string
+          is_checkpoint: boolean
           is_highlighted: boolean
           item_order: number
           item_type: string
@@ -906,6 +907,7 @@ export type Database = {
           description: string
           icon_url?: string | null
           id?: string
+          is_checkpoint?: boolean
           is_highlighted?: boolean
           item_order?: number
           item_type?: string
@@ -928,6 +930,7 @@ export type Database = {
           description?: string
           icon_url?: string | null
           id?: string
+          is_checkpoint?: boolean
           is_highlighted?: boolean
           item_order?: number
           item_type?: string
