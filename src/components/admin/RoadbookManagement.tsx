@@ -416,6 +416,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     });
     
     // Create roadbook items from ALL track points
+    // All trkpt get type "point", except waypoints which get their specific type
     const roadbookItems = routePoints.map((point, index) => {
       const prevPoint = index > 0 ? routePoints[index - 1] : null;
       const kmTotal = Math.round(point.cumulativeDistance * 1000) / 1000;
@@ -424,8 +425,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         : 0;
       const kmRemaining = Math.round((finalTotalDistance - point.cumulativeDistance) * 1000) / 1000;
       
-      // Determine item type and description
-      let itemType = 'checkpoint';
+      // Default: all trackpoints are type "point"
+      let itemType = 'point';
       let description = `Punto ${index + 1}`;
       let isHighlighted = false;
       
