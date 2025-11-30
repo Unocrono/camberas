@@ -1155,6 +1155,13 @@ export type Database = {
         }[]
       }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
+      get_users_with_emails: {
+        Args: never
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
