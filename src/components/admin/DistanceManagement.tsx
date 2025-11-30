@@ -487,189 +487,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     }
   };
 
-  // Create roadbook and items from GPX file - now includes ALL trackpoints
-  const createRoadbookFromGpx = async (
-    gpxFileContent: string,
-    raceName: string,
-    distanceName: string,
-    distanceId: string,
-    totalDistanceKm: number
-  ): Promise<{ roadbookId: string; itemCount: number }> => {
-    try {
-      const gpx = parseGpxFile(gpxFileContent);
-      
-      // Build route points from track with cumulative distance
-      interface RoutePoint {
-        lat: number;
-        lon: number;
-        ele?: number;
-        cumulativeDistance: number;
-      }
-      
-      let routePoints: RoutePoint[] = [];
-      let totalTrackDistance = 0;
-      
-      if (gpx.tracks.length > 0) {
-        const track = gpx.tracks[0];
-        let cumulativeDist = 0;
-        
-        track.points.forEach((point, index) => {
-          if (index > 0) {
-            const prevPoint = track.points[index - 1];
-            cumulativeDist += calculateHaversineDistance(
-              prevPoint.lat,
-              prevPoint.lon,
-              point.lat,
-              point.lon
-            );
-          }
-          routePoints.push({
-            lat: point.lat,
-            lon: point.lon,
-            ele: point.ele,
-            cumulativeDistance: cumulativeDist,
-          });
-        });
-        totalTrackDistance = cumulativeDist;
-      }
-      
-      // Use provided totalDistanceKm or calculated distance
-      const finalTotalDistance = totalDistanceKm > 0 ? totalDistanceKm : totalTrackDistance;
-      
-      // Delete existing roadbooks for this distance
-      const { data: existingRoadbooks } = await supabase
-        .from("roadbooks")
-        .select("id")
-        .eq("race_distance_id", distanceId);
-      
-      if (existingRoadbooks && existingRoadbooks.length > 0) {
-        for (const rb of existingRoadbooks) {
-          await supabase
-            .from("roadbook_items")
-            .delete()
-            .eq("roadbook_id", rb.id);
-        }
-        await supabase
-          .from("roadbooks")
-          .delete()
-          .eq("race_distance_id", distanceId);
-      }
-      
-      // Create roadbook
-      const roadbookName = `${raceName} - ${distanceName}`;
-      const { data: newRoadbook, error: roadbookError } = await supabase
-        .from("roadbooks")
-        .insert({
-          race_distance_id: distanceId,
-          name: roadbookName,
-          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
-        })
-        .select()
-        .single();
-      
-      if (roadbookError) throw roadbookError;
-      
-      // Fetch item type IDs
-      const { data: itemTypes } = await supabase
-        .from("roadbook_item_types")
-        .select("id, name");
-      
-      const itemTypeMap = new Map(itemTypes?.map(t => [t.name, t.id]) || []);
-      
-      // Process waypoints to mark special points
-      const waypointPositions = new Map<string, { name: string; itemType: string }>();
-      
-      gpx.waypoints.forEach(wp => {
-        if (wp.lat !== 0 && wp.lon !== 0) {
-          // Find closest track point
-          let minDist = Infinity;
-          let closestIdx = 0;
-          routePoints.forEach((rp, idx) => {
-            const dist = calculateHaversineDistance(wp.lat, wp.lon, rp.lat, rp.lon);
-            if (dist < minDist) {
-              minDist = dist;
-              closestIdx = idx;
-            }
-          });
-          if (minDist < 0.1) { // Within 100m
-            waypointPositions.set(closestIdx.toString(), {
-              name: wp.name,
-              itemType: determineItemType(wp.name),
-            });
-          }
-        }
-      });
-      
-      // Create roadbook items from ALL track points
-      const roadbookItems = routePoints.map((point, index) => {
-        const prevPoint = index > 0 ? routePoints[index - 1] : null;
-        const kmTotal = Math.round(point.cumulativeDistance * 1000) / 1000;
-        const kmPartial = prevPoint 
-          ? Math.round((point.cumulativeDistance - prevPoint.cumulativeDistance) * 1000) / 1000 
-          : 0;
-        const kmRemaining = Math.round((finalTotalDistance - point.cumulativeDistance) * 1000) / 1000;
-        
-        // Determine item type and description
-        let itemType = 'checkpoint';
-        let description = `Punto ${index + 1}`;
-        let isHighlighted = false;
-        
-        // Check if this is a special waypoint
-        const wpInfo = waypointPositions.get(index.toString());
-        if (wpInfo) {
-          itemType = wpInfo.itemType;
-          description = wpInfo.name;
-          isHighlighted = true;
-        }
-        
-        // First point is start
-        if (index === 0) {
-          itemType = 'start';
-          description = 'Salida';
-          isHighlighted = true;
-        }
-        
-        // Last point is finish
-        if (index === routePoints.length - 1) {
-          itemType = 'finish';
-          description = 'Meta';
-          isHighlighted = true;
-        }
-        
-        return {
-          roadbook_id: newRoadbook.id,
-          item_order: index,
-          item_type: itemType,
-          item_type_id: itemTypeMap.get(itemType) || null,
-          description: description,
-          km_total: kmTotal,
-          km_partial: kmPartial,
-          km_remaining: kmRemaining,
-          altitude: point.ele ? Math.round(point.ele) : null,
-          latitude: point.lat,
-          longitude: point.lon,
-          is_highlighted: isHighlighted,
-        };
-      });
-      
-      // Insert in batches to avoid payload size limits
-      const batchSize = 500;
-      for (let i = 0; i < roadbookItems.length; i += batchSize) {
-        const batch = roadbookItems.slice(i, i + batchSize);
-        const { error: itemsError } = await supabase
-          .from("roadbook_items")
-          .insert(batch);
-        
-        if (itemsError) throw itemsError;
-      }
-      
-      return { roadbookId: newRoadbook.id, itemCount: routePoints.length };
-    } catch (error) {
-      console.error("Error creating roadbook from GPX:", error);
-      throw error;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -771,27 +588,19 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
-        // Import checkpoints and create roadbook from GPX if a new GPX file was uploaded
+        // Import checkpoints from GPX if a new GPX file was uploaded
         if (gpxContent) {
           try {
             const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, editingDistance.id);
-            const raceName = getRaceName(formData.race_id);
-            const { itemCount } = await createRoadbookFromGpx(
-              gpxContent, 
-              raceName, 
-              validatedData.name, 
-              editingDistance.id,
-              validatedData.distance_km
-            );
             toast({
               title: "Distancia actualizada",
-              description: `Se han importado ${importedCount} puntos de control y se ha creado un rutómetro con ${itemCount} ítems desde el GPX`,
+              description: `Se han importado ${importedCount} puntos de control desde el GPX. Puedes generar el rutómetro desde la gestión de rutómetros.`,
             });
           } catch (gpxError) {
             console.error("Error importing from GPX:", gpxError);
             toast({
               title: "Distancia actualizada",
-              description: "La distancia se ha actualizado pero hubo un error al importar desde el GPX",
+              description: "La distancia se ha actualizado pero hubo un error al importar puntos de control",
               variant: "destructive",
             });
           }
@@ -810,27 +619,19 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
-        // Import checkpoints and create roadbook from GPX if a GPX file was uploaded
+        // Import checkpoints from GPX if a GPX file was uploaded
         if (gpxContent && insertedDistance) {
           try {
             const importedCount = await importCheckpointsFromGpx(gpxContent, formData.race_id, insertedDistance.id);
-            const raceName = getRaceName(formData.race_id);
-            const { itemCount } = await createRoadbookFromGpx(
-              gpxContent, 
-              raceName, 
-              validatedData.name, 
-              insertedDistance.id,
-              validatedData.distance_km
-            );
             toast({
               title: "Distancia creada",
-              description: `Se han importado ${importedCount} puntos de control y se ha creado un rutómetro con ${itemCount} ítems desde el GPX`,
+              description: `Se han importado ${importedCount} puntos de control desde el GPX. Puedes generar el rutómetro desde la gestión de rutómetros.`,
             });
           } catch (gpxError) {
             console.error("Error importing from GPX:", gpxError);
             toast({
               title: "Distancia creada",
-              description: "La distancia se ha creado pero hubo un error al importar desde el GPX",
+              description: "La distancia se ha creado pero hubo un error al importar puntos de control",
               variant: "destructive",
             });
           }
