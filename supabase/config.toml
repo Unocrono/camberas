@@ -2,3 +2,6 @@ project_id = "rsahtxjpisnldxnsmupk"
 
 [functions.get-mapbox-token]
 verify_jwt = false
+
+[functions.email-hook]
+verify_jwt = false
