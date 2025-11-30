@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp, RefreshCw } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -1029,59 +1029,76 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     setImportingGpx(false);
   };
 
-  // Recalculate distances for existing checkpoints using the linked GPX file
-  const handleRecalculateDistances = async () => {
-    if (!distanceGpxUrl || gpxRoute.length === 0) {
-      toast.error("No hay archivo GPX vinculado para recalcular");
-      return;
-    }
-
-    if (checkpoints.length === 0) {
-      toast.error("No hay puntos de control para recalcular");
-      return;
-    }
-
+  // Import checkpoints from roadbook items marked as is_checkpoint
+  const handleImportFromRoadbook = async () => {
     setRecalculatingDistances(true);
 
     try {
-      // Recalculate distance for each checkpoint that has coordinates
-      const updates = checkpoints.map((cp) => {
-        if (cp.latitude !== null && cp.longitude !== null) {
-          const newDistance = findDistanceOnRoute(cp.latitude, cp.longitude);
-          return {
-            id: cp.id,
-            distance_km: newDistance,
-          };
-        }
-        return null;
-      }).filter(Boolean);
+      // First, get the roadbook for this distance
+      const { data: roadbook, error: roadbookError } = await supabase
+        .from("roadbooks")
+        .select("id")
+        .eq("race_distance_id", selectedDistanceId)
+        .maybeSingle();
 
-      if (updates.length === 0) {
-        toast.error("No hay puntos de control con coordenadas para recalcular");
+      if (roadbookError) throw roadbookError;
+
+      if (!roadbook) {
+        toast.error("No hay rutómetro creado para esta distancia");
         setRecalculatingDistances(false);
         return;
       }
 
-      // Update each checkpoint
-      for (const update of updates) {
-        if (update) {
-          const { error } = await supabase
-            .from("race_checkpoints")
-            .update({ distance_km: update.distance_km })
-            .eq("id", update.id);
+      // Get roadbook items marked as checkpoints
+      const { data: roadbookItems, error: itemsError } = await supabase
+        .from("roadbook_items")
+        .select("*")
+        .eq("roadbook_id", roadbook.id)
+        .eq("is_checkpoint", true)
+        .order("item_order");
 
-          if (error) {
-            console.error("Error updating checkpoint:", error);
-            throw error;
-          }
-        }
+      if (itemsError) throw itemsError;
+
+      if (!roadbookItems || roadbookItems.length === 0) {
+        toast.error("No hay puntos marcados como Punto de Control en el rutómetro");
+        setRecalculatingDistances(false);
+        return;
       }
 
-      toast.success(`Distancias recalculadas para ${updates.length} puntos de control`);
+      // Get max checkpoint_order for the ENTIRE race to avoid unique constraint violation
+      const { data: maxOrderData } = await supabase
+        .from("race_checkpoints")
+        .select("checkpoint_order")
+        .eq("race_id", selectedRaceId)
+        .order("checkpoint_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
+
+      // Create checkpoints from roadbook items
+      const checkpointsToInsert = roadbookItems.map((item, index) => ({
+        race_id: selectedRaceId,
+        race_distance_id: selectedDistanceId,
+        name: item.description,
+        lugar: item.via || null,
+        checkpoint_order: startOrder + index,
+        distance_km: item.km_total,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      }));
+
+      const { error: insertError } = await supabase
+        .from("race_checkpoints")
+        .insert(checkpointsToInsert);
+
+      if (insertError) throw insertError;
+
+      toast.success(`${roadbookItems.length} puntos de control importados desde el rutómetro`);
       fetchCheckpoints();
-    } catch (error) {
-      console.error("Error recalculating distances:", error);
-      toast.error("Error al recalcular las distancias");
+    } catch (error: any) {
+      console.error("Error importing from roadbook:", error);
+      toast.error(`Error al importar: ${error.message}`);
     }
 
     setRecalculatingDistances(false);
@@ -1148,24 +1165,14 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
               onChange={handleGpxFileChange}
               className="hidden"
             />
-            {distanceGpxUrl ? (
-              <Button
-                variant="outline"
-                onClick={handleRecalculateDistances}
-                disabled={recalculatingDistances || gpxRoute.length === 0}
-              >
-                <RefreshCw className={`mr-2 h-4 w-4 ${recalculatingDistances ? 'animate-spin' : ''}`} />
-                {recalculatingDistances ? "Recalculando..." : "Recalcular Distancias"}
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                onClick={() => gpxFileInputRef.current?.click()}
-              >
-                <FileUp className="mr-2 h-4 w-4" />
-                Importar GPX
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              onClick={handleImportFromRoadbook}
+              disabled={recalculatingDistances}
+            >
+              <FileUp className={`mr-2 h-4 w-4 ${recalculatingDistances ? 'animate-spin' : ''}`} />
+              {recalculatingDistances ? "Importando..." : "Importar desde Rutómetro"}
+            </Button>
             <Dialog
               open={isDialogOpen}
               onOpenChange={(open) => {

@@ -40,6 +40,7 @@ interface RoadbookItem {
   via: string | null;
   notes: string | null;
   is_highlighted: boolean;
+  is_checkpoint: boolean;
 }
 
 interface RoadbookItemType {
@@ -120,6 +121,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const gpxInputRef = useRef<HTMLInputElement>(null);
   
+  // Filter states
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterCheckpoint, setFilterCheckpoint] = useState<string>("all");
+  const [filterHighlighted, setFilterHighlighted] = useState<string>("all");
+  
   // Dialog states
   const [roadbookDialogOpen, setRoadbookDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
@@ -144,6 +150,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     via: "",
     notes: "",
     is_highlighted: false,
+    is_checkpoint: false,
   });
   
   const { toast } = useToast();
@@ -161,7 +168,12 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     if (roadbook) {
       fetchItems();
     }
-  }, [roadbook, currentPage]);
+  }, [roadbook, currentPage, filterType, filterCheckpoint, filterHighlighted]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, filterCheckpoint, filterHighlighted]);
 
   const fetchDistanceInfo = async () => {
     const { data, error } = await supabase
@@ -219,20 +231,54 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     if (!roadbook) return;
     
     try {
-      const { count } = await supabase
+      // Build query with filters
+      let query = supabase
         .from("roadbook_items")
-        .select("*", { count: "exact", head: true })
+        .select("*", { count: "exact" })
         .eq("roadbook_id", roadbook.id);
       
+      if (filterType !== "all") {
+        query = query.eq("item_type", filterType);
+      }
+      if (filterCheckpoint === "yes") {
+        query = query.eq("is_checkpoint", true);
+      } else if (filterCheckpoint === "no") {
+        query = query.eq("is_checkpoint", false);
+      }
+      if (filterHighlighted === "yes") {
+        query = query.eq("is_highlighted", true);
+      } else if (filterHighlighted === "no") {
+        query = query.eq("is_highlighted", false);
+      }
+      
+      // Get count first
+      const { count } = await query;
       setTotalItems(count || 0);
       
+      // Then get paginated data
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
       
-      const { data, error } = await supabase
+      let dataQuery = supabase
         .from("roadbook_items")
         .select("*")
-        .eq("roadbook_id", roadbook.id)
+        .eq("roadbook_id", roadbook.id);
+      
+      if (filterType !== "all") {
+        dataQuery = dataQuery.eq("item_type", filterType);
+      }
+      if (filterCheckpoint === "yes") {
+        dataQuery = dataQuery.eq("is_checkpoint", true);
+      } else if (filterCheckpoint === "no") {
+        dataQuery = dataQuery.eq("is_checkpoint", false);
+      }
+      if (filterHighlighted === "yes") {
+        dataQuery = dataQuery.eq("is_highlighted", true);
+      } else if (filterHighlighted === "no") {
+        dataQuery = dataQuery.eq("is_highlighted", false);
+      }
+      
+      const { data, error } = await dataQuery
         .order("item_order")
         .range(from, to);
 
@@ -562,6 +608,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         via: item.via || "",
         notes: item.notes || "",
         is_highlighted: item.is_highlighted,
+        is_checkpoint: item.is_checkpoint,
       });
     } else {
       setSelectedItem(null);
@@ -577,9 +624,30 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         via: "",
         notes: "",
         is_highlighted: false,
+        is_checkpoint: false,
       });
     }
     setItemDialogOpen(true);
+  };
+
+  const handleQuickToggle = async (itemId: string, field: 'is_highlighted' | 'is_checkpoint', newValue: boolean) => {
+    setUpdatingItemId(itemId);
+    try {
+      const { error } = await supabase
+        .from("roadbook_items")
+        .update({ [field]: newValue })
+        .eq("id", itemId);
+
+      if (error) throw error;
+
+      setItems(prev => prev.map(item => 
+        item.id === itemId ? { ...item, [field]: newValue } : item
+      ));
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setUpdatingItemId(null);
+    }
   };
 
   const handleSaveItem = async (e: React.FormEvent) => {
@@ -603,6 +671,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         via: itemFormData.via || null,
         notes: itemFormData.notes || null,
         is_highlighted: itemFormData.is_highlighted,
+        is_checkpoint: itemFormData.is_checkpoint,
       };
 
       if (selectedItem) {
@@ -917,13 +986,23 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         rows={2}
                       />
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="is_highlighted"
-                        checked={itemFormData.is_highlighted}
-                        onCheckedChange={(c) => setItemFormData({ ...itemFormData, is_highlighted: c as boolean })}
-                      />
-                      <Label htmlFor="is_highlighted" className="font-normal">Destacar punto</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="is_highlighted"
+                          checked={itemFormData.is_highlighted}
+                          onCheckedChange={(c) => setItemFormData({ ...itemFormData, is_highlighted: c as boolean })}
+                        />
+                        <Label htmlFor="is_highlighted" className="font-normal">Destacar punto</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="is_checkpoint"
+                          checked={itemFormData.is_checkpoint}
+                          onCheckedChange={(c) => setItemFormData({ ...itemFormData, is_checkpoint: c as boolean })}
+                        />
+                        <Label htmlFor="is_checkpoint" className="font-normal">Punto de Control</Label>
+                      </div>
                     </div>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setItemDialogOpen(false)}>
@@ -934,6 +1013,50 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                   </form>
                 </DialogContent>
               </Dialog>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">Tipo:</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="h-8 w-[140px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {itemTypes.map((t) => (
+                    <SelectItem key={t.name} value={t.name}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">P. Control:</Label>
+              <Select value={filterCheckpoint} onValueChange={setFilterCheckpoint}>
+                <SelectTrigger className="h-8 w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="yes">Sí</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm text-muted-foreground whitespace-nowrap">Destacado:</Label>
+              <Select value={filterHighlighted} onValueChange={setFilterHighlighted}>
+                <SelectTrigger className="h-8 w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="yes">Sí</SelectItem>
+                  <SelectItem value="no">No</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -953,8 +1076,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                     <TableHead className="w-24">KM</TableHead>
                     <TableHead className="w-44">Tipo</TableHead>
                     <TableHead>Descripción</TableHead>
-                    <TableHead className="w-20">Parcial</TableHead>
-                    <TableHead className="w-20">Restante</TableHead>
+                    <TableHead className="w-16 text-center" title="Punto de Control">PC</TableHead>
+                    <TableHead className="w-16 text-center" title="Destacado">★</TableHead>
                     <TableHead className="w-16">Alt</TableHead>
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
@@ -1003,11 +1126,19 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                             {item.description}
                           </span>
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {item.km_partial?.toFixed(3) || "-"}
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={item.is_checkpoint}
+                            onCheckedChange={(checked) => handleQuickToggle(item.id, 'is_checkpoint', !!checked)}
+                            disabled={updatingItemId === item.id}
+                          />
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
-                          {item.km_remaining?.toFixed(3) || "-"}
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={item.is_highlighted}
+                            onCheckedChange={(checked) => handleQuickToggle(item.id, 'is_highlighted', !!checked)}
+                            disabled={updatingItemId === item.id}
+                          />
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {item.altitude || "-"}
