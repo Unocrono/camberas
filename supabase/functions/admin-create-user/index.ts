@@ -19,7 +19,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "No authorization header" }),
+        JSON.stringify({ error: "Falta la cabecera de autorización" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -32,7 +32,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: "Invalid user token" }),
+        JSON.stringify({ error: "Token de usuario inválido" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -44,7 +44,7 @@ serve(async (req) => {
 
     if (roleError || !isAdmin) {
       return new Response(
-        JSON.stringify({ error: "Only admins can create users" }),
+        JSON.stringify({ error: "Solo los administradores pueden crear usuarios" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
     
     if (!email || !password) {
       return new Response(
-        JSON.stringify({ error: "Email and password are required" }),
+        JSON.stringify({ error: "Email y contraseña son obligatorios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -76,8 +76,15 @@ serve(async (req) => {
 
     if (createError) {
       console.error("Error creating user:", createError);
+      // Translate common Supabase auth errors
+      let errorMessage = createError.message;
+      if (errorMessage === "User already registered") {
+        errorMessage = "Este usuario ya está registrado";
+      } else if (errorMessage.includes("already exists")) {
+        errorMessage = "Ya existe un usuario con este email";
+      }
       return new Response(
-        JSON.stringify({ error: createError.message }),
+        JSON.stringify({ error: errorMessage }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -111,7 +118,7 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("Error in admin-create-user:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

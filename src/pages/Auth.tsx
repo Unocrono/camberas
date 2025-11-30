@@ -12,6 +12,25 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { z } from "zod";
 
+// Función para traducir mensajes de error de Supabase al español
+const translateAuthError = (message: string): string => {
+  const translations: Record<string, string> = {
+    "User already registered": "Este usuario ya está registrado",
+    "Invalid login credentials": "Credenciales de inicio de sesión inválidas",
+    "Email not confirmed": "El email no ha sido confirmado",
+    "Password should be at least 6 characters": "La contraseña debe tener al menos 6 caracteres",
+    "Unable to validate email address: invalid format": "Formato de email inválido",
+    "Signup requires a valid password": "Se requiere una contraseña válida para registrarse",
+    "Email rate limit exceeded": "Has excedido el límite de intentos. Intenta más tarde",
+    "For security purposes, you can only request this once every 60 seconds": "Por seguridad, solo puedes solicitar esto una vez cada 60 segundos",
+    "New password should be different from the old password": "La nueva contraseña debe ser diferente a la anterior",
+    "Auth session missing!": "Sesión de autenticación no encontrada",
+    "User not found": "Usuario no encontrado",
+  };
+  
+  return translations[message] || message;
+};
+
 const loginSchema = z.object({
   email: z.string()
     .trim()
@@ -133,7 +152,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Error al registrarse",
-          description: error.message,
+          description: translateAuthError(error.message),
           variant: "destructive",
         });
       }
@@ -176,7 +195,7 @@ const Auth = () => {
       } else {
         toast({
           title: "Error al iniciar sesión",
-          description: error.message,
+          description: translateAuthError(error.message),
           variant: "destructive",
         });
       }
