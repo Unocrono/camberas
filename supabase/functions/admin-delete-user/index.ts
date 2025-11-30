@@ -20,7 +20,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "No authorization header" }),
+        JSON.stringify({ error: "Falta la cabecera de autorización" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,7 +33,7 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: "Invalid user token" }),
+        JSON.stringify({ error: "Token de usuario inválido" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -46,7 +46,7 @@ serve(async (req) => {
 
     if (roleError || !isAdmin) {
       return new Response(
-        JSON.stringify({ error: "Only admins can delete users" }),
+        JSON.stringify({ error: "Solo los administradores pueden eliminar usuarios" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,7 +55,7 @@ serve(async (req) => {
     const { userId } = await req.json();
     if (!userId) {
       return new Response(
-        JSON.stringify({ error: "userId is required" }),
+        JSON.stringify({ error: "El userId es obligatorio" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -63,7 +63,7 @@ serve(async (req) => {
     // Prevent admin from deleting themselves
     if (userId === user.id) {
       return new Response(
-        JSON.stringify({ error: "Cannot delete your own account" }),
+        JSON.stringify({ error: "No puedes eliminar tu propia cuenta" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -103,18 +103,18 @@ serve(async (req) => {
     if (deleteError) {
       console.error("Error deleting user:", deleteError);
       return new Response(
-        JSON.stringify({ error: deleteError.message }),
+        JSON.stringify({ error: "Error al eliminar el usuario" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: "User deleted successfully" }),
+      JSON.stringify({ success: true, message: "Usuario eliminado correctamente" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
     console.error("Error in admin-delete-user:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
