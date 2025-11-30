@@ -62,38 +62,38 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending payment confirmation to:", userEmail);
 
     const emailResponse = await resend.emails.send({
-      from: "Race Registration <onboarding@resend.dev>",
+      from: "Camberas <onboarding@resend.dev>",
       to: [userEmail],
-      subject: `Payment Confirmed: ${raceName}`,
+      subject: `Pago Confirmado: ${raceName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Payment Confirmed!</h1>
-          <p>Hello ${userName},</p>
-          <p>We've received your payment for <strong>${raceName}</strong>. Your registration is now complete!</p>
+          <h1 style="color: #16a34a;">¡Pago Confirmado!</h1>
+          <p>Hola ${userName},</p>
+          <p>Hemos recibido tu pago para <strong>${raceName}</strong>. ¡Tu inscripción está completa!</p>
           
           <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
-            <h2 style="margin-top: 0; color: #1f2937;">Registration Details</h2>
-            <p><strong>Race:</strong> ${raceName}</p>
-            <p><strong>Distance:</strong> ${distanceName}</p>
-            <p><strong>Date:</strong> ${new Date(raceDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-            <p><strong>Amount Paid:</strong> €${price.toFixed(2)}</p>
-            ${bibNumber ? `<p><strong>Bib Number:</strong> ${bibNumber}</p>` : ''}
+            <h2 style="margin-top: 0; color: #1f2937;">Detalles de la Inscripción</h2>
+            <p><strong>Carrera:</strong> ${raceName}</p>
+            <p><strong>Distancia:</strong> ${distanceName}</p>
+            <p><strong>Fecha:</strong> ${new Date(raceDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p><strong>Importe Pagado:</strong> ${price.toFixed(2)}€</p>
+            ${bibNumber ? `<p><strong>Número de Dorsal:</strong> ${bibNumber}</p>` : ''}
           </div>
           
           <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #1e40af;">What's Next?</h3>
+            <h3 style="margin-top: 0; color: #1e40af;">¿Qué viene ahora?</h3>
             <ul style="margin: 0; padding-left: 20px;">
-              <li>We'll send you a race reminder 7 days before the event</li>
-              <li>Check your dashboard for race packet pickup information</li>
-              <li>Start training and prepare for race day!</li>
+              <li>Te enviaremos un recordatorio 7 días antes del evento</li>
+              <li>Consulta tu panel de control para información sobre la recogida de dorsales</li>
+              <li>¡Empieza a entrenar y prepárate para el día de la carrera!</li>
             </ul>
           </div>
           
-          <p style="margin-top: 30px;">See you at the starting line!</p>
+          <p style="margin-top: 30px;">¡Nos vemos en la línea de salida!</p>
           
           <p style="margin-top: 30px;">
-            Best regards,<br>
-            The Race Team
+            Un saludo,<br>
+            El equipo de <strong>camberas.com</strong>
           </p>
         </div>
       `,

@@ -99,7 +99,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!races || races.length === 0) {
       console.log("No races found for 7 days from now");
-      return new Response(JSON.stringify({ message: "No races to remind about" }), {
+      return new Response(JSON.stringify({ message: "No hay carreras para recordar" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
@@ -162,41 +162,41 @@ const handler = async (req: Request): Promise<Response> => {
           const cutoffTime = registration.race_distances?.cutoff_time || 'N/A';
 
           await resend.emails.send({
-            from: "Race Registration <onboarding@resend.dev>",
+            from: "Camberas <onboarding@resend.dev>",
             to: [user.email!],
-            subject: `Race Reminder: ${race.name} - 7 Days Away!`,
+            subject: `Recordatorio: ${race.name} - ¡Faltan 7 días!`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #2563eb;">Your Race is Coming Up!</h1>
-                <p>Hello ${userName},</p>
-                <p>This is a friendly reminder that <strong>${race.name}</strong> is just <strong>7 days away</strong>!</p>
+                <h1 style="color: #2563eb;">¡Tu carrera está cerca!</h1>
+                <p>Hola ${userName},</p>
+                <p>Este es un recordatorio amistoso de que <strong>${race.name}</strong> es en solo <strong>7 días</strong>.</p>
                 
                 <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-                  <h2 style="margin-top: 0; color: #1f2937;">Race Information</h2>
-                  <p><strong>Race:</strong> ${race.name}</p>
-                  <p><strong>Your Distance:</strong> ${distanceName} (${distanceKm} km)</p>
-                  <p><strong>Date:</strong> ${new Date(race.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p><strong>Location:</strong> ${race.location}</p>
-                  ${registration.bib_number ? `<p><strong>Your Bib Number:</strong> ${registration.bib_number}</p>` : ''}
-                  ${cutoffTime !== 'N/A' ? `<p><strong>Cutoff Time:</strong> ${cutoffTime}</p>` : ''}
+                  <h2 style="margin-top: 0; color: #1f2937;">Información de la Carrera</h2>
+                  <p><strong>Carrera:</strong> ${race.name}</p>
+                  <p><strong>Tu Distancia:</strong> ${distanceName} (${distanceKm} km)</p>
+                  <p><strong>Fecha:</strong> ${new Date(race.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p><strong>Ubicación:</strong> ${race.location}</p>
+                  ${registration.bib_number ? `<p><strong>Tu Número de Dorsal:</strong> ${registration.bib_number}</p>` : ''}
+                  ${cutoffTime !== 'N/A' ? `<p><strong>Tiempo de Corte:</strong> ${cutoffTime}</p>` : ''}
                 </div>
                 
                 <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #92400e;">Race Day Checklist</h3>
+                  <h3 style="margin-top: 0; color: #92400e;">Lista de Comprobación para el Día de la Carrera</h3>
                   <ul style="margin: 0; padding-left: 20px;">
-                    <li>Pick up your race packet (check race details for pickup times)</li>
-                    <li>Prepare your race gear and nutrition</li>
-                    <li>Get a good night's sleep before race day</li>
-                    <li>Arrive early to warm up and find your starting position</li>
-                    <li>Check the weather forecast and dress appropriately</li>
+                    <li>Recoge tu dorsal (consulta los detalles de la carrera para los horarios de recogida)</li>
+                    <li>Prepara tu equipamiento y nutrición</li>
+                    <li>Descansa bien la noche anterior</li>
+                    <li>Llega temprano para calentar y encontrar tu posición de salida</li>
+                    <li>Consulta la previsión del tiempo y vístete apropiadamente</li>
                   </ul>
                 </div>
                 
-                <p style="margin-top: 30px;">We're excited to see you at the starting line!</p>
+                <p style="margin-top: 30px;">¡Estamos deseando verte en la línea de salida!</p>
                 
                 <p style="margin-top: 30px;">
-                  Best regards,<br>
-                  The Race Team
+                  Un saludo,<br>
+                  El equipo de <strong>camberas.com</strong>
                 </p>
               </div>
             `,
@@ -215,7 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({ 
-        message: "Race reminders processed",
+        message: "Recordatorios de carrera procesados",
         emailsSent,
         emailsFailed,
         racesProcessed: races.length
