@@ -264,6 +264,7 @@ export default function Roadbook() {
                       <TableHead className="text-right w-20">TOTAL</TableHead>
                       <TableHead className="text-right w-20">PARCIAL</TableHead>
                       <TableHead className="text-right w-20">FALTAN</TableHead>
+                      <TableHead className="text-right w-20">ALT.</TableHead>
                       <TableHead className="w-32">Vía</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -290,6 +291,9 @@ export default function Roadbook() {
                           </TableCell>
                           <TableCell className="text-right">
                             {item.km_remaining !== null ? item.km_remaining.toFixed(1) : "-"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.altitude !== null ? `${item.altitude}m` : "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground">
                             {item.via || "-"}
