@@ -20,7 +20,8 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 | **Checkpoint / Control** | `race_checkpoints` | Punto de medición de tiempos intermedios |
 | **Resultado** | `race_results` | Tiempo final y clasificación del participante |
 | **Categoría** | - (calculado) | Grupo de edad/género para clasificación |
-| **Clasificación** | `overall_position`, `category_position` | Posición en general o por categoría |
+| **Sexo** | - (calculado) | Grupo de  género para clasificación |
+| **Clasificación** | `overall_position`, `category_position` , `gender_position`| Posición en general, por categoría o por sexo |
 
 ### Elementos de un Sistema de Cronometraje
 
@@ -138,6 +139,7 @@ races                          races (carreras)
 - registration_id
 - finish_time
 - overall_position (clasificación general)
+- gender_position (clasificación por sexo)
 - category_position (clasificación por categoría)
 - status (finished, dnf, dns, dsq)
 ```
@@ -180,9 +182,11 @@ races                          races (carreras)
 ```
 1. Ordenar por tiempo final
 2. Calcular posiciones generales
-3. Agrupar por categorías (edad + género)
-4. Calcular posiciones por categoría
-5. Generar diplomas/certificados
+3. Agrupar por género
+4. Calcular posiciones por sexo (M/F)
+5. Agrupar por categorías (edad + género)
+6. Calcular posiciones por categoría
+7. Generar diplomas/certificados
 ```
 
 ---
