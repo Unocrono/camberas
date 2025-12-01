@@ -162,7 +162,7 @@ const handler = async (req: Request): Promise<Response> => {
           const cutoffTime = registration.race_distances?.cutoff_time || 'N/A';
 
           await resend.emails.send({
-            from: "Camberas <onboarding@resend.dev>",
+            from: "Camberas <noreply@camberas.com>",
             to: [user.email!],
             subject: `Recordatorio: ${race.name} - ¡Faltan 7 días!`,
             html: `

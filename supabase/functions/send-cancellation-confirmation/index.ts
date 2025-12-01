@@ -72,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
         </div>`;
 
     const emailResponse = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [userEmail],
       subject: `Inscripción Cancelada: ${raceName}`,
       html: `

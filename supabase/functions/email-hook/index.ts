@@ -282,7 +282,7 @@ serve(async (req: Request): Promise<Response> => {
     console.log(`Sending ${email_action_type} email to ${user.email}`);
 
     const emailResponse = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [user.email],
       subject: subject,
       html: htmlContent,

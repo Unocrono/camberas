@@ -71,7 +71,7 @@ serve(async (req: Request): Promise<Response> => {
 
     // Send email via Resend in Spanish
     const emailResponse = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [email],
       subject: "Recupera tu contraseña - Camberas",
       html: `
