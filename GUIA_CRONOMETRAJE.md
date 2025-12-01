@@ -503,7 +503,27 @@ La interfaz de cronometraje manual debe incluir un formulario accesible para reg
 
 ### Arquitectura y Persistencia
 
-**Objetivo**: Aplicación móvil/web para cronometraje manual en puntos de control, funcionando online y offline.
+**Decisión Arquitectónica**: Progressive Web App (PWA) integrada en Camberas
+
+**Justificación:**
+- **Única base de código**: Ruta `/timing` dentro de Camberas, mismo backend/autenticación
+- **Doble modo de acceso**:
+  - **Instalable como PWA**: Cronometradores recurrentes → icono en pantalla de inicio, fullscreen, notificaciones
+  - **Acceso web directo**: Voluntarios ocasionales → sin instalación previa desde navegador
+- **Offline-first**: Service Workers + IndexedDB para funcionamiento 100% sin conexión
+- **Actualizaciones instantáneas**: Sin pasar por App Store/Play Store
+- **Cero costes adicionales**: Sin comisiones de stores ni certificados de desarrollador
+
+**Ruta de acceso:**
+```
+https://camberas.app/timing          → Login de cronometradores
+https://camberas.app/timing/record   → Registro de tiempos (pantalla principal)
+https://camberas.app/timing/dnf      → Registro de retirados
+https://camberas.app/timing/chat     → Mensajería interna
+https://camberas.app/timing/sync     → Sincronización
+```
+
+**Objetivo**: Aplicación web progresiva para cronometraje manual en puntos de control, funcionando online y offline.
 
 #### 1. Sistema de Autenticación y Permisos
 
@@ -1048,3 +1068,53 @@ Cuando trabajes en features de cronometraje:
 **Última actualización**: 2025-12-01
 **Versión**: 1.0
 **Autor**: Camberas Team
+
+---
+
+## 📱 Implementación Técnica PWA
+
+### Configuración de Progressive Web App
+
+**Tecnologías necesarias:**
+- **vite-plugin-pwa**: Plugin para generar Service Worker y manifest
+- **IndexedDB**: Almacenamiento local de datos (corredores, lecturas pendientes)
+- **Service Workers**: Cache de assets y estrategias offline
+- **Web Push API**: Notificaciones (opcional, limitado en iOS)
+
+**Manifest (PWA):**
+```json
+{
+  "name": "Camberas Timing - Cronometraje Profesional",
+  "short_name": "Timing",
+  "description": "App de cronometraje para operadores de carrera",
+  "start_url": "/timing",
+  "display": "standalone",
+  "background_color": "#1a202c",
+  "theme_color": "#1a202c",
+  "orientation": "portrait",
+  "scope": "/timing",
+  "icons": [
+    { "src": "/timing-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/timing-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/timing-icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
+```
+
+**Service Worker - Estrategia de Cache:**
+- **NetworkFirst** para API calls: intenta online, fallback a cache
+- **CacheFirst** para assets estáticos: CSS, JS, imágenes
+- **StaleWhileRevalidate** para datos de corredores: muestra cache, actualiza en background
+
+**Instalación del usuario:**
+1. Acceder a `camberas.app/timing` desde navegador móvil
+2. Sistema muestra banner "Instalar Camberas Timing"
+3. Usuario acepta → se añade icono a pantalla de inicio
+4. Próximos accesos: abre como app nativa fullscreen
+
+**Compatibilidad:**
+- ✅ Android Chrome: Soporte completo PWA + notificaciones
+- ✅ iOS Safari 16.4+: Soporte PWA + notificaciones limitadas
+- ✅ Desktop: Instalable en Chrome/Edge/Safari
+
+---
