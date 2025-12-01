@@ -1,7 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const hookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET") as string;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,10 +34,27 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   try {
-    const payload: EmailHookPayload = await req.json();
-    console.log("Email hook received:", JSON.stringify(payload, null, 2));
+    // Get raw payload for signature verification
+    const payload = await req.text();
+    const headers = Object.fromEntries(req.headers);
 
-    const { user, email_data } = payload;
+    // Verify webhook signature
+    const wh = new Webhook(hookSecret);
+    let verifiedPayload: EmailHookPayload;
+    
+    try {
+      verifiedPayload = wh.verify(payload, headers) as EmailHookPayload;
+    } catch (err) {
+      console.error("Webhook verification failed:", err);
+      return new Response(
+        JSON.stringify({ error: { http_code: 401, message: "Unauthorized" } }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log("Email hook received (verified):", JSON.stringify(verifiedPayload, null, 2));
+
+    const { user, email_data } = verifiedPayload;
     const { token_hash, redirect_to, email_action_type, site_url } = email_data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? site_url;
@@ -290,14 +309,14 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Email sent successfully:", emailResponse);
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({}), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error in email-hook function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: { http_code: error.code || 500, message: error.message } }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
