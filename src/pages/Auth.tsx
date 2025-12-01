@@ -128,11 +128,30 @@ const Auth = () => {
 
       if (error) throw error;
 
+      // Send custom welcome email from Camberas
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+          body: {
+            email: validatedData.email,
+            firstName: validatedData.first_name,
+          },
+        });
+        
+        if (emailError) {
+          console.error("Error sending welcome email:", emailError);
+        } else {
+          console.log("Welcome email sent successfully");
+        }
+      } catch (emailErr) {
+        console.error("Failed to send welcome email:", emailErr);
+        // Don't fail the signup if email fails
+      }
+
       toast({
         title: "¡Cuenta creada!",
         description: isOrganizerSignup 
-          ? "Tu solicitud como organizador será revisada. Por favor, revisa tu email para confirmar tu cuenta."
-          : "Por favor, revisa tu email para confirmar tu cuenta.",
+          ? "Tu solicitud como organizador será revisada. Te hemos enviado un email de bienvenida."
+          : "Te hemos enviado un email de bienvenida. ¡Ya puedes iniciar sesión!",
       });
       
       // Clear form

@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.send-password-reset]
 verify_jwt = false
 
+[functions.send-welcome-email]
+verify_jwt = false
+
 [functions.admin-delete-user]
 verify_jwt = true
 
