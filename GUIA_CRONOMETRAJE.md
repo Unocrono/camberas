@@ -1482,3 +1482,814 @@ Dashboard para organizador:
 - ✅ Desktop: Instalable en Chrome/Edge/Safari
 
 ---
+
+## 📺 Sistema de Broadcasting en Vivo (tipo Singular.live)
+
+### Objetivo
+Sistema web para producción de transmisiones en directo con overlays (gráficos) en tiempo real, integrado nativamente con el sistema de cronometraje de Camberas. Permite crear y controlar gráficos profesionales que se muestran sobre el video de la carrera en OBS/vMix.
+
+---
+
+### **1. Arquitectura del Sistema de Broadcasting**
+
+#### **Estructura de 3 Capas**
+
+```
+┌─────────────────────────────────────────────┐
+│  CAPA DE CONTROL                            │
+│  camberas.com/broadcast/control/:raceId     │
+│  (Panel del director de transmisión)        │
+└──────────────────┬──────────────────────────┘
+                   │
+                   ▼ Supabase Realtime
+┌─────────────────────────────────────────────┐
+│  CAPA DE DATOS (Supabase)                   │
+│  • broadcast_overlays (configuración)       │
+│  • broadcast_commands (acciones en vivo)    │
+│  • gps_tracking (posiciones)                │
+│  • race_results (clasificaciones)           │
+│  • split_times (tiempos)                    │
+└──────────────────┬──────────────────────────┘
+                   │
+                   ▼ Supabase Realtime
+┌─────────────────────────────────────────────┐
+│  CAPA DE VISUALIZACIÓN                      │
+│  camberas.com/broadcast/overlay/:raceId     │
+│  (Pantalla transparente para OBS/vMix)      │
+└─────────────────────────────────────────────┘
+```
+
+**Flujo de trabajo:**
+1. **Director de transmisión** usa el panel de control para seleccionar y configurar overlays
+2. Los **comandos** se envían a Supabase vía Realtime
+3. La **pantalla de overlay** (abierta en OBS como fuente Browser) recibe los comandos instantáneamente
+4. Los **overlays** se muestran/ocultan/actualizan con animaciones profesionales
+5. Los **datos en vivo** (GPS, tiempos, clasificación) se actualizan automáticamente
+
+---
+
+### **2. Tablas de Base de Datos Necesarias**
+
+#### **2.1. `broadcast_overlays` - Configuración de Overlays**
+
+```sql
+CREATE TABLE broadcast_overlays (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id uuid REFERENCES races(id) NOT NULL,
+  overlay_type text NOT NULL, -- 'leaderboard', 'runner_card', 'split_comparison', 'map'
+  name text NOT NULL, -- "Top 10 General", "Líder Actual", etc.
+  position jsonb NOT NULL, -- {x: 100, y: 50, width: 400, height: 300}
+  styling jsonb, -- colores, fuentes, animaciones
+  data_config jsonb, -- configuración específica del overlay
+  is_visible boolean DEFAULT false,
+  z_index integer DEFAULT 0,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Índice para consultas rápidas por carrera
+CREATE INDEX idx_broadcast_overlays_race ON broadcast_overlays(race_id);
+
+-- RLS policies
+ALTER TABLE broadcast_overlays ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Organizers can manage their race overlays"
+ON broadcast_overlays FOR ALL
+USING (
+  has_role(auth.uid(), 'organizer') AND
+  EXISTS (
+    SELECT 1 FROM races
+    WHERE races.id = broadcast_overlays.race_id
+    AND races.organizer_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Anyone can view overlays"
+ON broadcast_overlays FOR SELECT
+USING (true);
+```
+
+**Campos importantes:**
+- `overlay_type`: Define qué tipo de gráfico es
+- `position`: Coordenadas x, y, ancho, alto en píxeles
+- `styling`: JSON con colores, fuentes, sombras, etc.
+- `data_config`: Configuración específica (ej: top N corredores, dorsal a seguir)
+- `is_visible`: Si está visible actualmente en pantalla
+- `z_index`: Orden de capas (overlays superpuestos)
+
+#### **2.2. `broadcast_commands` - Comandos en Tiempo Real**
+
+```sql
+CREATE TABLE broadcast_commands (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id uuid REFERENCES races(id) NOT NULL,
+  command_type text NOT NULL, -- 'show', 'hide', 'update', 'animate'
+  target_overlay_id uuid REFERENCES broadcast_overlays(id),
+  payload jsonb, -- datos del comando
+  executed_at timestamptz DEFAULT now(),
+  created_by uuid REFERENCES profiles(id)
+);
+
+-- Índice para consultas por carrera y timestamp
+CREATE INDEX idx_broadcast_commands_race_time ON broadcast_commands(race_id, executed_at DESC);
+
+-- RLS policies
+ALTER TABLE broadcast_commands ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Organizers can create commands for their races"
+ON broadcast_commands FOR INSERT
+WITH CHECK (
+  has_role(auth.uid(), 'organizer') AND
+  EXISTS (
+    SELECT 1 FROM races
+    WHERE races.id = broadcast_commands.race_id
+    AND races.organizer_id = auth.uid()
+  )
+);
+
+CREATE POLICY "Anyone can view commands"
+ON broadcast_commands FOR SELECT
+USING (true);
+```
+
+**Tipos de comandos:**
+- `show`: Mostrar un overlay con animación de entrada
+- `hide`: Ocultar un overlay con animación de salida
+- `update`: Actualizar datos de un overlay visible
+- `animate`: Aplicar animación especial (highlight, pulse, etc.)
+
+**Ejemplo de payload:**
+```json
+{
+  "animation": "slide-in-left",
+  "duration": 500,
+  "data": {
+    "bibNumber": 245,
+    "highlightPosition": 3
+  }
+}
+```
+
+#### **2.3. `broadcast_presets` - Configuraciones Guardadas**
+
+```sql
+CREATE TABLE broadcast_presets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id uuid REFERENCES races(id) NOT NULL,
+  name text NOT NULL, -- "Setup Salida", "Setup Meta", "Comparación Líderes"
+  description text,
+  overlays jsonb NOT NULL, -- array de configuraciones de overlays
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  created_by uuid REFERENCES profiles(id)
+);
+
+-- RLS policies
+ALTER TABLE broadcast_presets ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Organizers can manage their race presets"
+ON broadcast_presets FOR ALL
+USING (
+  has_role(auth.uid(), 'organizer') AND
+  EXISTS (
+    SELECT 1 FROM races
+    WHERE races.id = broadcast_presets.race_id
+    AND races.organizer_id = auth.uid()
+  )
+);
+```
+
+**Utilidad:**
+- Guardar configuraciones completas de overlays
+- Cambiar rápidamente entre setups (ej: "salida", "km 10", "meta")
+- Reutilizar configuraciones en eventos similares
+
+---
+
+### **3. Tipos de Overlays Disponibles**
+
+#### **3.1. Leaderboard (Clasificación en Vivo)**
+
+Muestra el Top N de corredores con su posición, dorsal, nombre y tiempo.
+
+**Configuración:**
+```typescript
+{
+  type: 'leaderboard',
+  config: {
+    topN: 10, // Número de corredores a mostrar
+    showBib: true,
+    showTime: true,
+    showPace: true,
+    showCategory: false,
+    updateFrequency: 5000, // Actualización cada 5 segundos
+    animateChanges: true, // Animar cambios de posición
+    highlightTop3: true // Destacar podio
+  }
+}
+```
+
+**Diseño visual:**
+```
+┌──────────────────────────────────┐
+│  🏆 CLASIFICACIÓN GENERAL        │
+├──────────────────────────────────┤
+│  1  #245  PÉREZ, Juan   2:34:18 │
+│  2  #123  GARCÍA, Ana   2:35:42 │
+│  3  #678  LÓPEZ, Luis   2:37:09 │
+│  4  #089  MARTÍN, Eva   2:38:51 │
+│  5  #456  RUIZ, Carlos  2:40:23 │
+│  ...                             │
+└──────────────────────────────────┘
+```
+
+#### **3.2. Runner Card (Tarjeta Individual)**
+
+Muestra información detallada de un corredor específico.
+
+**Configuración:**
+```typescript
+{
+  type: 'runner_card',
+  config: {
+    bibNumber: 245, // Dorsal del corredor
+    showPhoto: true,
+    showSplits: true, // Tiempos intermedios
+    showLivePosition: true, // Mini mapa con posición GPS
+    autoUpdate: true,
+    showBattery: false // Batería del GPS
+  }
+}
+```
+
+**Diseño visual:**
+```
+┌───────────────────────────────────┐
+│  🏃 #245  JUAN PÉREZ GARCÍA      │
+│  ───────────────────────────────  │
+│  📊 Posición: 1º / 450            │
+│  🏆 Categoría: 1º M-Senior        │
+│  ⏱️  Tiempo: 2:34:18              │
+│  📍 KM 32.4 / 42.2                │
+│  🏃 Ritmo: 5:45 min/km            │
+│  ───────────────────────────────  │
+│  SPLITS:                          │
+│  ✓ KM 10  00:58:23  (6º)         │
+│  ✓ KM 21  02:04:15  (3º)         │
+│  ⏳ KM 32  En ruta...             │
+└───────────────────────────────────┘
+```
+
+#### **3.3. Split Comparison (Comparación de Tiempos)**
+
+Compara tiempos de varios corredores en un checkpoint específico.
+
+**Configuración:**
+```typescript
+{
+  type: 'split_comparison',
+  config: {
+    bibNumbers: [245, 123, 678], // Dorsales a comparar
+    checkpointId: 'km-21', // Checkpoint de comparación
+    showDifference: true, // Mostrar diferencias
+    highlightLeader: true, // Destacar el más rápido
+    showPace: true
+  }
+}
+```
+
+**Diseño visual:**
+```
+┌─────────────────────────────────────┐
+│  📊 PASO POR KM 21                  │
+├─────────────────────────────────────┤
+│  #245  PÉREZ     02:04:15  🏆       │
+│  #123  GARCÍA    02:05:38  +1:23   │
+│  #678  LÓPEZ     02:06:51  +2:36   │
+└─────────────────────────────────────┘
+```
+
+#### **3.4. Live Map (Mapa en Vivo)**
+
+Mapa con posiciones GPS de corredores.
+
+**Configuración:**
+```typescript
+{
+  type: 'live_map',
+  config: {
+    followBib: 245, // Seguir corredor específico (null = vista completa)
+    showTop10: true, // Mostrar solo top 10
+    showRoute: true, // Mostrar ruta GPX
+    zoom: 14,
+    showLabels: true // Mostrar dorsales en marcadores
+  }
+}
+```
+
+#### **3.5. Custom Text (Texto Personalizado)**
+
+Texto libre configurable (sponsors, información, etc.)
+
+**Configuración:**
+```typescript
+{
+  type: 'custom_text',
+  config: {
+    text: 'Próxima salida: 10:30',
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    textAlign: 'center'
+  }
+}
+```
+
+---
+
+### **4. Componentes React del Sistema**
+
+#### **4.1. Panel de Control (`/broadcast/control/:raceId`)**
+
+```
+src/pages/BroadcastControl.tsx
+├─ BroadcastControlPanel
+│  ├─ Header (carrera, estado conexión)
+│  ├─ OverlaySelector (galería de tipos)
+│  ├─ LiveDataPreview (preview datos en vivo)
+│  ├─ OverlayConfigurator
+│  │  ├─ PositionEditor (arrastrar/redimensionar)
+│  │  ├─ StyleEditor (colores, fuentes)
+│  │  └─ DataConfigEditor (opciones específicas)
+│  ├─ PresetsManager
+│  │  ├─ PresetList (cargar guardados)
+│  │  └─ SavePresetDialog
+│  └─ CommandPanel
+│     ├─ ShowButton
+│     ├─ HideButton
+│     ├─ UpdateButton
+│     └─ AnimateButton
+```
+
+**Funcionalidades del panel:**
+- Crear/editar overlays (tipo, posición, estilo, datos)
+- Vista previa en miniatura de cada overlay
+- Comandos con un clic: Show/Hide/Animate
+- Guardar/cargar presets completos
+- Monitor de estado de la conexión Realtime
+- Preview en tiempo real de datos actualizados
+
+#### **4.2. Pantalla de Overlay (`/broadcast/overlay/:raceId`)**
+
+```
+src/pages/BroadcastOverlay.tsx
+├─ BroadcastOverlayRenderer (fondo transparente)
+│  ├─ ConnectionStatus (indicador discreto)
+│  ├─ OverlayContainer (por cada overlay)
+│  │  ├─ LeaderboardOverlay
+│  │  ├─ RunnerCardOverlay
+│  │  ├─ SplitComparisonOverlay
+│  │  ├─ LiveMapOverlay
+│  │  └─ CustomTextOverlay
+│  └─ TransitionEngine
+│     ├─ SlideIn/Out
+│     ├─ FadeIn/Out
+│     ├─ ScaleIn/Out
+│     └─ CustomAnimations
+```
+
+**Características técnicas:**
+- **Fondo 100% transparente**: CSS `background: transparent`
+- **Sin barras de navegación**: Modo fullscreen
+- **Optimizado para 60fps**: RequestAnimationFrame
+- **Dimensiones estándar**: 1920x1080 (Full HD)
+- **Latencia mínima**: < 200ms con Supabase Realtime
+
+---
+
+### **5. Sistema de Comandos en Tiempo Real**
+
+#### **5.1. Desde el Panel de Control**
+
+```typescript
+// src/hooks/useBroadcastControl.ts
+const useBroadcastControl = (raceId: string) => {
+  const showOverlay = async (overlayId: string, animation = 'slide-in-left') => {
+    await supabase.from('broadcast_commands').insert({
+      race_id: raceId,
+      command_type: 'show',
+      target_overlay_id: overlayId,
+      payload: {
+        animation,
+        duration: 500
+      },
+      created_by: user.id
+    });
+  };
+
+  const hideOverlay = async (overlayId: string, animation = 'slide-out-right') => {
+    await supabase.from('broadcast_commands').insert({
+      race_id: raceId,
+      command_type: 'hide',
+      target_overlay_id: overlayId,
+      payload: {
+        animation,
+        duration: 500
+      },
+      created_by: user.id
+    });
+  };
+
+  const updateOverlay = async (overlayId: string, newData: any) => {
+    await supabase.from('broadcast_commands').insert({
+      race_id: raceId,
+      command_type: 'update',
+      target_overlay_id: overlayId,
+      payload: { data: newData },
+      created_by: user.id
+    });
+  };
+
+  return { showOverlay, hideOverlay, updateOverlay };
+};
+```
+
+#### **5.2. En la Pantalla de Overlay**
+
+```typescript
+// src/hooks/useBroadcastOverlay.ts
+const useBroadcastOverlay = (raceId: string) => {
+  const [overlays, setOverlays] = useState<Overlay[]>([]);
+  const [liveData, setLiveData] = useState<LiveData>();
+
+  useEffect(() => {
+    // Cargar overlays iniciales
+    const loadOverlays = async () => {
+      const { data } = await supabase
+        .from('broadcast_overlays')
+        .select('*')
+        .eq('race_id', raceId);
+      setOverlays(data || []);
+    };
+    loadOverlays();
+
+    // Suscripción a comandos
+    const commandChannel = supabase
+      .channel(`broadcast-commands:${raceId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'broadcast_commands',
+        filter: `race_id=eq.${raceId}`
+      }, (payload) => {
+        handleCommand(payload.new);
+      })
+      .subscribe();
+
+    // Suscripción a datos en vivo (GPS, resultados)
+    const dataChannel = supabase
+      .channel(`broadcast-data:${raceId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'gps_tracking',
+        filter: `race_id=eq.${raceId}`
+      }, () => {
+        updateLiveData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(commandChannel);
+      supabase.removeChannel(dataChannel);
+    };
+  }, [raceId]);
+
+  const handleCommand = (command: BroadcastCommand) => {
+    switch(command.command_type) {
+      case 'show':
+        animateIn(command.target_overlay_id, command.payload);
+        break;
+      case 'hide':
+        animateOut(command.target_overlay_id, command.payload);
+        break;
+      case 'update':
+        updateOverlay(command.target_overlay_id, command.payload.data);
+        break;
+      case 'animate':
+        applyAnimation(command.target_overlay_id, command.payload.animation);
+        break;
+    }
+  };
+
+  const animateIn = (overlayId: string, payload: any) => {
+    setOverlays(prev => prev.map(overlay => 
+      overlay.id === overlayId
+        ? { ...overlay, is_visible: true, animation: payload.animation }
+        : overlay
+    ));
+  };
+
+  const animateOut = (overlayId: string, payload: any) => {
+    setOverlays(prev => prev.map(overlay => 
+      overlay.id === overlayId
+        ? { ...overlay, is_visible: false, animation: payload.animation }
+        : overlay
+    ));
+  };
+
+  return { overlays, liveData };
+};
+```
+
+---
+
+### **6. Integración con OBS/vMix**
+
+#### **6.1. Configuración en OBS Studio**
+
+1. **Añadir fuente Browser:**
+   - Fuentes → Browser
+   - URL: `https://camberas.com/broadcast/overlay/:raceId`
+   - Ancho: 1920
+   - Alto: 1080
+   - FPS: 60
+   - ✅ Activar "Shutdown source when not visible"
+   - ✅ Activar "Refresh browser when scene becomes active"
+
+2. **Configuración de Transparencia:**
+   - En propiedades de Browser, CSS personalizado:
+   ```css
+   body {
+     background: transparent !important;
+     margin: 0;
+     padding: 0;
+     overflow: hidden;
+   }
+   ```
+
+3. **Optimización:**
+   - No requiere chroma key (fondo nativo transparente)
+   - Latencia típica: 100-200ms
+   - GPU rendering automático
+
+#### **6.2. Configuración en vMix**
+
+Similar a OBS, usar "Input → Web Browser":
+- URL: `https://camberas.com/broadcast/overlay/:raceId`
+- Resolución: 1920x1080
+- Transparencia: Automática
+
+---
+
+### **7. Flujo de Trabajo Típico**
+
+#### **Antes del Evento:**
+
+1. **Crear overlays básicos:**
+   - Top 10 General
+   - Tarjetas de líderes por categoría
+   - Mapa en vivo
+   - Textos con sponsors
+
+2. **Configurar posiciones:**
+   - Usar editor visual de posición
+   - Ajustar tamaños y fuentes
+   - Previsualizar en diferentes resoluciones
+
+3. **Guardar presets:**
+   - "Setup Salida" (info general, sponsors)
+   - "Setup Carrera" (clasificación, mapa)
+   - "Setup Meta" (llegadas, podio)
+
+#### **Durante el Evento:**
+
+1. **Salida:**
+   - Cargar preset "Setup Salida"
+   - Mostrar info de la carrera
+   - Mostrar sponsors principales
+
+2. **Durante la carrera:**
+   - Cargar preset "Setup Carrera"
+   - Mostrar clasificación general (actualización automática)
+   - Mostrar tarjeta del líder
+   - Alternar con mapa en vivo
+
+3. **Meta:**
+   - Cargar preset "Setup Meta"
+   - Mostrar llegadas en tiempo real
+   - Comparar tiempos de podio
+   - Celebrar ganadores
+
+#### **Ejemplo de Secuencia:**
+
+```
+Minuto 0: Show "Título Carrera" + "Sponsors"
+Minuto 5: Hide "Título", Show "Top 10"
+Minuto 10: Update "Top 10" (automático cada 5s)
+Minuto 15: Show "Líder Actual" (tarjeta individual)
+Minuto 20: Hide "Líder", Show "Mapa en Vivo"
+Minuto 25: Hide "Mapa", Show "Top 10"
+...
+Final: Show "Podio" + "Tiempo Ganador"
+```
+
+---
+
+### **8. Animaciones Disponibles**
+
+#### **Transiciones de Entrada:**
+- `slide-in-left`: Deslizar desde izquierda
+- `slide-in-right`: Deslizar desde derecha
+- `slide-in-top`: Deslizar desde arriba
+- `slide-in-bottom`: Deslizar desde abajo
+- `fade-in`: Aparecer gradualmente
+- `scale-in`: Crecer desde el centro
+- `bounce-in`: Entrada con rebote
+
+#### **Transiciones de Salida:**
+- `slide-out-left`, `slide-out-right`, `slide-out-top`, `slide-out-bottom`
+- `fade-out`: Desaparecer gradualmente
+- `scale-out`: Reducir hacia el centro
+- `bounce-out`: Salida con rebote
+
+#### **Animaciones Especiales:**
+- `pulse`: Pulsación para llamar atención
+- `highlight`: Resaltar cambio de posición
+- `shake`: Sacudida para alertas
+- `glow`: Efecto de brillo
+
+**Configuración de animación:**
+```typescript
+{
+  animation: 'slide-in-left',
+  duration: 500, // milisegundos
+  easing: 'ease-out', // ease, ease-in, ease-out, ease-in-out
+  delay: 0 // retraso antes de iniciar
+}
+```
+
+---
+
+### **9. Estructura de Archivos Completa**
+
+```
+src/
+├── pages/
+│   ├── BroadcastControl.tsx      # Panel de control principal
+│   └── BroadcastOverlay.tsx      # Pantalla de overlay para OBS
+├── components/
+│   └── broadcast/
+│       ├── overlays/
+│       │   ├── LeaderboardOverlay.tsx
+│       │   ├── RunnerCardOverlay.tsx
+│       │   ├── SplitComparisonOverlay.tsx
+│       │   ├── LiveMapOverlay.tsx
+│       │   └── CustomTextOverlay.tsx
+│       ├── control/
+│       │   ├── OverlaySelector.tsx
+│       │   ├── OverlayConfigurator.tsx
+│       │   ├── PositionEditor.tsx
+│       │   ├── StyleEditor.tsx
+│       │   ├── DataConfigEditor.tsx
+│       │   ├── PresetsManager.tsx
+│       │   └── CommandPanel.tsx
+│       └── animations/
+│           ├── SlideIn.tsx
+│           ├── SlideOut.tsx
+│           ├── FadeIn.tsx
+│           ├── FadeOut.tsx
+│           ├── ScaleIn.tsx
+│           └── Bounce.tsx
+├── hooks/
+│   ├── useBroadcastControl.ts
+│   ├── useBroadcastOverlay.ts
+│   └── useLiveRaceData.ts (ya existe)
+└── types/
+    └── broadcast.ts
+```
+
+---
+
+### **10. Ventajas sobre Singular.live**
+
+| Característica | Singular.live | Camberas Broadcasting |
+|----------------|---------------|----------------------|
+| **Coste** | Licencia mensual ($$$) | Incluido sin coste adicional |
+| **Integración** | API externa | Nativo con cronometraje |
+| **Latencia** | ~500ms | < 200ms |
+| **Datos en vivo** | Requiere configuración | Automático desde GPS + checkpoints |
+| **Personalización** | Plantillas limitadas | 100% personalizable con React |
+| **Hosting** | Cloud externo | Autohosteado |
+| **Curva aprendizaje** | Interface compleja | Interface intuitiva |
+| **Open Source** | ❌ | ✅ |
+
+---
+
+### **11. Casos de Uso**
+
+#### **11.1. Transmisión en Directo**
+- YouTube Live
+- Twitch
+- Facebook Live
+- Streaming a web propia
+
+**Setup:**
+- OBS con overlay de Camberas
+- Cámara en meta o puntos clave
+- Comentarista con panel de control
+- Datos actualizados en tiempo real
+
+#### **11.2. Pantallas Gigantes en Evento**
+- Pantalla LED en zona de salida
+- Pantalla en meta con llegadas
+- Pantallas en avituallamientos con paso de corredores
+
+**Setup:**
+- Navegador en fullscreen apuntando a overlay
+- Actualización automática de datos
+- Sin operador necesario
+
+#### **11.3. Producción Profesional de TV**
+- Integración con estudios profesionales
+- Múltiples cámaras
+- Gráficos complejos sincronizados
+
+**Setup:**
+- vMix con múltiples overlays
+- Control remoto desde regía
+- Presets por segmento del programa
+
+#### **11.4. Eventos Virtuales/Híbridos**
+- Carreras virtuales con participantes remotos
+- Webinars con datos en vivo
+- Conferencias con pantallas interactivas
+
+---
+
+### **12. Rutas del Sistema**
+
+```
+camberas.com/broadcast/control/:raceId     → Panel de control (organizer)
+camberas.com/broadcast/overlay/:raceId     → Pantalla overlay (OBS/vMix)
+camberas.com/broadcast/preview/:raceId     → Preview sin transparencia (testing)
+```
+
+---
+
+### **13. Métricas y Monitorización**
+
+**Panel de estadísticas del broadcast:**
+```
+┌─────────────────────────────────────┐
+│  📺 BROADCAST - Maratón Valencia    │
+│                                     │
+│  🟢 Estado: En vivo                 │
+│  👁️  Viewers: 3                     │
+│  📊 Overlays activos: 2/8           │
+│  ⏱️  Latencia media: 150ms          │
+│                                     │
+│  OVERLAYS VISIBLES:                 │
+│  • Top 10 General                   │
+│  • Mapa en Vivo                     │
+│                                     │
+│  COMANDOS RECIENTES:                │
+│  23:45:12 - Show "Top 10"           │
+│  23:44:58 - Hide "Líder"            │
+│  23:44:32 - Update "Mapa"           │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 🔗 Relación con Sistema de Seguimiento GPS
+
+El sistema de broadcasting se integra perfectamente con el sistema de seguimiento GPS en vivo:
+
+```
+GPS Tracking (/live/gps/:raceId)
+       ↓
+  Datos en tiempo real
+       ↓
+Broadcasting System
+       ↓
+  Overlays en OBS
+       ↓
+  Transmisión en vivo
+```
+
+**Datos compartidos:**
+- Posiciones GPS de corredores
+- Clasificación en tiempo real
+- Split times actualizados
+- Estado de batería de dispositivos
+- Estimaciones de llegada
+
+---
+
+**Última actualización**: 2025-12-01
+**Versión**: 1.1
+**Autor**: Camberas Team
+
+---
