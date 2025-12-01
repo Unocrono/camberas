@@ -442,37 +442,60 @@ Proceso de cálculo:
 
 #### Interfaz de Registro de Estados Especiales
 
-La interfaz de cronometraje manual debe incluir una opción dedicada para registrar estados especiales:
+La interfaz de cronometraje manual debe incluir un formulario accesible para registrar estados especiales (DNF/DNS/DSQ/Withdrawn).
 
-**Flujo de Registro de Estado:**
-1. **Buscar corredor**: Por dorsal o nombre
-2. **Validar datos**: Mostrar info del corredor (nombre, evento, última lectura)
-3. **Seleccionar estado**:
-   - **DNF (Did Not Finish)**: No terminó / Abandonó
-   - **DNS (Did Not Start)**: No comenzó la carrera
-   - **DSQ (Disqualified)**: Descalificado
-   - **Withdrawn**: Retirado antes de salida
-4. **Checkpoint opcional**: Si aplica, indicar en qué punto abandonó/fue descalificado
-5. **Motivo**: Campo de texto obligatorio para explicar (ej: "Lesión", "Fuera de tiempo", "Violación reglamento Art. 12")
-6. **Confirmación**: Revisar antes de guardar
-7. **Registro**: Crear timing_reading con reading_type='status_change'
+**Diseño del Formulario:**
+- **Accesibilidad**: Totalmente navegable con tecla Tab (orden lógico de campos)
+- **Campos principales**:
+  1. **Dorsal** (input numérico, autofocus)
+     - Validación en tiempo real
+     - Muestra info del corredor al validar (nombre, evento, última lectura)
+  2. **Tipo de estado** (radio buttons o select)
+     - DNF (Did Not Finish) - No terminó
+     - DNS (Did Not Start) - No comenzó
+     - DSQ (Disqualified) - Descalificado
+     - Withdrawn - Retirado antes de salida
+  3. **Motivo** (textarea, obligatorio)
+     - Placeholder: "ej: Lesión rodilla km 15, Fuera de tiempo límite, etc."
+     - Mínimo 10 caracteres
+  4. **Checkpoint** (select opcional)
+     - Solo si aplica (DNF/DSQ)
+     - Indica dónde ocurrió el abandono/descalificación
 
-**Información mostrada:**
-- Dorsal y nombre del corredor
-- Última lectura registrada (checkpoint y hora)
-- Kilómetro aproximado donde se encontraba
+**Flujo de Usuario:**
+1. Ingresar dorsal → Tab
+2. Sistema valida y muestra info del corredor
+3. Seleccionar tipo de estado → Tab
+4. Escribir motivo obligatorio → Tab
+5. (Opcional) Seleccionar checkpoint → Tab
+6. Confirmar con Enter o botón "Registrar"
+
+**Información Contextual Mostrada:**
+- Nombre completo del corredor
+- Evento inscrito
+- Última lectura (checkpoint, hora, km aproximado)
 - Tiempo transcurrido en carrera
+- Estado actual
 
 **Validaciones:**
-- No permitir cambiar estado si ya tiene resultado final (finish_time)
-- Confirmar acción con diálogo de advertencia
-- Requerir motivo obligatorio con mínimo de caracteres
-- Solo usuarios con rol TIMER o superior pueden registrar estados
+- Dorsal debe existir y estar inscrito en la carrera activa
+- No permitir cambiar estado si ya tiene finish_time registrado
+- Motivo obligatorio (min 10 caracteres, max 500)
+- Confirmación con diálogo de advertencia antes de guardar
+- Solo usuarios TIMER o superior pueden registrar estados
 
-**Reversión:**
-- Permitir anular estado especial si fue error (solo en ventana de tiempo)
-- Mantener historial de cambios en timing_readings
-- Notificar al organizador de cambios importantes
+**Feedback Visual:**
+- Verde: Dorsal válido encontrado
+- Rojo: Dorsal no encontrado o inválido
+- Amarillo: Advertencia si ya tiene lecturas en meta
+- Toast de confirmación al guardar exitosamente
+
+**Acciones Post-Registro:**
+- Crear timing_reading con reading_type='status_change'
+- Actualizar race_results.status inmediatamente
+- Limpiar formulario para siguiente registro
+- Opción de reversión (solo en ventana de 5 minutos)
+- Mantener historial de cambios auditable
 
 ---
 
