@@ -1071,6 +1071,370 @@ Cuando trabajes en features de cronometraje:
 
 ---
 
+## 🗺️ Sistema de Seguimiento en Vivo - Arquitectura
+
+### Objetivo
+Sistema web para seguimiento en tiempo real de participantes combinando datos GPS de apps móviles y tiempos registrados en puntos de cronometraje.
+
+### Componentes del Sistema
+
+#### 1. **Mapa de Seguimiento en Vivo** (`/live-gps/:raceId`)
+
+**Elementos visuales:**
+```
+┌─────────────────────────────────────────────────┐
+│ 🗺️ MAPA PRINCIPAL (Mapbox GL)                  │
+│                                                 │
+│  • Ruta GPX de la carrera (línea)             │
+│  • Checkpoints (📍 iconos fijos)              │
+│  • Corredores (🏃 iconos móviles)             │
+│  • Tooltips con info al hover                  │
+│                                                 │
+│ ┌─────────────────┐                            │
+│ │ PANEL LATERAL   │                            │
+│ │                 │                            │
+│ │ 🔍 Buscar       │                            │
+│ │ 📊 Filtros      │                            │
+│ │ ━━━━━━━━━━━━━  │                            │
+│ │ TOP 10         │                            │
+│ │ 1. 🏃 #123     │                            │
+│ │ 2. 🏃 #045     │                            │
+│ │ 3. 🏃 #678     │                            │
+│ │ ...            │                            │
+│ └─────────────────┘                            │
+└─────────────────────────────────────────────────┘
+```
+
+**Funcionalidades:**
+- ✅ Mapa interactivo con ruta de la carrera
+- ✅ Marcadores de corredores actualizados en tiempo real
+- ✅ Click en corredor → panel con detalles y split times
+- ✅ Filtros: por evento, categoría, rango de dorsales
+- ✅ Búsqueda por dorsal o nombre
+- ✅ Toggle capa de altimetría
+- ✅ Modo fullscreen
+
+#### 2. **Fuentes de Datos**
+
+##### A. Datos GPS (tabla `gps_tracking`)
+```typescript
+interface GPSPoint {
+  id: string;
+  registration_id: string;
+  race_id: string;
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+  speed?: number;
+  accuracy?: number;
+  battery_level?: number;
+  timestamp: string;
+}
+```
+
+**Origen:**
+- App móvil del corredor (RunnerGPSTracker)
+- Frecuencia configurable: 10-60 segundos
+- Se envía solo si `gps_tracking_enabled = true` en `race_distances`
+
+##### B. Tiempos de Checkpoint (tabla `split_times`)
+```typescript
+interface SplitTime {
+  id: string;
+  race_result_id: string;
+  checkpoint_name: string;
+  checkpoint_order: number;
+  distance_km: number;
+  split_time: Interval; // Tiempo desde salida
+}
+```
+
+**Origen:**
+- App de cronometraje manual `/timing/record`
+- Lectores RFID (futuro)
+- Sistema foto-finish (futuro)
+
+#### 3. **Arquitectura de Datos en Tiempo Real**
+
+```
+┌──────────────────────┐
+│  RUNNER GPS APP      │
+│  (React Native/PWA)  │
+└──────────┬───────────┘
+           │ POST /gps_tracking
+           ▼
+┌──────────────────────┐
+│  SUPABASE            │
+│  ├─ gps_tracking     │◄───── INSERT con RLS
+│  ├─ split_times      │
+│  └─ registrations    │
+└──────────┬───────────┘
+           │ Realtime Subscription
+           ▼
+┌──────────────────────┐
+│  WEB TRACKING        │
+│  camberas.com/live   │
+│  /gps/:raceId        │
+└──────────────────────┘
+```
+
+**Realtime con Supabase:**
+```typescript
+// Subscribe a GPS updates
+const channel = supabase
+  .channel(`race:${raceId}`)
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'gps_tracking',
+      filter: `race_id=eq.${raceId}`
+    },
+    (payload) => {
+      updateRunnerPosition(payload.new);
+    }
+  )
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'split_times',
+      filter: `race_result_id=in.(${resultIds})`
+    },
+    (payload) => {
+      updateRunnerSplits(payload.new);
+    }
+  )
+  .subscribe();
+```
+
+#### 4. **Panel de Información del Corredor**
+
+Al hacer click en un marcador o en la lista:
+
+```
+┌────────────────────────────────────┐
+│  🏃 DORSAL #123                    │
+│  Juan Pérez García                 │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                    │
+│  📊 Posición: 15º / 450            │
+│  🏆 Categoría: 3º M-Senior         │
+│  ⏱️  Tiempo actual: 2h 34m 18s     │
+│  📍 KM 32.4 / 42.2                 │
+│  🏃 Ritmo: 5:45 min/km             │
+│  🔋 Batería: 68%                   │
+│                                    │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│  📌 PASOS POR CHECKPOINTS          │
+│  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│  ✅ Salida     │ 00:00:00          │
+│  ✅ KM 10      │ 00:58:23 (6º)     │
+│  ✅ KM 21      │ 02:04:15 (10º)    │
+│  ⏳ KM 32      │ En ruta...        │
+│  ⏹️  Meta       │ --:--:--          │
+│                                    │
+│  [📈 Ver Gráfico] [🔔 Notificar]  │
+└────────────────────────────────────┘
+```
+
+#### 5. **Iconografía y Colores**
+
+**Estados del corredor:**
+```typescript
+enum RunnerStatus {
+  ACTIVE = 'active',        // 🏃 Verde - corriendo
+  CHECKPOINT = 'checkpoint', // 📍 Azul - en checkpoint
+  SLOW = 'slow',            // 🚶 Amarillo - ritmo muy lento
+  STOPPED = 'stopped',      // 🛑 Naranja - parado >5min
+  DNF = 'dnf',              // ❌ Rojo - retirado
+  FINISHED = 'finished'     // 🏁 Gris - finalizó
+}
+```
+
+**Colores por evento:**
+```typescript
+const eventColors = {
+  '10K': '#10b981',    // Verde
+  '21K': '#3b82f6',    // Azul
+  '42K': '#8b5cf6',    // Morado
+  'Ultra': '#ef4444'   // Rojo
+};
+```
+
+#### 6. **Optimizaciones de Rendimiento**
+
+**Clustering de marcadores:**
+```typescript
+// Cuando hay >100 corredores visibles, agrupar
+if (runners.length > 100) {
+  return <MarkerClusterGroup>{markers}</MarkerClusterGroup>;
+}
+```
+
+**Throttling de updates:**
+```typescript
+// Limitar updates del mapa a 1 por segundo
+const updateMap = throttle((gpsData) => {
+  setRunnerPositions(gpsData);
+}, 1000);
+```
+
+**Viewport culling:**
+```typescript
+// Solo renderizar corredores en viewport actual
+const visibleRunners = runners.filter(runner => 
+  mapBounds.contains([runner.latitude, runner.longitude])
+);
+```
+
+#### 7. **Interpolación de Posiciones**
+
+Para movimiento suave entre updates GPS:
+
+```typescript
+function interpolatePosition(
+  lastPos: GPSPoint,
+  currentPos: GPSPoint,
+  progress: number // 0-1
+): [number, number] {
+  const lat = lastPos.latitude + 
+    (currentPos.latitude - lastPos.latitude) * progress;
+  const lng = lastPos.longitude + 
+    (currentPos.longitude - lastPos.longitude) * progress;
+  return [lat, lng];
+}
+```
+
+#### 8. **Esquema de Base de Datos**
+
+**Relaciones clave:**
+```sql
+gps_tracking
+├─ registration_id → registrations.id
+├─ race_id → races.id
+└─ timestamp (index)
+
+split_times
+├─ race_result_id → race_results.id
+└─ checkpoint_order (index)
+
+race_results
+└─ registration_id → registrations.id
+
+registrations
+├─ user_id → profiles.id
+├─ race_id → races.id
+├─ race_distance_id → race_distances.id
+└─ bib_number (unique per race)
+```
+
+**Query principal para panel:**
+```sql
+SELECT 
+  r.id as registration_id,
+  r.bib_number,
+  r.race_distance_id,
+  p.first_name,
+  p.last_name,
+  p.gender,
+  p.birth_date,
+  rd.name as event_name,
+  rr.overall_position,
+  rr.category_position,
+  rr.finish_time,
+  rr.status,
+  (SELECT row_to_json(gps.*) 
+   FROM gps_tracking gps 
+   WHERE gps.registration_id = r.id 
+   ORDER BY timestamp DESC 
+   LIMIT 1) as last_gps,
+  (SELECT json_agg(st.* ORDER BY st.checkpoint_order) 
+   FROM split_times st 
+   WHERE st.race_result_id = rr.id) as splits
+FROM registrations r
+JOIN profiles p ON p.id = r.user_id
+JOIN race_distances rd ON rd.id = r.race_distance_id
+LEFT JOIN race_results rr ON rr.registration_id = r.id
+WHERE r.race_id = $1
+  AND r.status = 'confirmed';
+```
+
+#### 9. **Rutas de la Aplicación**
+
+```
+camberas.com/live/gps/:raceId          → Mapa seguimiento en vivo
+camberas.com/live/gps/:raceId/:bibNumber → Vista individual
+camberas.com/live/results/:raceId      → Resultados en vivo (tabla)
+camberas.com/live/stats/:raceId        → Estadísticas en tiempo real
+```
+
+#### 10. **APIs y Edge Functions Necesarias**
+
+**GET /live/runners/:raceId**
+```typescript
+// Devuelve snapshot actual de todos los corredores
+{
+  "runners": [
+    {
+      "registration_id": "uuid",
+      "bib_number": 123,
+      "name": "Juan Pérez",
+      "event": "42K",
+      "position": 15,
+      "last_gps": {
+        "latitude": 40.4168,
+        "longitude": -3.7038,
+        "timestamp": "2024-12-01T10:30:15Z"
+      },
+      "last_checkpoint": {
+        "name": "KM 21",
+        "split_time": "02:04:15"
+      }
+    }
+  ]
+}
+```
+
+**POST /live/notify/:registrationId**
+```typescript
+// Notificar a familiares cuando pasa por checkpoint
+{
+  "checkpoint_name": "Meta",
+  "split_time": "03:45:23",
+  "position": 142,
+  "photo_url": "https://..."
+}
+```
+
+#### 11. **Métricas y Analytics**
+
+Dashboard para organizador:
+
+```
+┌─────────────────────────────────────┐
+│  📊 ESTADÍSTICAS EN VIVO            │
+│                                     │
+│  👥 Corredores activos: 387 / 450  │
+│  🏃 En ruta: 352                    │
+│  🏁 Finalizados: 35                 │
+│  ❌ Retirados: 12                   │
+│                                     │
+│  📈 Ritmo promedio: 6:15 min/km     │
+│  ⏱️  Tiempo estimado líder: 3h 12m  │
+│  🔋 Batería media GPS: 72%          │
+│                                     │
+│  📍 CHECKPOINT KM 21                │
+│  ├─ Pasados: 248                    │
+│  ├─ Esperados: 139                  │
+│  └─ Ritmo paso: 18 corr/min         │
+└─────────────────────────────────────┘
+```
+
+---
+
 ## 📱 Implementación Técnica PWA
 
 ### Configuración de Progressive Web App
