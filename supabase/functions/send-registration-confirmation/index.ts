@@ -67,7 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending registration confirmation to:", userEmail);
 
     const emailResponse = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [userEmail],
       subject: `Inscripción Confirmada: ${raceName}`,
       html: `
