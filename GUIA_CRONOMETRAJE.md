@@ -43,10 +43,19 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 - Puede tener dígito de control para validación
 
 #### 3. **Sistema de Cronometraje**
-- **Manual**: Registro de tiempos por observador
+- **Manual**: Registro de tiempos por observador (requiere rol TIMER)
 - **Chip RFID**: Detección automática en cada checkpoint
 - **GPS**: Tracking en tiempo real (implementado)
 - **Foto-finish**: Para llegadas muy ajustadas
+
+#### 3.1 **Roles de Usuario en Cronometraje**
+- **Admin**: Gestión completa del sistema
+- **Organizer**: Gestiona sus propias carreras, eventos y resultados
+- **Timer**: Operador de cronometraje con permisos para:
+  - Registrar lecturas manuales en `timing_readings`
+  - Acceder a interfaces de cronometraje durante eventos
+  - Ver y validar lecturas de dorsales en checkpoints
+  - NO puede modificar configuración de carreras ni resultados finales
 
 #### 4. **Puntos de Control (Checkpoints)**
 - **Salida**: KM 0 - Inicio oficial
@@ -282,19 +291,27 @@ Proceso de cálculo:
 - "Cronometraje" → split times management
 - "Publicar Resultados" → race_results
 
+### Lo que el timer (operador de cronometraje) ve:
+- "Cronometraje Manual" → interfaz para registrar lecturas
+- "Checkpoints Activos" → puntos de control donde puede cronometrar
+- "Lecturas Recientes" → últimas lecturas registradas
+- "Validar Dorsal" → verificar que dorsal existe y está activo
+
 ---
 
 ## ⚠️ Pendientes de Implementar
 
 ### Alta Prioridad
 1. **Tabla timing_readings**: Implementar tabla de lecturas raw antes de procesar split_times
-2. **Procesamiento de lecturas**: Lógica para convertir readings en split_times
-3. **Categorías Automáticas**: Calcular categoría según edad + género
-4. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
-5. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
-6. **Tiempos Netos**: Diferencia entre tiempo gun y neto
-7. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
-8. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
+2. **Rol TIMER**: Añadir rol 'timer' al enum app_role con permisos específicos
+3. **Interfaz de Cronometraje Manual**: UI para usuarios TIMER registrar lecturas
+4. **Procesamiento de lecturas**: Lógica para convertir readings en split_times
+5. **Categorías Automáticas**: Calcular categoría según edad + género
+6. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
+7. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
+8. **Tiempos Netos**: Diferencia entre tiempo gun y neto
+9. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
+10. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
 
 ### Media Prioridad
 5. **Equipos/Clubes**: Clasificación por equipos
@@ -313,6 +330,9 @@ Proceso de cálculo:
 
 ### Refactorización Futura (cuando convenga)
 ```sql
+-- Añadir rol TIMER al enum
+ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'timer';
+
 -- Renombrar tabla principal
 ALTER TABLE race_distances RENAME TO race_events;
 
@@ -406,7 +426,12 @@ Cuando trabajes en features de cronometraje:
    - Para circuitos con vueltas: usar lap_number
 9. **Tipos de lecturas**:
    - Automáticas (chip RFID): chip_code presente, operator_user_id null
-   - Manuales: operator_user_id presente, chip_code puede ser null
+   - Manuales: operator_user_id presente (debe tener rol TIMER), chip_code puede ser null
+10. **Roles y permisos**:
+   - Admin: acceso completo
+   - Organizer: gestión de sus carreras
+   - Timer: solo cronometraje manual (insertar timing_readings)
+   - User: corredor estándar
 
 ---
 
