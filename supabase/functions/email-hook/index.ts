@@ -348,9 +348,8 @@ serve(async (req: Request): Promise<Response> => {
     console.log(`Sending ${email_action_type} email to ${user.email}`);
     console.log("RESEND_API_KEY configured:", Deno.env.get("RESEND_API_KEY") ? "yes (length: " + Deno.env.get("RESEND_API_KEY")?.length + ")" : "NO - THIS IS THE PROBLEM!");
 
-    // Use Resend's test domain for development - change to your verified domain in production
-    // To use your own domain, verify it at https://resend.com/domains
-    const fromEmail = "Camberas <onboarding@resend.dev>";
+    // Using verified domain camberas.com
+    const fromEmail = "Camberas <noreply@camberas.com>";
     
     console.log("Sending email with from:", fromEmail);
 
