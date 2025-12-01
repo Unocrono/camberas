@@ -52,6 +52,10 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 - **Salida**: KM 0 - Inicio oficial
 - **Intermedios**: Controles de paso (ej: KM 10, KM 21)
 - **Meta**: Punto final - tiempo oficial
+- **Nota importante**: Un mismo dorsal puede pasar múltiples veces por un checkpoint:
+  - Circuitos con vueltas (lap 1, lap 2, lap 3...)
+  - Lecturas duplicadas de chip RFID
+  - Carreras con ida y vuelta por el mismo punto
 
 #### 5. **Tiempos y Clasificaciones**
 - **Tiempo Neto**: Desde que el corredor cruza salida hasta meta
@@ -129,8 +133,16 @@ races                          races (carreras)
 - race_result_id
 - checkpoint_name
 - checkpoint_order
-- split_time (interval)
+- split_time (interval) -- tiempo acumulado desde salida
 - distance_km
+- lap_number (futuro) -- para carreras con vueltas
+- timestamp (futuro) -- momento exacto de lectura
+
+NOTA: No hay constraint único en (race_result_id, checkpoint_order)
+Esto permite múltiples registros del mismo checkpoint:
+- Circuitos con vueltas
+- Lecturas duplicadas a filtrar
+- Puntos de paso/retorno
 ```
 
 #### `race_results` - Resultados Finales
@@ -238,6 +250,8 @@ races                          races (carreras)
 2. **Gestión de Chips**: Tabla de chips RFID vinculados a dorsales
 3. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
 4. **Tiempos Netos**: Diferencia entre tiempo gun y neto
+5. **Vueltas/Laps**: Campo lap_number en split_times para circuitos
+6. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
 
 ### Media Prioridad
 5. **Equipos/Clubes**: Clasificación por equipos
@@ -313,6 +327,10 @@ Cuando trabajes en features de cronometraje:
 4. **Ordena splits** por checkpoint_order
 5. **Calcula categorías** automáticamente si existe birth_date
 6. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
+7. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
+   - Para circuitos con vueltas: añadir lap_number
+   - Para lecturas duplicadas: filtrar por timestamp más cercano
+   - Para ida/vuelta: distinguir por dirección o lap_number
 
 ---
 
