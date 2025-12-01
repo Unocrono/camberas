@@ -66,35 +66,47 @@ const handler = async (req: Request): Promise<Response> => {
       to: [userEmail],
       subject: `Pago Confirmado: ${raceName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">¡Pago Confirmado!</h1>
-          <p>Hola ${userName},</p>
-          <p>Hemos recibido tu pago para <strong>${raceName}</strong>. ¡Tu inscripción está completa!</p>
-          
-          <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
-            <h2 style="margin-top: 0; color: #1f2937;">Detalles de la Inscripción</h2>
-            <p><strong>Carrera:</strong> ${raceName}</p>
-            <p><strong>Distancia:</strong> ${distanceName}</p>
-            <p><strong>Fecha:</strong> ${new Date(raceDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-            <p><strong>Importe Pagado:</strong> ${price.toFixed(2)}€</p>
-            ${bibNumber ? `<p><strong>Número de Dorsal:</strong> ${bibNumber}</p>` : ''}
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 30px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Camberas</h1>
+            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail Running y Montaña</p>
           </div>
           
-          <div style="background-color: #eff6ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #1e40af;">¿Qué viene ahora?</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li>Te enviaremos un recordatorio 7 días antes del evento</li>
-              <li>Consulta tu panel de control para información sobre la recogida de dorsales</li>
-              <li>¡Empieza a entrenar y prepárate para el día de la carrera!</li>
-            </ul>
+          <div style="padding: 40px 30px;">
+            <h2 style="color: #16a34a; margin-top: 0;">¡Pago Confirmado!</h2>
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
+              Hola ${userName}, hemos recibido tu pago para <strong>${raceName}</strong>. ¡Tu inscripción está completa!
+            </p>
+            
+            <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #16a34a;">
+              <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">Detalles de la Inscripción</h3>
+              <p style="margin: 8px 0; color: #4b5563;"><strong>Carrera:</strong> ${raceName}</p>
+              <p style="margin: 8px 0; color: #4b5563;"><strong>Distancia:</strong> ${distanceName}</p>
+              <p style="margin: 8px 0; color: #4b5563;"><strong>Fecha:</strong> ${new Date(raceDate).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              <p style="margin: 8px 0; color: #4b5563;"><strong>Importe Pagado:</strong> ${price.toFixed(2)}€</p>
+              ${bibNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Número de Dorsal:</strong> ${bibNumber}</p>` : ''}
+            </div>
+            
+            <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb;">
+              <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">¿Qué viene ahora?</h3>
+              <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
+                <li>Te enviaremos un recordatorio 7 días antes del evento</li>
+                <li>Consulta tu panel de control para información sobre la recogida de dorsales</li>
+                <li>¡Empieza a entrenar y prepárate para el día de la carrera!</li>
+              </ul>
+            </div>
+            
+            <p style="color: #16a34a; font-size: 16px; font-weight: bold; text-align: center; margin-top: 30px;">
+              ¡Nos vemos en la línea de salida!
+            </p>
           </div>
           
-          <p style="margin-top: 30px;">¡Nos vemos en la línea de salida!</p>
-          
-          <p style="margin-top: 30px;">
-            Un saludo,<br>
-            El equipo de <strong>camberas.com</strong>
-          </p>
+          <div style="background-color: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Un saludo,<br>
+              El equipo de <strong style="color: #2563eb;">camberas.com</strong>
+            </p>
+          </div>
         </div>
       `,
     });
