@@ -3,7 +3,31 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const hookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET");
+const rawHookSecret = Deno.env.get("SEND_EMAIL_HOOK_SECRET");
+
+// Process the hook secret - Supabase uses format "v1,whsec_BASE64" 
+// We need to extract the base64 part after "whsec_"
+function getProcessedSecret(secret: string | undefined): string | null {
+  if (!secret) return null;
+  
+  // If secret contains "whsec_", extract the base64 part
+  if (secret.includes("whsec_")) {
+    const parts = secret.split("whsec_");
+    if (parts.length > 1) {
+      return parts[1];
+    }
+  }
+  
+  // If it has comma (v1,base64), get the base64 part
+  if (secret.includes(",")) {
+    const parts = secret.split(",");
+    return parts[parts.length - 1];
+  }
+  
+  return secret;
+}
+
+const hookSecret = getProcessedSecret(rawHookSecret);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,6 +54,8 @@ interface EmailHookPayload {
 
 serve(async (req: Request): Promise<Response> => {
   console.log("Email hook called - method:", req.method);
+  console.log("Raw hook secret configured:", rawHookSecret ? "yes" : "no");
+  console.log("Processed hook secret:", hookSecret ? "yes (length: " + hookSecret.length + ")" : "no");
   
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -320,15 +346,29 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     console.log(`Sending ${email_action_type} email to ${user.email}`);
+    console.log("RESEND_API_KEY configured:", Deno.env.get("RESEND_API_KEY") ? "yes (length: " + Deno.env.get("RESEND_API_KEY")?.length + ")" : "NO - THIS IS THE PROBLEM!");
+
+    // Use Resend's test domain for development - change to your verified domain in production
+    // To use your own domain, verify it at https://resend.com/domains
+    const fromEmail = "Camberas <onboarding@resend.dev>";
+    
+    console.log("Sending email with from:", fromEmail);
 
     const emailResponse = await resend.emails.send({
-      from: "Camberas <noreply@camberas.com>",
+      from: fromEmail,
       to: [user.email],
       subject: subject,
       html: htmlContent,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Resend API response:", JSON.stringify(emailResponse, null, 2));
+    
+    if (emailResponse.error) {
+      console.error("Resend returned an error:", emailResponse.error);
+      throw new Error(`Resend error: ${JSON.stringify(emailResponse.error)}`);
+    }
+
+    console.log("Email sent successfully! ID:", emailResponse.data?.id);
 
     return new Response(JSON.stringify({}), {
       status: 200,
