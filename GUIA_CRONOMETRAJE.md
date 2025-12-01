@@ -22,6 +22,10 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 | **Categoría** | - (calculado) | Grupo de edad/género para clasificación |
 | **Sexo** | - (calculado) | Grupo de  género para clasificación |
 | **Clasificación** | `overall_position`, `category_position` , `gender_position`| Posición en general, por categoría o por sexo |
+| **DNF** | Did Not Finish | No terminó - Abandonó durante la carrera |
+| **DNS** | Did Not Start | No salió - No comenzó la carrera |
+| **DSQ** | Disqualified | Descalificado - Infringió reglamento |
+| **Retirado** | Withdrawn | Retirado antes de la salida (por decisión propia u organización) |
 
 ### Elementos de un Sistema de Cronometraje
 
@@ -278,9 +282,10 @@ races                          races (carreras)
 - reader_device_id (identificador del lector/equipo)
 - operator_user_id (usuario que hizo lectura manual, nullable para automáticas)
 - reading_timestamp (momento exacto en que se registró la lectura)
-- reading_type (automatic, manual)
+- reading_type (automatic, manual, status_change)
 - lap_number (para circuitos con vueltas)
 - is_processed (si ya se convirtió en split_time)
+- status_code (null para lecturas normales, o: 'dnf', 'dns', 'dsq', 'withdrawn')
 - notes (observaciones)
 
 NOTA: Esta tabla guarda las lecturas RAW del sistema de cronometraje.
@@ -356,16 +361,24 @@ Proceso de cálculo:
    - Lecturas automáticas (chip RFID): chip_code + reader_device_id
    - Lecturas manuales: dorsal + operator_user_id
 3. Meta: Lectura final → timing_readings
-4. Procesamiento:
+4. Registro de estados especiales (Cronometraje Manual):
+   - DNF (Did Not Finish): Corredor abandona → timing_reading con status_code='dnf'
+   - DNS (Did Not Start): No sale a correr → timing_reading con status_code='dns'
+   - DSQ (Disqualified): Descalificado → timing_reading con status_code='dsq'
+   - Withdrawn: Retirado antes de salida → timing_reading con status_code='withdrawn'
+   - Estas lecturas NO generan split_times, actualizan directamente race_results.status
+5. Procesamiento:
    - Filtrar lecturas duplicadas por checkpoint
-   - Calcular split_times a partir de timing_readings
-   - Calcular finish_time → race_results
-5. Cálculo automático de clasificaciones:
+   - Procesar cambios de estado (dnf/dns/dsq/withdrawn) → actualizar race_results.status
+   - Calcular split_times a partir de timing_readings (solo lecturas normales)
+   - Calcular finish_time → race_results (solo si status='finished')
+6. Cálculo automático de clasificaciones:
+   - Solo para participantes con status='finished'
    - Clasificación general (overall_position)
    - Clasificación por sexo (gender_position)
    - Clasificación por categoría (category_position)
    - Pace promedio
-6. Publicación resultados en vivo
+7. Publicación resultados en vivo
 ```
 
 ### 4. Resultados y Clasificaciones
@@ -424,6 +437,42 @@ Proceso de cálculo:
 - "Checkpoints Activos" → puntos de control donde puede cronometrar
 - "Lecturas Recientes" → últimas lecturas registradas
 - "Validar Dorsal" → verificar que dorsal existe y está activo
+- "Registrar Estado" → marcar corredor como DNF/DNS/DSQ/Retirado
+- "Abandonos" → lista de corredores que no terminaron
+
+#### Interfaz de Registro de Estados Especiales
+
+La interfaz de cronometraje manual debe incluir una opción dedicada para registrar estados especiales:
+
+**Flujo de Registro de Estado:**
+1. **Buscar corredor**: Por dorsal o nombre
+2. **Validar datos**: Mostrar info del corredor (nombre, evento, última lectura)
+3. **Seleccionar estado**:
+   - **DNF (Did Not Finish)**: No terminó / Abandonó
+   - **DNS (Did Not Start)**: No comenzó la carrera
+   - **DSQ (Disqualified)**: Descalificado
+   - **Withdrawn**: Retirado antes de salida
+4. **Checkpoint opcional**: Si aplica, indicar en qué punto abandonó/fue descalificado
+5. **Motivo**: Campo de texto obligatorio para explicar (ej: "Lesión", "Fuera de tiempo", "Violación reglamento Art. 12")
+6. **Confirmación**: Revisar antes de guardar
+7. **Registro**: Crear timing_reading con reading_type='status_change'
+
+**Información mostrada:**
+- Dorsal y nombre del corredor
+- Última lectura registrada (checkpoint y hora)
+- Kilómetro aproximado donde se encontraba
+- Tiempo transcurrido en carrera
+
+**Validaciones:**
+- No permitir cambiar estado si ya tiene resultado final (finish_time)
+- Confirmar acción con diálogo de advertencia
+- Requerir motivo obligatorio con mínimo de caracteres
+- Solo usuarios con rol TIMER o superior pueden registrar estados
+
+**Reversión:**
+- Permitir anular estado especial si fue error (solo en ventana de tiempo)
+- Mantener historial de cambios en timing_readings
+- Notificar al organizador de cambios importantes
 
 ---
 
@@ -475,16 +524,17 @@ CREATE TABLE timing_readings (
   id uuid PRIMARY KEY,
   registration_id uuid REFERENCES registrations(id),
   race_id uuid REFERENCES races(id),
-  checkpoint_id uuid REFERENCES race_checkpoints(id),
+  checkpoint_id uuid REFERENCES race_checkpoints(id), -- nullable para cambios de estado
   bib_number integer NOT NULL,
   chip_code text, -- nullable para lecturas manuales
   timing_timestamp timestamptz NOT NULL, -- hora del crono
   reader_device_id text, -- identificador del lector (ej: "Ultra-25")
   operator_user_id uuid, -- usuario si es manual
   reading_timestamp timestamptz DEFAULT now(), -- cuando se registró
-  reading_type text DEFAULT 'automatic', -- automatic, manual
+  reading_type text DEFAULT 'automatic', -- automatic, manual, status_change
   lap_number integer DEFAULT 1,
   is_processed boolean DEFAULT false,
+  status_code text, -- null para lecturas normales, o: 'dnf', 'dns', 'dsq', 'withdrawn'
   notes text,
   
   -- Campos adicionales para RFID Ultra
@@ -613,22 +663,30 @@ Cuando trabajes en features de cronometraje:
    - Generar un solo split_time por checkpoint (o múltiples si hay laps)
    - Para circuitos con vueltas: usar lap_number
 10. **Tipos de lecturas**:
-    - Automáticas (chip RFID): chip_code presente, operator_user_id null
-    - Manuales: operator_user_id presente (debe tener rol TIMER), chip_code puede ser null
-11. **Roles y permisos**:
+    - Automáticas (chip RFID): reading_type='automatic', chip_code presente, operator_user_id null
+    - Manuales: reading_type='manual', operator_user_id presente (debe tener rol TIMER)
+    - Cambios de estado: reading_type='status_change', status_code presente (dnf/dns/dsq/withdrawn)
+11. **Gestión de estados especiales**:
+    - DNF (Did Not Finish): Registrar timing_reading con status_code='dnf' en último checkpoint visto
+    - DNS (Did Not Start): Registrar timing_reading con status_code='dns' (sin checkpoint)
+    - DSQ (Disqualified): Registrar timing_reading con status_code='dsq' en checkpoint donde ocurrió
+    - Withdrawn: Registrar timing_reading con status_code='withdrawn' (antes de la salida)
+    - Estas lecturas actualizan race_results.status pero NO generan split_times
+    - Incluir notas obligatorias explicando el motivo (ej: "Lesión en km 15", "Fuera de tiempo límite")
+12. **Roles y permisos**:
     - Admin: acceso completo
     - Organizer: gestión de sus carreras
     - Timer: solo cronometraje manual (insertar timing_readings)
     - User: corredor estándar
-12. **Conversión de timestamps**:
+13. **Conversión de timestamps**:
     - RFID Ultra usa segundos desde 01/01/1980
     - Convertir a timestamptz de PostgreSQL
     - Considerar zona horaria del evento
-13. **Gestión de conexiones**:
+14. **Gestión de conexiones**:
     - RFID Ultra: mantener socket TCP abierto, reconnect automático
     - SQL Server: pooling de conexiones, queries parametrizadas
     - Implementar retry logic y timeouts
-14. **Seguridad**:
+15. **Seguridad**:
     - Validar que dispositivo/operador tiene permisos para la carrera
     - Verificar que checkpoint existe y pertenece al evento
     - Sanitizar inputs de integraciones externas
