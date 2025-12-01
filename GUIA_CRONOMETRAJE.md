@@ -516,11 +516,11 @@ La interfaz de cronometraje manual debe incluir un formulario accesible para reg
 
 **Ruta de acceso:**
 ```
-https://camberas.app/timing          → Login de cronometradores
-https://camberas.app/timing/record   → Registro de tiempos (pantalla principal)
-https://camberas.app/timing/dnf      → Registro de retirados
-https://camberas.app/timing/chat     → Mensajería interna
-https://camberas.app/timing/sync     → Sincronización
+https://camberas.com/timing          → Login de cronometradores
+https://camberas.com/timing/record   → Registro de tiempos (pantalla principal)
+https://camberas.com/timing/abandon  → Registro de retirados
+https://camberas.com/timing/chat     → Mensajería interna
+https://camberas.com/timing/sync     → Sincronización
 ```
 
 **Objetivo**: Aplicación web progresiva para cronometraje manual en puntos de control, funcionando online y offline.
@@ -1107,7 +1107,7 @@ Cuando trabajes en features de cronometraje:
 - **StaleWhileRevalidate** para datos de corredores: muestra cache, actualiza en background
 
 **Instalación del usuario:**
-1. Acceder a `camberas.app/timing` desde navegador móvil
+1. Acceder a `camberas.com/timing` desde navegador móvil
 2. Sistema muestra banner "Instalar Camberas Timing"
 3. Usuario acepta → se añade icono a pantalla de inicio
 4. Próximos accesos: abre como app nativa fullscreen
