@@ -45,8 +45,12 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 #### 3. **Sistema de Cronometraje**
 - **Manual**: Registro de tiempos por observador (requiere rol TIMER)
 - **Chip RFID**: Detección automática en cada checkpoint
+  - **RFID Ultra**: Equipo profesional de cronometraje vía TCP/IP puerto 23
+  - Formato de lecturas: `ChipCode,Seconds,Milliseconds,AntennaNo,RSSI,ReaderNo,UltraID`
+  - Protocolo de comunicación documentado (ver sección G)
 - **GPS**: Tracking en tiempo real (implementado)
 - **Foto-finish**: Para llegadas muy ajustadas
+- **Importación SQL Server**: Sincronización desde aplicación externa de cronometraje
 
 #### 3.1 **Roles de Usuario en Cronometraje**
 - **Admin**: Gestión completa del sistema
@@ -71,6 +75,130 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 - **Tiempo Gun**: Desde disparo de salida hasta que cruza meta
 - **Split Time**: Tiempo en cada checkpoint
 - **Pace**: Ritmo promedio (min/km)
+
+---
+
+## 🔌 Sistemas de Integración de Cronometraje
+
+### G.1 **Equipo RFID Ultra (RFID Race Timing Systems)**
+
+Sistema profesional de cronometraje RFID con comunicación TCP/IP.
+
+#### Especificaciones Técnicas
+- **Protocolo**: TCP/IP
+- **Puerto**: 23 (Telnet)
+- **Método de conexión**: Socket TCP directo
+- **Formato de datos**: ASCII delimitado por comas
+
+#### Formato de Lecturas
+Cada lectura se envía en el siguiente formato:
+```
+0,ChipCode,Seconds,Milliseconds,AntennaNo,RSSI,IsRewind,ReaderNo,UltraID,ReaderTime,StartTime,LogID
+```
+
+**Descripción de campos:**
+- `ChipCode`: Código del chip (decimal o hexadecimal según configuración)
+- `Seconds`: Segundos desde 01/01/1980
+- `Milliseconds`: Milisegundos
+- `AntennaNo`: Número de antena (1-4)
+- `RSSI`: Intensidad de señal (valor negativo)
+- `IsRewind`: 0=lectura en vivo, 1=lectura desde log
+- `ReaderNo`: Número de lector (1-3)
+- `UltraID`: Identificador del equipo Ultra
+- `ReaderTime`: Timestamp de 64-bit del lector UHF
+- `StartTime`: Para MTB downhill
+- `LogID`: Posición en el log
+
+#### Comandos del Protocolo
+- `R`: Iniciar lectura
+- `S`: Detener lectura
+- `t [HH:MM:SS DD-MM-YYYY]`: Configurar hora
+- `r`: Consultar hora
+- `?`: Consultar estado
+- `800[FromTime][0x0D][ToTime]`: Rewind por tiempo
+- `600[FromRecord][0x0D][ToRecord]`: Rewind por número de registro
+
+#### Información de Conexión
+Al conectarse, el Ultra envía:
+```
+Connected,LastTimeSent
+```
+Donde `LastTimeSent` es el timestamp (segundos desde 01/01/1980) de la última lectura enviada.
+
+#### Estado de Voltaje
+Cada 10 segundos el equipo envía:
+```
+V=25.0000
+```
+
+#### Configuración de Red
+- Soporta GPRS (con tarjeta SIM)
+- Soporta LAN (Ethernet)
+- Configuración vía comandos 'u'
+- IP estática o DHCP
+
+### G.2 **Importación desde SQL Server**
+
+Integración con aplicaciones de cronometraje que utilizan SQL Server para almacenar lecturas.
+
+#### Caso de Uso
+Aplicaciones de terceros que:
+1. Reciben lecturas de equipos de cronometraje
+2. Almacenan datos en SQL Server
+3. Necesitan sincronizar con Camberas
+
+#### Arquitectura de Integración
+```
+Equipo Cronometraje → App Externa → SQL Server
+                                          ↓
+                                    Edge Function
+                                          ↓
+                                  timing_readings (Camberas)
+```
+
+#### Tablas Esperadas en SQL Server
+La aplicación externa típicamente tiene una estructura similar a:
+```sql
+-- Ejemplo de estructura esperada
+CREATE TABLE Readings (
+    Id INT PRIMARY KEY,
+    BibNumber INT,
+    ChipCode VARCHAR(50),
+    ReadingTimestamp DATETIME,
+    CheckpointId INT,
+    DeviceId VARCHAR(50),
+    OperatorId VARCHAR(50) NULL,
+    ReadingType VARCHAR(20), -- 'automatic', 'manual'
+    Processed BIT DEFAULT 0
+)
+```
+
+#### Proceso de Sincronización
+1. **Consulta periódica**: Edge function consulta nuevas lecturas
+2. **Validación**: Verifica que dorsal existe en `registrations`
+3. **Mapeo de datos**: Convierte formato SQL Server a `timing_readings`
+4. **Prevención duplicados**: Compara con lecturas existentes
+5. **Inserción masiva**: Batch insert en `timing_readings`
+6. **Marcado procesado**: Actualiza flag en SQL Server
+
+#### Mapeo de Campos
+| Campo SQL Server | Campo Camberas | Transformación |
+|------------------|----------------|----------------|
+| BibNumber | bib_number | Directo |
+| ChipCode | chip_code | Directo |
+| ReadingTimestamp | timing_timestamp | Conversión timezone |
+| CheckpointId | checkpoint_id | Lookup por nombre/orden |
+| DeviceId | reader_device_id | Directo |
+| OperatorId | operator_user_id | Lookup por username/email |
+| ReadingType | reading_type | Directo |
+
+#### Configuración de Conexión
+Requiere secrets en Lovable Cloud:
+- `SQL_SERVER_HOST`
+- `SQL_SERVER_PORT`
+- `SQL_SERVER_DATABASE`
+- `SQL_SERVER_USERNAME`
+- `SQL_SERVER_PASSWORD`
 
 ---
 
@@ -305,19 +433,25 @@ Proceso de cálculo:
 1. **Tabla timing_readings**: Implementar tabla de lecturas raw antes de procesar split_times
 2. **Rol TIMER**: Añadir rol 'timer' al enum app_role con permisos específicos
 3. **Interfaz de Cronometraje Manual**: UI para usuarios TIMER registrar lecturas
-4. **Procesamiento de lecturas**: Lógica para convertir readings en split_times
-5. **Categorías Automáticas**: Calcular categoría según edad + género
-6. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
-7. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
-8. **Tiempos Netos**: Diferencia entre tiempo gun y neto
-9. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
-10. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
+4. **Edge Function RFID Ultra Receiver**: Listener TCP puerto 23 para recibir lecturas del equipo
+5. **Edge Function SQL Server Import**: Sincronización de lecturas desde SQL Server
+6. **Procesamiento de lecturas**: Lógica para convertir readings en split_times
+7. **Categorías Automáticas**: Calcular categoría según edad + género
+8. **Clasificación por Sexo**: Añadir gender_position a race_results
+9. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
+10. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
+11. **Tiempos Netos**: Diferencia entre tiempo gun y neto
+12. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
+13. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
 
 ### Media Prioridad
-5. **Equipos/Clubes**: Clasificación por equipos
-6. **Relevos**: Eventos con múltiples participantes por dorsal
-7. **Diplomas**: Generación automática de certificados
-8. **Récords**: Tracking de récords de carrera/evento
+1. **Dashboard de Monitoreo**: Vista en tiempo real del estado de equipos Ultra conectados
+2. **Gestión de Equipos**: CRUD de readers/dispositivos de cronometraje
+3. **Webhooks**: Notificaciones push cuando se reciben lecturas
+4. **Equipos/Clubes**: Clasificación por equipos
+5. **Relevos**: Eventos con múltiples participantes por dorsal
+6. **Diplomas**: Generación automática de certificados
+7. **Récords**: Tracking de récords de carrera/evento
 
 ### Baja Prioridad
 9. **Foto-finish**: Sistema de fotos en meta vinculadas a dorsales
@@ -345,18 +479,45 @@ CREATE TABLE timing_readings (
   bib_number integer NOT NULL,
   chip_code text, -- nullable para lecturas manuales
   timing_timestamp timestamptz NOT NULL, -- hora del crono
-  reader_device_id text, -- identificador del lector
+  reader_device_id text, -- identificador del lector (ej: "Ultra-25")
   operator_user_id uuid, -- usuario si es manual
   reading_timestamp timestamptz DEFAULT now(), -- cuando se registró
   reading_type text DEFAULT 'automatic', -- automatic, manual
   lap_number integer DEFAULT 1,
   is_processed boolean DEFAULT false,
-  notes text
+  notes text,
+  
+  -- Campos adicionales para RFID Ultra
+  antenna_no integer, -- 1-4
+  rssi integer, -- señal (negativo)
+  reader_no integer, -- 1-3
+  ultra_id integer, -- ID del equipo Ultra
+  is_rewind boolean DEFAULT false, -- si viene de log
+  log_id integer -- posición en log del Ultra
 );
 
 -- Añadir referencia en split_times a la lectura original
 ALTER TABLE split_times 
 ADD COLUMN timing_reading_id uuid REFERENCES timing_readings(id);
+
+-- Añadir gender_position a race_results
+ALTER TABLE race_results
+ADD COLUMN gender_position integer;
+
+-- Añadir tabla de equipos/dispositivos de cronometraje
+CREATE TABLE timing_devices (
+  id uuid PRIMARY KEY,
+  device_name text NOT NULL,
+  device_type text NOT NULL, -- 'rfid_ultra', 'manual', 'other'
+  device_id text UNIQUE NOT NULL, -- identificador único (ej: "Ultra-25")
+  ip_address text,
+  port integer,
+  status text DEFAULT 'offline', -- online, offline, error
+  race_id uuid REFERENCES races(id),
+  last_seen timestamptz,
+  configuration jsonb, -- configuración específica del dispositivo
+  created_at timestamptz DEFAULT now()
+);
 
 -- Añadir tabla de categorías
 CREATE TABLE event_categories (
@@ -376,6 +537,12 @@ CREATE TABLE timing_chips (
   status text, -- active, lost, damaged
   assigned_at timestamptz
 );
+
+-- Índices para optimizar queries de cronometraje
+CREATE INDEX idx_timing_readings_checkpoint ON timing_readings(checkpoint_id, timing_timestamp);
+CREATE INDEX idx_timing_readings_bib ON timing_readings(bib_number, race_id);
+CREATE INDEX idx_timing_readings_processed ON timing_readings(is_processed, race_id);
+CREATE INDEX idx_timing_readings_device ON timing_readings(reader_device_id, timing_timestamp);
 ```
 
 ### Optimizaciones de Queries
@@ -392,11 +559,27 @@ CREATE TABLE timing_chips (
 - **LiveTrail**: Cronometraje trail running con GPS
 - **MyLaps**: Hardware y software profesional
 - **Chronotrack**: Sistema de chips RFID
+- **RFID Race Timing Systems**: Fabricante del equipo Ultra (www.rfidtiming.com)
+
+### Documentación Técnica
+- **RFID Ultra Manual**: Firmware v1.40N - Protocolo de comunicación TCP/IP
+- **RFID Ultra Software**: RFIDServer, OutReach, UDPDownload
 
 ### Estándares
 - **IAAF**: Reglas de atletismo internacional
 - **ITRA**: Reglamento trail running
 - **UCI**: Normativa ciclismo MTB
+
+### Protocolos de Comunicación
+- **TCP/IP Socket**: Puerto 23 (Telnet) para RFID Ultra
+- **MACH1**: Protocolo nativo RFID Race Timing Systems
+- **LLRP**: Low Level Reader Protocol (estándar UHF RFID)
+
+### Tecnologías UHF RFID
+- **Frecuencias**: 860-960 MHz según región
+- **Alcance**: Hasta 60m línea de vista con BAP PowerID
+- **Anti-colisión**: Algoritmos para lectura simultánea de cientos de tags
+- **Sesiones**: Session 0-3 para diferentes escenarios de lectura
 
 ---
 
@@ -411,27 +594,44 @@ Cuando trabajes en features de cronometraje:
    - "checkpoint" = race_checkpoints
    - "lectura" = timing_readings (raw data)
    - "tiempo intermedio" = split_times (processed data)
+   - "equipo Ultra" = dispositivo RFID Race Timing Systems
 3. **Arquitectura de datos**:
    - timing_readings es la fuente de verdad (lecturas raw)
    - split_times se CALCULA a partir de timing_readings
    - Nunca insertes split_times directamente, usa timing_readings
-4. **Valida rangos de dorsales** al asignar
-5. **Ordena splits** por checkpoint_order
-6. **Calcula categorías** automáticamente si existe birth_date
-7. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
-8. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
+4. **Integraciones de cronometraje**:
+   - **RFID Ultra**: Conectar vía TCP socket puerto 23, parsear formato CSV
+   - **SQL Server**: Edge function con consultas periódicas, mapeo de campos
+   - Ambas integraciones alimentan timing_readings
+5. **Valida rangos de dorsales** al asignar
+6. **Ordena splits** por checkpoint_order
+7. **Calcula categorías** automáticamente si existe birth_date
+8. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
+9. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
    - Guardar todas en timing_readings con is_processed=false
    - Aplicar lógica de filtrado al procesar (ej: timestamp más cercano)
    - Generar un solo split_time por checkpoint (o múltiples si hay laps)
    - Para circuitos con vueltas: usar lap_number
-9. **Tipos de lecturas**:
-   - Automáticas (chip RFID): chip_code presente, operator_user_id null
-   - Manuales: operator_user_id presente (debe tener rol TIMER), chip_code puede ser null
-10. **Roles y permisos**:
-   - Admin: acceso completo
-   - Organizer: gestión de sus carreras
-   - Timer: solo cronometraje manual (insertar timing_readings)
-   - User: corredor estándar
+10. **Tipos de lecturas**:
+    - Automáticas (chip RFID): chip_code presente, operator_user_id null
+    - Manuales: operator_user_id presente (debe tener rol TIMER), chip_code puede ser null
+11. **Roles y permisos**:
+    - Admin: acceso completo
+    - Organizer: gestión de sus carreras
+    - Timer: solo cronometraje manual (insertar timing_readings)
+    - User: corredor estándar
+12. **Conversión de timestamps**:
+    - RFID Ultra usa segundos desde 01/01/1980
+    - Convertir a timestamptz de PostgreSQL
+    - Considerar zona horaria del evento
+13. **Gestión de conexiones**:
+    - RFID Ultra: mantener socket TCP abierto, reconnect automático
+    - SQL Server: pooling de conexiones, queries parametrizadas
+    - Implementar retry logic y timeouts
+14. **Seguridad**:
+    - Validar que dispositivo/operador tiene permisos para la carrera
+    - Verificar que checkpoint existe y pertenece al evento
+    - Sanitizar inputs de integraciones externas
 
 ---
 
@@ -444,17 +644,29 @@ Cuando trabajes en features de cronometraje:
 - ✅ Resultados básicos
 - ✅ GPS tracking
 
-### Fase 2: Profesionalización
+### Fase 2: Profesionalización del Cronometraje
+- 🔲 Tabla timing_readings (lecturas raw)
+- 🔲 Rol TIMER con permisos específicos
+- 🔲 Integración RFID Ultra (TCP socket listener)
+- 🔲 Integración SQL Server (importación)
+- 🔲 Interfaz de cronometraje manual
+- 🔲 Procesamiento automático de readings → split_times
 - 🔲 Categorías automáticas
-- 🔲 Gestión de chips RFID
+- 🔲 Clasificación por sexo (gender_position)
+- 🔲 Gestión de dispositivos de cronometraje
 - 🔲 Tiempos netos vs gun time
 - 🔲 Estados avanzados (DNF/DNS/DSQ)
 
-### Fase 3: Escalado
+### Fase 3: Escalado y Funcionalidades Avanzadas
+- 🔲 Dashboard de monitoreo en tiempo real
+- 🔲 Webhooks y notificaciones push
 - 🔲 Clasificaciones por equipos
 - 🔲 Sistema de récords
 - 🔲 Diplomas automáticos
 - 🔲 Rankings multi-carrera
+- 🔲 Backup automático de lecturas
+- 🔲 Análisis de rendimiento de equipos
+- 🔲 Sincronización bidireccional SQL Server
 
 ---
 
