@@ -499,6 +499,300 @@ La interfaz de cronometraje manual debe incluir un formulario accesible para reg
 
 ---
 
+## 🏃 App Manual de Cronometraje - Especificación Completa
+
+### Arquitectura y Persistencia
+
+**Objetivo**: Aplicación móvil/web para cronometraje manual en puntos de control, funcionando online y offline.
+
+#### 1. Sistema de Autenticación y Permisos
+
+**Acceso Restringido:**
+- Solo pueden acceder:
+  - **Organizador** de la carrera (role='organizer')
+  - **Cronometradores** asignados (role='timer')
+- Validación contra tabla `user_roles` y `timer_assignments`
+
+**Flujo de Login:**
+1. Usuario ingresa credenciales (email/password)
+2. Sistema valida rol y asignación a carrera
+3. Si válido:
+   - Guardar sesión en localStorage (válida 5 días)
+   - Guardar timestamp de login
+   - Descargar datos offline
+4. Si no tiene permisos: denegar acceso con mensaje claro
+
+**Persistencia de Sesión (5 días):**
+```javascript
+localStorage.setItem('timing_session', JSON.stringify({
+  user_id: '...',
+  role: 'timer',
+  race_id: '...',
+  checkpoint_id: '...',
+  logged_at: timestamp,
+  expires_at: timestamp + 5_days
+}));
+```
+
+**Beneficio Offline:**
+- Funciona sin conexión durante 5 días
+- No requiere re-autenticación constante en el punto de control
+- Datos sincronizados cuando hay conexión
+
+#### 2. Descarga y Almacenamiento Local de Datos
+
+**Al validarse exitosamente, descargar y guardar:**
+
+**Datos de Corredores (en IndexedDB o localStorage):**
+```javascript
+{
+  race_id: uuid,
+  runners: [
+    {
+      bib_number: number,
+      first_name: string,
+      last_name: string,
+      event_name: string, // race_distance.name
+      category: string,   // calculado: M-Senior, F-VetA, etc.
+      gender: string,     // M/F
+      team: string        // club/equipo
+    }
+  ],
+  checkpoints: [
+    {
+      id: uuid,
+      name: string,
+      distance_km: number,
+      checkpoint_order: number
+    }
+  ],
+  downloaded_at: timestamp
+}
+```
+
+**Estrategia de Almacenamiento:**
+- **IndexedDB**: Para grandes volúmenes de corredores (>1000)
+- **localStorage**: Para carreras pequeñas (<1000 corredores)
+- Compresión opcional con LZ-string si es muy grande
+
+#### 3. Asignación de Cronometradores
+
+**Tabla necesaria: `timer_assignments`**
+```sql
+CREATE TABLE timer_assignments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  race_id UUID REFERENCES races(id) NOT NULL,
+  checkpoint_id UUID REFERENCES race_checkpoints(id),
+  assigned_at TIMESTAMPTZ DEFAULT now(),
+  assigned_by UUID REFERENCES profiles(id),
+  notes TEXT,
+  UNIQUE(user_id, race_id, checkpoint_id)
+);
+```
+
+**Características:**
+- Un TIMER puede estar asignado a **una o varias carreras**
+- Puede estar asignado a **uno o varios checkpoints** de la misma carrera
+- El organizador gestiona asignaciones desde panel de admin
+- RLS: Solo organizador de la carrera puede crear/modificar asignaciones
+
+#### 4. Selección de Carrera y Checkpoint
+
+**Pantalla inicial post-login:**
+1. Si solo tiene 1 carrera asignada: seleccionar automáticamente
+2. Si tiene múltiples carreras: mostrar selector
+3. Seleccionar checkpoint donde estará cronometrando:
+   - Lista con nombre, km, orden
+   - Marcar como "activo" para la sesión
+
+**Guardar selección:**
+```javascript
+localStorage.setItem('active_timing_context', JSON.stringify({
+  race_id: '...',
+  checkpoint_id: '...',
+  checkpoint_name: 'Meta',
+  checkpoint_km: 21.1
+}));
+```
+
+#### 5. Menú de Navegación (Bottom Tab Bar)
+
+**Diseño Móvil tipo App:**
+
+```
+┌─────────────────────────────────────┐
+│      [Icono] Cronómetro Manual      │
+│      [Carrera] - [Checkpoint]       │
+└─────────────────────────────────────┘
+│                                     │
+│        CONTENIDO PRINCIPAL          │
+│                                     │
+│                                     │
+└─────────────────────────────────────┘
+┌─────┬─────┬─────┬─────┬─────┬──────┐
+│ 🔄  │ ⏱️  │ 🚫  │ 💬  │ ⚙️  │ 🚪   │
+│Sync │Time │DNF  │Chat │Conf │Logout│
+└─────┴─────┴─────┴─────┴─────┴──────┘
+```
+
+**Opciones del Menú:**
+
+1. **🔄 Sincronizar** (`/timing/sync`)
+   - Recargar corredores desde servidor
+   - Subir lecturas pendientes (si hay conexión)
+   - Indicador de última sincronización
+
+2. **⏱️ Registrar Tiempo** (`/timing/record`) - **PANTALLA PRINCIPAL**
+   - Input de dorsal (autofocus)
+   - Botón grande con HORA ACTUAL (ej: "14:32:15")
+   - Al presionar: registra dorsal + timestamp
+   - Lista descendente de últimos registros arriba
+
+3. **🚫 Retirados** (`/timing/withdrawals`)
+   - Formulario: Dorsal + Motivo (DNF/DNS/DSQ/Withdrawn)
+   - Accesible por Tab como especificado arriba
+
+4. **💬 Mensajería** (`/timing/chat`)
+   - Chat interno de carrera entre cronometradores
+   - Mensajes de coordinación en tiempo real
+   - Indica si hay mensajes no leídos
+
+5. **⚙️ Configuración** (`/timing/settings`)
+   - Ver checkpoint actual
+   - Cambiar checkpoint si tiene múltiples asignaciones
+   - Ver datos offline almacenados
+   - Limpiar caché
+
+6. **🚪 Logout**
+   - Cerrar sesión
+   - Opción de mantener datos offline o borrarlos
+   - Volver a pantalla de login
+
+#### 6. Pantalla Principal: Registro de Tiempos
+
+**Layout:**
+```
+┌─────────────────────────────────────┐
+│  ÚLTIMOS REGISTROS ▼                │
+├─────────────────────────────────────┤
+│ #245  Juan Pérez      14:32:15  ✓  │
+│ #123  Ana García      14:31:58  ✓  │
+│ #089  Luis Martín     14:30:42  ✓  │
+│ [... lista descendente]             │
+├─────────────────────────────────────┤
+│                                     │
+│  REGISTRAR DORSAL                   │
+│                                     │
+│  ┌─────────────────────────────┐   │
+│  │  [ Dorsal ]  _______        │   │
+│  └─────────────────────────────┘   │
+│                                     │
+│  ┌─────────────────────────────┐   │
+│  │     [ 14:32:47 ]            │   │ <- Hora actual
+│  │     REGISTRAR               │   │
+│  └─────────────────────────────┘   │
+│                                     │
+└─────────────────────────────────────┘
+```
+
+**Funcionalidad:**
+1. Input de dorsal tiene autofocus
+2. Al escribir dorsal + Enter o clic en botón:
+   - Captura timestamp exacto
+   - Valida dorsal contra datos locales
+   - Si existe: muestra nombre + evento
+   - Si no existe: registra solo dorsal + tiempo
+   - Añade a lista superior (orden descendente)
+3. Botón muestra hora actual en tiempo real (HH:MM:SS)
+4. Al registrar: feedback visual (verde/✓)
+5. Si hay conexión: envía inmediatamente a servidor
+6. Si offline: encola para sincronización posterior
+
+**Lista de Últimos Registros:**
+- Muestra los últimos 50 registros del checkpoint actual
+- Orden descendente (más reciente primero)
+- Formato:
+  - `#Dorsal`
+  - `Nombre Apellido` (si disponible, sino solo dorsal)
+  - `HH:MM:SS` (hora de registro)
+  - `✓` (confirmado) o `⏳` (pendiente de sync)
+
+**Caso Sin Datos de Corredor:**
+- Si no hay datos offline del corredor (no descargados o invitado de última hora)
+- Registrar igualmente: `Dorsal + Timestamp`
+- Backend validará al sincronizar
+
+#### 7. Sincronización y Modo Offline
+
+**Estrategia:**
+1. **Online**: Envío inmediato a edge function
+2. **Offline**: Almacenar en cola local
+3. **Reconexión**: Sincronización automática en background
+
+**Cola de Sincronización:**
+```javascript
+{
+  pending_readings: [
+    {
+      bib_number: 245,
+      checkpoint_id: '...',
+      timestamp: '2024-12-01T14:32:47Z',
+      reading_type: 'manual',
+      recorded_by: user_id,
+      synced: false
+    }
+  ]
+}
+```
+
+**Indicadores de Estado:**
+- Badge en botón Sync: `(5 pendientes)`
+- Icono de conexión en header: 🟢 Online / 🔴 Offline
+- Último sync: "Hace 2 minutos"
+
+#### 8. Mensajería Interna de Carrera
+
+**Tabla: `race_chat_messages`**
+```sql
+CREATE TABLE race_chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id UUID REFERENCES races(id) NOT NULL,
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  is_system BOOLEAN DEFAULT false
+);
+```
+
+**Funcionalidad:**
+- Chat en tiempo real entre cronometradores y organizador
+- Útil para coordinar: "Paso de cabeza en km 10", "Retraso en salida 5 min"
+- Notificación de mensajes no leídos en tab
+- Mensajes del sistema automáticos (ej: "Nueva lectura en Meta: #245")
+
+#### 9. Opción de Logout
+
+**Flujo de Cierre de Sesión:**
+1. Usuario presiona botón Logout
+2. Verificar si hay lecturas pendientes de sincronización
+3. Si hay pendientes:
+   - Mostrar diálogo: "Tienes 5 lecturas sin sincronizar. ¿Qué deseas hacer?"
+   - Opciones:
+     - "Sincronizar ahora" (si online)
+     - "Mantener offline para sincronizar después"
+     - "Descartar lecturas" (requiere confirmación)
+4. Limpiar sesión de localStorage (o mantener datos según elección)
+5. Redirigir a pantalla de login
+
+**Seguridad:**
+- Invalidar token de sesión
+- Opcional: mantener datos offline hasta próximo login (para turnos de relevos)
+
+---
+
+---
+
 ## ⚠️ Pendientes de Implementar
 
 ### Alta Prioridad
