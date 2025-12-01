@@ -77,8 +77,10 @@ races                          races (carreras)
 │   ├── registrations          │   ├── event_registrations
 │   └── roadbooks              │   ├── event_categories (nuevo)
 │                              │   └── event_roadbooks
-└── race_results               └── race_results
-    └── split_times                └── split_times
+├── race_results               ├── timing_readings (lecturas raw - NUEVO)
+│   └── split_times            ├── race_results
+│                              │   └── split_times (calculados)
+                               └── timing_chips (opcional)
 ```
 
 ### Tablas Clave
@@ -127,7 +129,33 @@ races                          races (carreras)
 - latitude, longitude
 ```
 
-#### `split_times` - Tiempos Intermedios
+#### `timing_readings` - Lecturas de Cronometraje (NUEVO - Recomendado)
+```sql
+- id
+- registration_id
+- race_id
+- checkpoint_id
+- bib_number (dorsal)
+- chip_code (código del chip RFID, nullable para lecturas manuales)
+- timing_timestamp (hora según el sistema de cronometraje)
+- reader_device_id (identificador del lector/equipo)
+- operator_user_id (usuario que hizo lectura manual, nullable para automáticas)
+- reading_timestamp (momento exacto en que se registró la lectura)
+- reading_type (automatic, manual)
+- lap_number (para circuitos con vueltas)
+- is_processed (si ya se convirtió en split_time)
+- notes (observaciones)
+
+NOTA: Esta tabla guarda las lecturas RAW del sistema de cronometraje.
+Es la fuente de verdad. Los split_times se calculan a partir de estas lecturas.
+Ventajas:
+- Permite reprocessar tiempos si hay errores
+- Auditoría completa (quién, cuándo, con qué equipo)
+- Filtrado de duplicados antes de generar splits
+- Diferencia lecturas automáticas vs manuales
+```
+
+#### `split_times` - Tiempos Intermedios (CALCULADOS)
 ```sql
 - id
 - race_result_id
@@ -135,14 +163,20 @@ races                          races (carreras)
 - checkpoint_order
 - split_time (interval) -- tiempo acumulado desde salida
 - distance_km
-- lap_number (futuro) -- para carreras con vueltas
-- timestamp (futuro) -- momento exacto de lectura
+- timing_reading_id (opcional) -- referencia a la lectura original
+- lap_number (para carreras con vueltas)
 
-NOTA: No hay constraint único en (race_result_id, checkpoint_order)
-Esto permite múltiples registros del mismo checkpoint:
-- Circuitos con vueltas
-- Lecturas duplicadas a filtrar
+NOTA: Esta tabla se CALCULA a partir de timing_readings.
+No hay constraint único en (race_result_id, checkpoint_order) para permitir:
+- Circuitos con vueltas (múltiples laps)
+- Correcciones manuales
 - Puntos de paso/retorno
+
+Proceso de cálculo:
+1. Obtener lecturas de timing_readings para cada checkpoint
+2. Filtrar duplicados (elegir timestamp más cercano o criterio definido)
+3. Calcular tiempo acumulado desde salida
+4. Generar registro en split_times
 ```
 
 #### `race_results` - Resultados Finales
@@ -180,14 +214,21 @@ Esto permite múltiples registros del mismo checkpoint:
 
 ### 3. Día de Carrera - Cronometraje
 ```
-1. Salida: Registro tiempo inicial (chip/manual)
-2. Checkpoints: Registro de splits
-3. Meta: Tiempo final
-4. Cálculo automático:
-   - Clasificación general
-   - Clasificación por categoría
+1. Salida: Registro tiempo inicial (chip/manual) → timing_readings
+2. Checkpoints: Registro de lecturas → timing_readings
+   - Lecturas automáticas (chip RFID): chip_code + reader_device_id
+   - Lecturas manuales: dorsal + operator_user_id
+3. Meta: Lectura final → timing_readings
+4. Procesamiento:
+   - Filtrar lecturas duplicadas por checkpoint
+   - Calcular split_times a partir de timing_readings
+   - Calcular finish_time → race_results
+5. Cálculo automático de clasificaciones:
+   - Clasificación general (overall_position)
+   - Clasificación por sexo (gender_position)
+   - Clasificación por categoría (category_position)
    - Pace promedio
-5. Publicación resultados en vivo
+6. Publicación resultados en vivo
 ```
 
 ### 4. Resultados y Clasificaciones
@@ -246,12 +287,14 @@ Esto permite múltiples registros del mismo checkpoint:
 ## ⚠️ Pendientes de Implementar
 
 ### Alta Prioridad
-1. **Categorías Automáticas**: Calcular categoría según edad + género
-2. **Gestión de Chips**: Tabla de chips RFID vinculados a dorsales
-3. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
-4. **Tiempos Netos**: Diferencia entre tiempo gun y neto
-5. **Vueltas/Laps**: Campo lap_number en split_times para circuitos
-6. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
+1. **Tabla timing_readings**: Implementar tabla de lecturas raw antes de procesar split_times
+2. **Procesamiento de lecturas**: Lógica para convertir readings en split_times
+3. **Categorías Automáticas**: Calcular categoría según edad + género
+4. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
+5. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
+6. **Tiempos Netos**: Diferencia entre tiempo gun y neto
+7. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
+8. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
 
 ### Media Prioridad
 5. **Equipos/Clubes**: Clasificación por equipos
@@ -273,6 +316,28 @@ Esto permite múltiples registros del mismo checkpoint:
 -- Renombrar tabla principal
 ALTER TABLE race_distances RENAME TO race_events;
 
+-- Añadir tabla de lecturas de cronometraje (CRÍTICO)
+CREATE TABLE timing_readings (
+  id uuid PRIMARY KEY,
+  registration_id uuid REFERENCES registrations(id),
+  race_id uuid REFERENCES races(id),
+  checkpoint_id uuid REFERENCES race_checkpoints(id),
+  bib_number integer NOT NULL,
+  chip_code text, -- nullable para lecturas manuales
+  timing_timestamp timestamptz NOT NULL, -- hora del crono
+  reader_device_id text, -- identificador del lector
+  operator_user_id uuid, -- usuario si es manual
+  reading_timestamp timestamptz DEFAULT now(), -- cuando se registró
+  reading_type text DEFAULT 'automatic', -- automatic, manual
+  lap_number integer DEFAULT 1,
+  is_processed boolean DEFAULT false,
+  notes text
+);
+
+-- Añadir referencia en split_times a la lectura original
+ALTER TABLE split_times 
+ADD COLUMN timing_reading_id uuid REFERENCES timing_readings(id);
+
 -- Añadir tabla de categorías
 CREATE TABLE event_categories (
   id uuid PRIMARY KEY,
@@ -283,12 +348,13 @@ CREATE TABLE event_categories (
   gender text
 );
 
--- Añadir tabla de chips
+-- Tabla de chips (simplificada, chip_code ya está en timing_readings)
 CREATE TABLE timing_chips (
   id uuid PRIMARY KEY,
   chip_code text UNIQUE,
   registration_id uuid REFERENCES registrations(id),
-  status text -- active, lost, damaged
+  status text, -- active, lost, damaged
+  assigned_at timestamptz
 );
 ```
 
@@ -323,14 +389,24 @@ Cuando trabajes en features de cronometraje:
    - "evento" = race_distances (por ahora)
    - "dorsal" = bib_number
    - "checkpoint" = race_checkpoints
-3. **Valida rangos de dorsales** al asignar
-4. **Ordena splits** por checkpoint_order
-5. **Calcula categorías** automáticamente si existe birth_date
-6. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
-7. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
-   - Para circuitos con vueltas: añadir lap_number
-   - Para lecturas duplicadas: filtrar por timestamp más cercano
-   - Para ida/vuelta: distinguir por dirección o lap_number
+   - "lectura" = timing_readings (raw data)
+   - "tiempo intermedio" = split_times (processed data)
+3. **Arquitectura de datos**:
+   - timing_readings es la fuente de verdad (lecturas raw)
+   - split_times se CALCULA a partir de timing_readings
+   - Nunca insertes split_times directamente, usa timing_readings
+4. **Valida rangos de dorsales** al asignar
+5. **Ordena splits** por checkpoint_order
+6. **Calcula categorías** automáticamente si existe birth_date
+7. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
+8. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
+   - Guardar todas en timing_readings con is_processed=false
+   - Aplicar lógica de filtrado al procesar (ej: timestamp más cercano)
+   - Generar un solo split_time por checkpoint (o múltiples si hay laps)
+   - Para circuitos con vueltas: usar lap_number
+9. **Tipos de lecturas**:
+   - Automáticas (chip RFID): chip_code presente, operator_user_id null
+   - Manuales: operator_user_id presente, chip_code puede ser null
 
 ---
 
