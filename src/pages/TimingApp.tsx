@@ -35,11 +35,11 @@ interface Race {
   date: string;
 }
 
-interface Checkpoint {
+interface TimingPoint {
   id: string;
   name: string;
-  distance_km: number;
-  checkpoint_order: number;
+  notes: string | null;
+  point_order: number | null;
 }
 
 interface Runner {
@@ -75,10 +75,10 @@ const TimingApp = () => {
   // App state
   const [currentView, setCurrentView] = useState<"login" | "select" | "timing">("login");
   const [races, setRaces] = useState<Race[]>([]);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
   const [runners, setRunners] = useState<Runner[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
-  const [selectedCheckpoint, setSelectedCheckpoint] = useState<Checkpoint | null>(null);
+  const [selectedTimingPoint, setSelectedTimingPoint] = useState<TimingPoint | null>(null);
 
   // Timing state
   const [bibInput, setBibInput] = useState("");
@@ -193,7 +193,7 @@ const TimingApp = () => {
   };
 
   const loadStoredContext = async (stored: any) => {
-    // Load race and checkpoint from storage
+    // Load race and timing point from storage
     try {
       const { data: race } = await supabase
         .from("races")
@@ -203,18 +203,18 @@ const TimingApp = () => {
 
       if (race) {
         setSelectedRace(race);
-        await fetchCheckpoints(race.id);
+        await fetchTimingPoints(race.id);
         await fetchRunners(race.id);
 
-        if (stored.checkpoint_id) {
-          const { data: checkpoint } = await supabase
-            .from("race_checkpoints")
-            .select("id, name, distance_km, checkpoint_order")
-            .eq("id", stored.checkpoint_id)
+        if (stored.timing_point_id) {
+          const { data: timingPoint } = await supabase
+            .from("timing_points")
+            .select("id, name, notes, point_order")
+            .eq("id", stored.timing_point_id)
             .single();
 
-          if (checkpoint) {
-            setSelectedCheckpoint(checkpoint);
+          if (timingPoint) {
+            setSelectedTimingPoint(timingPoint);
           }
         }
       }
@@ -251,18 +251,18 @@ const TimingApp = () => {
     }
   };
 
-  const fetchCheckpoints = async (raceId: string) => {
+  const fetchTimingPoints = async (raceId: string) => {
     try {
       const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, distance_km, checkpoint_order")
+        .from("timing_points")
+        .select("id, name, notes, point_order")
         .eq("race_id", raceId)
-        .order("checkpoint_order", { ascending: true });
+        .order("point_order", { ascending: true, nullsFirst: false });
 
       if (error) throw error;
-      setCheckpoints(data || []);
+      setTimingPoints(data || []);
     } catch (error: any) {
-      console.error("Error fetching checkpoints:", error);
+      console.error("Error fetching timing points:", error);
     }
   };
 
@@ -332,23 +332,23 @@ const TimingApp = () => {
     const race = races.find((r) => r.id === raceId);
     if (race) {
       setSelectedRace(race);
-      await fetchCheckpoints(raceId);
+      await fetchTimingPoints(raceId);
       await fetchRunners(raceId);
     }
   };
 
-  const handleSelectCheckpoint = (checkpointId: string) => {
-    const checkpoint = checkpoints.find((c) => c.id === checkpointId);
-    if (checkpoint) {
-      setSelectedCheckpoint(checkpoint);
+  const handleSelectTimingPoint = (timingPointId: string) => {
+    const timingPoint = timingPoints.find((tp) => tp.id === timingPointId);
+    if (timingPoint) {
+      setSelectedTimingPoint(timingPoint);
     }
   };
 
   const handleStartTiming = () => {
-    if (!selectedRace || !selectedCheckpoint) {
+    if (!selectedRace || !selectedTimingPoint) {
       toast({
         title: "Selección incompleta",
-        description: "Selecciona carrera y checkpoint",
+        description: "Selecciona carrera y punto de cronometraje",
         variant: "destructive",
       });
       return;
@@ -358,7 +358,7 @@ const TimingApp = () => {
     const sessionData = {
       user_id: user?.id,
       race_id: selectedRace.id,
-      checkpoint_id: selectedCheckpoint.id,
+      timing_point_id: selectedTimingPoint.id,
       logged_at: Date.now(),
       expires_at: Date.now() + 5 * 24 * 60 * 60 * 1000,
     };
@@ -395,11 +395,11 @@ const TimingApp = () => {
     inputRef.current?.focus();
 
     // Try to sync immediately if online
-    if (isOnline && selectedRace && selectedCheckpoint) {
+    if (isOnline && selectedRace && selectedTimingPoint) {
       try {
         const { error } = await supabase.from("timing_readings").insert({
           race_id: selectedRace.id,
-          checkpoint_id: selectedCheckpoint.id,
+          timing_point_id: selectedTimingPoint.id,
           bib_number: bib,
           timing_timestamp: timestamp,
           reading_timestamp: timestamp,
@@ -441,7 +441,7 @@ const TimingApp = () => {
   };
 
   const handleSync = async () => {
-    if (!isOnline || pendingSync.length === 0 || !selectedRace || !selectedCheckpoint) return;
+    if (!isOnline || pendingSync.length === 0 || !selectedRace || !selectedTimingPoint) return;
 
     setSyncing(true);
     try {
@@ -449,7 +449,7 @@ const TimingApp = () => {
         const runner = runners.find((r) => r.bib_number === reading.bib_number);
         return {
           race_id: selectedRace.id,
-          checkpoint_id: selectedCheckpoint.id,
+          timing_point_id: selectedTimingPoint.id,
           bib_number: reading.bib_number,
           timing_timestamp: reading.timestamp,
           reading_timestamp: reading.timestamp,
@@ -498,7 +498,7 @@ const TimingApp = () => {
     await supabase.auth.signOut();
     setCurrentView("login");
     setSelectedRace(null);
-    setSelectedCheckpoint(null);
+    setSelectedTimingPoint(null);
     setReadings([]);
   };
 
@@ -642,20 +642,20 @@ const TimingApp = () => {
                 </Select>
               </div>
 
-              {selectedRace && checkpoints.length > 0 && (
+              {selectedRace && timingPoints.length > 0 && (
                 <div className="space-y-2">
-                  <Label>Punto de Control</Label>
+                  <Label>Punto de Cronometraje</Label>
                   <Select
-                    value={selectedCheckpoint?.id || ""}
-                    onValueChange={handleSelectCheckpoint}
+                    value={selectedTimingPoint?.id || ""}
+                    onValueChange={handleSelectTimingPoint}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona checkpoint" />
+                      <SelectValue placeholder="Selecciona punto de cronometraje" />
                     </SelectTrigger>
                     <SelectContent>
-                      {checkpoints.map((cp) => (
-                        <SelectItem key={cp.id} value={cp.id}>
-                          {cp.name} (KM {cp.distance_km})
+                      {timingPoints.map((tp) => (
+                        <SelectItem key={tp.id} value={tp.id}>
+                          {tp.point_order != null ? `${tp.point_order}. ` : ""}{tp.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -663,7 +663,7 @@ const TimingApp = () => {
                 </div>
               )}
 
-              {selectedRace && selectedCheckpoint && (
+              {selectedRace && selectedTimingPoint && (
                 <div className="pt-4">
                   <div className="bg-muted/50 rounded-lg p-3 mb-4">
                     <p className="text-sm text-muted-foreground">Corredores cargados:</p>
@@ -690,7 +690,7 @@ const TimingApp = () => {
         <div className="flex items-center gap-2">
           <Timer className="h-5 w-5 text-primary" />
           <div className="text-sm">
-            <span className="font-bold">{selectedCheckpoint?.name}</span>
+            <span className="font-bold">{selectedTimingPoint?.name}</span>
             <span className="text-muted-foreground ml-1 hidden sm:inline">
               - {selectedRace?.name}
             </span>
