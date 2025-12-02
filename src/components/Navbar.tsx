@@ -42,7 +42,7 @@ const Navbar = () => {
                       Mis Consultas
                     </NavLink>
                   )}
-                  {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
+                  {user && isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
                   {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
                   {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
                   {isOrganizer && (
@@ -81,7 +81,7 @@ const Navbar = () => {
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
             {user && <NavLink to="/support">Mis Consultas</NavLink>}
-            {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
+            {user && isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
             {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
             {isOrganizer && (
