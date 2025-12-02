@@ -114,6 +114,60 @@ export type Database = {
           },
         ]
       }
+      contact_settings: {
+        Row: {
+          created_at: string
+          email_card_visible: boolean
+          form_description: string
+          form_enabled: boolean
+          form_title: string
+          id: string
+          page_description: string
+          page_title: string
+          success_message: string
+          support_chat_card_visible: boolean
+          support_email: string
+          updated_at: string
+          whatsapp_card_visible: boolean
+          whatsapp_number: string
+          whatsapp_url: string
+        }
+        Insert: {
+          created_at?: string
+          email_card_visible?: boolean
+          form_description?: string
+          form_enabled?: boolean
+          form_title?: string
+          id?: string
+          page_description?: string
+          page_title?: string
+          success_message?: string
+          support_chat_card_visible?: boolean
+          support_email?: string
+          updated_at?: string
+          whatsapp_card_visible?: boolean
+          whatsapp_number?: string
+          whatsapp_url?: string
+        }
+        Update: {
+          created_at?: string
+          email_card_visible?: boolean
+          form_description?: string
+          form_enabled?: boolean
+          form_title?: string
+          id?: string
+          page_description?: string
+          page_title?: string
+          success_message?: string
+          support_chat_card_visible?: boolean
+          support_email?: string
+          updated_at?: string
+          whatsapp_card_visible?: boolean
+          whatsapp_number?: string
+          whatsapp_url?: string
+        }
+        Relationships: []
+      }
       edge_function_flags: {
         Row: {
           created_at: string
