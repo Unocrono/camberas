@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +32,16 @@ const Navbar = () => {
                   <NavLink to="/">Inicio</NavLink>
                   <NavLink to="/races">Carreras</NavLink>
                   {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
+                  <NavLink to="/contact">
+                    <Mail className="h-4 w-4" />
+                    Contacto
+                  </NavLink>
+                  {user && (
+                    <NavLink to="/support">
+                      <MessageSquare className="h-4 w-4" />
+                      Soporte
+                    </NavLink>
+                  )}
                   {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
                   {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
                   {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
@@ -69,6 +79,8 @@ const Navbar = () => {
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
+            <NavLink to="/contact">Contacto</NavLink>
+            {user && <NavLink to="/support">Soporte</NavLink>}
             {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
             {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
             {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}

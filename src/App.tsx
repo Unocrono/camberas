@@ -26,6 +26,8 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
+import Contact from "./pages/Contact";
+import Support from "./pages/Support";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,8 @@ const App = () => (
           <Route path="/support-chat" element={<SupportChat />} />
           <Route path="/faqs" element={<Faqs />} />
           <Route path="/organizer-profile" element={<OrganizerProfile />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/support" element={<Support />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
