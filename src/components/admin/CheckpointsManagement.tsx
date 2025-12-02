@@ -34,10 +34,17 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map, Navigation, Upload, FileUp } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
+
+interface CheckpointAssignment {
+  id: string;
+  race_distance_id: string;
+  checkpoint_order: number;
+  distance_name?: string;
+}
 
 interface Checkpoint {
   id: string;
@@ -49,6 +56,13 @@ interface Checkpoint {
   race_distance_id: string | null;
   latitude: number | null;
   longitude: number | null;
+  assignments?: CheckpointAssignment[];
+}
+
+interface RaceDistance {
+  id: string;
+  name: string;
+  distance_km: number;
 }
 
 interface CheckpointsManagementProps {
@@ -74,6 +88,7 @@ interface GpxRoutePoint {
 
 export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: CheckpointsManagementProps) {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [allDistances, setAllDistances] = useState<RaceDistance[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -88,6 +103,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [gpxRoute, setGpxRoute] = useState<GpxRoutePoint[]>([]);
   const [distanceGpxUrl, setDistanceGpxUrl] = useState<string | null>(null);
   const [gpxPreviewRoute, setGpxPreviewRoute] = useState<GpxRoutePoint[]>([]);
+  const [selectedDistanceIds, setSelectedDistanceIds] = useState<string[]>([]);
   const [recalculatingDistances, setRecalculatingDistances] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -115,12 +131,21 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   }, []);
 
   useEffect(() => {
+    if (selectedRaceId) {
+      fetchAllDistances();
+    }
+  }, [selectedRaceId]);
+
+  useEffect(() => {
     if (selectedDistanceId) {
       fetchCheckpoints();
       fetchDistanceGpx();
+      // Pre-select current distance when opening form
+      setSelectedDistanceIds([selectedDistanceId]);
     } else {
       setGpxRoute([]);
       setDistanceGpxUrl(null);
+      setSelectedDistanceIds([]);
     }
   }, [selectedDistanceId]);
 
@@ -631,19 +656,100 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     }
   };
 
+  const fetchAllDistances = async () => {
+    const { data, error } = await supabase
+      .from("race_distances")
+      .select("id, name, distance_km")
+      .eq("race_id", selectedRaceId)
+      .order("distance_km");
+
+    if (error) {
+      console.error("Error fetching distances:", error);
+    } else {
+      setAllDistances(data || []);
+    }
+  };
+
   const fetchCheckpoints = async () => {
     setLoading(true);
+    
+    // Obtener checkpoints que están asignados a este evento via la tabla intermedia
+    const { data: assignmentData, error: assignmentError } = await supabase
+      .from("checkpoint_distance_assignments")
+      .select(`
+        checkpoint_id,
+        checkpoint_order,
+        race_distance_id
+      `)
+      .eq("race_distance_id", selectedDistanceId);
+
+    if (assignmentError) {
+      toast.error("Error al cargar asignaciones");
+      console.error(assignmentError);
+      setLoading(false);
+      return;
+    }
+
+    const checkpointIds = (assignmentData || []).map(a => a.checkpoint_id);
+    
+    if (checkpointIds.length === 0) {
+      // Fallback: buscar por race_distance_id legacy
+      const { data: legacyData, error: legacyError } = await supabase
+        .from("race_checkpoints")
+        .select("*")
+        .eq("race_distance_id", selectedDistanceId)
+        .order("checkpoint_order");
+
+      if (legacyError) {
+        toast.error("Error al cargar puntos de control");
+        console.error(legacyError);
+      } else {
+        setCheckpoints(legacyData || []);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // Obtener los checkpoints
     const { data, error } = await supabase
       .from("race_checkpoints")
       .select("*")
-      .eq("race_distance_id", selectedDistanceId)
-      .order("checkpoint_order");
+      .in("id", checkpointIds);
 
     if (error) {
-      toast.error("Error al cargar los puntos de control");
+      toast.error("Error al cargar puntos de control");
       console.error(error);
+      setCheckpoints([]);
     } else {
-      setCheckpoints(data || []);
+      // Ordenar por checkpoint_order de la asignación
+      const orderMap = new Map(assignmentData?.map(a => [a.checkpoint_id, a.checkpoint_order]));
+      const sortedCheckpoints = (data || []).sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? a.checkpoint_order;
+        const orderB = orderMap.get(b.id) ?? b.checkpoint_order;
+        return orderA - orderB;
+      });
+      
+      // Cargar todas las asignaciones de estos checkpoints para mostrar en qué eventos están
+      const { data: allAssignments } = await supabase
+        .from("checkpoint_distance_assignments")
+        .select("checkpoint_id, race_distance_id, checkpoint_order")
+        .in("checkpoint_id", checkpointIds);
+
+      // Añadir asignaciones a cada checkpoint
+      const checkpointsWithAssignments = sortedCheckpoints.map(cp => ({
+        ...cp,
+        checkpoint_order: orderMap.get(cp.id) ?? cp.checkpoint_order,
+        assignments: (allAssignments || [])
+          .filter(a => a.checkpoint_id === cp.id)
+          .map(a => ({
+            id: a.checkpoint_id,
+            race_distance_id: a.race_distance_id,
+            checkpoint_order: a.checkpoint_order,
+            distance_name: allDistances.find(d => d.id === a.race_distance_id)?.name
+          }))
+      }));
+
+      setCheckpoints(checkpointsWithAssignments);
     }
     setLoading(false);
   };
@@ -659,6 +765,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
+    setSelectedDistanceIds([selectedDistanceId]);
   };
 
   const handleOpenDialog = (checkpoint?: Checkpoint) => {
@@ -673,12 +780,16 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
+      // Cargar los eventos asignados a este checkpoint
+      const assignedIds = checkpoint.assignments?.map(a => a.race_distance_id) || [selectedDistanceId];
+      setSelectedDistanceIds(assignedIds);
     } else {
       resetForm();
       setFormData((prev) => ({
         ...prev,
         checkpoint_order: checkpoints.length + 1,
       }));
+      setSelectedDistanceIds([selectedDistanceId]); // Pre-seleccionar evento actual
     }
     setIsDialogOpen(true);
   };
@@ -690,12 +801,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
 
     if (isEditing && selectedCheckpoint) {
+      // Actualizar checkpoint
       const { error } = await supabase
         .from("race_checkpoints")
         .update({
           name: formData.name,
           lugar: formData.lugar || null,
-          checkpoint_order: formData.checkpoint_order,
           distance_km: formData.distance_km,
           latitude,
           longitude,
@@ -707,24 +818,70 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         console.error(error);
         return;
       }
+
+      // Actualizar asignaciones: eliminar las anteriores y crear las nuevas
+      await supabase
+        .from("checkpoint_distance_assignments")
+        .delete()
+        .eq("checkpoint_id", selectedCheckpoint.id);
+
+      if (selectedDistanceIds.length > 0) {
+        const assignments = selectedDistanceIds.map(distanceId => ({
+          checkpoint_id: selectedCheckpoint.id,
+          race_distance_id: distanceId,
+          checkpoint_order: formData.checkpoint_order,
+        }));
+
+        const { error: assignError } = await supabase
+          .from("checkpoint_distance_assignments")
+          .insert(assignments);
+
+        if (assignError) {
+          console.error("Error al actualizar asignaciones:", assignError);
+        }
+      }
+
       toast.success("Punto de control actualizado");
     } else {
-      const { error } = await supabase.from("race_checkpoints").insert({
-        race_id: selectedRaceId,
-        race_distance_id: selectedDistanceId,
-        name: formData.name,
-        lugar: formData.lugar || null,
-        checkpoint_order: formData.checkpoint_order,
-        distance_km: formData.distance_km,
-        latitude,
-        longitude,
-      });
+      // Crear nuevo checkpoint
+      const { data: newCheckpoint, error } = await supabase
+        .from("race_checkpoints")
+        .insert({
+          race_id: selectedRaceId,
+          race_distance_id: selectedDistanceId, // Mantener para compatibilidad legacy
+          name: formData.name,
+          lugar: formData.lugar || null,
+          checkpoint_order: formData.checkpoint_order,
+          distance_km: formData.distance_km,
+          latitude,
+          longitude,
+        })
+        .select("id")
+        .single();
 
-      if (error) {
+      if (error || !newCheckpoint) {
         toast.error("Error al crear el punto de control");
         console.error(error);
         return;
       }
+
+      // Crear asignaciones para los eventos seleccionados
+      if (selectedDistanceIds.length > 0) {
+        const assignments = selectedDistanceIds.map(distanceId => ({
+          checkpoint_id: newCheckpoint.id,
+          race_distance_id: distanceId,
+          checkpoint_order: formData.checkpoint_order,
+        }));
+
+        const { error: assignError } = await supabase
+          .from("checkpoint_distance_assignments")
+          .insert(assignments);
+
+        if (assignError) {
+          console.error("Error al crear asignaciones:", assignError);
+        }
+      }
+
       toast.success("Punto de control creado");
     }
 
@@ -1154,7 +1311,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                 variant="outline"
                 onClick={() => setShowMap(!showMap)}
               >
-                <Map className="mr-2 h-4 w-4" />
+                <MapIcon className="mr-2 h-4 w-4" />
                 {showMap ? "Ocultar Mapa" : "Ver Mapa"}
               </Button>
             )}
@@ -1292,7 +1449,34 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       </div>
                     </div>
                   </div>
-                  <Button type="submit" className="w-full">
+                  {/* Asignación a eventos */}
+                  <div className="border-t pt-4">
+                    <Label className="text-sm font-medium mb-3 block">Asignar a eventos</Label>
+                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                      {allDistances.map((distance) => (
+                        <label
+                          key={distance.id}
+                          className="flex items-center space-x-2 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedDistanceIds.includes(distance.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedDistanceIds([...selectedDistanceIds, distance.id]);
+                              } else {
+                                setSelectedDistanceIds(selectedDistanceIds.filter(id => id !== distance.id));
+                              }
+                            }}
+                          />
+                          <span className="text-sm">{distance.name} ({distance.distance_km}km)</span>
+                        </label>
+                      ))}
+                    </div>
+                    {selectedDistanceIds.length === 0 && (
+                      <p className="text-xs text-destructive mt-1">Selecciona al menos un evento</p>
+                    )}
+                  </div>
+                  <Button type="submit" className="w-full" disabled={selectedDistanceIds.length === 0}>
                     {isEditing ? "Guardar Cambios" : "Crear Punto de Control"}
                   </Button>
                 </form>
@@ -1316,6 +1500,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <TableHead>Nombre</TableHead>
                   <TableHead>Lugar</TableHead>
                   <TableHead className="text-right">Km</TableHead>
+                  <TableHead>Eventos</TableHead>
                   <TableHead className="text-center">GPS</TableHead>
                   <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
@@ -1329,6 +1514,22 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     <TableCell className="font-medium">{checkpoint.name}</TableCell>
                     <TableCell className="text-muted-foreground">{checkpoint.lugar || "-"}</TableCell>
                     <TableCell className="text-right">{checkpoint.distance_km.toFixed(3)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {checkpoint.assignments && checkpoint.assignments.length > 0 ? (
+                          checkpoint.assignments.map((assignment, idx) => {
+                            const distanceName = allDistances.find(d => d.id === assignment.race_distance_id)?.name;
+                            return (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {distanceName || "?"}
+                              </Badge>
+                            );
+                          })
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
                         <Badge variant="secondary" className="text-xs">
@@ -1369,7 +1570,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Map className="h-5 w-5" />
+              <MapIcon className="h-5 w-5" />
               Mapa de Puntos de Control
             </CardTitle>
           </CardHeader>
@@ -1426,7 +1627,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           {mapboxToken && (
             <div className="border rounded-md overflow-hidden">
               <div className="bg-muted/50 px-3 py-2 text-sm font-medium flex items-center gap-2">
-                <Map className="h-4 w-4" />
+                <MapIcon className="h-4 w-4" />
                 Preview del recorrido
                 <Badge variant="outline" className="ml-auto">
                   {gpxWaypoints.filter((wp) => wp.selected).length} waypoints seleccionados

@@ -170,23 +170,64 @@ export function SplitTimesManagement({
   const fetchCheckpoints = async () => {
     if (!propSelectedRaceId) return;
     
-    let query = supabase
-      .from("race_checkpoints")
-      .select("id, name, checkpoint_order, distance_km")
-      .eq("race_id", propSelectedRaceId)
-      .order("checkpoint_order");
-
     if (selectedDistanceId) {
-      query = query.eq("race_distance_id", selectedDistanceId);
-    }
+      // Usar tabla intermedia cuando hay evento seleccionado
+      const { data: assignmentData, error: assignmentError } = await supabase
+        .from("checkpoint_distance_assignments")
+        .select("checkpoint_id, checkpoint_order")
+        .eq("race_distance_id", selectedDistanceId);
 
-    const { data, error } = await query;
+      if (assignmentError) {
+        toast.error("Error al cargar checkpoints");
+        return;
+      }
 
-    if (error) {
-      toast.error("Error al cargar checkpoints");
-      return;
+      const checkpointIds = (assignmentData || []).map(a => a.checkpoint_id);
+      
+      if (checkpointIds.length === 0) {
+        // Fallback: buscar por race_distance_id legacy
+        const { data, error } = await supabase
+          .from("race_checkpoints")
+          .select("id, name, checkpoint_order, distance_km")
+          .eq("race_distance_id", selectedDistanceId)
+          .order("checkpoint_order");
+
+        if (!error) setCheckpoints(data || []);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("race_checkpoints")
+        .select("id, name, checkpoint_order, distance_km")
+        .in("id", checkpointIds);
+
+      if (error) {
+        toast.error("Error al cargar checkpoints");
+        return;
+      }
+
+      // Ordenar por checkpoint_order de la asignación
+      const orderMap = new Map(assignmentData?.map(a => [a.checkpoint_id, a.checkpoint_order]));
+      const sorted = (data || []).sort((a, b) => {
+        const orderA = orderMap.get(a.id) ?? a.checkpoint_order;
+        const orderB = orderMap.get(b.id) ?? b.checkpoint_order;
+        return orderA - orderB;
+      });
+      setCheckpoints(sorted);
+    } else {
+      // Sin evento seleccionado: cargar todos los checkpoints de la carrera
+      const { data, error } = await supabase
+        .from("race_checkpoints")
+        .select("id, name, checkpoint_order, distance_km")
+        .eq("race_id", propSelectedRaceId)
+        .order("checkpoint_order");
+
+      if (error) {
+        toast.error("Error al cargar checkpoints");
+        return;
+      }
+      setCheckpoints(data || []);
     }
-    setCheckpoints(data || []);
   };
 
   const fetchRegistrations = async () => {
