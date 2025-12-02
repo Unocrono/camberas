@@ -35,7 +35,7 @@ interface Message {
 }
 
 export default function SupportChat() {
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, isAdmin, loading: authLoading, rolesLoaded } = useAuth();
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -46,17 +46,16 @@ export default function SupportChat() {
   const [filter, setFilter] = useState<"all" | "open" | "closed">("open");
 
   useEffect(() => {
-    // Solo redirigir si terminó de cargar Y el usuario no es admin
-    if (!authLoading && user && !isAdmin) {
-      navigate("/");
-      toast.error("No tienes permisos para acceder a esta página");
+    if (!authLoading && rolesLoaded) {
+      if (user && !isAdmin) {
+        navigate("/");
+        toast.error("No tienes permisos para acceder a esta página");
+      } else if (!user) {
+        navigate("/auth");
+        toast.error("Debes iniciar sesión");
+      }
     }
-    // Si no hay usuario después de cargar, redirigir a login
-    if (!authLoading && !user) {
-      navigate("/auth");
-      toast.error("Debes iniciar sesión");
-    }
-  }, [user, isAdmin, authLoading, navigate]);
+  }, [user, isAdmin, authLoading, rolesLoaded, navigate]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -214,7 +213,7 @@ export default function SupportChat() {
 
   const selectedConv = conversations.find((c) => c.id === selectedConversation);
 
-  if (authLoading || (user && !isAdmin)) {
+  if (authLoading || !rolesLoaded) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
