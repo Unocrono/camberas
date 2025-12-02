@@ -39,11 +39,11 @@ const Navbar = () => {
                   {user && (
                     <NavLink to="/support">
                       <MessageSquare className="h-4 w-4" />
-                      Soporte
+                      Mis Consultas
                     </NavLink>
                   )}
                   {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
-                  {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
+                  {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
                   {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
                   {isOrganizer && (
                     <NavLink to="/organizer" className="flex items-center gap-2">
@@ -80,9 +80,9 @@ const Navbar = () => {
             <NavLink to="/races">Carreras</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
-            {user && <NavLink to="/support">Soporte</NavLink>}
+            {user && <NavLink to="/support">Mis Consultas</NavLink>}
             {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
-            {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
+            {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
