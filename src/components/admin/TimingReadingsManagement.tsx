@@ -52,16 +52,15 @@ interface TimingReading {
   is_processed: boolean;
   lap_number: number;
   notes: string | null;
-  checkpoint_id: string | null;
+  timing_point_id: string | null;
   race_id: string;
   race_distance_id: string | null;
   registration_id: string | null;
   operator_user_id: string | null;
   chip_code: string | null;
   reader_device_id: string | null;
-  checkpoint?: {
+  timing_point?: {
     name: string;
-    distance_km: number;
   };
   race_distance?: {
     name: string;
@@ -84,10 +83,9 @@ interface RaceDistance {
   distance_km: number;
 }
 
-interface Checkpoint {
+interface TimingPoint {
   id: string;
   name: string;
-  distance_km: number;
 }
 
 interface TimingReadingsManagementProps {
@@ -102,12 +100,12 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [loading, setLoading] = useState(true);
   const [races, setRaces] = useState<Race[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
   const [filterDistanceId, setFilterDistanceId] = useState<string>("");
-  const [filterCheckpointId, setFilterCheckpointId] = useState<string>("");
+  const [filterTimingPointId, setFilterTimingPointId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
   
   // Dialog states
@@ -122,7 +120,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [formData, setFormData] = useState({
     bib_number: "",
     timing_timestamp: "",
-    checkpoint_id: "",
+    timing_point_id: "",
     race_distance_id: "",
     lap_number: "1",
     notes: "",
@@ -143,26 +141,18 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   useEffect(() => {
     if (filterRaceId) {
       fetchDistances(filterRaceId);
-      fetchCheckpoints(filterRaceId);
+      fetchTimingPoints(filterRaceId);
     } else {
       setDistances([]);
-      setCheckpoints([]);
+      setTimingPoints([]);
       setFilterDistanceId("");
-      setFilterCheckpointId("");
+      setFilterTimingPointId("");
     }
   }, [filterRaceId]);
 
   useEffect(() => {
-    if (filterDistanceId) {
-      fetchCheckpointsByDistance(filterDistanceId);
-    } else if (filterRaceId) {
-      fetchCheckpoints(filterRaceId);
-    }
-  }, [filterDistanceId]);
-
-  useEffect(() => {
     fetchReadings();
-  }, [filterRaceId, filterDistanceId, filterCheckpointId, searchTerm]);
+  }, [filterRaceId, filterDistanceId, filterTimingPointId, searchTerm]);
 
   const fetchRaces = async () => {
     try {
@@ -195,33 +185,18 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     }
   };
 
-  const fetchCheckpoints = async (raceId: string) => {
+  const fetchTimingPoints = async (raceId: string) => {
     try {
       const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, distance_km")
+        .from("timing_points")
+        .select("id, name")
         .eq("race_id", raceId)
-        .order("checkpoint_order", { ascending: true });
+        .order("name", { ascending: true });
       
       if (error) throw error;
-      setCheckpoints(data || []);
+      setTimingPoints(data || []);
     } catch (error: any) {
-      console.error("Error fetching checkpoints:", error);
-    }
-  };
-
-  const fetchCheckpointsByDistance = async (distanceId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, distance_km")
-        .eq("race_distance_id", distanceId)
-        .order("checkpoint_order", { ascending: true });
-      
-      if (error) throw error;
-      setCheckpoints(data || []);
-    } catch (error: any) {
-      console.error("Error fetching checkpoints:", error);
+      console.error("Error fetching timing points:", error);
     }
   };
 
@@ -238,7 +213,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .from("timing_readings")
         .select(`
           *,
-          checkpoint:race_checkpoints(name, distance_km),
+          timing_point:timing_points(name),
           race_distance:race_distances(name),
           registration:registrations(guest_first_name, guest_last_name, user_id)
         `)
@@ -249,8 +224,8 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         query = query.eq("race_distance_id", filterDistanceId);
       }
 
-      if (filterCheckpointId) {
-        query = query.eq("checkpoint_id", filterCheckpointId);
+      if (filterTimingPointId) {
+        query = query.eq("timing_point_id", filterTimingPointId);
       }
 
       const { data, error } = await query;
@@ -287,7 +262,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     setFormData({
       bib_number: "",
       timing_timestamp: "",
-      checkpoint_id: "",
+      timing_point_id: "",
       race_distance_id: filterDistanceId || "",
       lap_number: "1",
       notes: "",
@@ -306,7 +281,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     setFormData({
       bib_number: reading.bib_number.toString(),
       timing_timestamp: reading.timing_timestamp ? new Date(reading.timing_timestamp).toISOString().slice(0, 16) : "",
-      checkpoint_id: reading.checkpoint_id || "",
+      timing_point_id: reading.timing_point_id || "",
       race_distance_id: reading.race_distance_id || "",
       lap_number: (reading.lap_number || 1).toString(),
       notes: reading.notes || "",
@@ -345,7 +320,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         race_id: filterRaceId,
         bib_number: parseInt(formData.bib_number),
         timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
-        checkpoint_id: formData.checkpoint_id || null,
+        timing_point_id: formData.timing_point_id || null,
         race_distance_id: formData.race_distance_id || registration?.race_distance_id || null,
         registration_id: registration?.id || null,
         lap_number: parseInt(formData.lap_number) || 1,
@@ -394,7 +369,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .update({
           bib_number: parseInt(formData.bib_number),
           timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
-          checkpoint_id: formData.checkpoint_id || null,
+          timing_point_id: formData.timing_point_id || null,
           race_distance_id: formData.race_distance_id || null,
           lap_number: parseInt(formData.lap_number) || 1,
           notes: formData.notes || null,
@@ -467,12 +442,12 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       return;
     }
 
-    const headers = ["Dorsal", "Participante", "Evento", "Checkpoint", "Hora", "Tipo", "Estado", "Vuelta", "Procesado", "Notas"];
+    const headers = ["Dorsal", "Participante", "Evento", "Punto de Crono", "Hora", "Tipo", "Estado", "Vuelta", "Procesado", "Notas"];
     const rows = readings.map((r) => [
       r.bib_number,
       r.registration ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.trim() : "-",
       r.race_distance?.name || "-",
-      r.checkpoint?.name || "-",
+      r.timing_point?.name || "-",
       new Date(r.timing_timestamp).toLocaleString("es-ES"),
       r.reading_type || "-",
       r.status_code || "-",
@@ -594,16 +569,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
 
             <div className="space-y-2">
-              <Label>Punto de Control</Label>
-              <Select value={filterCheckpointId} onValueChange={setFilterCheckpointId} disabled={!filterRaceId}>
+              <Label>Punto de Cronometraje</Label>
+              <Select value={filterTimingPointId} onValueChange={setFilterTimingPointId} disabled={!filterRaceId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos los checkpoints" />
+                  <SelectValue placeholder="Todos los puntos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los checkpoints</SelectItem>
-                  {checkpoints.map((cp) => (
-                    <SelectItem key={cp.id} value={cp.id}>
-                      {cp.name} ({cp.distance_km}km)
+                  <SelectItem value="">Todos los puntos</SelectItem>
+                  {timingPoints.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -648,7 +623,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                   <TableHead>Dorsal</TableHead>
                   <TableHead>Participante</TableHead>
                   <TableHead>Evento</TableHead>
-                  <TableHead>Checkpoint</TableHead>
+                  <TableHead>Punto Crono</TableHead>
                   <TableHead>Hora</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Estado</TableHead>
@@ -666,7 +641,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                         : "-"}
                     </TableCell>
                     <TableCell>{reading.race_distance?.name || "-"}</TableCell>
-                    <TableCell>{reading.checkpoint?.name || "-"}</TableCell>
+                    <TableCell>{reading.timing_point?.name || "-"}</TableCell>
                     <TableCell className="whitespace-nowrap">{formatDateTime(reading.timing_timestamp)}</TableCell>
                     <TableCell>{getReadingTypeBadge(reading.reading_type)}</TableCell>
                     <TableCell>{getStatusBadge(reading.status_code)}</TableCell>
@@ -748,16 +723,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Punto de Control</Label>
-              <Select value={formData.checkpoint_id} onValueChange={(v) => setFormData({ ...formData, checkpoint_id: v })}>
+              <Label>Punto de Cronometraje</Label>
+              <Select value={formData.timing_point_id} onValueChange={(v) => setFormData({ ...formData, timing_point_id: v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona checkpoint" />
+                  <SelectValue placeholder="Selecciona punto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin checkpoint</SelectItem>
-                  {checkpoints.map((cp) => (
-                    <SelectItem key={cp.id} value={cp.id}>
-                      {cp.name}
+                  <SelectItem value="">Sin punto</SelectItem>
+                  {timingPoints.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -864,16 +839,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Punto de Control</Label>
-              <Select value={formData.checkpoint_id} onValueChange={(v) => setFormData({ ...formData, checkpoint_id: v })}>
+              <Label>Punto de Cronometraje</Label>
+              <Select value={formData.timing_point_id} onValueChange={(v) => setFormData({ ...formData, timing_point_id: v })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona checkpoint" />
+                  <SelectValue placeholder="Selecciona punto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin checkpoint</SelectItem>
-                  {checkpoints.map((cp) => (
-                    <SelectItem key={cp.id} value={cp.id}>
-                      {cp.name}
+                  <SelectItem value="">Sin punto</SelectItem>
+                  {timingPoints.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
