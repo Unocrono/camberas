@@ -336,6 +336,7 @@ export type Database = {
       race_checkpoints: {
         Row: {
           checkpoint_order: number
+          checkpoint_type: string
           created_at: string
           distance_km: number
           id: string
@@ -349,6 +350,7 @@ export type Database = {
         }
         Insert: {
           checkpoint_order: number
+          checkpoint_type?: string
           created_at?: string
           distance_km: number
           id?: string
@@ -362,6 +364,7 @@ export type Database = {
         }
         Update: {
           checkpoint_order?: number
+          checkpoint_type?: string
           created_at?: string
           distance_km?: number
           id?: string
@@ -1153,6 +1156,7 @@ export type Database = {
           created_at: string
           distance_km: number
           id: string
+          lap_number: number | null
           race_result_id: string
           split_time: unknown
           updated_at: string
@@ -1163,6 +1167,7 @@ export type Database = {
           created_at?: string
           distance_km: number
           id?: string
+          lap_number?: number | null
           race_result_id: string
           split_time: unknown
           updated_at?: string
@@ -1173,6 +1178,7 @@ export type Database = {
           created_at?: string
           distance_km?: number
           id?: string
+          lap_number?: number | null
           race_result_id?: string
           split_time?: unknown
           updated_at?: string
