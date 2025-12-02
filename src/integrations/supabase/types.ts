@@ -1252,6 +1252,182 @@ export type Database = {
           },
         ]
       }
+      timer_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          checkpoint_id: string | null
+          id: string
+          notes: string | null
+          race_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          checkpoint_id?: string | null
+          id?: string
+          notes?: string | null
+          race_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          checkpoint_id?: string | null
+          id?: string
+          notes?: string | null
+          race_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timer_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timer_assignments_checkpoint_id_fkey"
+            columns: ["checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "race_checkpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timer_assignments_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timer_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      timing_readings: {
+        Row: {
+          antenna_no: number | null
+          bib_number: number
+          checkpoint_id: string | null
+          chip_code: string | null
+          created_at: string | null
+          id: string
+          is_processed: boolean | null
+          is_rewind: boolean | null
+          lap_number: number | null
+          log_id: number | null
+          notes: string | null
+          operator_user_id: string | null
+          race_distance_id: string | null
+          race_id: string
+          reader_device_id: string | null
+          reader_no: number | null
+          reading_timestamp: string | null
+          reading_type: string | null
+          registration_id: string | null
+          rssi: number | null
+          status_code: string | null
+          timing_timestamp: string
+          ultra_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          antenna_no?: number | null
+          bib_number: number
+          checkpoint_id?: string | null
+          chip_code?: string | null
+          created_at?: string | null
+          id?: string
+          is_processed?: boolean | null
+          is_rewind?: boolean | null
+          lap_number?: number | null
+          log_id?: number | null
+          notes?: string | null
+          operator_user_id?: string | null
+          race_distance_id?: string | null
+          race_id: string
+          reader_device_id?: string | null
+          reader_no?: number | null
+          reading_timestamp?: string | null
+          reading_type?: string | null
+          registration_id?: string | null
+          rssi?: number | null
+          status_code?: string | null
+          timing_timestamp: string
+          ultra_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          antenna_no?: number | null
+          bib_number?: number
+          checkpoint_id?: string | null
+          chip_code?: string | null
+          created_at?: string | null
+          id?: string
+          is_processed?: boolean | null
+          is_rewind?: boolean | null
+          lap_number?: number | null
+          log_id?: number | null
+          notes?: string | null
+          operator_user_id?: string | null
+          race_distance_id?: string | null
+          race_id?: string
+          reader_device_id?: string | null
+          reader_no?: number | null
+          reading_timestamp?: string | null
+          reading_type?: string | null
+          registration_id?: string | null
+          rssi?: number | null
+          status_code?: string | null
+          timing_timestamp?: string
+          ultra_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timing_readings_checkpoint_id_fkey"
+            columns: ["checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "race_checkpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timing_readings_operator_user_id_fkey"
+            columns: ["operator_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timing_readings_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timing_readings_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timing_readings_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       training_plans: {
         Row: {
           created_at: string
@@ -1351,6 +1527,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_timer_for_race: {
+        Args: { _race_id: string; _user_id: string }
         Returns: boolean
       }
       seed_default_registration_fields: {
