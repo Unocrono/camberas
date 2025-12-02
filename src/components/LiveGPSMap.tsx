@@ -55,20 +55,47 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
   }, [raceId, mapboxToken]);
 
   const fetchRaceGpx = async () => {
-    const { data, error } = await supabase
+    // First try to get GPX from race_distances (where it's typically stored)
+    const { data: distanceData, error: distanceError } = await supabase
+      .from('race_distances')
+      .select('gpx_file_url')
+      .eq('race_id', raceId)
+      .eq('gps_tracking_enabled', true)
+      .not('gpx_file_url', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (!distanceError && distanceData?.gpx_file_url) {
+      setGpxUrl(distanceData.gpx_file_url);
+      loadGpxRoute(distanceData.gpx_file_url);
+      return;
+    }
+
+    // Fallback: try any distance with GPX
+    const { data: anyDistanceData, error: anyDistanceError } = await supabase
+      .from('race_distances')
+      .select('gpx_file_url')
+      .eq('race_id', raceId)
+      .not('gpx_file_url', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (!anyDistanceError && anyDistanceData?.gpx_file_url) {
+      setGpxUrl(anyDistanceData.gpx_file_url);
+      loadGpxRoute(anyDistanceData.gpx_file_url);
+      return;
+    }
+
+    // Final fallback: check if race itself has GPX (legacy support)
+    const { data: raceData, error: raceError } = await supabase
       .from('races')
       .select('gpx_file_url')
       .eq('id', raceId)
       .single();
 
-    if (error) {
-      console.error('Error fetching GPX URL:', error);
-      return;
-    }
-
-    if (data?.gpx_file_url) {
-      setGpxUrl(data.gpx_file_url);
-      loadGpxRoute(data.gpx_file_url);
+    if (!raceError && raceData?.gpx_file_url) {
+      setGpxUrl(raceData.gpx_file_url);
+      loadGpxRoute(raceData.gpx_file_url);
     }
   };
 
