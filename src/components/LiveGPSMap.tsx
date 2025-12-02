@@ -23,6 +23,20 @@ interface Checkpoint {
   longitude: number | null;
 }
 
+interface RoadbookItem {
+  id: string;
+  description: string;
+  km_total: number;
+  latitude: number | null;
+  longitude: number | null;
+  is_highlighted: boolean;
+  item_type: string;
+  roadbook_item_types?: {
+    icon: string;
+    label: string;
+  } | null;
+}
+
 interface LiveGPSMapProps {
   raceId: string;
   distanceId?: string;
@@ -34,9 +48,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const checkpointMarkers = useRef<mapboxgl.Marker[]>([]);
+  const roadbookMarkers = useRef<mapboxgl.Marker[]>([]);
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [roadbookItems, setRoadbookItems] = useState<RoadbookItem[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -58,14 +75,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       'top-right'
     );
 
+    map.current.on('load', () => {
+      setMapReady(true);
+    });
+
+    // If style already loaded
+    if (map.current.isStyleLoaded()) {
+      setMapReady(true);
+    }
+
     return () => {
       map.current?.remove();
     };
   }, [mapboxToken]);
 
-  // Load GPX and checkpoints when distanceId changes
+  // Load GPX, checkpoints and roadbook items when map is ready or distanceId changes
   useEffect(() => {
-    if (!map.current) return;
+    if (!map.current || !mapReady) return;
     
     // Clear existing route
     if (map.current.getLayer('route')) {
@@ -79,17 +105,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     checkpointMarkers.current.forEach(marker => marker.remove());
     checkpointMarkers.current = [];
     
+    // Clear existing roadbook markers
+    roadbookMarkers.current.forEach(marker => marker.remove());
+    roadbookMarkers.current = [];
+    
     setGpxUrl(null);
     fetchGpx();
     fetchCheckpoints();
-  }, [distanceId, raceId]);
+    fetchRoadbookItems();
+  }, [distanceId, raceId, mapReady]);
 
   // Setup realtime and fetch positions
   useEffect(() => {
+    if (!mapReady) return;
     fetchInitialPositions();
     const cleanup = setupRealtimeSubscription();
     return cleanup;
-  }, [raceId]);
+  }, [raceId, mapReady]);
 
   const fetchCheckpoints = async () => {
     let query = supabase
@@ -163,7 +195,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       checkpointMarkers.current.push(marker);
     });
 
-    // Center map on checkpoints if no GPX route
+    // Center map on checkpoints if no GPX route loaded yet
     if (validCheckpoints.length > 0 && !gpxUrl) {
       const bounds = new mapboxgl.LngLatBounds();
       validCheckpoints.forEach(cp => {
@@ -171,6 +203,87 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       });
       map.current.fitBounds(bounds, { padding: 80 });
     }
+  };
+
+  const fetchRoadbookItems = async () => {
+    if (!distanceId) return;
+
+    // Get roadbook for this distance
+    const { data: roadbookData, error: roadbookError } = await supabase
+      .from('roadbooks')
+      .select('id')
+      .eq('race_distance_id', distanceId)
+      .maybeSingle();
+
+    if (roadbookError || !roadbookData) return;
+
+    // Get highlighted items with coordinates
+    const { data: items, error: itemsError } = await supabase
+      .from('roadbook_items')
+      .select(`
+        id,
+        description,
+        km_total,
+        latitude,
+        longitude,
+        is_highlighted,
+        item_type,
+        roadbook_item_types (
+          icon,
+          label
+        )
+      `)
+      .eq('roadbook_id', roadbookData.id)
+      .eq('is_highlighted', true)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null)
+      .order('item_order', { ascending: true });
+
+    if (itemsError) {
+      console.error('Error fetching roadbook items:', itemsError);
+      return;
+    }
+
+    if (items) {
+      setRoadbookItems(items as RoadbookItem[]);
+      addRoadbookMarkers(items as RoadbookItem[]);
+    }
+  };
+
+  const addRoadbookMarkers = (items: RoadbookItem[]) => {
+    if (!map.current) return;
+
+    items.forEach((item) => {
+      if (!item.latitude || !item.longitude) return;
+
+      const icon = item.roadbook_item_types?.icon || 'MapPin';
+      const label = item.roadbook_item_types?.label || item.item_type;
+      
+      const el = document.createElement('div');
+      el.className = 'roadbook-marker';
+      el.innerHTML = `
+        <div class="flex flex-col items-center">
+          <div style="background-color: #8b5cf6; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" class="rounded-full w-7 h-7 flex items-center justify-center text-white font-bold text-xs">
+            ⭐
+          </div>
+        </div>
+      `;
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([item.longitude, item.latitude])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 25 }).setHTML(
+            `<div class="p-2">
+              <strong>${label}</strong><br/>
+              ${item.description}<br/>
+              KM: ${item.km_total}
+            </div>`
+          )
+        )
+        .addTo(map.current!);
+
+      roadbookMarkers.current.push(marker);
+    });
   };
 
   const fetchGpx = async () => {
@@ -429,10 +542,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       <style>{`
         .runner-marker {
           cursor: pointer;
+          z-index: 10;
         }
         .checkpoint-marker {
           cursor: pointer;
-          z-index: 1;
+          z-index: 5;
+        }
+        .roadbook-marker {
+          cursor: pointer;
+          z-index: 3;
         }
       `}</style>
     </div>
