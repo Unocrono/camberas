@@ -40,14 +40,14 @@ interface TimerAssignment {
   assigned_at: string;
   user_email?: string;
   user_name?: string;
-  checkpoint_name?: string;
+  timing_point_name?: string;
 }
 
-interface Checkpoint {
+interface TimingPoint {
   id: string;
   name: string;
-  distance_km: number;
-  checkpoint_order: number;
+  point_order: number | null;
+  notes: string | null;
 }
 
 interface TimerUser {
@@ -64,7 +64,7 @@ interface TimerAssignmentsManagementProps {
 export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsManagementProps) {
   const { toast } = useToast();
   const [assignments, setAssignments] = useState<TimerAssignment[]>([]);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
   const [timerUsers, setTimerUsers] = useState<TimerUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -79,7 +79,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
   useEffect(() => {
     if (selectedRaceId) {
       fetchAssignments();
-      fetchCheckpoints();
+      fetchTimingPoints();
       fetchTimerUsers();
     }
   }, [selectedRaceId]);
@@ -112,21 +112,21 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
             .eq("id", assignment.user_id)
             .single();
 
-          // Get checkpoint name if assigned
-          let checkpointName = null;
+          // Get timing point name if assigned
+          let timingPointName = null;
           if (assignment.checkpoint_id) {
-            const { data: checkpoint } = await supabase
-              .from("race_checkpoints")
+            const { data: timingPoint } = await supabase
+              .from("timing_points")
               .select("name")
               .eq("id", assignment.checkpoint_id)
               .single();
-            checkpointName = checkpoint?.name;
+            timingPointName = timingPoint?.name;
           }
 
           return {
             ...assignment,
             user_name: profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Sin nombre",
-            checkpoint_name: checkpointName || "Todos los checkpoints",
+            timing_point_name: timingPointName || "Todos los puntos",
           };
         })
       );
@@ -143,18 +143,18 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
     }
   };
 
-  const fetchCheckpoints = async () => {
+  const fetchTimingPoints = async () => {
     try {
       const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, distance_km, checkpoint_order")
+        .from("timing_points")
+        .select("id, name, point_order, notes")
         .eq("race_id", selectedRaceId)
-        .order("checkpoint_order", { ascending: true });
+        .order("point_order", { ascending: true });
 
       if (error) throw error;
-      setCheckpoints(data || []);
+      setTimingPoints(data || []);
     } catch (error: any) {
-      console.error("Error fetching checkpoints:", error);
+      console.error("Error fetching timing points:", error);
     }
   };
 
@@ -438,22 +438,22 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Punto de Control (opcional)</Label>
+                    <Label>Punto de Cronometraje (opcional)</Label>
                     <Select value={selectedCheckpointId} onValueChange={setSelectedCheckpointId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Todos los checkpoints" />
+                        <SelectValue placeholder="Todos los puntos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos los checkpoints</SelectItem>
-                        {checkpoints.map((cp) => (
-                          <SelectItem key={cp.id} value={cp.id}>
-                            {cp.name} (KM {cp.distance_km})
+                        <SelectItem value="">Todos los puntos</SelectItem>
+                        {timingPoints.map((tp) => (
+                          <SelectItem key={tp.id} value={tp.id}>
+                            {tp.point_order !== null ? `${tp.point_order}. ` : ""}{tp.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Si no seleccionas un checkpoint, podrá cronometrar en todos
+                      Si no seleccionas un punto, podrá cronometrar en todos
                     </p>
                   </div>
 
@@ -489,7 +489,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
               <TableHeader>
                 <TableRow>
                   <TableHead>Cronometrador</TableHead>
-                  <TableHead>Checkpoint</TableHead>
+                  <TableHead>Punto</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead>Asignado</TableHead>
                   <TableHead className="w-[80px]">Acciones</TableHead>
@@ -507,7 +507,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
                     <TableCell>
                       <Badge variant={assignment.checkpoint_id ? "default" : "secondary"}>
                         <MapPin className="h-3 w-3 mr-1" />
-                        {assignment.checkpoint_name}
+                        {assignment.timing_point_name}
                       </Badge>
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
