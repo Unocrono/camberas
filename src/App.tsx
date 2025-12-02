@@ -29,6 +29,7 @@ import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
 import Contact from "./pages/Contact";
 import Support from "./pages/Support";
+import TimingApp from "./pages/TimingApp";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,7 @@ const App = () => (
           <Route path="/organizer-profile" element={<OrganizerProfile />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/support" element={<Support />} />
+          <Route path="/timing" element={<TimingApp />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
