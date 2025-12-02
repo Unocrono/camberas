@@ -31,7 +31,15 @@ import {
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { User as SupabaseUser } from "@supabase/supabase-js";
+import { Pencil } from "lucide-react";
 
 interface Race {
   id: string;
@@ -110,6 +118,15 @@ const TimingApp = () => {
   const [statusNotes, setStatusNotes] = useState("");
   const [statusRunnerInfo, setStatusRunnerInfo] = useState<Runner | null>(null);
   const [submittingStatus, setSubmittingStatus] = useState(false);
+
+  // Race start time for calculating race time
+  const [raceStartTime, setRaceStartTime] = useState<Date | null>(null);
+
+  // Edit reading state
+  const [editingReading, setEditingReading] = useState<TimingReading | null>(null);
+  const [editBibInput, setEditBibInput] = useState("");
+  const [editTimeInput, setEditTimeInput] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Time update
   useEffect(() => {
@@ -228,6 +245,7 @@ const TimingApp = () => {
         setSelectedRace(race);
         await fetchTimingPoints(race.id);
         await fetchRunners(race.id);
+        await fetchRaceStartTime(race.id, race.date);
 
         if (stored.timing_point_id) {
           const { data: timingPoint } = await supabase
@@ -351,12 +369,64 @@ const TimingApp = () => {
     }
   };
 
+  // Fetch race start time from roadbook
+  const fetchRaceStartTime = async (raceId: string, raceDate: string) => {
+    try {
+      // Get start_time from any roadbook of this race
+      const { data: roadbooks, error } = await supabase
+        .from("roadbooks")
+        .select(`
+          start_time,
+          race_distances!inner(race_id)
+        `)
+        .eq("race_distances.race_id", raceId)
+        .not("start_time", "is", null)
+        .limit(1);
+
+      if (error) throw error;
+
+      if (roadbooks && roadbooks.length > 0 && roadbooks[0].start_time) {
+        // Combine race date with start_time
+        const startTimeStr = roadbooks[0].start_time as string;
+        const [hours, minutes, seconds] = startTimeStr.split(":").map(Number);
+        const startDate = new Date(raceDate);
+        startDate.setHours(hours, minutes, seconds || 0, 0);
+        setRaceStartTime(startDate);
+        localStorage.setItem(`start_time_${raceId}`, startDate.toISOString());
+      }
+    } catch (error) {
+      console.error("Error fetching race start time:", error);
+      // Try from localStorage
+      const stored = localStorage.getItem(`start_time_${raceId}`);
+      if (stored) {
+        setRaceStartTime(new Date(stored));
+      }
+    }
+  };
+
+  // Calculate race time (reading time - start time)
+  const calculateRaceTime = (readingTimestamp: string): string | null => {
+    if (!raceStartTime) return null;
+    
+    const readingTime = new Date(readingTimestamp);
+    const diffMs = readingTime.getTime() - raceStartTime.getTime();
+    
+    if (diffMs < 0) return null;
+    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+    
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  };
+
   const handleSelectRace = async (raceId: string) => {
     const race = races.find((r) => r.id === raceId);
     if (race) {
       setSelectedRace(race);
       await fetchTimingPoints(raceId);
       await fetchRunners(raceId);
+      await fetchRaceStartTime(raceId, race.date);
     }
   };
 
@@ -627,6 +697,92 @@ const TimingApp = () => {
     setSubmittingStatus(false);
   };
 
+  // Edit reading functions
+  const handleOpenEditDialog = (reading: TimingReading) => {
+    setEditingReading(reading);
+    setEditBibInput(reading.bib_number.toString());
+    // Format time for input (HH:MM:SS)
+    const date = new Date(reading.timestamp);
+    const timeStr = date.toLocaleTimeString("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    setEditTimeInput(timeStr);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingReading) return;
+
+    const newBib = parseInt(editBibInput);
+    if (isNaN(newBib) || newBib <= 0) {
+      toast({
+        title: "Dorsal inválido",
+        description: "Introduce un número de dorsal válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse time input and create new timestamp
+    const timeParts = editTimeInput.split(":");
+    if (timeParts.length < 2) {
+      toast({
+        title: "Hora inválida",
+        description: "Formato de hora inválido (HH:MM:SS)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const originalDate = new Date(editingReading.timestamp);
+    const newDate = new Date(originalDate);
+    newDate.setHours(parseInt(timeParts[0]) || 0);
+    newDate.setMinutes(parseInt(timeParts[1]) || 0);
+    newDate.setSeconds(parseInt(timeParts[2]) || 0);
+
+    const runner = runners.find((r) => r.bib_number === newBib);
+
+    // Update the reading in state
+    setReadings((prev) =>
+      prev.map((r) =>
+        r.timestamp === editingReading.timestamp && r.bib_number === editingReading.bib_number
+          ? {
+              ...r,
+              bib_number: newBib,
+              timestamp: newDate.toISOString(),
+              runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+              synced: false, // Mark as not synced since it was edited
+            }
+          : r
+      )
+    );
+
+    // Also update in pending sync if exists
+    setPendingSync((prev) =>
+      prev.map((r) =>
+        r.timestamp === editingReading.timestamp && r.bib_number === editingReading.bib_number
+          ? {
+              ...r,
+              bib_number: newBib,
+              timestamp: newDate.toISOString(),
+              runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+            }
+          : r
+      )
+    );
+
+    toast({
+      title: "Lectura actualizada",
+      description: `Dorsal #${newBib} - ${newDate.toLocaleTimeString("es-ES")}`,
+    });
+
+    setIsEditDialogOpen(false);
+    setEditingReading(null);
+  };
+
   const handleLogout = async () => {
     if (pendingSync.length > 0) {
       const confirm = window.confirm(
@@ -870,6 +1026,11 @@ const TimingApp = () => {
           <div className="flex-1 overflow-auto p-4 pb-48">
             <h3 className="text-sm font-semibold text-muted-foreground mb-2">
               ÚLTIMOS REGISTROS
+              {raceStartTime && (
+                <span className="ml-2 font-normal text-xs">
+                  (Salida: {raceStartTime.toLocaleTimeString("es-ES")})
+                </span>
+              )}
             </h3>
             {readings.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -878,37 +1039,57 @@ const TimingApp = () => {
               </div>
             ) : (
               <div className="space-y-2">
-                {readings.map((reading) => (
-                  <div
-                    key={`${reading.bib_number}-${reading.timestamp}`}
-                    className="flex items-center justify-between bg-card border border-border rounded-lg p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant={reading.status_code ? "destructive" : "outline"} className="font-mono text-lg">
-                        #{reading.bib_number}
-                      </Badge>
-                      <div>
-                        <p className="font-medium">
-                          {reading.runner_name || "Dorsal no registrado"}
-                          {reading.status_code && (
-                            <Badge variant="secondary" className="ml-2 text-xs">
-                              {STATUS_OPTIONS.find(s => s.value === reading.status_code)?.label}
-                            </Badge>
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(reading.timestamp).toLocaleTimeString("es-ES")}
-                          {reading.notes && <span className="ml-2">- {reading.notes.substring(0, 30)}...</span>}
-                        </p>
+                {readings.map((reading) => {
+                  const raceTime = !reading.status_code ? calculateRaceTime(reading.timestamp) : null;
+                  return (
+                    <div
+                      key={`${reading.bib_number}-${reading.timestamp}`}
+                      className="flex items-center justify-between bg-card border border-border rounded-lg p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Badge variant={reading.status_code ? "destructive" : "outline"} className="font-mono text-lg">
+                          #{reading.bib_number}
+                        </Badge>
+                        <div>
+                          <p className="font-medium">
+                            {reading.runner_name || "Dorsal no registrado"}
+                            {reading.status_code && (
+                              <Badge variant="secondary" className="ml-2 text-xs">
+                                {STATUS_OPTIONS.find(s => s.value === reading.status_code)?.label}
+                              </Badge>
+                            )}
+                          </p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{new Date(reading.timestamp).toLocaleTimeString("es-ES")}</span>
+                            {raceTime && (
+                              <Badge variant="outline" className="font-mono text-xs bg-primary/10">
+                                {raceTime}
+                              </Badge>
+                            )}
+                            {reading.notes && <span>- {reading.notes.substring(0, 20)}...</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {!reading.status_code && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleOpenEditDialog(reading)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {reading.synced ? (
+                          <CheckCircle className="h-5 w-5 text-green-500" />
+                        ) : (
+                          <Clock className="h-5 w-5 text-yellow-500" />
+                        )}
                       </div>
                     </div>
-                    {reading.synced ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <Clock className="h-5 w-5 text-yellow-500" />
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1095,6 +1276,55 @@ const TimingApp = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Lectura</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-bib">Dorsal</Label>
+              <Input
+                id="edit-bib"
+                type="number"
+                inputMode="numeric"
+                value={editBibInput}
+                onChange={(e) => setEditBibInput(e.target.value)}
+                className="font-mono text-lg"
+              />
+              {editBibInput && (
+                <p className="text-sm text-muted-foreground">
+                  {runners.find(r => r.bib_number === parseInt(editBibInput))
+                    ? `${runners.find(r => r.bib_number === parseInt(editBibInput))?.first_name} ${runners.find(r => r.bib_number === parseInt(editBibInput))?.last_name}`
+                    : "Dorsal no encontrado"
+                  }
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-time">Hora (HH:MM:SS)</Label>
+              <Input
+                id="edit-time"
+                type="text"
+                value={editTimeInput}
+                onChange={(e) => setEditTimeInput(e.target.value)}
+                placeholder="HH:MM:SS"
+                className="font-mono text-lg"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
