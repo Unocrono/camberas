@@ -2351,7 +2351,11 @@ CREATE TABLE race_chat_messages (
 
 ### 🔧 Funcionalidades por Implementar
 
-#### 3. **Mensajería Directa Organizador-Corredor**
+#### 3. **Mensajería Directa Organizador-Corredor** ⏳
+
+> **ESTADO**: POSPUESTO PARA FUTURO INMEDIATO  
+> **RAZÓN**: Se implementó inicialmente pero se decidió revertir para priorizar otras funcionalidades core.  
+> **PRÓXIMOS PASOS**: Implementar cuando el sistema de cronometraje y resultados esté completamente estabilizado.
 
 Sistema de chat 1-1 para comunicación privada entre organizador y participante.
 
