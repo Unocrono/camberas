@@ -39,13 +39,6 @@ import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
 
-interface CheckpointAssignment {
-  id: string;
-  race_distance_id: string;
-  checkpoint_order: number;
-  distance_name?: string;
-}
-
 interface Checkpoint {
   id: string;
   name: string;
@@ -56,7 +49,8 @@ interface Checkpoint {
   race_distance_id: string | null;
   latitude: number | null;
   longitude: number | null;
-  assignments?: CheckpointAssignment[];
+  timing_point_id: string | null;
+  checkpoint_type: string;
 }
 
 interface RaceDistance {
@@ -103,7 +97,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const [gpxRoute, setGpxRoute] = useState<GpxRoutePoint[]>([]);
   const [distanceGpxUrl, setDistanceGpxUrl] = useState<string | null>(null);
   const [gpxPreviewRoute, setGpxPreviewRoute] = useState<GpxRoutePoint[]>([]);
-  const [selectedDistanceIds, setSelectedDistanceIds] = useState<string[]>([]);
   const [recalculatingDistances, setRecalculatingDistances] = useState(false);
   
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -140,12 +133,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     if (selectedDistanceId) {
       fetchCheckpoints();
       fetchDistanceGpx();
-      // Pre-select current distance when opening form
-      setSelectedDistanceIds([selectedDistanceId]);
     } else {
       setGpxRoute([]);
       setDistanceGpxUrl(null);
-      setSelectedDistanceIds([]);
     }
   }, [selectedDistanceId]);
 
@@ -673,83 +663,18 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const fetchCheckpoints = async () => {
     setLoading(true);
     
-    // Obtener checkpoints que están asignados a este evento via la tabla intermedia
-    const { data: assignmentData, error: assignmentError } = await supabase
-      .from("checkpoint_distance_assignments")
-      .select(`
-        checkpoint_id,
-        checkpoint_order,
-        race_distance_id
-      `)
-      .eq("race_distance_id", selectedDistanceId);
-
-    if (assignmentError) {
-      toast.error("Error al cargar asignaciones");
-      console.error(assignmentError);
-      setLoading(false);
-      return;
-    }
-
-    const checkpointIds = (assignmentData || []).map(a => a.checkpoint_id);
-    
-    if (checkpointIds.length === 0) {
-      // Fallback: buscar por race_distance_id legacy
-      const { data: legacyData, error: legacyError } = await supabase
-        .from("race_checkpoints")
-        .select("*")
-        .eq("race_distance_id", selectedDistanceId)
-        .order("checkpoint_order");
-
-      if (legacyError) {
-        toast.error("Error al cargar puntos de control");
-        console.error(legacyError);
-      } else {
-        setCheckpoints(legacyData || []);
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Obtener los checkpoints
     const { data, error } = await supabase
       .from("race_checkpoints")
       .select("*")
-      .in("id", checkpointIds);
+      .eq("race_distance_id", selectedDistanceId)
+      .order("checkpoint_order");
 
     if (error) {
       toast.error("Error al cargar puntos de control");
       console.error(error);
       setCheckpoints([]);
     } else {
-      // Ordenar por checkpoint_order de la asignación
-      const orderMap = new Map(assignmentData?.map(a => [a.checkpoint_id, a.checkpoint_order]));
-      const sortedCheckpoints = (data || []).sort((a, b) => {
-        const orderA = orderMap.get(a.id) ?? a.checkpoint_order;
-        const orderB = orderMap.get(b.id) ?? b.checkpoint_order;
-        return orderA - orderB;
-      });
-      
-      // Cargar todas las asignaciones de estos checkpoints para mostrar en qué eventos están
-      const { data: allAssignments } = await supabase
-        .from("checkpoint_distance_assignments")
-        .select("checkpoint_id, race_distance_id, checkpoint_order")
-        .in("checkpoint_id", checkpointIds);
-
-      // Añadir asignaciones a cada checkpoint
-      const checkpointsWithAssignments = sortedCheckpoints.map(cp => ({
-        ...cp,
-        checkpoint_order: orderMap.get(cp.id) ?? cp.checkpoint_order,
-        assignments: (allAssignments || [])
-          .filter(a => a.checkpoint_id === cp.id)
-          .map(a => ({
-            id: a.checkpoint_id,
-            race_distance_id: a.race_distance_id,
-            checkpoint_order: a.checkpoint_order,
-            distance_name: allDistances.find(d => d.id === a.race_distance_id)?.name
-          }))
-      }));
-
-      setCheckpoints(checkpointsWithAssignments);
+      setCheckpoints(data || []);
     }
     setLoading(false);
   };
@@ -765,7 +690,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
-    setSelectedDistanceIds([selectedDistanceId]);
   };
 
   const handleOpenDialog = (checkpoint?: Checkpoint) => {
@@ -780,16 +704,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
-      // Cargar los eventos asignados a este checkpoint
-      const assignedIds = checkpoint.assignments?.map(a => a.race_distance_id) || [selectedDistanceId];
-      setSelectedDistanceIds(assignedIds);
     } else {
       resetForm();
       setFormData((prev) => ({
         ...prev,
         checkpoint_order: checkpoints.length + 1,
       }));
-      setSelectedDistanceIds([selectedDistanceId]); // Pre-seleccionar evento actual
     }
     setIsDialogOpen(true);
   };
@@ -801,12 +721,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
 
     if (isEditing && selectedCheckpoint) {
-      // Actualizar checkpoint
       const { error } = await supabase
         .from("race_checkpoints")
         .update({
           name: formData.name,
           lugar: formData.lugar || null,
+          checkpoint_order: formData.checkpoint_order,
           distance_km: formData.distance_km,
           latitude,
           longitude,
@@ -819,67 +739,25 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         return;
       }
 
-      // Actualizar asignaciones: eliminar las anteriores y crear las nuevas
-      await supabase
-        .from("checkpoint_distance_assignments")
-        .delete()
-        .eq("checkpoint_id", selectedCheckpoint.id);
-
-      if (selectedDistanceIds.length > 0) {
-        const assignments = selectedDistanceIds.map(distanceId => ({
-          checkpoint_id: selectedCheckpoint.id,
-          race_distance_id: distanceId,
-          checkpoint_order: formData.checkpoint_order,
-        }));
-
-        const { error: assignError } = await supabase
-          .from("checkpoint_distance_assignments")
-          .insert(assignments);
-
-        if (assignError) {
-          console.error("Error al actualizar asignaciones:", assignError);
-        }
-      }
-
       toast.success("Punto de control actualizado");
     } else {
-      // Crear nuevo checkpoint
-      const { data: newCheckpoint, error } = await supabase
+      const { error } = await supabase
         .from("race_checkpoints")
         .insert({
           race_id: selectedRaceId,
-          race_distance_id: selectedDistanceId, // Mantener para compatibilidad legacy
+          race_distance_id: selectedDistanceId,
           name: formData.name,
           lugar: formData.lugar || null,
           checkpoint_order: formData.checkpoint_order,
           distance_km: formData.distance_km,
           latitude,
           longitude,
-        })
-        .select("id")
-        .single();
+        });
 
-      if (error || !newCheckpoint) {
+      if (error) {
         toast.error("Error al crear el punto de control");
         console.error(error);
         return;
-      }
-
-      // Crear asignaciones para los eventos seleccionados
-      if (selectedDistanceIds.length > 0) {
-        const assignments = selectedDistanceIds.map(distanceId => ({
-          checkpoint_id: newCheckpoint.id,
-          race_distance_id: distanceId,
-          checkpoint_order: formData.checkpoint_order,
-        }));
-
-        const { error: assignError } = await supabase
-          .from("checkpoint_distance_assignments")
-          .insert(assignments);
-
-        if (assignError) {
-          console.error("Error al crear asignaciones:", assignError);
-        }
       }
 
       toast.success("Punto de control creado");
@@ -1449,34 +1327,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       </div>
                     </div>
                   </div>
-                  {/* Asignación a eventos */}
-                  <div className="border-t pt-4">
-                    <Label className="text-sm font-medium mb-3 block">Asignar a eventos</Label>
-                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-                      {allDistances.map((distance) => (
-                        <label
-                          key={distance.id}
-                          className="flex items-center space-x-2 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={selectedDistanceIds.includes(distance.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedDistanceIds([...selectedDistanceIds, distance.id]);
-                              } else {
-                                setSelectedDistanceIds(selectedDistanceIds.filter(id => id !== distance.id));
-                              }
-                            }}
-                          />
-                          <span className="text-sm">{distance.name} ({distance.distance_km}km)</span>
-                        </label>
-                      ))}
-                    </div>
-                    {selectedDistanceIds.length === 0 && (
-                      <p className="text-xs text-destructive mt-1">Selecciona al menos un evento</p>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={selectedDistanceIds.length === 0}>
+                  {/* Asignación a eventos - Simplificado */}
+                  <p className="text-xs text-muted-foreground">
+                    Este checkpoint se asignará al evento: <strong>{allDistances.find(d => d.id === selectedDistanceId)?.name}</strong>
+                  </p>
+                  <Button type="submit" className="w-full">
                     {isEditing ? "Guardar Cambios" : "Crear Punto de Control"}
                   </Button>
                 </form>
@@ -1500,7 +1355,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <TableHead>Nombre</TableHead>
                   <TableHead>Lugar</TableHead>
                   <TableHead className="text-right">Km</TableHead>
-                  <TableHead>Eventos</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead className="text-center">GPS</TableHead>
                   <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
@@ -1515,20 +1370,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     <TableCell className="text-muted-foreground">{checkpoint.lugar || "-"}</TableCell>
                     <TableCell className="text-right">{checkpoint.distance_km.toFixed(3)}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {checkpoint.assignments && checkpoint.assignments.length > 0 ? (
-                          checkpoint.assignments.map((assignment, idx) => {
-                            const distanceName = allDistances.find(d => d.id === assignment.race_distance_id)?.name;
-                            return (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {distanceName || "?"}
-                              </Badge>
-                            );
-                          })
-                        ) : (
-                          <span className="text-muted-foreground text-xs">-</span>
-                        )}
-                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {checkpoint.checkpoint_type || "STANDARD"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
