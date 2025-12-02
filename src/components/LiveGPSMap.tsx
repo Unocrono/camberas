@@ -14,6 +14,15 @@ interface RunnerPosition {
   runner_name: string;
 }
 
+interface Checkpoint {
+  id: string;
+  name: string;
+  checkpoint_type: string;
+  distance_km: number;
+  latitude: number | null;
+  longitude: number | null;
+}
+
 interface LiveGPSMapProps {
   raceId: string;
   distanceId?: string;
@@ -24,7 +33,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const checkpointMarkers = useRef<mapboxgl.Marker[]>([]);
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
 
   // Initialize map
@@ -52,7 +63,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     };
   }, [mapboxToken]);
 
-  // Load GPX when distanceId changes
+  // Load GPX and checkpoints when distanceId changes
   useEffect(() => {
     if (!map.current) return;
     
@@ -64,8 +75,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       map.current.removeSource('route');
     }
     
+    // Clear existing checkpoint markers
+    checkpointMarkers.current.forEach(marker => marker.remove());
+    checkpointMarkers.current = [];
+    
     setGpxUrl(null);
     fetchGpx();
+    fetchCheckpoints();
   }, [distanceId, raceId]);
 
   // Setup realtime and fetch positions
@@ -74,6 +90,79 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     const cleanup = setupRealtimeSubscription();
     return cleanup;
   }, [raceId]);
+
+  const fetchCheckpoints = async () => {
+    let query = supabase
+      .from('race_checkpoints')
+      .select('id, name, checkpoint_type, distance_km, latitude, longitude')
+      .eq('race_id', raceId)
+      .order('checkpoint_order', { ascending: true });
+
+    if (distanceId) {
+      query = query.eq('race_distance_id', distanceId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching checkpoints:', error);
+      return;
+    }
+
+    if (data) {
+      setCheckpoints(data);
+      addCheckpointMarkers(data);
+    }
+  };
+
+  const getCheckpointIcon = (type: string): { color: string; icon: string } => {
+    switch (type.toUpperCase()) {
+      case 'START':
+        return { color: '#10b981', icon: '🚩' }; // Green
+      case 'FINISH':
+        return { color: '#ef4444', icon: '🏁' }; // Red
+      default:
+        return { color: '#3b82f6', icon: '📍' }; // Blue
+    }
+  };
+
+  const addCheckpointMarkers = (checkpointsData: Checkpoint[]) => {
+    if (!map.current) return;
+
+    checkpointsData.forEach((checkpoint) => {
+      if (checkpoint.latitude && checkpoint.longitude) {
+        const { color, icon } = getCheckpointIcon(checkpoint.checkpoint_type);
+        
+        const el = document.createElement('div');
+        el.className = 'checkpoint-marker';
+        el.innerHTML = `
+          <div class="flex flex-col items-center">
+            <div style="background-color: ${color}; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" class="rounded-full w-8 h-8 flex items-center justify-center text-white font-bold text-sm">
+              ${icon}
+            </div>
+            <div style="background-color: ${color};" class="text-white text-xs px-2 py-0.5 rounded mt-1 whitespace-nowrap shadow">
+              ${checkpoint.name}
+            </div>
+          </div>
+        `;
+
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([checkpoint.longitude, checkpoint.latitude])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 25 }).setHTML(
+              `<div class="p-2">
+                <strong>${checkpoint.name}</strong><br/>
+                Tipo: ${checkpoint.checkpoint_type}<br/>
+                KM: ${checkpoint.distance_km}
+              </div>`
+            )
+          )
+          .addTo(map.current!);
+
+        checkpointMarkers.current.push(marker);
+      }
+    });
+  };
 
   const fetchGpx = async () => {
     // If a specific distance is selected, get its GPX
@@ -331,6 +420,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       <style>{`
         .runner-marker {
           cursor: pointer;
+        }
+        .checkpoint-marker {
+          cursor: pointer;
+          z-index: 1;
         }
       `}</style>
     </div>
