@@ -71,7 +71,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedCheckpointId, setSelectedCheckpointId] = useState("");
+  const [selectedCheckpointId, setSelectedCheckpointId] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState("");
   const [newTimerEmail, setNewTimerEmail] = useState("");
   const [addingTimer, setAddingTimer] = useState(false);
@@ -212,7 +212,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
       const { error } = await supabase.from("timer_assignments").insert({
         user_id: selectedUserId,
         race_id: selectedRaceId,
-        checkpoint_id: selectedCheckpointId || null,
+        checkpoint_id: selectedCheckpointId ?? null,
         notes: notes || null,
         assigned_by: userData.user?.id,
       });
@@ -349,7 +349,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
 
   const resetForm = () => {
     setSelectedUserId("");
-    setSelectedCheckpointId("");
+    setSelectedCheckpointId(undefined);
     setNotes("");
   };
 
@@ -439,12 +439,12 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
 
                   <div className="space-y-2">
                     <Label>Punto de Cronometraje (opcional)</Label>
-                    <Select value={selectedCheckpointId} onValueChange={setSelectedCheckpointId}>
+                    <Select value={selectedCheckpointId ?? "all"} onValueChange={(val) => setSelectedCheckpointId(val === "all" ? undefined : val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Todos los puntos" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos los puntos</SelectItem>
+                        <SelectItem value="all">Todos los puntos</SelectItem>
                         {timingPoints.map((tp) => (
                           <SelectItem key={tp.id} value={tp.id}>
                             {tp.point_order !== null ? `${tp.point_order}. ` : ""}{tp.name}
