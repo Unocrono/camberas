@@ -26,6 +26,8 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
+import DirectMessages from "./pages/DirectMessages";
+import DirectMessageChat from "./pages/DirectMessageChat";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,8 @@ const App = () => (
           <Route path="/support-chat" element={<SupportChat />} />
           <Route path="/faqs" element={<Faqs />} />
           <Route path="/organizer-profile" element={<OrganizerProfile />} />
+          <Route path="/messages" element={<DirectMessages />} />
+          <Route path="/messages/:conversationId" element={<DirectMessageChat />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
