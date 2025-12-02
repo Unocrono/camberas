@@ -171,10 +171,10 @@ const AdminDashboard = () => {
                     </option>
                   ))}
                 </select>
-                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints") && distances.length > 0 && (
+                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
                   <>
                     <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                      Distancia:
+                      Evento:
                     </Label>
                     <select
                       id="distance-selector"
@@ -182,7 +182,7 @@ const AdminDashboard = () => {
                       onChange={(e) => setSelectedDistanceId(e.target.value)}
                       className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
                     >
-                      <option value="">Selecciona una distancia</option>
+                      <option value="">Todos los eventos</option>
                       {distances.map((distance) => (
                         <option key={distance.id} value={distance.id}>
                           {distance.name} ({distance.distance_km}km)
@@ -230,7 +230,7 @@ const AdminDashboard = () => {
             )}
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
-            {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
             {currentView === "organizer-approval" && <OrganizerApprovalManagement />}
