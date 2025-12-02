@@ -265,12 +265,18 @@ races                          races (carreras)
 - race_id
 - race_distance_id (→ race_event_id)
 - name (ej: "Salida", "KM 10", "Meta")
+- checkpoint_type (START, FINISH, STANDARD) -- tipo de checkpoint
 - checkpoint_order (1, 2, 3...)
 - distance_km
 - latitude, longitude
 - min_time_seconds (tiempo mínimo desde salida para procesar lecturas)
 - min_lap_time_seconds (tiempo mínimo entre lecturas para contar vuelta adicional)
 - max_time_seconds (tiempo máximo desde salida para procesar lecturas)
+
+TIPOS DE CHECKPOINT:
+- START: Punto de salida (KM 0) - Inicio oficial de la carrera
+- FINISH: Punto de meta - Final de la carrera, genera tiempo oficial
+- STANDARD: Punto de control intermedio - Controles de paso durante el recorrido
 
 PARÁMETROS DE PROCESAMIENTO DE TIEMPOS:
 - min_time_seconds: Lecturas con tiempo < min_time_seconds se ignoran (evita lecturas falsas)
