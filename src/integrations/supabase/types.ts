@@ -114,112 +114,6 @@ export type Database = {
           },
         ]
       }
-      direct_conversations: {
-        Row: {
-          created_at: string
-          id: string
-          last_message_at: string | null
-          organizer_id: string
-          race_id: string
-          runner_id: string
-          status: string
-          unread_count_organizer: number
-          unread_count_runner: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          last_message_at?: string | null
-          organizer_id: string
-          race_id: string
-          runner_id: string
-          status?: string
-          unread_count_organizer?: number
-          unread_count_runner?: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          last_message_at?: string | null
-          organizer_id?: string
-          race_id?: string
-          runner_id?: string
-          status?: string
-          unread_count_organizer?: number
-          unread_count_runner?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "direct_conversations_organizer_id_fkey"
-            columns: ["organizer_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "direct_conversations_race_id_fkey"
-            columns: ["race_id"]
-            isOneToOne: false
-            referencedRelation: "races"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "direct_conversations_runner_id_fkey"
-            columns: ["runner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      direct_messages: {
-        Row: {
-          conversation_id: string
-          created_at: string
-          id: string
-          is_read: boolean
-          message: string
-          read_at: string | null
-          sender_id: string
-        }
-        Insert: {
-          conversation_id: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message: string
-          read_at?: string | null
-          sender_id: string
-        }
-        Update: {
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          is_read?: boolean
-          message?: string
-          read_at?: string | null
-          sender_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "direct_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "direct_conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "direct_messages_sender_id_fkey"
-            columns: ["sender_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       edge_function_flags: {
         Row: {
           created_at: string
@@ -1326,10 +1220,6 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
-      }
-      mark_messages_as_read: {
-        Args: { p_conversation_id: string; p_user_id: string }
-        Returns: undefined
       }
       seed_default_registration_fields: {
         Args: { p_race_id: string }

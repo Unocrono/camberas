@@ -1,19 +1,15 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, MessageSquare } from "lucide-react";
+import { Menu, User, Shield, Briefcase } from "lucide-react";
 import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsFunctionEnabled } from "@/hooks/useEdgeFunctionFlags";
-import { useDirectMessages } from "@/hooks/useDirectMessages";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer } = useAuth();
   const isTrainingPlanEnabled = useIsFunctionEnabled("generate-training-plan");
   const isSupportChatEnabled = useIsFunctionEnabled("support-chat");
-  const { getUnreadCount } = useDirectMessages();
-  const unreadCount = getUnreadCount();
 
   return (
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
@@ -38,17 +34,6 @@ const Navbar = () => {
                   {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
                   {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
                   {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
-                  {user && (
-                    <NavLink to="/messages" className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      Mensajes
-                      {unreadCount > 0 && (
-                        <Badge variant="destructive" className="ml-1">
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </NavLink>
-                  )}
                   {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
                   {isOrganizer && (
                     <NavLink to="/organizer" className="flex items-center gap-2">
@@ -86,17 +71,6 @@ const Navbar = () => {
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             {isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
             {isSupportChatEnabled && <NavLink to="/support-chat">Soporte</NavLink>}
-            {user && (
-              <NavLink to="/messages" className="flex items-center gap-1 relative">
-                <MessageSquare className="h-4 w-4" />
-                Mensajes
-                {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-1 h-5 min-w-5 flex items-center justify-center text-xs px-1">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </NavLink>
-            )}
             {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
