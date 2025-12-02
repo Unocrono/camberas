@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
@@ -31,6 +31,7 @@ const menuItems = [
   { title: "Cronometradores", view: "timer-assignments" as OrganizerView, icon: UserCog },
   { title: "Resultados", view: "results" as OrganizerView, icon: Trophy },
   { title: "Tiempos Parciales", view: "splits" as OrganizerView, icon: Timer },
+  { title: "Lecturas Crono", view: "timing-readings" as OrganizerView, icon: Radio },
   { title: "Archivos Multimedia", view: "storage" as OrganizerView, icon: FolderOpen },
   { title: "FAQs de Carreras", view: "race-faqs" as OrganizerView, icon: HelpCircle },
 ];
