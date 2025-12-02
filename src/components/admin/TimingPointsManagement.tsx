@@ -31,9 +31,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TimingPoint {
   id: string;
@@ -42,11 +59,82 @@ interface TimingPoint {
   notes: string | null;
   latitude: number | null;
   longitude: number | null;
+  point_order: number;
   created_at: string;
 }
 
 interface TimingPointsManagementProps {
   selectedRaceId: string;
+}
+
+interface SortableRowProps {
+  point: TimingPoint;
+  onEdit: (point: TimingPoint) => void;
+  onDelete: (point: TimingPoint) => void;
+}
+
+function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: point.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="w-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="cursor-grab active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </TableCell>
+      <TableCell className="font-medium">{point.name}</TableCell>
+      <TableCell className="text-muted-foreground text-sm">
+        {point.notes || "-"}
+      </TableCell>
+      <TableCell className="text-sm">
+        {point.latitude && point.longitude ? (
+          <span className="text-muted-foreground">
+            {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onEdit(point)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onDelete(point)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagementProps) {
@@ -73,6 +161,13 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     latitude: "",
     longitude: "",
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchMapboxToken();
@@ -139,7 +234,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
         .from("timing_points")
         .select("*")
         .eq("race_id", selectedRaceId)
-        .order("name");
+        .order("point_order", { ascending: true });
 
       if (error) throw error;
       setTimingPoints(data || []);
@@ -148,6 +243,46 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       toast.error("Error al cargar los puntos de cronometraje");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = timingPoints.findIndex((p) => p.id === active.id);
+      const newIndex = timingPoints.findIndex((p) => p.id === over.id);
+
+      const newOrder = arrayMove(timingPoints, oldIndex, newIndex);
+      setTimingPoints(newOrder);
+
+      // Update order in database
+      try {
+        const updates = newOrder.map((point, index) => ({
+          id: point.id,
+          race_id: point.race_id,
+          name: point.name,
+          notes: point.notes,
+          latitude: point.latitude,
+          longitude: point.longitude,
+          point_order: index + 1,
+        }));
+
+        for (const update of updates) {
+          const { error } = await supabase
+            .from("timing_points")
+            .update({ point_order: update.point_order })
+            .eq("id", update.id);
+
+          if (error) throw error;
+        }
+
+        toast.success("Orden actualizado");
+      } catch (error) {
+        console.error("Error updating order:", error);
+        toast.error("Error al actualizar el orden");
+        fetchTimingPoints();
+      }
     }
   };
 
@@ -222,7 +357,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       (tp) => tp.latitude !== null && tp.longitude !== null
     );
 
-    pointsWithCoords.forEach((point) => {
+    pointsWithCoords.forEach((point, index) => {
       const el = document.createElement("div");
       el.style.cssText = `
         width: 30px;
@@ -235,15 +370,15 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
         justify-content: center;
         color: white;
         font-weight: bold;
-        font-size: 10px;
+        font-size: 12px;
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         cursor: pointer;
       `;
-      el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      el.textContent = (index + 1).toString();
 
       const popup = new mapboxgl.Popup({ offset: 25 }).setHTML(`
         <div style="padding: 8px;">
-          <strong>${point.name}</strong>
+          <strong>${point.point_order}. ${point.name}</strong>
           ${point.notes ? `<br><span style="color: #666; font-size: 12px;">${point.notes}</span>` : ""}
         </div>
       `);
@@ -316,6 +451,11 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       }
       toast.success("Punto de cronometraje actualizado");
     } else {
+      // Get max order for new point
+      const maxOrder = timingPoints.length > 0 
+        ? Math.max(...timingPoints.map(p => p.point_order)) 
+        : 0;
+
       const { error } = await supabase
         .from("timing_points")
         .insert({
@@ -324,6 +464,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
           notes: formData.notes || null,
           latitude,
           longitude,
+          point_order: maxOrder + 1,
         });
 
       if (error) {
@@ -442,53 +583,38 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
             No hay puntos de cronometraje definidos
           </p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Notas</TableHead>
-                <TableHead>Coordenadas</TableHead>
-                <TableHead className="w-24">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {timingPoints.map((point) => (
-                <TableRow key={point.id}>
-                  <TableCell className="font-medium">{point.name}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {point.notes || "-"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {point.latitude && point.longitude ? (
-                      <span className="text-muted-foreground">
-                        {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleOpenDialog(point)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteClick(point)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Notas</TableHead>
+                  <TableHead>Coordenadas</TableHead>
+                  <TableHead className="w-24">Acciones</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                <SortableContext
+                  items={timingPoints.map((p) => p.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {timingPoints.map((point) => (
+                    <SortableRow
+                      key={point.id}
+                      point={point}
+                      onEdit={handleOpenDialog}
+                      onDelete={handleDeleteClick}
+                    />
+                  ))}
+                </SortableContext>
+              </TableBody>
+            </Table>
+          </DndContext>
         )}
 
         {/* Add/Edit Dialog */}

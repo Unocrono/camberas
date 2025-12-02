@@ -1335,6 +1335,7 @@ export type Database = {
           longitude: number | null
           name: string
           notes: string | null
+          point_order: number | null
           race_id: string
           updated_at: string
         }
@@ -1345,6 +1346,7 @@ export type Database = {
           longitude?: number | null
           name: string
           notes?: string | null
+          point_order?: number | null
           race_id: string
           updated_at?: string
         }
@@ -1355,6 +1357,7 @@ export type Database = {
           longitude?: number | null
           name?: string
           notes?: string | null
+          point_order?: number | null
           race_id?: string
           updated_at?: string
         }
