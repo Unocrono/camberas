@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -36,6 +36,7 @@ const menuItems = [
   { title: "Aprobación Organizadores", view: "organizer-approval" as AdminView, icon: UserCheck },
   { title: "Gestión de Usuarios", view: "users" as AdminView, icon: UserCog },
   { title: "Funciones Edge", view: "edge-functions" as AdminView, icon: Zap },
+  { title: "Soporte", view: null, icon: MessageSquare, link: "/admin/support" },
 ];
 
 export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
@@ -50,15 +51,24 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.view}>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange(item.view)}
-                    isActive={currentView === item.view}
-                    tooltip={item.title}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
+                <SidebarMenuItem key={item.title}>
+                  {item.link ? (
+                    <SidebarMenuButton asChild tooltip={item.title}>
+                      <Link to={item.link}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  ) : (
+                    <SidebarMenuButton
+                      onClick={() => item.view && onViewChange(item.view)}
+                      isActive={currentView === item.view}
+                      tooltip={item.title}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
