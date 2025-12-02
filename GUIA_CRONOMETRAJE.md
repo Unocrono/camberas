@@ -2288,8 +2288,338 @@ Broadcasting System
 
 ---
 
-**Última actualización**: 2025-12-01
-**Versión**: 1.1
+## 📧 Sistema de Comunicación con Usuarios y Organizadores
+
+### Objetivo
+Proporcionar múltiples canales de comunicación efectiva entre la plataforma, organizadores y corredores para garantizar una experiencia óptima antes, durante y después de las carreras.
+
+---
+
+### ✅ Funcionalidades Implementadas
+
+#### 1. **Sistema de Emails Transaccionales (Resend)**
+
+Sistema de notificaciones automáticas por email para eventos críticos del ciclo de vida de una inscripción.
+
+**Emails implementados:**
+- **Confirmación de registro**: Email inmediato al completar inscripción
+- **Confirmación de pago**: Notificación tras procesamiento de pago exitoso
+- **Confirmación de cancelación**: Email con detalles de cancelación y reembolso (si aplica)
+- **Recordatorios de carrera**: Notificaciones automáticas X días antes del evento
+- **Recuperación de contraseña**: Link seguro para reseteo de password
+- **Email de bienvenida**: Email al registrarse en la plataforma
+
+**Tecnología:**
+- Servicio: Resend (resend.com)
+- Edge Functions: `send-registration-confirmation`, `send-payment-confirmation`, `send-cancellation-confirmation`, `send-race-reminders`, `send-password-reset`, `send-welcome-email`
+- Requiere: `RESEND_API_KEY` en secrets
+
+**Características:**
+- Templates HTML responsivos
+- Contenido personalizado según datos del usuario/carrera
+- Tracking de envíos (opcional)
+- Rate limiting automático
+
+#### 2. **Mensajería Interna de Cronometraje**
+
+Chat especializado para coordinación entre operadores de cronometraje durante eventos en vivo.
+
+**Tabla: `race_chat_messages`**
+```sql
+CREATE TABLE race_chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id UUID REFERENCES races(id) NOT NULL,
+  user_id UUID REFERENCES profiles(id) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  is_system BOOLEAN DEFAULT false
+);
+```
+
+**Características:**
+- Chat en tiempo real entre cronometradores y organizador
+- Mensajes del sistema automáticos (ej: "Nueva lectura en Meta: #245")
+- Notificación de mensajes no leídos
+- Útil para coordinar: "Paso de cabeza en km 10", "Retraso en salida 5 min"
+- Visible solo para TIMER y ORGANIZER de la carrera
+
+**Acceso:**
+- Ruta: `/timing/chat` (dentro de la app de cronometraje manual)
+- Permisos: Solo usuarios TIMER y ORGANIZER asignados a la carrera
+
+---
+
+### 🔧 Funcionalidades por Implementar
+
+#### 3. **Mensajería Directa Organizador-Corredor**
+
+Sistema de chat 1-1 para comunicación privada entre organizador y participante.
+
+**Casos de uso:**
+- Consultas específicas sobre inscripción
+- Solicitudes de información adicional (certificados médicos, etc.)
+- Resolución de incidencias personalizadas
+- Comunicación post-carrera (fotos, diplomas, etc.)
+
+**Tablas propuestas:**
+```sql
+-- Conversaciones individuales
+CREATE TABLE direct_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  race_id UUID REFERENCES races(id) NOT NULL,
+  organizer_id UUID REFERENCES profiles(id) NOT NULL,
+  runner_id UUID REFERENCES profiles(id) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  last_message_at TIMESTAMPTZ,
+  unread_count_organizer INTEGER DEFAULT 0,
+  unread_count_runner INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'active' -- active, archived, closed
+);
+
+-- Mensajes del chat directo
+CREATE TABLE direct_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID REFERENCES direct_conversations(id) NOT NULL,
+  sender_id UUID REFERENCES profiles(id) NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  is_read BOOLEAN DEFAULT false,
+  read_at TIMESTAMPTZ
+);
+```
+
+**Funcionalidades:**
+- Chat estilo WhatsApp/Telegram
+- Historial persistente de conversación
+- Indicadores de "mensaje leído"
+- Notificaciones push (opcional)
+- Búsqueda de conversaciones por dorsal/nombre
+- Filtros: pendientes, archivadas, por carrera
+
+**Rutas:**
+- `/organizer/messages` - Lista de conversaciones (organizador)
+- `/messages` - Mis conversaciones con organizadores (corredor)
+- `/messages/:conversationId` - Chat individual
+
+#### 4. **Formularios de Contacto**
+
+Formularios clásicos para consultas generales sin necesidad de autenticación.
+
+##### 4.1 **Formulario de Contacto para Usuarios (Corredores)**
+
+**Ubicación:** `/contacto` o footer de la web
+
+**Campos:**
+- Nombre completo (obligatorio)
+- Email (obligatorio)
+- Asunto (select con opciones)
+  - Consulta sobre inscripción
+  - Problema técnico
+  - Sugerencia
+  - Otro
+- Mensaje (textarea, obligatorio, min 20 caracteres)
+- Carrera relacionada (opcional, select)
+
+**Funcionalidad:**
+- Envío de email al equipo de soporte/admin
+- Copia del mensaje al usuario
+- No requiere autenticación
+- Rate limiting para prevenir spam (max 3 mensajes/hora por IP)
+
+##### 4.2 **Formulario de Contacto para Organizadores**
+
+**Ubicación:** `/organizadores/contacto` o sección específica para organizadores
+
+**Campos:**
+- Nombre de la organización (obligatorio)
+- Nombre del contacto (obligatorio)
+- Email (obligatorio)
+- Teléfono (opcional)
+- Tipo de consulta (select)
+  - Solicitar cuenta de organizador
+  - Información sobre servicios de cronometraje
+  - Contratar broadcasting
+  - Soporte técnico
+  - Otro
+- Número de eventos anuales (select: 1-2, 3-5, 6-10, >10)
+- Mensaje (textarea, obligatorio)
+
+**Funcionalidad:**
+- Envío a email de ventas/admins
+- Priorización automática según tipo de consulta
+- Creación de lead en sistema (opcional)
+- Auto-respuesta con información relevante
+
+**Edge Functions:**
+- `send-contact-form` - Procesar y enviar formulario de contacto
+- `send-organizer-inquiry` - Procesar consultas de organizadores
+
+---
+
+### 🔮 Funcionalidades Futuras (No Inmediatas)
+
+#### 5. **Newsletter y Marketing (Resend Audiences)**
+
+Sistema de campañas de email marketing para engagement y retención.
+
+**Características:**
+- Campañas segmentadas por tipo de usuario:
+  - Corredores trail vs carretera
+  - Por ubicación geográfica
+  - Por nivel (principiante, intermedio, avanzado)
+- Estadísticas de apertura y clicks
+- Templates de newsletters
+- Gestión de suscripciones/unsuscribe
+
+**Casos de uso:**
+- Anuncio de nuevas carreras
+- Recordatorio de inscripciones que cierran pronto
+- Contenido educativo (entrenamientos, nutrición)
+- Ofertas y descuentos especiales
+
+---
+
+### ❌ Funcionalidades Descartadas
+
+#### **Chat de Soporte en Vivo con IA**
+
+**Motivo del descarte:** 
+Las preguntas de los usuarios pueden ser genéricas y salir del ámbito específico de Camberas. Un chatbot podría dar respuestas incorrectas o fuera de contexto, generando frustración.
+
+**Alternativa implementada:**
+- Formularios de contacto tradicionales
+- FAQs por carrera (ya implementado)
+- FAQs para organizadores (ya implementado)
+
+#### **SMS Transaccionales (Twilio)**
+
+**Motivo del descarte:**
+- Coste elevado por mensaje
+- Bajo ROI para notificaciones no críticas
+- Email es suficiente para la mayoría de comunicaciones
+
+**Casos excepcionales:** 
+Si un organizador lo requiere específicamente para eventos masivos, se puede implementar a demanda.
+
+#### **Sistema de Anuncios Internos (Banners)**
+
+**Motivo del descarte:**
+- Puede resultar intrusivo
+- Email y notificaciones in-app son suficientes
+
+**Alternativa:**
+- Usar toast notifications para mensajes urgentes
+- Dashboard con sección de "Novedades" (opcional)
+
+#### **Webhooks Salientes**
+
+**Motivo del descarte:**
+- Complejidad técnica para usuarios no técnicos
+- Bajo volumen de solicitudes de integraciones externas
+- Se puede implementar a demanda para clientes enterprise
+
+**Casos excepcionales:**
+Organizadores con sistemas propios que necesiten sincronización automática.
+
+---
+
+### 📊 Arquitectura de Comunicaciones
+
+```
+┌─────────────────────────────────────────────┐
+│         USUARIOS / CORREDORES               │
+└─────────┬───────────────────────────────────┘
+          │
+          ├─> Emails transaccionales (Resend)
+          │   • Confirmaciones
+          │   • Recordatorios
+          │   • Recuperación password
+          │
+          ├─> Formulario de contacto
+          │   • Consultas generales
+          │   • Sin autenticación
+          │
+          └─> Mensajería directa (futuro)
+              • Chat 1-1 con organizador
+              • Consultas específicas
+
+┌─────────────────────────────────────────────┐
+│           ORGANIZADORES                     │
+└─────────┬───────────────────────────────────┘
+          │
+          ├─> Mensajería interna cronometraje
+          │   • Coordinación en vivo
+          │   • Chat entre TIMERS
+          │
+          ├─> Formulario de contacto
+          │   • Solicitar cuenta
+          │   • Contratar servicios
+          │
+          └─> Mensajería directa (futuro)
+              • Chat 1-1 con corredores
+              • Gestión de incidencias
+
+┌─────────────────────────────────────────────┐
+│         ADMINISTRADORES                     │
+└─────────┬───────────────────────────────────┘
+          │
+          ├─> Reciben formularios de contacto
+          ├─> Reciben consultas de organizadores
+          └─> Gestionan soporte
+```
+
+---
+
+### 🔐 Seguridad y RLS
+
+**Políticas de acceso:**
+
+```sql
+-- race_chat_messages: solo TIMER y ORGANIZER de la carrera
+CREATE POLICY "Timer y organizer pueden ver mensajes de su carrera"
+ON race_chat_messages FOR SELECT
+USING (
+  race_id IN (
+    SELECT race_id FROM races WHERE organizer_id = auth.uid()
+    UNION
+    SELECT race_id FROM timer_assignments WHERE user_id = auth.uid()
+  )
+);
+
+-- direct_conversations: solo participantes de la conversación
+CREATE POLICY "Users can view their own conversations"
+ON direct_conversations FOR SELECT
+USING (
+  auth.uid() = organizer_id OR auth.uid() = runner_id
+);
+
+-- direct_messages: solo participantes de la conversación
+CREATE POLICY "Users can view messages in their conversations"
+ON direct_messages FOR SELECT
+USING (
+  conversation_id IN (
+    SELECT id FROM direct_conversations 
+    WHERE auth.uid() = organizer_id OR auth.uid() = runner_id
+  )
+);
+```
+
+---
+
+### 📈 Métricas de Comunicación
+
+**KPIs a trackear:**
+- Tasa de apertura de emails transaccionales
+- Tiempo de respuesta en mensajería directa
+- Número de formularios de contacto por semana
+- Satisfacción del usuario (opcional: rating post-respuesta)
+- Mensajes de cronometraje en eventos en vivo
+
+---
+
+**Última actualización**: 2025-12-02
+**Versión**: 1.2
 **Autor**: Camberas Team
 
 ---
