@@ -114,45 +114,6 @@ export type Database = {
           },
         ]
       }
-      checkpoint_distance_assignments: {
-        Row: {
-          checkpoint_id: string
-          checkpoint_order: number
-          created_at: string
-          id: string
-          race_distance_id: string
-        }
-        Insert: {
-          checkpoint_id: string
-          checkpoint_order?: number
-          created_at?: string
-          id?: string
-          race_distance_id: string
-        }
-        Update: {
-          checkpoint_id?: string
-          checkpoint_order?: number
-          created_at?: string
-          id?: string
-          race_distance_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "checkpoint_distance_assignments_checkpoint_id_fkey"
-            columns: ["checkpoint_id"]
-            isOneToOne: false
-            referencedRelation: "race_checkpoints"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "checkpoint_distance_assignments_race_distance_id_fkey"
-            columns: ["race_distance_id"]
-            isOneToOne: false
-            referencedRelation: "race_distances"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       contact_settings: {
         Row: {
           created_at: string
@@ -385,6 +346,7 @@ export type Database = {
           name: string
           race_distance_id: string | null
           race_id: string
+          timing_point_id: string | null
           updated_at: string
         }
         Insert: {
@@ -399,6 +361,7 @@ export type Database = {
           name: string
           race_distance_id?: string | null
           race_id: string
+          timing_point_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -413,6 +376,7 @@ export type Database = {
           name?: string
           race_distance_id?: string | null
           race_id?: string
+          timing_point_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -421,6 +385,13 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_checkpoints_timing_point_id_fkey"
+            columns: ["timing_point_id"]
+            isOneToOne: false
+            referencedRelation: "timing_points"
             referencedColumns: ["id"]
           },
         ]
@@ -1356,6 +1327,47 @@ export type Database = {
           },
         ]
       }
+      timing_points: {
+        Row: {
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          notes: string | null
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          notes?: string | null
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          notes?: string | null
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timing_points_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       timing_readings: {
         Row: {
           antenna_no: number | null
@@ -1379,6 +1391,7 @@ export type Database = {
           registration_id: string | null
           rssi: number | null
           status_code: string | null
+          timing_point_id: string | null
           timing_timestamp: string
           ultra_id: number | null
           updated_at: string | null
@@ -1405,6 +1418,7 @@ export type Database = {
           registration_id?: string | null
           rssi?: number | null
           status_code?: string | null
+          timing_point_id?: string | null
           timing_timestamp: string
           ultra_id?: number | null
           updated_at?: string | null
@@ -1431,6 +1445,7 @@ export type Database = {
           registration_id?: string | null
           rssi?: number | null
           status_code?: string | null
+          timing_point_id?: string | null
           timing_timestamp?: string
           ultra_id?: number | null
           updated_at?: string | null
@@ -1469,6 +1484,13 @@ export type Database = {
             columns: ["registration_id"]
             isOneToOne: false
             referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timing_readings_timing_point_id_fkey"
+            columns: ["timing_point_id"]
+            isOneToOne: false
+            referencedRelation: "timing_points"
             referencedColumns: ["id"]
           },
         ]
