@@ -16,16 +16,18 @@ interface RunnerPosition {
 
 interface LiveGPSMapProps {
   raceId: string;
+  distanceId?: string;
   mapboxToken: string;
 }
 
-export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
+export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
 
+  // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !mapboxToken) return;
 
@@ -45,17 +47,51 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
       'top-right'
     );
 
-    fetchRaceGpx();
-    fetchInitialPositions();
-    setupRealtimeSubscription();
-
     return () => {
       map.current?.remove();
     };
-  }, [raceId, mapboxToken]);
+  }, [mapboxToken]);
 
-  const fetchRaceGpx = async () => {
-    // First try to get GPX from race_distances (where it's typically stored)
+  // Load GPX when distanceId changes
+  useEffect(() => {
+    if (!map.current) return;
+    
+    // Clear existing route
+    if (map.current.getLayer('route')) {
+      map.current.removeLayer('route');
+    }
+    if (map.current.getSource('route')) {
+      map.current.removeSource('route');
+    }
+    
+    setGpxUrl(null);
+    fetchGpx();
+  }, [distanceId, raceId]);
+
+  // Setup realtime and fetch positions
+  useEffect(() => {
+    fetchInitialPositions();
+    const cleanup = setupRealtimeSubscription();
+    return cleanup;
+  }, [raceId]);
+
+  const fetchGpx = async () => {
+    // If a specific distance is selected, get its GPX
+    if (distanceId) {
+      const { data: distanceData, error: distanceError } = await supabase
+        .from('race_distances')
+        .select('gpx_file_url')
+        .eq('id', distanceId)
+        .maybeSingle();
+
+      if (!distanceError && distanceData?.gpx_file_url) {
+        setGpxUrl(distanceData.gpx_file_url);
+        loadGpxRoute(distanceData.gpx_file_url);
+        return;
+      }
+    }
+
+    // Fallback: try to get GPX from race_distances with GPS enabled
     const { data: distanceData, error: distanceError } = await supabase
       .from('race_distances')
       .select('gpx_file_url')
@@ -133,44 +169,41 @@ export function LiveGPSMap({ raceId, mapboxToken }: LiveGPSMapProps) {
 
     if (coordinates.length === 0) return;
 
-    // Add the route as a line layer
+    // Remove existing route if any
+    if (map.current.getLayer('route')) {
+      map.current.removeLayer('route');
+    }
     if (map.current.getSource('route')) {
-      (map.current.getSource('route') as mapboxgl.GeoJSONSource).setData({
+      map.current.removeSource('route');
+    }
+
+    // Add the route as a line layer
+    map.current.addSource('route', {
+      type: 'geojson',
+      data: {
         type: 'Feature',
         properties: {},
         geometry: {
           type: 'LineString',
           coordinates: coordinates,
         },
-      });
-    } else {
-      map.current.addSource('route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: {
-            type: 'LineString',
-            coordinates: coordinates,
-          },
-        },
-      });
+      },
+    });
 
-      map.current.addLayer({
-        id: 'route',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round',
-        },
-        paint: {
-          'line-color': '#FF6B35',
-          'line-width': 4,
-          'line-opacity': 0.8,
-        },
-      });
-    }
+    map.current.addLayer({
+      id: 'route',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': '#FF6B35',
+        'line-width': 4,
+        'line-opacity': 0.8,
+      },
+    });
 
     // Fit map to route bounds
     const bounds = new mapboxgl.LngLatBounds();
