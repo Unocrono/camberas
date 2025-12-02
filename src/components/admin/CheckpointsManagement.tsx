@@ -63,6 +63,7 @@ interface TimingPoint {
   id: string;
   name: string;
   notes: string | null;
+  point_order: number | null;
 }
 
 interface CheckpointsManagementProps {
@@ -672,9 +673,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   const fetchTimingPoints = async () => {
     const { data, error } = await supabase
       .from("timing_points")
-      .select("id, name, notes")
+      .select("id, name, notes, point_order")
       .eq("race_id", selectedRaceId)
-      .order("name");
+      .order("point_order", { ascending: true, nullsFirst: false });
 
     if (error) {
       console.error("Error fetching timing points:", error);
