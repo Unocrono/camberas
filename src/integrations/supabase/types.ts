@@ -582,10 +582,12 @@ export type Database = {
           category_position: number | null
           created_at: string
           finish_time: unknown
+          gender_position: number | null
           id: string
           notes: string | null
           overall_position: number | null
           photo_url: string | null
+          race_distance_id: string | null
           registration_id: string
           status: string
           updated_at: string
@@ -594,10 +596,12 @@ export type Database = {
           category_position?: number | null
           created_at?: string
           finish_time: unknown
+          gender_position?: number | null
           id?: string
           notes?: string | null
           overall_position?: number | null
           photo_url?: string | null
+          race_distance_id?: string | null
           registration_id: string
           status?: string
           updated_at?: string
@@ -606,15 +610,24 @@ export type Database = {
           category_position?: number | null
           created_at?: string
           finish_time?: unknown
+          gender_position?: number | null
           id?: string
           notes?: string | null
           overall_position?: number | null
           photo_url?: string | null
+          race_distance_id?: string | null
           registration_id?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "race_results_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "race_results_registration_id_fkey"
             columns: ["registration_id"]
