@@ -268,6 +268,15 @@ races                          races (carreras)
 - checkpoint_order (1, 2, 3...)
 - distance_km
 - latitude, longitude
+- min_time_seconds (tiempo mínimo desde salida para procesar lecturas)
+- min_lap_time_seconds (tiempo mínimo entre lecturas para contar vuelta adicional)
+- max_time_seconds (tiempo máximo desde salida para procesar lecturas)
+
+PARÁMETROS DE PROCESAMIENTO DE TIEMPOS:
+- min_time_seconds: Lecturas con tiempo < min_time_seconds se ignoran (evita lecturas falsas)
+- min_lap_time_seconds: Si dos lecturas consecutivas en el mismo checkpoint tienen 
+  diferencia >= min_lap_time_seconds, la segunda cuenta como vuelta adicional (lap+1)
+- max_time_seconds: Lecturas con tiempo > max_time_seconds se ignoran (fuera de tiempo límite)
 ```
 
 #### `timing_readings` - Lecturas de Cronometraje (NUEVO - Recomendado)
@@ -283,13 +292,13 @@ races                          races (carreras)
 - operator_user_id (usuario que hizo lectura manual, nullable para automáticas)
 - reading_timestamp (momento exacto en que se registró la lectura)
 - reading_type (automatic, manual, status_change)
-- lap_number (para circuitos con vueltas)
 - is_processed (si ya se convirtió en split_time)
 - status_code (null para lecturas normales, o: 'dnf', 'dns', 'dsq', 'withdrawn')
 - notes (observaciones)
 
 NOTA: Esta tabla guarda las lecturas RAW del sistema de cronometraje.
 Es la fuente de verdad. Los split_times se calculan a partir de estas lecturas.
+IMPORTANTE: NO contiene lap_number - las vueltas se calculan automáticamente.
 Ventajas:
 - Permite reprocessar tiempos si hay errores
 - Auditoría completa (quién, cuándo, con qué equipo)
@@ -306,7 +315,7 @@ Ventajas:
 - split_time (interval) -- tiempo acumulado desde salida
 - distance_km
 - timing_reading_id (opcional) -- referencia a la lectura original
-- lap_number (para carreras con vueltas)
+- lap_number (para carreras con vueltas - CALCULADO AUTOMÁTICAMENTE)
 
 NOTA: Esta tabla se CALCULA a partir de timing_readings.
 No hay constraint único en (race_result_id, checkpoint_order) para permitir:
@@ -314,11 +323,19 @@ No hay constraint único en (race_result_id, checkpoint_order) para permitir:
 - Correcciones manuales
 - Puntos de paso/retorno
 
-Proceso de cálculo:
-1. Obtener lecturas de timing_readings para cada checkpoint
-2. Filtrar duplicados (elegir timestamp más cercano o criterio definido)
-3. Calcular tiempo acumulado desde salida
-4. Generar registro en split_times
+PROCESO DE CÁLCULO DE SPLIT_TIMES Y VUELTAS:
+1. Obtener lecturas de timing_readings para cada checkpoint ordenadas por timing_timestamp
+2. Calcular tiempo desde salida para cada lectura
+3. Filtrar lecturas:
+   - IGNORAR si tiempo < checkpoint.min_time_seconds
+   - IGNORAR si tiempo > checkpoint.max_time_seconds
+4. Calcular número de vuelta (lap_number):
+   - Primera lectura válida: lap_number = 1
+   - Lecturas siguientes: 
+     - Si (tiempo_actual - tiempo_lectura_anterior) >= checkpoint.min_lap_time_seconds
+       → lap_number = lap_anterior + 1
+     - Si diferencia < min_lap_time_seconds → lectura duplicada, se ignora
+5. Generar registro en split_times con lap_number calculado
 ```
 
 #### `race_results` - Resultados Finales
@@ -827,7 +844,7 @@ CREATE TABLE race_chat_messages (
 9. **Gestión de Chips**: Vincular chips RFID a dorsales en timing_readings
 10. **DNF/DNS/DSQ**: Estados de resultados (No terminó/No salió/Descalificado)
 11. **Tiempos Netos**: Diferencia entre tiempo gun y neto
-12. **Vueltas/Laps**: Campo lap_number en timing_readings para circuitos
+12. **Vueltas/Laps**: Cálculo automático de lap_number en split_times basado en tiempo mínimo por vuelta
 13. **Filtrado de duplicados**: Lógica para detectar y gestionar lecturas múltiples
 
 ### Media Prioridad
@@ -856,7 +873,14 @@ ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'timer';
 -- Renombrar tabla principal
 ALTER TABLE race_distances RENAME TO race_events;
 
+-- Añadir campos de configuración de tiempos a checkpoints
+ALTER TABLE race_checkpoints
+ADD COLUMN min_time_seconds integer, -- tiempo mínimo desde salida para procesar
+ADD COLUMN min_lap_time_seconds integer, -- tiempo mínimo entre lecturas para contar vuelta
+ADD COLUMN max_time_seconds integer; -- tiempo máximo desde salida para procesar
+
 -- Añadir tabla de lecturas de cronometraje (CRÍTICO)
+-- NOTA: NO tiene lap_number - las vueltas se calculan automáticamente
 CREATE TABLE timing_readings (
   id uuid PRIMARY KEY,
   registration_id uuid REFERENCES registrations(id),
@@ -869,7 +893,6 @@ CREATE TABLE timing_readings (
   operator_user_id uuid, -- usuario si es manual
   reading_timestamp timestamptz DEFAULT now(), -- cuando se registró
   reading_type text DEFAULT 'automatic', -- automatic, manual, status_change
-  lap_number integer DEFAULT 1,
   is_processed boolean DEFAULT false,
   status_code text, -- null para lecturas normales, o: 'dnf', 'dns', 'dsq', 'withdrawn'
   notes text,
@@ -883,8 +906,9 @@ CREATE TABLE timing_readings (
   log_id integer -- posición en log del Ultra
 );
 
--- Añadir referencia en split_times a la lectura original
-ALTER TABLE split_times 
+-- Añadir lap_number a split_times (se calcula automáticamente)
+ALTER TABLE split_times
+ADD COLUMN lap_number integer DEFAULT 1,
 ADD COLUMN timing_reading_id uuid REFERENCES timing_readings(id);
 
 -- Añadir gender_position a race_results
@@ -996,9 +1020,11 @@ Cuando trabajes en features de cronometraje:
 8. **Diferencia estados**: pending, confirmed, cancelled, finished, dnf, dns, dsq
 9. **Múltiples lecturas**: Un dorsal puede tener varias lecturas en el mismo checkpoint
    - Guardar todas en timing_readings con is_processed=false
-   - Aplicar lógica de filtrado al procesar (ej: timestamp más cercano)
-   - Generar un solo split_time por checkpoint (o múltiples si hay laps)
-   - Para circuitos con vueltas: usar lap_number
+   - Al procesar, usar parámetros del checkpoint:
+     - min_time_seconds: ignorar lecturas antes de este tiempo
+     - max_time_seconds: ignorar lecturas después de este tiempo
+     - min_lap_time_seconds: si diferencia >= este valor, cuenta como vuelta adicional
+   - lap_number se calcula automáticamente y se guarda en split_times (NO en timing_readings)
 10. **Tipos de lecturas**:
     - Automáticas (chip RFID): reading_type='automatic', chip_code presente, operator_user_id null
     - Manuales: reading_type='manual', operator_user_id presente (debe tener rol TIMER)
