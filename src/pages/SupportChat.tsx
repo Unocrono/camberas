@@ -46,9 +46,15 @@ export default function SupportChat() {
   const [filter, setFilter] = useState<"all" | "open" | "closed">("open");
 
   useEffect(() => {
-    if (!authLoading && (!user || !isAdmin)) {
+    // Solo redirigir si terminó de cargar Y el usuario no es admin
+    if (!authLoading && user && !isAdmin) {
       navigate("/");
       toast.error("No tienes permisos para acceder a esta página");
+    }
+    // Si no hay usuario después de cargar, redirigir a login
+    if (!authLoading && !user) {
+      navigate("/auth");
+      toast.error("Debes iniciar sesión");
     }
   }, [user, isAdmin, authLoading, navigate]);
 
@@ -208,12 +214,16 @@ export default function SupportChat() {
 
   const selectedConv = conversations.find((c) => c.id === selectedConversation);
 
-  if (authLoading || !isAdmin) {
+  if (authLoading || (user && !isAdmin)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  if (!user) {
+    return null; // El useEffect se encargará de redirigir
   }
 
   return (
