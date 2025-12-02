@@ -25,9 +25,10 @@ import { RoadbookItemTypesManagement } from "@/components/admin/RoadbookItemType
 import ContactSettingsManagement from "@/components/admin/ContactSettingsManagement";
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
+import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -200,6 +201,15 @@ const AdminDashboard = () => {
           <main className="flex-1 p-6">
             {currentView === "races" && <RaceManagement />}
             {currentView === "distances" && <DistanceManagement isOrganizer={false} selectedRaceId={selectedRaceId} />}
+            {currentView === "timing-points" && (
+              selectedRaceId ? (
+                <TimingPointsManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus puntos de cronometraje</p>
+                </div>
+              )
+            )}
             {currentView === "checkpoints" && (
               <CheckpointsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
             )}

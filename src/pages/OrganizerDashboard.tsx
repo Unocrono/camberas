@@ -19,9 +19,10 @@ import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement";
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
+import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -195,6 +196,15 @@ const OrganizerDashboard = () => {
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "timing-points" && (
+              selectedRaceId ? (
+                <TimingPointsManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus puntos de cronometraje</p>
+                </div>
+              )
+            )}
             {currentView === "checkpoints" && (
               <CheckpointsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
             )}

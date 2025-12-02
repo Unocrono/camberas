@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -22,6 +22,7 @@ interface AdminSidebarProps {
 const menuItems = [
   { title: "Gestión de Carreras", view: "races" as AdminView, icon: Calendar },
   { title: "Distancias", view: "distances" as AdminView, icon: Route },
+  { title: "Puntos de Cronometraje", view: "timing-points" as AdminView, icon: Timer },
   { title: "Puntos de Control", view: "checkpoints" as AdminView, icon: MapPin },
   { title: "Rutómetros", view: "roadbooks" as AdminView, icon: Map },
   { title: "Tipos de Ítem Rutómetro", view: "roadbook-item-types" as AdminView, icon: Tag },
