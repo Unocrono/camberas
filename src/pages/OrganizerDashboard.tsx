@@ -17,9 +17,10 @@ import RaceRegulationManagement from "@/components/admin/RaceRegulationManagemen
 import { FormFieldsManagement } from "@/components/admin/FormFieldsManagement";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement";
+import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes";
+type OrganizerView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -225,6 +226,7 @@ const OrganizerDashboard = () => {
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
+            {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
