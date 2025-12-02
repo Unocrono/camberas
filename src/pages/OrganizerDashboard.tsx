@@ -167,10 +167,10 @@ const OrganizerDashboard = () => {
                     </option>
                   ))}
                 </select>
-                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints") && distances.length > 0 && (
+                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
                   <>
                     <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
-                      Distancia:
+                      Evento:
                     </label>
                     <select
                       id="distance-selector"
@@ -178,7 +178,7 @@ const OrganizerDashboard = () => {
                       onChange={(e) => setSelectedDistanceId(e.target.value)}
                       className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
                     >
-                      <option value="">Selecciona</option>
+                      <option value="">Todos los eventos</option>
                       {distances.map((distance) => (
                         <option key={distance.id} value={distance.id}>
                           {distance.name} ({distance.distance_km}km)
@@ -228,7 +228,7 @@ const OrganizerDashboard = () => {
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
-            {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
