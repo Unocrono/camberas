@@ -59,6 +59,12 @@ interface RaceDistance {
   distance_km: number;
 }
 
+interface TimingPoint {
+  id: string;
+  name: string;
+  notes: string | null;
+}
+
 interface CheckpointsManagementProps {
   selectedRaceId: string;
   selectedDistanceId: string;
@@ -83,6 +89,7 @@ interface GpxRoutePoint {
 export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: CheckpointsManagementProps) {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [allDistances, setAllDistances] = useState<RaceDistance[]>([]);
+  const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -117,6 +124,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     distance_km: 0,
     latitude: "",
     longitude: "",
+    timing_point_id: "",
   });
 
   useEffect(() => {
@@ -126,6 +134,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   useEffect(() => {
     if (selectedRaceId) {
       fetchAllDistances();
+      fetchTimingPoints();
     }
   }, [selectedRaceId]);
 
@@ -660,6 +669,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     }
   };
 
+  const fetchTimingPoints = async () => {
+    const { data, error } = await supabase
+      .from("timing_points")
+      .select("id, name, notes")
+      .eq("race_id", selectedRaceId)
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching timing points:", error);
+    } else {
+      setTimingPoints(data || []);
+    }
+  };
+
   const fetchCheckpoints = async () => {
     setLoading(true);
     
@@ -687,6 +710,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       distance_km: 0,
       latitude: "",
       longitude: "",
+      timing_point_id: "",
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -701,6 +725,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         distance_km: checkpoint.distance_km,
         latitude: checkpoint.latitude?.toString() || "",
         longitude: checkpoint.longitude?.toString() || "",
+        timing_point_id: checkpoint.timing_point_id || "",
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -719,6 +744,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
     const latitude = formData.latitude ? parseFloat(formData.latitude) : null;
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
+    const timing_point_id = formData.timing_point_id || null;
 
     if (isEditing && selectedCheckpoint) {
       const { error } = await supabase
@@ -730,6 +756,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           distance_km: formData.distance_km,
           latitude,
           longitude,
+          timing_point_id,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -752,6 +779,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           distance_km: formData.distance_km,
           latitude,
           longitude,
+          timing_point_id,
         });
 
       if (error) {
@@ -1331,6 +1359,26 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <p className="text-xs text-muted-foreground">
                     Este checkpoint se asignará al evento: <strong>{allDistances.find(d => d.id === selectedDistanceId)?.name}</strong>
                   </p>
+                  {/* Selector de Punto de Cronometraje */}
+                  <div>
+                    <Label htmlFor="timing_point_id">Punto de Cronometraje</Label>
+                    <select
+                      id="timing_point_id"
+                      value={formData.timing_point_id}
+                      onChange={(e) => setFormData({ ...formData, timing_point_id: e.target.value })}
+                      className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="">Sin asignar</option>
+                      {timingPoints.map((tp) => (
+                        <option key={tp.id} value={tp.id}>
+                          {tp.name}{tp.notes ? ` (${tp.notes})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Vincula este checkpoint a un lugar físico de cronometraje
+                    </p>
+                  </div>
                   <Button type="submit" className="w-full">
                     {isEditing ? "Guardar Cambios" : "Crear Punto de Control"}
                   </Button>
@@ -1356,6 +1404,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <TableHead>Lugar</TableHead>
                   <TableHead className="text-right">Km</TableHead>
                   <TableHead>Tipo</TableHead>
+                  <TableHead>Punto Crono</TableHead>
                   <TableHead className="text-center">GPS</TableHead>
                   <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
@@ -1373,6 +1422,15 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       <Badge variant="secondary" className="text-xs">
                         {checkpoint.checkpoint_type || "STANDARD"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {checkpoint.timing_point_id ? (
+                        <Badge variant="outline" className="text-xs">
+                          {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
