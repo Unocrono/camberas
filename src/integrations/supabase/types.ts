@@ -114,6 +114,45 @@ export type Database = {
           },
         ]
       }
+      checkpoint_distance_assignments: {
+        Row: {
+          checkpoint_id: string
+          checkpoint_order: number
+          created_at: string
+          id: string
+          race_distance_id: string
+        }
+        Insert: {
+          checkpoint_id: string
+          checkpoint_order?: number
+          created_at?: string
+          id?: string
+          race_distance_id: string
+        }
+        Update: {
+          checkpoint_id?: string
+          checkpoint_order?: number
+          created_at?: string
+          id?: string
+          race_distance_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkpoint_distance_assignments_checkpoint_id_fkey"
+            columns: ["checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "race_checkpoints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkpoint_distance_assignments_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_settings: {
         Row: {
           created_at: string

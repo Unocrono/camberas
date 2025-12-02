@@ -212,14 +212,29 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
   const fetchCheckpointsByDistance = async (distanceId: string) => {
     try {
+      // Usar la tabla intermedia checkpoint_distance_assignments
       const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, distance_km")
+        .from("checkpoint_distance_assignments")
+        .select(`
+          checkpoint_id,
+          checkpoint_order,
+          checkpoint:race_checkpoints(id, name, distance_km)
+        `)
         .eq("race_distance_id", distanceId)
         .order("checkpoint_order", { ascending: true });
       
       if (error) throw error;
-      setCheckpoints(data || []);
+      
+      // Transformar datos al formato esperado
+      const checkpointsData = (data || [])
+        .filter(item => item.checkpoint)
+        .map(item => ({
+          id: item.checkpoint!.id,
+          name: item.checkpoint!.name,
+          distance_km: item.checkpoint!.distance_km,
+        }));
+      
+      setCheckpoints(checkpointsData);
     } catch (error: any) {
       console.error("Error fetching checkpoints:", error);
     }
