@@ -1308,7 +1308,7 @@ export type Database = {
             foreignKeyName: "timer_assignments_checkpoint_id_fkey"
             columns: ["checkpoint_id"]
             isOneToOne: false
-            referencedRelation: "race_checkpoints"
+            referencedRelation: "timing_points"
             referencedColumns: ["id"]
           },
           {
