@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
-import GPXParser from 'gpxparser';
+import { parseGpxFile } from '@/lib/gpxParser';
 
 interface RunnerPosition {
   id: string;
@@ -351,28 +351,26 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       const response = await fetch(url);
       const gpxText = await response.text();
       
-      const gpx = new GPXParser();
-      gpx.parse(gpxText);
+      const parsedGpx = parseGpxFile(gpxText);
 
-      if (!map.current || !gpx.tracks || gpx.tracks.length === 0) {
+      if (!map.current || !parsedGpx.tracks || parsedGpx.tracks.length === 0) {
         console.warn('GPX parsing failed or no tracks found');
         return;
       }
 
-      // mapReady guarantees the style is loaded, add directly
-      addGpxToMap(gpx);
+      addGpxToMap(parsedGpx);
     } catch (error) {
       console.error('Error loading GPX:', error);
     }
   };
 
-  const addGpxToMap = (gpx: any) => {
+  const addGpxToMap = (gpx: ReturnType<typeof parseGpxFile>) => {
     if (!map.current) return;
 
     const coordinates: [number, number][] = [];
     
-    gpx.tracks.forEach((track: any) => {
-      track.points.forEach((point: any) => {
+    gpx.tracks.forEach((track) => {
+      track.points.forEach((point) => {
         coordinates.push([point.lon, point.lat]);
       });
     });
