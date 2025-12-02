@@ -26,7 +26,11 @@ import {
   Wifi,
   WifiOff,
   Ban,
+  AlertTriangle,
+  XCircle,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 
 interface Race {
@@ -57,7 +61,18 @@ interface TimingReading {
   timestamp: string;
   runner_name?: string;
   synced: boolean;
+  status_code?: string;
+  notes?: string;
 }
+
+type StatusCode = "dnf" | "dns" | "dsq" | "withdrawn";
+
+const STATUS_OPTIONS: { value: StatusCode; label: string; description: string; icon: React.ReactNode }[] = [
+  { value: "dnf", label: "DNF", description: "No terminó (Did Not Finish)", icon: <XCircle className="h-4 w-4" /> },
+  { value: "dns", label: "DNS", description: "No salió (Did Not Start)", icon: <Ban className="h-4 w-4" /> },
+  { value: "dsq", label: "DSQ", description: "Descalificado", icon: <AlertTriangle className="h-4 w-4" /> },
+  { value: "withdrawn", label: "Retirado", description: "Retirado antes de salida", icon: <User className="h-4 w-4" /> },
+];
 
 const STORAGE_KEY = "timing_session";
 const READINGS_KEY = "timing_readings_queue";
@@ -87,6 +102,14 @@ const TimingApp = () => {
   const [pendingSync, setPendingSync] = useState<TimingReading[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"timing" | "status">("timing");
+
+  // Status form state
+  const [statusBibInput, setStatusBibInput] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<StatusCode | "">("");
+  const [statusNotes, setStatusNotes] = useState("");
+  const [statusRunnerInfo, setStatusRunnerInfo] = useState<Runner | null>(null);
+  const [submittingStatus, setSubmittingStatus] = useState(false);
 
   // Time update
   useEffect(() => {
@@ -441,7 +464,7 @@ const TimingApp = () => {
   };
 
   const handleSync = async () => {
-    if (!isOnline || pendingSync.length === 0 || !selectedRace || !selectedTimingPoint) return;
+    if (!isOnline || pendingSync.length === 0 || !selectedRace) return;
 
     setSyncing(true);
     try {
@@ -449,11 +472,13 @@ const TimingApp = () => {
         const runner = runners.find((r) => r.bib_number === reading.bib_number);
         return {
           race_id: selectedRace.id,
-          timing_point_id: selectedTimingPoint.id,
+          timing_point_id: selectedTimingPoint?.id || null,
           bib_number: reading.bib_number,
           timing_timestamp: reading.timestamp,
           reading_timestamp: reading.timestamp,
-          reading_type: "manual",
+          reading_type: reading.status_code ? "status_change" : "manual",
+          status_code: reading.status_code || null,
+          notes: reading.notes || null,
           operator_user_id: user?.id,
           registration_id: runner?.registration_id || null,
           race_distance_id: runner?.race_distance_id || null,
@@ -484,6 +509,122 @@ const TimingApp = () => {
     } finally {
       setSyncing(false);
     }
+  };
+
+  // Handle status bib input change - validate and show runner info
+  const handleStatusBibChange = (value: string) => {
+    setStatusBibInput(value);
+    const bib = parseInt(value);
+    if (!isNaN(bib) && bib > 0) {
+      const runner = runners.find((r) => r.bib_number === bib);
+      setStatusRunnerInfo(runner || null);
+    } else {
+      setStatusRunnerInfo(null);
+    }
+  };
+
+  // Handle status registration
+  const handleRegisterStatus = async () => {
+    const bib = parseInt(statusBibInput);
+    if (isNaN(bib) || bib <= 0) {
+      toast({
+        title: "Dorsal inválido",
+        description: "Introduce un número de dorsal válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedStatus) {
+      toast({
+        title: "Estado requerido",
+        description: "Selecciona un estado (DNF/DNS/DSQ/Retirado)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (statusNotes.trim().length < 10) {
+      toast({
+        title: "Motivo requerido",
+        description: "El motivo debe tener al menos 10 caracteres",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const runner = runners.find((r) => r.bib_number === bib);
+
+    const reading: TimingReading = {
+      bib_number: bib,
+      timestamp,
+      runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+      synced: false,
+      status_code: selectedStatus,
+      notes: statusNotes,
+    };
+
+    setSubmittingStatus(true);
+
+    // Try to sync immediately if online
+    if (isOnline && selectedRace) {
+      try {
+        const { error } = await supabase.from("timing_readings").insert({
+          race_id: selectedRace.id,
+          timing_point_id: selectedTimingPoint?.id || null,
+          bib_number: bib,
+          timing_timestamp: timestamp,
+          reading_timestamp: timestamp,
+          reading_type: "status_change",
+          status_code: selectedStatus,
+          notes: statusNotes,
+          operator_user_id: user?.id,
+          registration_id: runner?.registration_id || null,
+          race_distance_id: runner?.race_distance_id || null,
+        });
+
+        if (error) throw error;
+
+        reading.synced = true;
+
+        toast({
+          title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
+          description: runner ? `${runner.first_name} ${runner.last_name}` : "Estado registrado",
+        });
+      } catch (error) {
+        console.error("Error syncing status:", error);
+        // Add to pending queue
+        const newPending = [...pendingSync, reading];
+        setPendingSync(newPending);
+        localStorage.setItem(READINGS_KEY, JSON.stringify(newPending));
+
+        toast({
+          title: `#${bib} guardado (offline)`,
+          description: "Se sincronizará cuando haya conexión",
+        });
+      }
+    } else {
+      // Offline: add to pending queue
+      const newPending = [...pendingSync, reading];
+      setPendingSync(newPending);
+      localStorage.setItem(READINGS_KEY, JSON.stringify(newPending));
+
+      toast({
+        title: `#${bib} guardado (offline)`,
+        description: "Se sincronizará cuando haya conexión",
+      });
+    }
+
+    // Add to readings list
+    setReadings((prev) => [reading, ...prev].slice(0, 50));
+
+    // Reset form
+    setStatusBibInput("");
+    setSelectedStatus("");
+    setStatusNotes("");
+    setStatusRunnerInfo(null);
+    setSubmittingStatus(false);
   };
 
   const handleLogout = async () => {
@@ -710,99 +851,250 @@ const TimingApp = () => {
         </div>
       </header>
 
-      {/* Readings list */}
-      <div className="flex-1 overflow-auto p-4 pb-48">
-        <h3 className="text-sm font-semibold text-muted-foreground mb-2">
-          ÚLTIMOS REGISTROS
-        </h3>
-        {readings.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
-            <p>Sin registros aún</p>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "timing" | "status")} className="flex-1 flex flex-col">
+        <TabsList className="mx-4 mt-2 grid w-[calc(100%-2rem)] grid-cols-2">
+          <TabsTrigger value="timing" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Cronometraje
+          </TabsTrigger>
+          <TabsTrigger value="status" className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Estados
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Timing Tab */}
+        <TabsContent value="timing" className="flex-1 flex flex-col mt-0">
+          {/* Readings list */}
+          <div className="flex-1 overflow-auto p-4 pb-48">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-2">
+              ÚLTIMOS REGISTROS
+            </h3>
+            {readings.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Sin registros aún</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {readings.map((reading) => (
+                  <div
+                    key={`${reading.bib_number}-${reading.timestamp}`}
+                    className="flex items-center justify-between bg-card border border-border rounded-lg p-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge variant={reading.status_code ? "destructive" : "outline"} className="font-mono text-lg">
+                        #{reading.bib_number}
+                      </Badge>
+                      <div>
+                        <p className="font-medium">
+                          {reading.runner_name || "Dorsal no registrado"}
+                          {reading.status_code && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              {STATUS_OPTIONS.find(s => s.value === reading.status_code)?.label}
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(reading.timestamp).toLocaleTimeString("es-ES")}
+                          {reading.notes && <span className="ml-2">- {reading.notes.substring(0, 30)}...</span>}
+                        </p>
+                      </div>
+                    </div>
+                    {reading.synced ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <Clock className="h-5 w-5 text-yellow-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="space-y-2">
-            {readings.map((reading, index) => (
-              <div
-                key={`${reading.bib_number}-${reading.timestamp}`}
-                className="flex items-center justify-between bg-card border border-border rounded-lg p-3"
+
+          {/* Input area (fixed at bottom) */}
+          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 space-y-3">
+            <div className="flex gap-2">
+              <Input
+                ref={inputRef}
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="Dorsal"
+                value={bibInput}
+                onChange={(e) => setBibInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRecordTime()}
+                className="text-2xl font-mono h-14 text-center"
+                autoFocus
+              />
+            </div>
+            <Button
+              onClick={handleRecordTime}
+              className="w-full h-16 text-xl"
+              size="lg"
+            >
+              <Clock className="h-6 w-6 mr-2" />
+              {formatTime(currentTime)}
+            </Button>
+
+            {/* Bottom actions */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleSync}
+                disabled={!isOnline || pendingSync.length === 0 || syncing}
               >
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline" className="font-mono text-lg">
-                    #{reading.bib_number}
-                  </Badge>
-                  <div>
-                    <p className="font-medium">
-                      {reading.runner_name || "Dorsal no registrado"}
+                {syncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Sincronizar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentView("select")}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Cambiar
+              </Button>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Status Tab */}
+        <TabsContent value="status" className="flex-1 flex flex-col mt-0 p-4 pb-20 overflow-auto">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Registrar Estado Especial
+              </CardTitle>
+              <CardDescription>
+                DNF, DNS, DSQ o Retirado
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Bib Number */}
+              <div className="space-y-2">
+                <Label htmlFor="status-bib">Dorsal</Label>
+                <Input
+                  id="status-bib"
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Número de dorsal"
+                  value={statusBibInput}
+                  onChange={(e) => handleStatusBibChange(e.target.value)}
+                  className="text-xl font-mono"
+                />
+                {statusRunnerInfo && (
+                  <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                    <p className="font-medium text-green-800 dark:text-green-200">
+                      {statusRunnerInfo.first_name} {statusRunnerInfo.last_name}
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(reading.timestamp).toLocaleTimeString("es-ES")}
+                    <p className="text-sm text-green-600 dark:text-green-400">
+                      {statusRunnerInfo.event_name}
                     </p>
                   </div>
-                </div>
-                {reading.synced ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                ) : (
-                  <Clock className="h-5 w-5 text-yellow-500" />
+                )}
+                {statusBibInput && !statusRunnerInfo && (
+                  <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      Dorsal no encontrado en lista de inscritos
+                    </p>
+                  </div>
                 )}
               </div>
-            ))}
+
+              {/* Status Selection */}
+              <div className="space-y-2">
+                <Label>Tipo de Estado</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STATUS_OPTIONS.map((status) => (
+                    <Button
+                      key={status.value}
+                      type="button"
+                      variant={selectedStatus === status.value ? "default" : "outline"}
+                      className="h-auto py-3 flex flex-col items-center gap-1"
+                      onClick={() => setSelectedStatus(status.value)}
+                    >
+                      {status.icon}
+                      <span className="font-bold">{status.label}</span>
+                      <span className="text-xs opacity-70">{status.description}</span>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="status-notes">Motivo (obligatorio)</Label>
+                <Textarea
+                  id="status-notes"
+                  placeholder="Ej: Lesión rodilla km 15, Fuera de tiempo límite..."
+                  value={statusNotes}
+                  onChange={(e) => setStatusNotes(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Mínimo 10 caracteres ({statusNotes.length}/10)
+                </p>
+              </div>
+
+              {/* Submit Button */}
+              <Button
+                onClick={handleRegisterStatus}
+                className="w-full"
+                size="lg"
+                disabled={submittingStatus || !statusBibInput || !selectedStatus || statusNotes.length < 10}
+              >
+                {submittingStatus ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                )}
+                Registrar Estado
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Bottom actions for status tab */}
+          <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleSync}
+                disabled={!isOnline || pendingSync.length === 0 || syncing}
+              >
+                {syncing ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Sincronizar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setCurrentView("select")}
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Cambiar
+              </Button>
+              <Button variant="ghost" onClick={handleLogout}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Input area (fixed at bottom) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 space-y-3">
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            type="number"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            placeholder="Dorsal"
-            value={bibInput}
-            onChange={(e) => setBibInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleRecordTime()}
-            className="text-2xl font-mono h-14 text-center"
-            autoFocus
-          />
-        </div>
-        <Button
-          onClick={handleRecordTime}
-          className="w-full h-16 text-xl"
-          size="lg"
-        >
-          <Clock className="h-6 w-6 mr-2" />
-          {formatTime(currentTime)}
-        </Button>
-
-        {/* Bottom actions */}
-        <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={handleSync}
-            disabled={!isOnline || pendingSync.length === 0 || syncing}
-          >
-            {syncing ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Sincronizar
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentView("select")}
-          >
-            <MapPin className="h-4 w-4 mr-2" />
-            Cambiar
-          </Button>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
