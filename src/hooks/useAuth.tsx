@@ -8,6 +8,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -19,12 +20,14 @@ export const useAuth = () => {
         
         // Check roles when session changes
         if (session?.user) {
+          setRolesLoaded(false);
           setTimeout(() => {
             checkUserRoles(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
           setIsOrganizer(false);
+          setRolesLoaded(false);
         }
       }
     );
@@ -45,6 +48,8 @@ export const useAuth = () => {
 
   const checkUserRoles = async (userId: string) => {
     try {
+      setRolesLoaded(false);
+
       const { data: adminData } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "admin",
@@ -58,6 +63,10 @@ export const useAuth = () => {
       setIsOrganizer(organizerData || false);
     } catch (error) {
       console.error("Error checking user roles:", error);
+      setIsAdmin(false);
+      setIsOrganizer(false);
+    } finally {
+      setRolesLoaded(true);
     }
   };
 
@@ -65,5 +74,5 @@ export const useAuth = () => {
     await supabase.auth.signOut();
   };
 
-  return { user, session, loading, signOut, isAdmin, isOrganizer };
+  return { user, session, loading, signOut, isAdmin, isOrganizer, rolesLoaded };
 };
