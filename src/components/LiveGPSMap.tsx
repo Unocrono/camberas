@@ -354,14 +354,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       const gpx = new GPXParser();
       gpx.parse(gpxText);
 
-      if (!map.current || !gpx.tracks || gpx.tracks.length === 0) return;
-
-      // Wait for map to be loaded
-      if (!map.current.isStyleLoaded()) {
-        map.current.on('load', () => addGpxToMap(gpx));
-      } else {
-        addGpxToMap(gpx);
+      if (!map.current || !gpx.tracks || gpx.tracks.length === 0) {
+        console.warn('GPX parsing failed or no tracks found');
+        return;
       }
+
+      // mapReady guarantees the style is loaded, add directly
+      addGpxToMap(gpx);
     } catch (error) {
       console.error('Error loading GPX:', error);
     }
