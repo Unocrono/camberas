@@ -129,39 +129,48 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const addCheckpointMarkers = (checkpointsData: Checkpoint[]) => {
     if (!map.current) return;
 
-    checkpointsData.forEach((checkpoint) => {
-      if (checkpoint.latitude && checkpoint.longitude) {
-        const { color, icon } = getCheckpointIcon(checkpoint.checkpoint_type);
-        
-        const el = document.createElement('div');
-        el.className = 'checkpoint-marker';
-        el.innerHTML = `
-          <div class="flex flex-col items-center">
-            <div style="background-color: ${color}; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" class="rounded-full w-8 h-8 flex items-center justify-center text-white font-bold text-sm">
-              ${icon}
-            </div>
-            <div style="background-color: ${color};" class="text-white text-xs px-2 py-0.5 rounded mt-1 whitespace-nowrap shadow">
-              ${checkpoint.name}
-            </div>
+    const validCheckpoints = checkpointsData.filter(cp => cp.latitude && cp.longitude);
+
+    validCheckpoints.forEach((checkpoint) => {
+      const { color, icon } = getCheckpointIcon(checkpoint.checkpoint_type);
+      
+      const el = document.createElement('div');
+      el.className = 'checkpoint-marker';
+      el.innerHTML = `
+        <div class="flex flex-col items-center">
+          <div style="background-color: ${color}; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);" class="rounded-full w-8 h-8 flex items-center justify-center text-white font-bold text-sm">
+            ${icon}
           </div>
-        `;
+          <div style="background-color: ${color};" class="text-white text-xs px-2 py-0.5 rounded mt-1 whitespace-nowrap shadow">
+            ${checkpoint.name}
+          </div>
+        </div>
+      `;
 
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat([checkpoint.longitude, checkpoint.latitude])
-          .setPopup(
-            new mapboxgl.Popup({ offset: 25 }).setHTML(
-              `<div class="p-2">
-                <strong>${checkpoint.name}</strong><br/>
-                Tipo: ${checkpoint.checkpoint_type}<br/>
-                KM: ${checkpoint.distance_km}
-              </div>`
-            )
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([checkpoint.longitude!, checkpoint.latitude!])
+        .setPopup(
+          new mapboxgl.Popup({ offset: 25 }).setHTML(
+            `<div class="p-2">
+              <strong>${checkpoint.name}</strong><br/>
+              Tipo: ${checkpoint.checkpoint_type}<br/>
+              KM: ${checkpoint.distance_km}
+            </div>`
           )
-          .addTo(map.current!);
+        )
+        .addTo(map.current!);
 
-        checkpointMarkers.current.push(marker);
-      }
+      checkpointMarkers.current.push(marker);
     });
+
+    // Center map on checkpoints if no GPX route
+    if (validCheckpoints.length > 0 && !gpxUrl) {
+      const bounds = new mapboxgl.LngLatBounds();
+      validCheckpoints.forEach(cp => {
+        bounds.extend([cp.longitude!, cp.latitude!]);
+      });
+      map.current.fitBounds(bounds, { padding: 80 });
+    }
   };
 
   const fetchGpx = async () => {
