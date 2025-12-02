@@ -24,9 +24,10 @@ import { UsersManagement } from "@/components/admin/UsersManagement";
 import { RoadbookItemTypesManagement } from "@/components/admin/RoadbookItemTypesManagement";
 import ContactSettingsManagement from "@/components/admin/ContactSettingsManagement";
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
+import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { Loader2 } from "lucide-react";
 
-type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "checkpoints" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -232,6 +233,7 @@ const AdminDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
+            {currentView === "timing-readings" && <TimingReadingsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
