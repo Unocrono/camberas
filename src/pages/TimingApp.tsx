@@ -84,6 +84,18 @@ const STATUS_OPTIONS: { value: StatusCode; label: string; description: string; i
 
 const STORAGE_KEY = "timing_session";
 const READINGS_KEY = "timing_readings_queue";
+const ABANDONS_KEY = "timing_abandons_queue";
+
+interface PendingAbandon {
+  bib_number: number;
+  abandon_type: StatusCode;
+  reason: string;
+  timing_point_id: string | null;
+  registration_id: string;
+  race_distance_id: string;
+  runner_name: string;
+  timestamp: string;
+}
 
 const TimingApp = () => {
   const navigate = useNavigate();
@@ -110,6 +122,7 @@ const TimingApp = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [readings, setReadings] = useState<TimingReading[]>([]);
   const [pendingSync, setPendingSync] = useState<TimingReading[]>([]);
+  const [pendingAbandons, setPendingAbandons] = useState<PendingAbandon[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [syncing, setSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<"timing" | "status">("timing");
@@ -148,11 +161,15 @@ const TimingApp = () => {
     };
   }, []);
 
-  // Load pending readings from localStorage
+  // Load pending readings and abandons from localStorage
   useEffect(() => {
-    const stored = localStorage.getItem(READINGS_KEY);
-    if (stored) {
-      setPendingSync(JSON.parse(stored));
+    const storedReadings = localStorage.getItem(READINGS_KEY);
+    if (storedReadings) {
+      setPendingSync(JSON.parse(storedReadings));
+    }
+    const storedAbandons = localStorage.getItem(ABANDONS_KEY);
+    if (storedAbandons) {
+      setPendingAbandons(JSON.parse(storedAbandons));
     }
   }, []);
 
@@ -630,41 +647,72 @@ const TimingApp = () => {
   };
 
   const handleSync = async () => {
-    if (!isOnline || pendingSync.length === 0 || !selectedRace) return;
+    if (!isOnline || !selectedRace) return;
+    if (pendingSync.length === 0 && pendingAbandons.length === 0) return;
 
     setSyncing(true);
+    let syncedReadings = 0;
+    let syncedAbandons = 0;
+
     try {
-      const toInsert = pendingSync.map((reading) => {
-        const runner = runners.find((r) => r.bib_number === reading.bib_number);
-        return {
+      // Sync timing readings
+      if (pendingSync.length > 0) {
+        const toInsert = pendingSync.map((reading) => {
+          const runner = runners.find((r) => r.bib_number === reading.bib_number);
+          return {
+            race_id: selectedRace.id,
+            timing_point_id: selectedTimingPoint?.id || null,
+            bib_number: reading.bib_number,
+            timing_timestamp: reading.timestamp,
+            reading_timestamp: reading.timestamp,
+            reading_type: reading.status_code ? "status_change" : "manual",
+            status_code: reading.status_code || null,
+            notes: reading.notes || null,
+            operator_user_id: user?.id,
+            registration_id: runner?.registration_id || null,
+            race_distance_id: runner?.race_distance_id || null,
+          };
+        });
+
+        const { error } = await supabase.from("timing_readings").insert(toInsert);
+        if (error) throw error;
+
+        syncedReadings = toInsert.length;
+        setPendingSync([]);
+        localStorage.removeItem(READINGS_KEY);
+      }
+
+      // Sync abandons
+      if (pendingAbandons.length > 0) {
+        const abandonsToInsert = pendingAbandons.map((abandon) => ({
           race_id: selectedRace.id,
-          timing_point_id: selectedTimingPoint?.id || null,
-          bib_number: reading.bib_number,
-          timing_timestamp: reading.timestamp,
-          reading_timestamp: reading.timestamp,
-          reading_type: reading.status_code ? "status_change" : "manual",
-          status_code: reading.status_code || null,
-          notes: reading.notes || null,
-          operator_user_id: user?.id,
-          registration_id: runner?.registration_id || null,
-          race_distance_id: runner?.race_distance_id || null,
-        };
-      });
+          registration_id: abandon.registration_id,
+          race_distance_id: abandon.race_distance_id,
+          bib_number: abandon.bib_number,
+          abandon_type: abandon.abandon_type,
+          timing_point_id: abandon.timing_point_id,
+          reason: abandon.reason,
+          operator_user_id: user?.id || null,
+        }));
 
-      const { error } = await supabase.from("timing_readings").insert(toInsert);
+        const { error } = await supabase.from("race_results_abandons").insert(abandonsToInsert);
+        if (error) throw error;
 
-      if (error) throw error;
-
-      // Clear pending queue
-      setPendingSync([]);
-      localStorage.removeItem(READINGS_KEY);
+        syncedAbandons = abandonsToInsert.length;
+        setPendingAbandons([]);
+        localStorage.removeItem(ABANDONS_KEY);
+      }
 
       // Mark all readings as synced
       setReadings((prev) => prev.map((r) => ({ ...r, synced: true })));
 
+      const messages: string[] = [];
+      if (syncedReadings > 0) messages.push(`${syncedReadings} lecturas`);
+      if (syncedAbandons > 0) messages.push(`${syncedAbandons} retirados`);
+
       toast({
         title: "Sincronizado",
-        description: `${toInsert.length} lecturas sincronizadas`,
+        description: messages.join(" y ") + " sincronizados",
       });
     } catch (error: any) {
       toast({
@@ -689,7 +737,7 @@ const TimingApp = () => {
     }
   };
 
-  // Handle status registration - saves to race_results_abandons
+  // Handle status registration - saves to race_results_abandons (with offline support)
   const handleRegisterStatus = async () => {
     const bib = parseInt(statusBibInput);
     if (isNaN(bib) || bib <= 0) {
@@ -739,54 +787,88 @@ const TimingApp = () => {
       return;
     }
 
+    const timestamp = new Date().toISOString();
+    const runnerName = `${runner.first_name} ${runner.last_name}`.trim();
+
+    // Create reading for visual feedback
+    const reading: TimingReading = {
+      bib_number: bib,
+      timestamp,
+      runner_name: runnerName,
+      synced: false,
+      status_code: selectedStatus,
+      notes: statusNotes,
+    };
+
+    // Create pending abandon object
+    const pendingAbandon: PendingAbandon = {
+      bib_number: bib,
+      abandon_type: selectedStatus,
+      reason: statusNotes.trim(),
+      timing_point_id: selectedTimingPoint?.id || null,
+      registration_id: runner.registration_id,
+      race_distance_id: runner.race_distance_id,
+      runner_name: runnerName,
+      timestamp,
+    };
+
     setSubmittingStatus(true);
 
-    try {
-      const { error } = await supabase.from("race_results_abandons").insert({
-        race_id: selectedRace.id,
-        registration_id: runner.registration_id,
-        race_distance_id: runner.race_distance_id,
-        bib_number: bib,
-        abandon_type: selectedStatus,
-        timing_point_id: selectedTimingPoint?.id || null,
-        reason: statusNotes.trim(),
-        operator_user_id: user?.id || null,
-      });
+    // Try to sync immediately if online
+    if (isOnline) {
+      try {
+        const { error } = await supabase.from("race_results_abandons").insert({
+          race_id: selectedRace.id,
+          registration_id: runner.registration_id,
+          race_distance_id: runner.race_distance_id,
+          bib_number: bib,
+          abandon_type: selectedStatus,
+          timing_point_id: selectedTimingPoint?.id || null,
+          reason: statusNotes.trim(),
+          operator_user_id: user?.id || null,
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+
+        reading.synced = true;
+
+        toast({
+          title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
+          description: `${runnerName} - Registrado correctamente`,
+        });
+      } catch (error: any) {
+        console.error("Error syncing abandon:", error);
+        // Add to pending queue
+        const newPending = [...pendingAbandons, pendingAbandon];
+        setPendingAbandons(newPending);
+        localStorage.setItem(ABANDONS_KEY, JSON.stringify(newPending));
+
+        toast({
+          title: `#${bib} guardado (offline)`,
+          description: "Se sincronizará cuando haya conexión",
+        });
+      }
+    } else {
+      // Offline: add to pending queue
+      const newPending = [...pendingAbandons, pendingAbandon];
+      setPendingAbandons(newPending);
+      localStorage.setItem(ABANDONS_KEY, JSON.stringify(newPending));
 
       toast({
-        title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
-        description: `${runner.first_name} ${runner.last_name} - Registrado correctamente`,
+        title: `#${bib} guardado (offline)`,
+        description: "Se sincronizará cuando haya conexión",
       });
-
-      // Add to local readings list for visual feedback
-      const timestamp = new Date().toISOString();
-      const reading: TimingReading = {
-        bib_number: bib,
-        timestamp,
-        runner_name: `${runner.first_name} ${runner.last_name}`.trim(),
-        synced: true,
-        status_code: selectedStatus,
-        notes: statusNotes,
-      };
-      setReadings((prev) => [reading, ...prev].slice(0, 50));
-
-      // Reset form
-      setStatusBibInput("");
-      setSelectedStatus("");
-      setStatusNotes("");
-      setStatusRunnerInfo(null);
-    } catch (error: any) {
-      console.error("Error registering abandon:", error);
-      toast({
-        title: "Error al registrar",
-        description: error.message || "No se pudo guardar el registro",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmittingStatus(false);
     }
+
+    // Add to readings list for visual feedback
+    setReadings((prev) => [reading, ...prev].slice(0, 50));
+
+    // Reset form
+    setStatusBibInput("");
+    setSelectedStatus("");
+    setStatusNotes("");
+    setStatusRunnerInfo(null);
+    setSubmittingStatus(false);
   };
 
   // Edit reading functions
@@ -925,9 +1007,10 @@ const TimingApp = () => {
   };
 
   const handleLogout = async () => {
-    if (pendingSync.length > 0) {
+    const totalPending = pendingSync.length + pendingAbandons.length;
+    if (totalPending > 0) {
       const confirm = window.confirm(
-        `Tienes ${pendingSync.length} lecturas sin sincronizar. ¿Deseas cerrar sesión igualmente?`
+        `Tienes ${totalPending} registros sin sincronizar. ¿Deseas cerrar sesión igualmente?`
       );
       if (!confirm) return;
     }
@@ -1168,9 +1251,9 @@ const TimingApp = () => {
           ) : (
             <WifiOff className="h-4 w-4 text-red-500" />
           )}
-          {pendingSync.length > 0 && (
+          {(pendingSync.length > 0 || pendingAbandons.length > 0) && (
             <Badge variant="secondary" className="text-xs">
-              {pendingSync.length} pendientes
+              {pendingSync.length + pendingAbandons.length} pendientes
             </Badge>
           )}
         </div>
@@ -1302,7 +1385,7 @@ const TimingApp = () => {
                 variant="outline"
                 className="flex-1"
                 onClick={handleSync}
-                disabled={!isOnline || pendingSync.length === 0 || syncing}
+                disabled={!isOnline || (pendingSync.length === 0 && pendingAbandons.length === 0) || syncing}
               >
                 {syncing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -1430,7 +1513,7 @@ const TimingApp = () => {
                 variant="outline"
                 className="flex-1"
                 onClick={handleSync}
-                disabled={!isOnline || pendingSync.length === 0 || syncing}
+                disabled={!isOnline || (pendingSync.length === 0 && pendingAbandons.length === 0) || syncing}
               >
                 {syncing ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
