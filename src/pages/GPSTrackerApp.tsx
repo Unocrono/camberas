@@ -655,6 +655,7 @@ const GPSTrackerApp = () => {
               latitude={currentPosition?.lat || null}
               longitude={currentPosition?.lng || null}
               distanceId={selectedRegistration?.race_distance_id}
+              raceId={selectedRegistration?.race_id}
               className="h-48 w-full"
             />
           </CardContent>

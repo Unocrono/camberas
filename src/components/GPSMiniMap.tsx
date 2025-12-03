@@ -4,21 +4,42 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
 
+interface Checkpoint {
+  id: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  checkpoint_type: string;
+  distance_km: number;
+}
+
+interface RoadbookItem {
+  id: string;
+  description: string;
+  latitude: number | null;
+  longitude: number | null;
+  km_total: number;
+  item_type: string;
+}
+
 interface GPSMiniMapProps {
   latitude: number | null;
   longitude: number | null;
   distanceId?: string;
+  raceId?: string;
   className?: string;
 }
 
-export function GPSMiniMap({ latitude, longitude, distanceId, className = '' }: GPSMiniMapProps) {
+export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className = '' }: GPSMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
+  const poiMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const routeLoadedRef = useRef(false);
+  const markersLoadedRef = useRef(false);
 
   // Fetch Mapbox token
   useEffect(() => {
@@ -85,8 +106,10 @@ export function GPSMiniMap({ latitude, longitude, distanceId, className = '' }: 
     }
 
     return () => {
+      poiMarkersRef.current.forEach(m => m.remove());
       map.current?.remove();
       routeLoadedRef.current = false;
+      markersLoadedRef.current = false;
     };
   }, [mapboxToken]);
 
@@ -177,6 +200,128 @@ export function GPSMiniMap({ latitude, longitude, distanceId, className = '' }: 
 
     loadGpxRoute();
   }, [distanceId, mapReady]);
+
+  // Load checkpoints and roadbook items
+  useEffect(() => {
+    if (!map.current || !mapReady || markersLoadedRef.current) return;
+    if (!distanceId && !raceId) return;
+
+    const loadMarkers = async () => {
+      try {
+        // Clear existing POI markers
+        poiMarkersRef.current.forEach(m => m.remove());
+        poiMarkersRef.current = [];
+
+        // Fetch checkpoints (start/finish)
+        if (raceId || distanceId) {
+          let query = supabase
+            .from('race_checkpoints')
+            .select('id, name, latitude, longitude, checkpoint_type, distance_km')
+            .in('checkpoint_type', ['START', 'FINISH']);
+          
+          if (distanceId) {
+            query = query.eq('race_distance_id', distanceId);
+          } else if (raceId) {
+            query = query.eq('race_id', raceId);
+          }
+
+          const { data: checkpoints } = await query;
+
+          if (checkpoints && map.current) {
+            checkpoints.forEach((cp) => {
+              if (cp.latitude && cp.longitude) {
+                const isStart = cp.checkpoint_type === 'START';
+                const el = document.createElement('div');
+                el.className = 'checkpoint-marker';
+                el.innerHTML = `
+                  <div style="
+                    width: 28px; 
+                    height: 28px; 
+                    background: ${isStart ? '#22c55e' : '#ef4444'}; 
+                    border-radius: 50%; 
+                    border: 3px solid white; 
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                  ">
+                    ${isStart ? '🏁' : '🎯'}
+                  </div>
+                `;
+
+                const marker = new mapboxgl.Marker(el)
+                  .setLngLat([cp.longitude, cp.latitude])
+                  .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(
+                    `<strong>${cp.name}</strong><br/>KM ${cp.distance_km}`
+                  ))
+                  .addTo(map.current!);
+
+                poiMarkersRef.current.push(marker);
+              }
+            });
+          }
+        }
+
+        // Fetch highlighted roadbook items
+        if (distanceId) {
+          const { data: roadbooks } = await supabase
+            .from('roadbooks')
+            .select('id')
+            .eq('race_distance_id', distanceId)
+            .limit(1);
+
+          if (roadbooks && roadbooks.length > 0) {
+            const { data: items } = await supabase
+              .from('roadbook_items')
+              .select('id, description, latitude, longitude, km_total, item_type')
+              .eq('roadbook_id', roadbooks[0].id)
+              .eq('is_highlighted', true);
+
+            if (items && map.current) {
+              items.forEach((item) => {
+                if (item.latitude && item.longitude) {
+                  const el = document.createElement('div');
+                  el.className = 'roadbook-marker';
+                  el.innerHTML = `
+                    <div style="
+                      width: 24px; 
+                      height: 24px; 
+                      background: #f59e0b; 
+                      border-radius: 50%; 
+                      border: 2px solid white; 
+                      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      font-size: 12px;
+                    ">
+                      📍
+                    </div>
+                  `;
+
+                  const marker = new mapboxgl.Marker(el)
+                    .setLngLat([item.longitude, item.latitude])
+                    .setPopup(new mapboxgl.Popup({ offset: 20 }).setHTML(
+                      `<strong>${item.description}</strong><br/>KM ${item.km_total.toFixed(1)}`
+                    ))
+                    .addTo(map.current!);
+
+                  poiMarkersRef.current.push(marker);
+                }
+              });
+            }
+          }
+        }
+
+        markersLoadedRef.current = true;
+      } catch (error) {
+        console.error('Error loading markers:', error);
+      }
+    };
+
+    loadMarkers();
+  }, [distanceId, raceId, mapReady]);
 
   // Update marker position
   useEffect(() => {
