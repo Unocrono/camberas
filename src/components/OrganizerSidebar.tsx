@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio, Clock } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio, Clock, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -11,6 +11,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 type OrganizerView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
@@ -19,30 +24,73 @@ interface OrganizerSidebarProps {
   onViewChange: (view: OrganizerView) => void;
 }
 
-const menuItems = [
-  { title: "Gestión de Carreras", view: "races" as OrganizerView, icon: Calendar },
-  { title: "Distancias", view: "distances" as OrganizerView, icon: Route },
-  { title: "Puntos de Cronometraje", view: "timing-points" as OrganizerView, icon: Clock },
-  { title: "Puntos de Control", view: "checkpoints" as OrganizerView, icon: MapPin },
-  { title: "Rutómetros", view: "roadbooks" as OrganizerView, icon: Map },
-  { title: "Reglamento", view: "regulations" as OrganizerView, icon: Scale },
-  { title: "Campos de Formulario", view: "form-fields" as OrganizerView, icon: FileText },
-  { title: "Inscripciones", view: "registrations" as OrganizerView, icon: Users },
-  { title: "Resumen de Tallas", view: "tshirt-sizes" as OrganizerView, icon: Shirt },
-  { title: "Cronometradores", view: "timer-assignments" as OrganizerView, icon: UserCog },
-  { title: "Resultados", view: "results" as OrganizerView, icon: Trophy },
-  { title: "Tiempos Parciales", view: "splits" as OrganizerView, icon: Timer },
-  { title: "Lecturas Crono", view: "timing-readings" as OrganizerView, icon: Radio },
-  { title: "Archivos Multimedia", view: "storage" as OrganizerView, icon: FolderOpen },
-  { title: "FAQs de Carreras", view: "race-faqs" as OrganizerView, icon: HelpCircle },
+interface MenuItem {
+  title: string;
+  view: OrganizerView;
+  icon: typeof Calendar;
+}
+
+interface MenuGroup {
+  label: string;
+  items: MenuItem[];
+  defaultOpen?: boolean;
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    label: "🏃 Carreras",
+    defaultOpen: true,
+    items: [
+      { title: "Gestión de Carreras", view: "races", icon: Calendar },
+      { title: "Distancias", view: "distances", icon: Route },
+      { title: "Reglamento", view: "regulations", icon: Scale },
+    ],
+  },
+  {
+    label: "🗺️ Recorrido",
+    items: [
+      { title: "Puntos de Cronometraje", view: "timing-points", icon: Clock },
+      { title: "Puntos de Control", view: "checkpoints", icon: MapPin },
+      { title: "Rutómetros", view: "roadbooks", icon: Map },
+    ],
+  },
+  {
+    label: "📝 Inscripciones",
+    items: [
+      { title: "Inscripciones", view: "registrations", icon: Users },
+      { title: "Campos de Formulario", view: "form-fields", icon: FileText },
+      { title: "Resumen de Tallas", view: "tshirt-sizes", icon: Shirt },
+    ],
+  },
+  {
+    label: "⏱️ Cronometraje",
+    items: [
+      { title: "Cronometradores", view: "timer-assignments", icon: UserCog },
+      { title: "Resultados", view: "results", icon: Trophy },
+      { title: "Tiempos Parciales", view: "splits", icon: Timer },
+      { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
+    ],
+  },
+  {
+    label: "📁 Contenido",
+    items: [
+      { title: "Archivos Multimedia", view: "storage", icon: FolderOpen },
+      { title: "FAQs de Carreras", view: "race-faqs", icon: HelpCircle },
+    ],
+  },
 ];
 
 export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebarProps) {
-  const { setOpenMobile } = useSidebar();
+  const { setOpenMobile, state } = useSidebar();
+  const collapsed = state === "collapsed";
 
   const handleItemClick = (view: OrganizerView) => {
     onViewChange(view);
-    setOpenMobile(false); // Cierra el sidebar en móvil después de seleccionar
+    setOpenMobile(false);
+  };
+
+  const isGroupActive = (group: MenuGroup) => {
+    return group.items.some(item => item.view === currentView);
   };
 
   return (
@@ -51,20 +99,36 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
         <SidebarGroup>
           <SidebarGroupLabel>Organizador</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.view}>
-                  <SidebarMenuButton
-                    onClick={() => handleItemClick(item.view)}
-                    isActive={currentView === item.view}
-                    tooltip={item.title}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            {menuGroups.map((group) => (
+              <Collapsible
+                key={group.label}
+                defaultOpen={group.defaultOpen || isGroupActive(group)}
+                className="group/collapsible"
+              >
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+                  <span className={collapsed ? "sr-only" : ""}>{group.label}</span>
+                  {!collapsed && (
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenu className="ml-2 border-l border-border pl-2">
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.view}>
+                        <SidebarMenuButton
+                          onClick={() => handleItemClick(item.view)}
+                          isActive={currentView === item.view}
+                          tooltip={item.title}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
 
