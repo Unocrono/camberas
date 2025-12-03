@@ -352,7 +352,34 @@ PROCESO DE CÁLCULO DE SPLIT_TIMES Y VUELTAS:
 - overall_position (clasificación general)
 - gender_position (clasificación por sexo)
 - category_position (clasificación por categoría)
-- status (finished, dnf, dns, dsq)
+- status (código de race_results_status: FIN, STD, DNF, DNS, DSQ, CUT, INS)
+```
+
+#### `race_results_status` - Catálogo de Estados de Resultados (IMPLEMENTADO)
+```sql
+- id (uuid)
+- sort_order (integer) -- Orden para mostrar en listados
+- code (text, unique) -- Código corto del estado
+- name (text) -- Nombre descriptivo
+- can_change_at_split (boolean) -- Si puede cambiar automáticamente por lecturas en splits
+- description (text) -- Explicación detallada del estado
+
+ESTADOS DISPONIBLES:
+| Order | Code | Nombre           | CanChangeAtSplit | Descripción |
+|-------|------|------------------|------------------|-------------|
+| 1     | FIN  | Finalizado       | SI               | Corredor con tiempo en checkpoint tipo FINISH |
+| 2     | STD  | En Carrera       | SI               | Corredor con tiempo en checkpoint tipo START |
+| 3     | DNF  | Abandono         | NO               | Abandona durante la carrera |
+| 4     | DNS  | No sale          | NO               | Abandona antes de la carrera |
+| 5     | DSQ  | Descalificado    | NO               | Descalificado por infracción |
+| 6     | CUT  | Fuera de Control | NO               | No cumplió control horario |
+| 7     | INS  | Inscrito         | NO               | Estado inicial de todo corredor |
+
+NOTAS:
+- Estados con CanChangeAtSplit=SI pueden actualizarse automáticamente al procesar timing_readings
+- Estados con CanChangeAtSplit=NO solo pueden cambiarse manualmente
+- El sort_order define el orden de visualización en resultados
+- Corredores con DNF/DNS/DSQ/CUT aparecen al final del listado
 ```
 
 ---
