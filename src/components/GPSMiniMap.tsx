@@ -29,10 +29,12 @@ interface GPSMiniMapProps {
   longitude: number | null;
   distanceId?: string;
   raceId?: string;
+  distanceTraveled?: number;
+  totalDistance?: number;
   className?: string;
 }
 
-export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className = '' }: GPSMiniMapProps) {
+export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTraveled, totalDistance, className = '' }: GPSMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -409,6 +411,25 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
             </div>
           )}
+          {/* Distance overlay - fullscreen */}
+          {totalDistance !== undefined && (
+            <div className="absolute bottom-4 left-4 z-10 bg-background/90 backdrop-blur-sm rounded-lg px-4 py-2 shadow-lg">
+              <div className="flex gap-6 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Recorrido</span>
+                  <div className="font-bold text-lg">{(distanceTraveled || 0).toFixed(2)} km</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Restante</span>
+                  <div className="font-bold text-lg">{Math.max(0, totalDistance - (distanceTraveled || 0)).toFixed(2)} km</div>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total</span>
+                  <div className="font-bold text-lg">{totalDistance.toFixed(1)} km</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -439,6 +460,15 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
           {(!latitude || !longitude) && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+            </div>
+          )}
+          {/* Distance overlay - mini */}
+          {totalDistance !== undefined && (
+            <div className="absolute bottom-2 left-2 right-2 z-10 bg-background/90 backdrop-blur-sm rounded px-2 py-1">
+              <div className="flex justify-between text-xs">
+                <span><span className="text-muted-foreground">Recorrido:</span> <strong>{(distanceTraveled || 0).toFixed(2)} km</strong></span>
+                <span><span className="text-muted-foreground">Restante:</span> <strong>{Math.max(0, totalDistance - (distanceTraveled || 0)).toFixed(2)} km</strong></span>
+              </div>
             </div>
           )}
         </div>
