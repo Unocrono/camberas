@@ -542,7 +542,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
                   <TableHead>Punto</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead>Asignado</TableHead>
-                  <TableHead className="w-[80px]">Acciones</TableHead>
+                  <TableHead className="w-[100px]">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
