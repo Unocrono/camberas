@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -11,6 +11,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
@@ -19,34 +24,87 @@ interface AdminSidebarProps {
   onViewChange: (view: AdminView) => void;
 }
 
-const menuItems = [
-  { title: "Gestión de Carreras", view: "races" as AdminView, icon: Calendar },
-  { title: "Distancias", view: "distances" as AdminView, icon: Route },
-  { title: "Puntos de Cronometraje", view: "timing-points" as AdminView, icon: Timer },
-  { title: "Puntos de Control", view: "checkpoints" as AdminView, icon: MapPin },
-  { title: "Rutómetros", view: "roadbooks" as AdminView, icon: Map },
-  { title: "Tipos de Ítem Rutómetro", view: "roadbook-item-types" as AdminView, icon: Tag },
-  { title: "Reglamentos", view: "regulations" as AdminView, icon: Scale },
-  { title: "Campos de Formulario", view: "form-fields" as AdminView, icon: FileText },
-  { title: "Inscripciones", view: "registrations" as AdminView, icon: Users },
-  { title: "Resultados", view: "results" as AdminView, icon: Trophy },
-  { title: "Estados de Resultado", view: "results-status" as AdminView, icon: Flag },
-  { title: "Tiempos Parciales", view: "splits" as AdminView, icon: Timer },
-  { title: "Lecturas Crono", view: "timing-readings" as AdminView, icon: Radio },
-  { title: "Cronometradores", view: "timer-assignments" as AdminView, icon: AlarmClock },
-  { title: "Archivos Multimedia", view: "storage" as AdminView, icon: FolderOpen },
-  { title: "FAQs de Carreras", view: "race-faqs" as AdminView, icon: MessageCircleQuestion },
-  { title: "FAQs para Organizadores", view: "organizer-faqs" as AdminView, icon: HelpCircle },
-  { title: "Aprobación Organizadores", view: "organizer-approval" as AdminView, icon: UserCheck },
-  { title: "Gestión de Usuarios", view: "users" as AdminView, icon: UserCog },
-  { title: "Funciones Edge", view: "edge-functions" as AdminView, icon: Zap },
-  { title: "Configuración Contacto", view: "contact-settings" as AdminView, icon: Settings },
-  { title: "Soporte", view: null, icon: MessageSquare, link: "/admin/support" },
+interface MenuItem {
+  title: string;
+  view: AdminView | null;
+  icon: typeof Calendar;
+  link?: string;
+}
+
+interface MenuGroup {
+  label: string;
+  items: MenuItem[];
+  defaultOpen?: boolean;
+}
+
+const menuGroups: MenuGroup[] = [
+  {
+    label: "🏃 Carreras",
+    defaultOpen: true,
+    items: [
+      { title: "Gestión de Carreras", view: "races", icon: Calendar },
+      { title: "Distancias", view: "distances", icon: Route },
+      { title: "Reglamentos", view: "regulations", icon: Scale },
+    ],
+  },
+  {
+    label: "🗺️ Recorrido",
+    items: [
+      { title: "Puntos de Cronometraje", view: "timing-points", icon: Timer },
+      { title: "Puntos de Control", view: "checkpoints", icon: MapPin },
+      { title: "Rutómetros", view: "roadbooks", icon: Map },
+      { title: "Tipos de Ítem Rutómetro", view: "roadbook-item-types", icon: Tag },
+    ],
+  },
+  {
+    label: "📝 Inscripciones",
+    items: [
+      { title: "Inscripciones", view: "registrations", icon: Users },
+      { title: "Campos de Formulario", view: "form-fields", icon: FileText },
+    ],
+  },
+  {
+    label: "⏱️ Cronometraje",
+    items: [
+      { title: "Resultados", view: "results", icon: Trophy },
+      { title: "Estados de Resultado", view: "results-status", icon: Flag },
+      { title: "Tiempos Parciales", view: "splits", icon: Timer },
+      { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
+      { title: "Cronometradores", view: "timer-assignments", icon: AlarmClock },
+    ],
+  },
+  {
+    label: "📁 Contenido",
+    items: [
+      { title: "Archivos Multimedia", view: "storage", icon: FolderOpen },
+      { title: "FAQs de Carreras", view: "race-faqs", icon: MessageCircleQuestion },
+    ],
+  },
+  {
+    label: "👥 Usuarios",
+    items: [
+      { title: "Gestión de Usuarios", view: "users", icon: UserCog },
+      { title: "Aprobación Organizadores", view: "organizer-approval", icon: UserCheck },
+      { title: "FAQs para Organizadores", view: "organizer-faqs", icon: HelpCircle },
+    ],
+  },
+  {
+    label: "⚙️ Sistema",
+    items: [
+      { title: "Funciones Edge", view: "edge-functions", icon: Zap },
+      { title: "Configuración Contacto", view: "contact-settings", icon: Settings },
+      { title: "Soporte", view: null, icon: MessageSquare, link: "/admin/support" },
+    ],
+  },
 ];
 
 export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+
+  const isGroupActive = (group: MenuGroup) => {
+    return group.items.some(item => item.view === currentView);
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -54,29 +112,45 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
         <SidebarGroup>
           <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {item.link ? (
-                    <SidebarMenuButton asChild tooltip={item.title}>
-                      <Link to={item.link}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  ) : (
-                    <SidebarMenuButton
-                      onClick={() => item.view && onViewChange(item.view)}
-                      isActive={currentView === item.view}
-                      tooltip={item.title}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
+            {menuGroups.map((group) => (
+              <Collapsible
+                key={group.label}
+                defaultOpen={group.defaultOpen || isGroupActive(group)}
+                className="group/collapsible"
+              >
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
+                  <span className={collapsed ? "sr-only" : ""}>{group.label}</span>
+                  {!collapsed && (
+                    <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                   )}
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenu className="ml-2 border-l border-border pl-2">
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        {item.link ? (
+                          <SidebarMenuButton asChild tooltip={item.title}>
+                            <Link to={item.link}>
+                              <item.icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        ) : (
+                          <SidebarMenuButton
+                            onClick={() => item.view && onViewChange(item.view)}
+                            isActive={currentView === item.view}
+                            tooltip={item.title}
+                          >
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </SidebarMenuButton>
+                        )}
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
+            ))}
           </SidebarGroupContent>
         </SidebarGroup>
 
