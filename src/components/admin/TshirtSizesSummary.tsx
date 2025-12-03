@@ -40,7 +40,8 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
       let racesQuery = supabase
         .from("races")
         .select("id, name")
-        .eq("organizer_id", user!.id);
+        .eq("organizer_id", user!.id)
+        .order("date", { ascending: false });
 
       if (selectedRaceId) {
         racesQuery = racesQuery.eq("id", selectedRaceId);
