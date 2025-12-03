@@ -112,17 +112,25 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
       setMapReady(true);
     });
 
-    // Create marker element
+    // Create marker element with inline styles for visibility
     const el = document.createElement('div');
-    el.className = 'current-position-marker';
+    el.style.cssText = 'width: 24px; height: 24px; position: relative; z-index: 10;';
     el.innerHTML = `
-      <div class="relative">
-        <div style="position: absolute; inset: -8px; background: rgba(59, 130, 246, 0.3); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-        <div style="position: relative; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
-      </div>
+      <div style="position: absolute; inset: -6px; background: rgba(59, 130, 246, 0.35); border-radius: 50%; animation: pulse 2s ease-in-out infinite;"></div>
+      <div style="position: absolute; inset: 0; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.4);"></div>
     `;
 
-    marker.current = new mapboxgl.Marker(el);
+    // Add pulse animation style
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    marker.current = new mapboxgl.Marker({ element: el, anchor: 'center' });
 
     if (latitude && longitude) {
       marker.current.setLngLat([longitude, latitude]).addTo(map.current);
