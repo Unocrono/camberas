@@ -657,6 +657,84 @@ export type Database = {
           },
         ]
       }
+      race_results_abandons: {
+        Row: {
+          abandon_type: string
+          bib_number: number
+          created_at: string
+          id: string
+          operator_user_id: string | null
+          race_distance_id: string | null
+          race_id: string
+          reason: string
+          registration_id: string
+          timing_point_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          abandon_type: string
+          bib_number: number
+          created_at?: string
+          id?: string
+          operator_user_id?: string | null
+          race_distance_id?: string | null
+          race_id: string
+          reason: string
+          registration_id: string
+          timing_point_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abandon_type?: string
+          bib_number?: number
+          created_at?: string
+          id?: string
+          operator_user_id?: string | null
+          race_distance_id?: string | null
+          race_id?: string
+          reason?: string
+          registration_id?: string
+          timing_point_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_results_abandons_operator_user_id_fkey"
+            columns: ["operator_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_results_abandons_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_results_abandons_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_results_abandons_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_results_abandons_timing_point_id_fkey"
+            columns: ["timing_point_id"]
+            isOneToOne: false
+            referencedRelation: "timing_points"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_results_status: {
         Row: {
           can_change_at_split: boolean

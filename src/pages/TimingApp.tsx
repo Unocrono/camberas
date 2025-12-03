@@ -73,13 +73,13 @@ interface TimingReading {
   notes?: string;
 }
 
-type StatusCode = "dnf" | "dns" | "dsq" | "withdrawn";
+type StatusCode = "ABANDONO" | "NO_SALE" | "DESCALIFICADO" | "EN_CARRERA";
 
 const STATUS_OPTIONS: { value: StatusCode; label: string; description: string; icon: React.ReactNode }[] = [
-  { value: "dnf", label: "DNF", description: "No terminó (Did Not Finish)", icon: <XCircle className="h-4 w-4" /> },
-  { value: "dns", label: "DNS", description: "No salió (Did Not Start)", icon: <Ban className="h-4 w-4" /> },
-  { value: "dsq", label: "DSQ", description: "Descalificado", icon: <AlertTriangle className="h-4 w-4" /> },
-  { value: "withdrawn", label: "Retirado", description: "Retirado antes de salida", icon: <User className="h-4 w-4" /> },
+  { value: "ABANDONO", label: "ABANDONO", description: "Abandonó durante la carrera", icon: <XCircle className="h-4 w-4" /> },
+  { value: "NO_SALE", label: "NO SALE", description: "No comenzó la carrera", icon: <Ban className="h-4 w-4" /> },
+  { value: "DESCALIFICADO", label: "DESCALIFICADO", description: "Descalificado por infracción", icon: <AlertTriangle className="h-4 w-4" /> },
+  { value: "EN_CARRERA", label: "EN CARRERA", description: "Continúa en carrera", icon: <User className="h-4 w-4" /> },
 ];
 
 const STORAGE_KEY = "timing_session";
@@ -704,7 +704,7 @@ const TimingApp = () => {
     if (!selectedStatus) {
       toast({
         title: "Estado requerido",
-        description: "Selecciona un estado (DNF/DNS/DSQ/Retirado)",
+        description: "Selecciona un tipo de retirado",
         variant: "destructive",
       });
       return;
@@ -1189,7 +1189,7 @@ const TimingApp = () => {
           </TabsTrigger>
           <TabsTrigger value="status" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Estados
+            Retirados
           </TabsTrigger>
         </TabsList>
 
@@ -1335,10 +1335,10 @@ const TimingApp = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5" />
-                Registrar Estado Especial
+                Registrar Retirado
               </CardTitle>
               <CardDescription>
-                DNF, DNS, DSQ o Retirado
+                Abandono, No Sale, Descalificado o En Carrera
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
