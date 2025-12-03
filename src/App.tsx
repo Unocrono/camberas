@@ -30,6 +30,7 @@ import BibDesignerPage from "./pages/BibDesignerPage";
 import Contact from "./pages/Contact";
 import Support from "./pages/Support";
 import TimingApp from "./pages/TimingApp";
+import GPSTrackerApp from "./pages/GPSTrackerApp";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/support" element={<Support />} />
           <Route path="/timing" element={<TimingApp />} />
+          <Route path="/track" element={<GPSTrackerApp />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
