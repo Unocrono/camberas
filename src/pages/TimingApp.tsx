@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -1243,6 +1243,14 @@ const TimingApp = () => {
                   )}
                   Entrar
                 </Button>
+                <div className="text-center pt-2">
+                  <Link 
+                    to="/auth?returnTo=/timing" 
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    ¿No tienes cuenta? Regístrate
+                  </Link>
+                </div>
               </form>
             </CardContent>
           </Card>
