@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { 
   Radio, Battery, Navigation, Clock, Wifi, WifiOff, 
   MapPin, Gauge, Play, Square, RefreshCw, AlertTriangle,
@@ -68,6 +69,7 @@ const GPSTrackerApp = () => {
     elapsed: 0,
     lastUpdate: null as Date | null,
   });
+  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   
@@ -295,6 +297,12 @@ const GPSTrackerApp = () => {
   // Handle GPS position
   const handlePosition = useCallback(async (position: GeolocationPosition) => {
     if (!selectedRegistration) return;
+    
+    // Update current position for mini-map
+    setCurrentPosition({
+      lat: position.coords.latitude,
+      lng: position.coords.longitude,
+    });
     
     const point: GPSPoint = {
       race_id: selectedRegistration.race_id,
@@ -637,6 +645,17 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Mini Map */}
+        <Card>
+          <CardContent className="p-2">
+            <GPSMiniMap 
+              latitude={currentPosition?.lat || null}
+              longitude={currentPosition?.lng || null}
+              className="h-48 w-full"
+            />
+          </CardContent>
+        </Card>
 
         {/* Pending Points */}
         {pendingPoints.length > 0 && (
