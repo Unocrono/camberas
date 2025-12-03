@@ -43,6 +43,7 @@ interface Registration {
   bib_number: number | null;
   race_distances: {
     name: string;
+    distance_km: number;
     gps_tracking_enabled: boolean | null;
     gps_update_frequency: number | null;
   };
@@ -189,6 +190,7 @@ const GPSTrackerApp = () => {
             bib_number,
             race_distances!inner (
               name,
+              distance_km,
               gps_tracking_enabled,
               gps_update_frequency
             ),
@@ -656,6 +658,8 @@ const GPSTrackerApp = () => {
               longitude={currentPosition?.lng || null}
               distanceId={selectedRegistration?.race_distance_id}
               raceId={selectedRegistration?.race_id}
+              distanceTraveled={stats.distance}
+              totalDistance={selectedRegistration?.race_distances?.distance_km}
               className="h-48 w-full"
             />
           </CardContent>
