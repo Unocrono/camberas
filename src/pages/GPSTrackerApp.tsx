@@ -196,7 +196,7 @@ const GPSTrackerApp = () => {
             )
           `)
           .eq('user_id', user.id)
-          .eq('status', 'confirmed')
+          .in('status', ['confirmed', 'pending'])
           .gte('races.date', today)
           .order('races(date)', { ascending: true });
 
