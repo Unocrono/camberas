@@ -32,6 +32,7 @@ import Support from "./pages/Support";
 import TimingApp from "./pages/TimingApp";
 import GPSTrackerApp from "./pages/GPSTrackerApp";
 import Help from "./pages/Help";
+import OrganizerGuide from "./pages/OrganizerGuide";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
           <Route path="/timing" element={<TimingApp />} />
           <Route path="/track" element={<GPSTrackerApp />} />
           <Route path="/ayuda" element={<Help />} />
+          <Route path="/guia-organizador" element={<OrganizerGuide />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
