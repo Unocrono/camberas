@@ -225,15 +225,18 @@ const TimingApp = () => {
         setCurrentView("select");
         
         // Fetch assignments for timers
+        let assignments: { race_id: string; checkpoint_id: string | null }[] = [];
         if (!isOrgOrAdmin) {
-          const { data: assignments } = await supabase
+          const { data: assignmentsData } = await supabase
             .from("timer_assignments")
             .select("race_id, checkpoint_id")
             .eq("user_id", userId);
-          setUserAssignments(assignments || []);
+          assignments = assignmentsData || [];
+          setUserAssignments(assignments);
         }
         
-        await fetchRaces(userId, isOrgOrAdmin);
+        // Pass assignments directly to fetchRaces to avoid state timing issues
+        await fetchRaces(userId, isOrgOrAdmin, assignments);
       } else {
         toast({
           title: "Acceso denegado",
@@ -267,12 +270,14 @@ const TimingApp = () => {
       const isOrgOrAdmin = !!hasOrganizer || !!hasAdmin;
       setIsOrganizerOrAdmin(isOrgOrAdmin);
       
+      let assignments: { race_id: string; checkpoint_id: string | null }[] = [];
       if (!isOrgOrAdmin) {
-        const { data: assignments } = await supabase
+        const { data: assignmentsData } = await supabase
           .from("timer_assignments")
           .select("race_id, checkpoint_id")
           .eq("user_id", stored.user_id);
-        setUserAssignments(assignments || []);
+        assignments = assignmentsData || [];
+        setUserAssignments(assignments);
       }
 
       const { data: race } = await supabase
@@ -283,7 +288,8 @@ const TimingApp = () => {
 
       if (race) {
         setSelectedRace(race);
-        await fetchTimingPoints(race.id, stored.user_id, isOrgOrAdmin);
+        // Pass assignments directly to avoid state timing issues
+        await fetchTimingPoints(race.id, stored.user_id, isOrgOrAdmin, assignments);
         await fetchRunners(race.id);
         await fetchRaceStartTime(race.id, race.date);
 
@@ -304,7 +310,7 @@ const TimingApp = () => {
     }
   };
 
-  const fetchRaces = async (userId: string, isOrgOrAdmin: boolean) => {
+  const fetchRaces = async (userId: string, isOrgOrAdmin: boolean, assignments?: { race_id: string; checkpoint_id: string | null }[]) => {
     try {
       let query = supabase.from("races").select("id, name, date");
 
@@ -320,14 +326,10 @@ const TimingApp = () => {
           query = query.eq("organizer_id", userId);
         }
       } else {
-        // Timer: only assigned races
-        const { data: assignments } = await supabase
-          .from("timer_assignments")
-          .select("race_id")
-          .eq("user_id", userId);
-
-        if (assignments && assignments.length > 0) {
-          const raceIds = [...new Set(assignments.map((a) => a.race_id))];
+        // Timer: only assigned races - use passed assignments
+        const timerAssignments = assignments || userAssignments;
+        if (timerAssignments.length > 0) {
+          const raceIds = [...new Set(timerAssignments.map((a) => a.race_id))];
           query = query.in("id", raceIds);
         } else {
           setRaces([]);
@@ -344,7 +346,7 @@ const TimingApp = () => {
       // Auto-select if only one race
       if (fetchedRaces.length === 1) {
         setSelectedRace(fetchedRaces[0]);
-        await fetchTimingPoints(fetchedRaces[0].id, userId, isOrgOrAdmin);
+        await fetchTimingPoints(fetchedRaces[0].id, userId, isOrgOrAdmin, assignments);
         await fetchRunners(fetchedRaces[0].id);
         await fetchRaceStartTime(fetchedRaces[0].id, fetchedRaces[0].date);
       }
@@ -353,7 +355,7 @@ const TimingApp = () => {
     }
   };
 
-  const fetchTimingPoints = async (raceId: string, userId?: string, isOrgOrAdmin?: boolean) => {
+  const fetchTimingPoints = async (raceId: string, userId?: string, isOrgOrAdmin?: boolean, assignments?: { race_id: string; checkpoint_id: string | null }[]) => {
     try {
       let query = supabase
         .from("timing_points")
@@ -371,8 +373,11 @@ const TimingApp = () => {
       const checkUserId = userId || user?.id;
       
       if (!checkIsOrgOrAdmin && checkUserId) {
+        // Use passed assignments or fall back to state
+        const timerAssignments = assignments || userAssignments;
+        
         // Get user's assignments for this race
-        const raceAssignments = userAssignments.filter(a => a.race_id === raceId);
+        const raceAssignments = timerAssignments.filter(a => a.race_id === raceId);
         
         // If user has specific checkpoint assignments, filter to those
         const assignedCheckpointIds = raceAssignments
@@ -514,7 +519,8 @@ const TimingApp = () => {
     if (race) {
       setSelectedRace(race);
       setSelectedTimingPoint(null); // Reset timing point selection
-      await fetchTimingPoints(raceId, user?.id, isOrganizerOrAdmin);
+      // Pass userAssignments directly to ensure filtering works correctly
+      await fetchTimingPoints(raceId, user?.id, isOrganizerOrAdmin, userAssignments);
       await fetchRunners(raceId);
       await fetchRaceStartTime(raceId, race.date);
     }
