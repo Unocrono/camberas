@@ -648,6 +648,13 @@ export type Database = {
             referencedRelation: "registrations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "race_results_status_fkey"
+            columns: ["status"]
+            isOneToOne: false
+            referencedRelation: "race_results_status"
+            referencedColumns: ["code"]
+          },
         ]
       }
       race_results_status: {
