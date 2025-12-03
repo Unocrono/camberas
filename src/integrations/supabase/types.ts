@@ -768,6 +768,51 @@ export type Database = {
         }
         Relationships: []
       }
+      race_waves: {
+        Row: {
+          created_at: string
+          id: string
+          race_distance_id: string
+          race_id: string
+          start_time: string | null
+          updated_at: string
+          wave_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          race_distance_id: string
+          race_id: string
+          start_time?: string | null
+          updated_at?: string
+          wave_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          race_distance_id?: string
+          race_id?: string
+          start_time?: string | null
+          updated_at?: string
+          wave_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_waves_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: true
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_waves_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       races: {
         Row: {
           additional_info: string | null

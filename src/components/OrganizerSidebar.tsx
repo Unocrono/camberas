@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio, Clock, ChevronDown } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio, Clock, ChevronDown, Flag } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-type OrganizerView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
@@ -43,6 +43,7 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Gestión de Carreras", view: "races", icon: Calendar },
       { title: "Distancias", view: "distances", icon: Route },
+      { title: "Oleadas de Salida", view: "waves", icon: Flag },
       { title: "Reglamento", view: "regulations", icon: Scale },
     ],
   },

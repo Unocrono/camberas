@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { OrganizerSidebar } from "@/components/OrganizerSidebar";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
+import { WavesManagement } from "@/components/admin/WavesManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
@@ -22,7 +23,7 @@ import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManag
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { Loader2 } from "lucide-react";
 
-type OrganizerView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -196,6 +197,7 @@ const OrganizerDashboard = () => {
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "waves" && <WavesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "timing-points" && (
               selectedRaceId ? (
                 <TimingPointsManagement selectedRaceId={selectedRaceId} />
