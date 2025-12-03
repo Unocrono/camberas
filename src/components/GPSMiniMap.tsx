@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
-import { Maximize2, Minimize2, X } from 'lucide-react';
+import { Maximize2, X, Crosshair } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface Checkpoint {
@@ -50,6 +50,16 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
     setTimeout(() => {
       map.current?.resize();
     }, 100);
+  };
+
+  const centerOnPosition = () => {
+    if (map.current && latitude && longitude) {
+      map.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 16,
+        duration: 800,
+      });
+    }
   };
 
   // Fetch Mapbox token
@@ -376,14 +386,24 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
       {isFullscreen && (
         <div className="fixed inset-0 z-50 bg-background">
           <div ref={mapContainer} className="w-full h-full" />
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute top-4 right-4 z-10"
-            onClick={toggleFullscreen}
-          >
-            <X className="h-5 w-5" />
-          </Button>
+          <div className="absolute top-4 right-4 z-10 flex gap-2">
+            {latitude && longitude && (
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={centerOnPosition}
+              >
+                <Crosshair className="h-5 w-5" />
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={toggleFullscreen}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
           {(!latitude || !longitude) && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center pointer-events-none">
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
@@ -396,14 +416,26 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
       {!isFullscreen && (
         <div className={`relative rounded-lg overflow-hidden ${className}`}>
           <div ref={mapContainer} className="w-full h-full" />
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute top-2 left-2 z-10 h-8 w-8"
-            onClick={toggleFullscreen}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
+          <div className="absolute top-2 left-2 z-10 flex gap-1">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleFullscreen}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            {latitude && longitude && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8"
+                onClick={centerOnPosition}
+              >
+                <Crosshair className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
           {(!latitude || !longitude) && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
