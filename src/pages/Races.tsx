@@ -3,8 +3,9 @@ import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mountain, Bike } from "lucide-react";
+import { Search, Mountain, Bike, Calendar, Trophy } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Pagination,
   PaginationContent,
@@ -16,14 +17,21 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 
 type RaceTypeFilter = 'all' | 'trail' | 'mtb';
+type TimeFilter = 'all' | 'upcoming' | 'past';
 
 const RACES_PER_PAGE = 9;
 
 const Races = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [allRaces, setAllRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [raceTypeFilter, setRaceTypeFilter] = useState<RaceTypeFilter>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>(() => {
+    const filter = searchParams.get('filter');
+    if (filter === 'upcoming' || filter === 'past') return filter;
+    return 'all';
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -63,6 +71,7 @@ const Races = () => {
               month: "long",
               year: "numeric",
             }),
+            rawDate: race.date,
             location: race.location,
             distances: (distancesData || []).map((d) => d.name),
             participants: registrationsData?.length || 0,
@@ -81,13 +90,17 @@ const Races = () => {
   };
 
   const filteredRaces = useMemo(() => {
-    return allRaces.filter(
-      (race) =>
-        (race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        race.location.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        (raceTypeFilter === 'all' || race.raceType === raceTypeFilter)
-    );
-  }, [allRaces, searchTerm, raceTypeFilter]);
+    const today = new Date().toISOString().split('T')[0];
+    return allRaces.filter((race) => {
+      const matchesSearch = race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        race.location.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesType = raceTypeFilter === 'all' || race.raceType === raceTypeFilter;
+      const matchesTime = timeFilter === 'all' || 
+        (timeFilter === 'upcoming' && race.rawDate >= today) ||
+        (timeFilter === 'past' && race.rawDate < today);
+      return matchesSearch && matchesType && matchesTime;
+    });
+  }, [allRaces, searchTerm, raceTypeFilter, timeFilter]);
 
   const totalPages = Math.ceil(filteredRaces.length / RACES_PER_PAGE);
   
@@ -99,7 +112,29 @@ const Races = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, raceTypeFilter]);
+  }, [searchTerm, raceTypeFilter, timeFilter]);
+
+  const handleTimeFilterChange = (filter: TimeFilter) => {
+    setTimeFilter(filter);
+    if (filter === 'all') {
+      searchParams.delete('filter');
+    } else {
+      searchParams.set('filter', filter);
+    }
+    setSearchParams(searchParams);
+  };
+
+  const getPageTitle = () => {
+    if (timeFilter === 'upcoming') return 'Inscripciones Abiertas';
+    if (timeFilter === 'past') return 'Clasificaciones';
+    return 'Todas las Carreras';
+  };
+
+  const getPageSubtitle = () => {
+    if (timeFilter === 'upcoming') return 'Inscríbete en las próximas carreras de Trail Running y MTB';
+    if (timeFilter === 'past') return 'Consulta los resultados de carreras anteriores';
+    return 'Encuentra tu próximo desafío en Trail Running o MTB';
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,10 +144,10 @@ const Races = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Todas las Carreras
+              {getPageTitle()}
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
-              Encuentra tu próximo desafío en Trail Running o MTB
+              {getPageSubtitle()}
             </p>
             
             <div className="max-w-xl mx-auto">
@@ -126,16 +161,46 @@ const Races = () => {
                 />
               </div>
               
+              {/* Time filters */}
               <div className="flex flex-wrap gap-2 mt-4 justify-center">
                 <Button 
-                  variant={raceTypeFilter === 'all' ? 'default' : 'outline'} 
+                  variant={timeFilter === 'all' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => handleTimeFilterChange('all')}
+                >
+                  Todas
+                </Button>
+                <Button 
+                  variant={timeFilter === 'upcoming' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => handleTimeFilterChange('upcoming')}
+                  className="flex items-center gap-1"
+                >
+                  <Calendar className="h-4 w-4" />
+                  Próximas
+                </Button>
+                <Button 
+                  variant={timeFilter === 'past' ? 'default' : 'outline'} 
+                  size="sm"
+                  onClick={() => handleTimeFilterChange('past')}
+                  className="flex items-center gap-1"
+                >
+                  <Trophy className="h-4 w-4" />
+                  Pasadas
+                </Button>
+              </div>
+              
+              {/* Type filters */}
+              <div className="flex flex-wrap gap-2 mt-2 justify-center">
+                <Button 
+                  variant={raceTypeFilter === 'all' ? 'secondary' : 'ghost'} 
                   size="sm"
                   onClick={() => setRaceTypeFilter('all')}
                 >
                   Todas
                 </Button>
                 <Button 
-                  variant={raceTypeFilter === 'trail' ? 'default' : 'outline'} 
+                  variant={raceTypeFilter === 'trail' ? 'secondary' : 'ghost'} 
                   size="sm"
                   onClick={() => setRaceTypeFilter('trail')}
                   className="flex items-center gap-1"
@@ -144,7 +209,7 @@ const Races = () => {
                   Trail
                 </Button>
                 <Button 
-                  variant={raceTypeFilter === 'mtb' ? 'default' : 'outline'} 
+                  variant={raceTypeFilter === 'mtb' ? 'secondary' : 'ghost'} 
                   size="sm"
                   onClick={() => setRaceTypeFilter('mtb')}
                   className="flex items-center gap-1"

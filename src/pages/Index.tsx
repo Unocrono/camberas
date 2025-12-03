@@ -5,12 +5,23 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import heroImage from "@/assets/hero-trail-mtb.jpg";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+
+const RACES_PER_PAGE = 6;
 
 const Index = () => {
-  const [upcomingRaces, setUpcomingRaces] = useState<any[]>([]);
+  const [allUpcomingRaces, setAllUpcomingRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchRaces();
@@ -23,7 +34,7 @@ const Index = () => {
         error: racesError
       } = await supabase.from("races").select("*").gte("date", new Date().toISOString().split("T")[0]).order("date", {
         ascending: true
-      }).limit(3);
+      });
       if (racesError) throw racesError;
       const racesWithDistances = await Promise.all((racesData || []).map(async race => {
         const {
@@ -51,13 +62,20 @@ const Index = () => {
           raceType: race.race_type as 'trail' | 'mtb'
         };
       }));
-      setUpcomingRaces(racesWithDistances);
+      setAllUpcomingRaces(racesWithDistances);
     } catch (error) {
       console.error("Error fetching races:", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const totalPages = Math.ceil(allUpcomingRaces.length / RACES_PER_PAGE);
+  
+  const paginatedRaces = useMemo(() => {
+    const startIndex = (currentPage - 1) * RACES_PER_PAGE;
+    return allUpcomingRaces.slice(startIndex, startIndex + RACES_PER_PAGE);
+  }, [allUpcomingRaces, currentPage]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,11 +214,46 @@ const Index = () => {
             <div className="text-center py-12">
               <p className="text-muted-foreground">Cargando carreras...</p>
             </div>
-          ) : upcomingRaces.length > 0 ? (
+          ) : allUpcomingRaces.length > 0 ? (
             <>
+              <p className="text-sm text-muted-foreground text-center mb-6">
+                Mostrando {paginatedRaces.length} de {allUpcomingRaces.length} carreras próximas
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {upcomingRaces.map(race => <RaceCard key={race.id} {...race} />)}
+                {paginatedRaces.map(race => <RaceCard key={race.id} {...race} />)}
               </div>
+
+              {totalPages > 1 && (
+                <Pagination className="mt-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
 
               <div className="text-center mt-12">
                 <Button asChild size="lg" variant="outline">
