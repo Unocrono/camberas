@@ -689,7 +689,7 @@ const TimingApp = () => {
     }
   };
 
-  // Handle status registration
+  // Handle status registration - saves to race_results_abandons
   const handleRegisterStatus = async () => {
     const bib = parseInt(statusBibInput);
     if (isNaN(bib) || bib <= 0) {
@@ -719,78 +719,74 @@ const TimingApp = () => {
       return;
     }
 
-    const timestamp = new Date().toISOString();
     const runner = runners.find((r) => r.bib_number === bib);
+    
+    if (!runner) {
+      toast({
+        title: "Dorsal no encontrado",
+        description: "El dorsal debe estar registrado en la carrera",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const reading: TimingReading = {
-      bib_number: bib,
-      timestamp,
-      runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
-      synced: false,
-      status_code: selectedStatus,
-      notes: statusNotes,
-    };
+    if (!selectedRace) {
+      toast({
+        title: "Error",
+        description: "No hay carrera seleccionada",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSubmittingStatus(true);
 
-    // Try to sync immediately if online
-    if (isOnline && selectedRace) {
-      try {
-        const { error } = await supabase.from("timing_readings").insert({
-          race_id: selectedRace.id,
-          timing_point_id: selectedTimingPoint?.id || null,
-          bib_number: bib,
-          timing_timestamp: timestamp,
-          reading_timestamp: timestamp,
-          reading_type: "status_change",
-          status_code: selectedStatus,
-          notes: statusNotes,
-          operator_user_id: user?.id,
-          registration_id: runner?.registration_id || null,
-          race_distance_id: runner?.race_distance_id || null,
-        });
+    try {
+      const { error } = await supabase.from("race_results_abandons").insert({
+        race_id: selectedRace.id,
+        registration_id: runner.registration_id,
+        race_distance_id: runner.race_distance_id,
+        bib_number: bib,
+        abandon_type: selectedStatus,
+        timing_point_id: selectedTimingPoint?.id || null,
+        reason: statusNotes.trim(),
+        operator_user_id: user?.id || null,
+      });
 
-        if (error) throw error;
-
-        reading.synced = true;
-
-        toast({
-          title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
-          description: runner ? `${runner.first_name} ${runner.last_name}` : "Estado registrado",
-        });
-      } catch (error) {
-        console.error("Error syncing status:", error);
-        // Add to pending queue
-        const newPending = [...pendingSync, reading];
-        setPendingSync(newPending);
-        localStorage.setItem(READINGS_KEY, JSON.stringify(newPending));
-
-        toast({
-          title: `#${bib} guardado (offline)`,
-          description: "Se sincronizará cuando haya conexión",
-        });
-      }
-    } else {
-      // Offline: add to pending queue
-      const newPending = [...pendingSync, reading];
-      setPendingSync(newPending);
-      localStorage.setItem(READINGS_KEY, JSON.stringify(newPending));
+      if (error) throw error;
 
       toast({
-        title: `#${bib} guardado (offline)`,
-        description: "Se sincronizará cuando haya conexión",
+        title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
+        description: `${runner.first_name} ${runner.last_name} - Registrado correctamente`,
       });
+
+      // Add to local readings list for visual feedback
+      const timestamp = new Date().toISOString();
+      const reading: TimingReading = {
+        bib_number: bib,
+        timestamp,
+        runner_name: `${runner.first_name} ${runner.last_name}`.trim(),
+        synced: true,
+        status_code: selectedStatus,
+        notes: statusNotes,
+      };
+      setReadings((prev) => [reading, ...prev].slice(0, 50));
+
+      // Reset form
+      setStatusBibInput("");
+      setSelectedStatus("");
+      setStatusNotes("");
+      setStatusRunnerInfo(null);
+    } catch (error: any) {
+      console.error("Error registering abandon:", error);
+      toast({
+        title: "Error al registrar",
+        description: error.message || "No se pudo guardar el registro",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingStatus(false);
     }
-
-    // Add to readings list
-    setReadings((prev) => [reading, ...prev].slice(0, 50));
-
-    // Reset form
-    setStatusBibInput("");
-    setSelectedStatus("");
-    setStatusNotes("");
-    setStatusRunnerInfo(null);
-    setSubmittingStatus(false);
   };
 
   // Edit reading functions
