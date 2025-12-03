@@ -650,6 +650,39 @@ export type Database = {
           },
         ]
       }
+      race_results_status: {
+        Row: {
+          can_change_at_split: boolean
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          can_change_at_split?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          sort_order: number
+          updated_at?: string
+        }
+        Update: {
+          can_change_at_split?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       races: {
         Row: {
           additional_info: string | null
