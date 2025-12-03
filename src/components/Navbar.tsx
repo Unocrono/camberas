@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, Mail, MessageSquare } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,6 +31,10 @@ const Navbar = () => {
                 <nav className="flex flex-col gap-4 mt-8">
                   <NavLink to="/">Inicio</NavLink>
                   <NavLink to="/races">Carreras</NavLink>
+                  <NavLink to="/ayuda">
+                    <HelpCircle className="h-4 w-4" />
+                    Ayuda
+                  </NavLink>
                   {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
                   <NavLink to="/contact">
                     <Mail className="h-4 w-4" />
@@ -78,6 +82,7 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races">Carreras</NavLink>
+            <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
             {user && <NavLink to="/support">Mis Consultas</NavLink>}
