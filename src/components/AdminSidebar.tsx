@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -30,6 +30,7 @@ const menuItems = [
   { title: "Campos de Formulario", view: "form-fields" as AdminView, icon: FileText },
   { title: "Inscripciones", view: "registrations" as AdminView, icon: Users },
   { title: "Resultados", view: "results" as AdminView, icon: Trophy },
+  { title: "Estados de Resultado", view: "results-status" as AdminView, icon: Flag },
   { title: "Tiempos Parciales", view: "splits" as AdminView, icon: Timer },
   { title: "Lecturas Crono", view: "timing-readings" as AdminView, icon: Radio },
   { title: "Cronometradores", view: "timer-assignments" as AdminView, icon: AlarmClock },
