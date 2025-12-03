@@ -129,7 +129,6 @@ export function SplitTimesManagement({
   useEffect(() => {
     if (propSelectedRaceId) {
       fetchDistances();
-      fetchCheckpoints();
       fetchRegistrations();
     } else {
       setDistances([]);
@@ -138,6 +137,14 @@ export function SplitTimesManagement({
       setRegistrations([]);
     }
   }, [propSelectedRaceId]);
+
+  // Fetch checkpoints when distance changes
+  useEffect(() => {
+    if (propSelectedRaceId) {
+      fetchCheckpoints();
+      setSelectedCheckpointId(""); // Reset checkpoint selection when distance changes
+    }
+  }, [propSelectedRaceId, selectedDistanceId]);
 
   // Fetch split times when filters change
   useEffect(() => {
