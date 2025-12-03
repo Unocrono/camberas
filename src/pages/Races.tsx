@@ -4,16 +4,27 @@ import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Mountain, Bike } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { supabase } from "@/integrations/supabase/client";
 
 type RaceTypeFilter = 'all' | 'trail' | 'mtb';
+
+const RACES_PER_PAGE = 9;
 
 const Races = () => {
   const [allRaces, setAllRaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [raceTypeFilter, setRaceTypeFilter] = useState<RaceTypeFilter>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchRaces();
@@ -69,12 +80,26 @@ const Races = () => {
     }
   };
 
-  const filteredRaces = allRaces.filter(
-    (race) =>
-      (race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      race.location.toLowerCase().includes(searchTerm.toLowerCase())) &&
-      (raceTypeFilter === 'all' || race.raceType === raceTypeFilter)
-  );
+  const filteredRaces = useMemo(() => {
+    return allRaces.filter(
+      (race) =>
+        (race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        race.location.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        (raceTypeFilter === 'all' || race.raceType === raceTypeFilter)
+    );
+  }, [allRaces, searchTerm, raceTypeFilter]);
+
+  const totalPages = Math.ceil(filteredRaces.length / RACES_PER_PAGE);
+  
+  const paginatedRaces = useMemo(() => {
+    const startIndex = (currentPage - 1) * RACES_PER_PAGE;
+    return filteredRaces.slice(startIndex, startIndex + RACES_PER_PAGE);
+  }, [filteredRaces, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, raceTypeFilter]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -136,11 +161,48 @@ const Races = () => {
               <p className="text-muted-foreground">Cargando carreras...</p>
             </div>
           ) : filteredRaces.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredRaces.map((race) => (
-                <RaceCard key={race.id} {...race} />
-              ))}
-            </div>
+            <>
+              <p className="text-sm text-muted-foreground text-center mb-6">
+                Mostrando {paginatedRaces.length} de {filteredRaces.length} carreras
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {paginatedRaces.map((race) => (
+                  <RaceCard key={race.id} {...race} />
+                ))}
+              </div>
+              
+              {totalPages > 1 && (
+                <Pagination className="mt-8">
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => setCurrentPage(page)}
+                          isActive={currentPage === page}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </>
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No se encontraron carreras</p>
