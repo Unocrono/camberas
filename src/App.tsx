@@ -31,6 +31,7 @@ import Contact from "./pages/Contact";
 import Support from "./pages/Support";
 import TimingApp from "./pages/TimingApp";
 import GPSTrackerApp from "./pages/GPSTrackerApp";
+import Help from "./pages/Help";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
           <Route path="/support" element={<Support />} />
           <Route path="/timing" element={<TimingApp />} />
           <Route path="/track" element={<GPSTrackerApp />} />
+          <Route path="/ayuda" element={<Help />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
