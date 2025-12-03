@@ -143,6 +143,24 @@ const TimingApp = () => {
   const [editTimeInput, setEditTimeInput] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
+  // Registered abandons state
+  interface RegisteredAbandon {
+    id: string;
+    bib_number: number;
+    abandon_type: string;
+    reason: string;
+    timing_point_id: string | null;
+    created_at: string;
+    runner_name?: string;
+  }
+  const [registeredAbandons, setRegisteredAbandons] = useState<RegisteredAbandon[]>([]);
+  const [loadingAbandons, setLoadingAbandons] = useState(false);
+  const [editingAbandon, setEditingAbandon] = useState<RegisteredAbandon | null>(null);
+  const [isEditAbandonDialogOpen, setIsEditAbandonDialogOpen] = useState(false);
+  const [editAbandonType, setEditAbandonType] = useState<StatusCode | "">("");
+  const [editAbandonReason, setEditAbandonReason] = useState("");
+  const [savingAbandon, setSavingAbandon] = useState(false);
+
   // Time update
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -531,6 +549,112 @@ const TimingApp = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  // Fetch registered abandons for this race
+  const fetchAbandons = useCallback(async (raceId: string) => {
+    if (!isOnline) return;
+    setLoadingAbandons(true);
+    try {
+      const { data, error } = await supabase
+        .from("race_results_abandons")
+        .select("id, bib_number, abandon_type, reason, timing_point_id, created_at, registration_id")
+        .eq("race_id", raceId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const abandonsWithNames = (data || []).map((abandon: any) => {
+        const runner = runners.find(r => r.bib_number === abandon.bib_number);
+        return {
+          ...abandon,
+          runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+        };
+      });
+
+      setRegisteredAbandons(abandonsWithNames);
+    } catch (error) {
+      console.error("Error fetching abandons:", error);
+    } finally {
+      setLoadingAbandons(false);
+    }
+  }, [runners, isOnline]);
+
+  // Fetch abandons when race is selected and runners are loaded
+  useEffect(() => {
+    if (selectedRace && runners.length > 0 && currentView === "timing") {
+      fetchAbandons(selectedRace.id);
+    }
+  }, [selectedRace, runners, currentView, fetchAbandons]);
+
+  // Edit abandon handlers
+  const handleOpenEditAbandon = (abandon: RegisteredAbandon) => {
+    setEditingAbandon(abandon);
+    setEditAbandonType(abandon.abandon_type as StatusCode);
+    setEditAbandonReason(abandon.reason);
+    setIsEditAbandonDialogOpen(true);
+  };
+
+  const handleSaveAbandon = async () => {
+    if (!editingAbandon || !editAbandonType || editAbandonReason.length < 10) return;
+    
+    setSavingAbandon(true);
+    try {
+      const { error } = await supabase
+        .from("race_results_abandons")
+        .update({
+          abandon_type: editAbandonType,
+          reason: editAbandonReason,
+        })
+        .eq("id", editingAbandon.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Actualizado",
+        description: "Registro de retirado actualizado correctamente",
+      });
+
+      // Refresh list
+      if (selectedRace) fetchAbandons(selectedRace.id);
+      setIsEditAbandonDialogOpen(false);
+      setEditingAbandon(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingAbandon(false);
+    }
+  };
+
+  const handleDeleteAbandon = async (abandonId: string) => {
+    if (!window.confirm("¿Estás seguro de eliminar este registro?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("race_results_abandons")
+        .delete()
+        .eq("id", abandonId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Eliminado",
+        description: "Registro de retirado eliminado",
+      });
+
+      // Refresh list
+      if (selectedRace) fetchAbandons(selectedRace.id);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSelectRace = async (raceId: string) => {
     const race = races.find((r) => r.id === raceId);
     if (race) {
@@ -836,6 +960,9 @@ const TimingApp = () => {
           title: `#${bib} - ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`,
           description: `${runnerName} - Registrado correctamente`,
         });
+
+        // Refresh abandons list
+        if (selectedRace) fetchAbandons(selectedRace.id);
       } catch (error: any) {
         console.error("Error syncing abandon:", error);
         // Add to pending queue
@@ -1506,6 +1633,81 @@ const TimingApp = () => {
             </CardContent>
           </Card>
 
+          {/* Registered Abandons List */}
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Ban className="h-4 w-4" />
+                  Retirados Registrados
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => selectedRace && fetchAbandons(selectedRace.id)}
+                  disabled={loadingAbandons || !isOnline}
+                >
+                  <RefreshCw className={`h-4 w-4 ${loadingAbandons ? 'animate-spin' : ''}`} />
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {loadingAbandons ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : registeredAbandons.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No hay retirados registrados
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {registeredAbandons.map((abandon) => (
+                    <div
+                      key={abandon.id}
+                      className="flex items-center justify-between p-2 bg-muted/50 rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold">#{abandon.bib_number}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {STATUS_OPTIONS.find(s => s.value === abandon.abandon_type)?.label || abandon.abandon_type}
+                          </Badge>
+                        </div>
+                        {abandon.runner_name && (
+                          <p className="text-sm text-muted-foreground truncate">
+                            {abandon.runner_name}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground truncate">
+                          {abandon.reason}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleOpenEditAbandon(abandon)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteAbandon(abandon.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Bottom actions for status tab */}
           <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4">
             <div className="flex gap-2">
@@ -1580,6 +1782,59 @@ const TimingApp = () => {
               Cancelar
             </Button>
             <Button onClick={handleSaveEdit}>
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Abandon Dialog */}
+      <Dialog open={isEditAbandonDialogOpen} onOpenChange={setIsEditAbandonDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Editar Retirado #{editingAbandon?.bib_number}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Tipo de Estado</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {STATUS_OPTIONS.map((status) => (
+                  <Button
+                    key={status.value}
+                    type="button"
+                    variant={editAbandonType === status.value ? "default" : "outline"}
+                    className="h-auto py-2 flex flex-col items-center gap-1"
+                    onClick={() => setEditAbandonType(status.value)}
+                  >
+                    {status.icon}
+                    <span className="text-xs font-bold">{status.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-abandon-reason">Motivo</Label>
+              <Textarea
+                id="edit-abandon-reason"
+                value={editAbandonReason}
+                onChange={(e) => setEditAbandonReason(e.target.value)}
+                rows={3}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                Mínimo 10 caracteres ({editAbandonReason.length}/10)
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditAbandonDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveAbandon}
+              disabled={savingAbandon || !editAbandonType || editAbandonReason.length < 10}
+            >
+              {savingAbandon ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Guardar
             </Button>
           </DialogFooter>
