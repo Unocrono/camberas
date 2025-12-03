@@ -15,39 +15,11 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt"],
-      manifest: {
-        name: "Camberas Timing - Cronometraje Profesional",
-        short_name: "Timing",
-        description: "App de cronometraje manual para operadores de carrera",
-        start_url: "/timing",
-        display: "standalone",
-        background_color: "#0a0a0a",
-        theme_color: "#0a0a0a",
-        orientation: "portrait",
-        scope: "/timing",
-        icons: [
-          {
-            src: "/timing-icon-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/timing-icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "/timing-icon-512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-        ],
-      },
+      includeAssets: ["favicon.ico", "robots.txt", "timing-icon-192.png", "timing-icon-512.png", "gps-icon-192.png", "gps-icon-512.png"],
+      manifest: false, // We'll handle manifests manually for multiple PWAs
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4MB
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
@@ -56,11 +28,13 @@ export default defineConfig(({ mode }) => ({
               cacheName: "supabase-cache",
               expiration: {
                 maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24, // 1 day
+                maxAgeSeconds: 60 * 60 * 24,
               },
             },
           },
         ],
+        navigateFallback: "/index.html",
+        navigateFallbackAllowlist: [/^\/timing/, /^\/track/],
       },
     }),
   ].filter(Boolean),
