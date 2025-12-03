@@ -1,6 +1,6 @@
 {
-  "name": "Camberas Timing - Cronometraje Profesional",
-  "short_name": "Timing",
+  "name": "Timing Camberas - Cronometraje Profesional",
+  "short_name": "Timing Camberas",
   "description": "App de cronometraje manual para operadores de carrera",
   "start_url": "/timing",
   "display": "standalone",
