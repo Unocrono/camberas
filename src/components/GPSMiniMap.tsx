@@ -2,19 +2,23 @@ import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
+import { parseGpxFile } from '@/lib/gpxParser';
 
 interface GPSMiniMapProps {
   latitude: number | null;
   longitude: number | null;
+  distanceId?: string;
   className?: string;
 }
 
-export function GPSMiniMap({ latitude, longitude, className = '' }: GPSMiniMapProps) {
+export function GPSMiniMap({ latitude, longitude, distanceId, className = '' }: GPSMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const routeLoadedRef = useRef(false);
 
   // Fetch Mapbox token
   useEffect(() => {
@@ -47,9 +51,9 @@ export function GPSMiniMap({ latitude, longitude, className = '' }: GPSMiniMapPr
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: 'mapbox://styles/mapbox/outdoors-v12',
       center: defaultCenter,
-      zoom: 15,
+      zoom: 14,
       interactive: true,
       attributionControl: false,
     });
@@ -60,13 +64,17 @@ export function GPSMiniMap({ latitude, longitude, className = '' }: GPSMiniMapPr
       'bottom-right'
     );
 
+    map.current.on('load', () => {
+      setMapReady(true);
+    });
+
     // Create marker element
     const el = document.createElement('div');
     el.className = 'current-position-marker';
     el.innerHTML = `
       <div class="relative">
-        <div class="absolute -inset-2 bg-primary/30 rounded-full animate-ping"></div>
-        <div class="relative w-4 h-4 bg-primary rounded-full border-2 border-white shadow-lg"></div>
+        <div style="position: absolute; inset: -8px; background: rgba(59, 130, 246, 0.3); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+        <div style="position: relative; width: 16px; height: 16px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>
       </div>
     `;
 
@@ -78,8 +86,97 @@ export function GPSMiniMap({ latitude, longitude, className = '' }: GPSMiniMapPr
 
     return () => {
       map.current?.remove();
+      routeLoadedRef.current = false;
     };
   }, [mapboxToken]);
+
+  // Load GPX route
+  useEffect(() => {
+    if (!map.current || !mapReady || !distanceId || routeLoadedRef.current) return;
+
+    const loadGpxRoute = async () => {
+      try {
+        // Get GPX URL from race_distances
+        const { data: distanceData, error: distanceError } = await supabase
+          .from('race_distances')
+          .select('gpx_file_url')
+          .eq('id', distanceId)
+          .maybeSingle();
+
+        if (distanceError || !distanceData?.gpx_file_url) {
+          console.log('No GPX file found for distance');
+          return;
+        }
+
+        // Fetch and parse GPX
+        const response = await fetch(distanceData.gpx_file_url);
+        const gpxText = await response.text();
+        const parsedGpx = parseGpxFile(gpxText);
+
+        if (!parsedGpx.tracks || parsedGpx.tracks.length === 0) {
+          console.warn('No tracks found in GPX');
+          return;
+        }
+
+        // Extract coordinates
+        const coordinates: [number, number][] = [];
+        parsedGpx.tracks.forEach((track) => {
+          track.points.forEach((point) => {
+            coordinates.push([point.lon, point.lat]);
+          });
+        });
+
+        if (coordinates.length === 0 || !map.current) return;
+
+        // Remove existing route if any
+        if (map.current.getLayer('gpx-route')) {
+          map.current.removeLayer('gpx-route');
+        }
+        if (map.current.getSource('gpx-route')) {
+          map.current.removeSource('gpx-route');
+        }
+
+        // Add the route
+        map.current.addSource('gpx-route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: {
+              type: 'LineString',
+              coordinates: coordinates,
+            },
+          },
+        });
+
+        map.current.addLayer({
+          id: 'gpx-route',
+          type: 'line',
+          source: 'gpx-route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round',
+          },
+          paint: {
+            'line-color': '#FF6B35',
+            'line-width': 4,
+            'line-opacity': 0.8,
+          },
+        });
+
+        // Fit map to route bounds
+        const bounds = new mapboxgl.LngLatBounds();
+        coordinates.forEach(coord => bounds.extend(coord));
+        map.current.fitBounds(bounds, { padding: 30 });
+
+        routeLoadedRef.current = true;
+      } catch (error) {
+        console.error('Error loading GPX:', error);
+      }
+    };
+
+    loadGpxRoute();
+  }, [distanceId, mapReady]);
 
   // Update marker position
   useEffect(() => {
@@ -91,10 +188,14 @@ export function GPSMiniMap({ latitude, longitude, className = '' }: GPSMiniMapPr
       marker.current.addTo(map.current);
     }
 
-    map.current.flyTo({
-      center: [longitude, latitude],
-      duration: 1000,
-    });
+    // Only fly to position if route is loaded (to not override route bounds)
+    if (routeLoadedRef.current) {
+      map.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 15,
+        duration: 1000,
+      });
+    }
   }, [latitude, longitude]);
 
   if (error) {
