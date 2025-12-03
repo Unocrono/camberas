@@ -39,6 +39,7 @@ interface Race {
 interface Registration {
   id: string;
   race_id: string;
+  race_distance_id: string;
   bib_number: number | null;
   race_distances: {
     name: string;
@@ -184,6 +185,7 @@ const GPSTrackerApp = () => {
           .select(`
             id,
             race_id,
+            race_distance_id,
             bib_number,
             race_distances!inner (
               name,
@@ -652,6 +654,7 @@ const GPSTrackerApp = () => {
             <GPSMiniMap 
               latitude={currentPosition?.lat || null}
               longitude={currentPosition?.lng || null}
+              distanceId={selectedRegistration?.race_distance_id}
               className="h-48 w-full"
             />
           </CardContent>
