@@ -94,6 +94,7 @@ const TimingApp = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isOrganizerOrAdmin, setIsOrganizerOrAdmin] = useState(false);
 
   // App state
   const [currentView, setCurrentView] = useState<"login" | "select" | "timing">("login");
@@ -102,6 +103,7 @@ const TimingApp = () => {
   const [runners, setRunners] = useState<Runner[]>([]);
   const [selectedRace, setSelectedRace] = useState<Race | null>(null);
   const [selectedTimingPoint, setSelectedTimingPoint] = useState<TimingPoint | null>(null);
+  const [userAssignments, setUserAssignments] = useState<{ race_id: string; checkpoint_id: string | null }[]>([]);
 
   // Timing state
   const [bibInput, setBibInput] = useState("");
@@ -215,10 +217,23 @@ const TimingApp = () => {
         _role: "admin",
       });
 
+      const isOrgOrAdmin = !!hasOrganizer || !!hasAdmin;
+      setIsOrganizerOrAdmin(isOrgOrAdmin);
+
       if (hasTimer || hasOrganizer || hasAdmin) {
         setIsAuthorized(true);
         setCurrentView("select");
-        await fetchRaces(userId, !!hasOrganizer || !!hasAdmin);
+        
+        // Fetch assignments for timers
+        if (!isOrgOrAdmin) {
+          const { data: assignments } = await supabase
+            .from("timer_assignments")
+            .select("race_id, checkpoint_id")
+            .eq("user_id", userId);
+          setUserAssignments(assignments || []);
+        }
+        
+        await fetchRaces(userId, isOrgOrAdmin);
       } else {
         toast({
           title: "Acceso denegado",
@@ -235,6 +250,31 @@ const TimingApp = () => {
   const loadStoredContext = async (stored: any) => {
     // Load race and timing point from storage
     try {
+      // First load user's assignments if they're a timer
+      const { data: hasTimer } = await supabase.rpc("has_role", {
+        _user_id: stored.user_id,
+        _role: "timer",
+      });
+      const { data: hasOrganizer } = await supabase.rpc("has_role", {
+        _user_id: stored.user_id,
+        _role: "organizer",
+      });
+      const { data: hasAdmin } = await supabase.rpc("has_role", {
+        _user_id: stored.user_id,
+        _role: "admin",
+      });
+      
+      const isOrgOrAdmin = !!hasOrganizer || !!hasAdmin;
+      setIsOrganizerOrAdmin(isOrgOrAdmin);
+      
+      if (!isOrgOrAdmin) {
+        const { data: assignments } = await supabase
+          .from("timer_assignments")
+          .select("race_id, checkpoint_id")
+          .eq("user_id", stored.user_id);
+        setUserAssignments(assignments || []);
+      }
+
       const { data: race } = await supabase
         .from("races")
         .select("id, name, date")
@@ -243,7 +283,7 @@ const TimingApp = () => {
 
       if (race) {
         setSelectedRace(race);
-        await fetchTimingPoints(race.id);
+        await fetchTimingPoints(race.id, stored.user_id, isOrgOrAdmin);
         await fetchRunners(race.id);
         await fetchRaceStartTime(race.id, race.date);
 
@@ -264,11 +304,22 @@ const TimingApp = () => {
     }
   };
 
-  const fetchRaces = async (userId: string, isOrganizerOrAdmin: boolean) => {
+  const fetchRaces = async (userId: string, isOrgOrAdmin: boolean) => {
     try {
       let query = supabase.from("races").select("id, name, date");
 
-      if (!isOrganizerOrAdmin) {
+      if (isOrgOrAdmin) {
+        // Organizer: only their own races, Admin: all races
+        const { data: hasAdmin } = await supabase.rpc("has_role", {
+          _user_id: userId,
+          _role: "admin",
+        });
+        
+        if (!hasAdmin) {
+          // Organizer - only their races
+          query = query.eq("organizer_id", userId);
+        }
+      } else {
         // Timer: only assigned races
         const { data: assignments } = await supabase
           .from("timer_assignments")
@@ -276,7 +327,7 @@ const TimingApp = () => {
           .eq("user_id", userId);
 
         if (assignments && assignments.length > 0) {
-          const raceIds = assignments.map((a) => a.race_id);
+          const raceIds = [...new Set(assignments.map((a) => a.race_id))];
           query = query.in("id", raceIds);
         } else {
           setRaces([]);
@@ -286,22 +337,60 @@ const TimingApp = () => {
 
       const { data, error } = await query.order("date", { ascending: false });
       if (error) throw error;
-      setRaces(data || []);
+      
+      const fetchedRaces = data || [];
+      setRaces(fetchedRaces);
+      
+      // Auto-select if only one race
+      if (fetchedRaces.length === 1) {
+        setSelectedRace(fetchedRaces[0]);
+        await fetchTimingPoints(fetchedRaces[0].id, userId, isOrgOrAdmin);
+        await fetchRunners(fetchedRaces[0].id);
+        await fetchRaceStartTime(fetchedRaces[0].id, fetchedRaces[0].date);
+      }
     } catch (error: any) {
       console.error("Error fetching races:", error);
     }
   };
 
-  const fetchTimingPoints = async (raceId: string) => {
+  const fetchTimingPoints = async (raceId: string, userId?: string, isOrgOrAdmin?: boolean) => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("timing_points")
         .select("id, name, notes, point_order")
         .eq("race_id", raceId)
         .order("point_order", { ascending: true, nullsFirst: false });
 
+      const { data, error } = await query;
       if (error) throw error;
-      setTimingPoints(data || []);
+      
+      let filteredPoints = data || [];
+      
+      // Filter by assignments if user is timer (not organizer/admin)
+      const checkIsOrgOrAdmin = isOrgOrAdmin !== undefined ? isOrgOrAdmin : isOrganizerOrAdmin;
+      const checkUserId = userId || user?.id;
+      
+      if (!checkIsOrgOrAdmin && checkUserId) {
+        // Get user's assignments for this race
+        const raceAssignments = userAssignments.filter(a => a.race_id === raceId);
+        
+        // If user has specific checkpoint assignments, filter to those
+        const assignedCheckpointIds = raceAssignments
+          .filter(a => a.checkpoint_id !== null)
+          .map(a => a.checkpoint_id);
+        
+        if (assignedCheckpointIds.length > 0) {
+          filteredPoints = filteredPoints.filter(tp => assignedCheckpointIds.includes(tp.id));
+        }
+        // If no specific checkpoints assigned (only race), show all timing points
+      }
+      
+      setTimingPoints(filteredPoints);
+      
+      // Auto-select if only one timing point
+      if (filteredPoints.length === 1) {
+        setSelectedTimingPoint(filteredPoints[0]);
+      }
     } catch (error: any) {
       console.error("Error fetching timing points:", error);
     }
@@ -424,7 +513,8 @@ const TimingApp = () => {
     const race = races.find((r) => r.id === raceId);
     if (race) {
       setSelectedRace(race);
-      await fetchTimingPoints(raceId);
+      setSelectedTimingPoint(null); // Reset timing point selection
+      await fetchTimingPoints(raceId, user?.id, isOrganizerOrAdmin);
       await fetchRunners(raceId);
       await fetchRaceStartTime(raceId, race.date);
     }
@@ -969,26 +1059,54 @@ const TimingApp = () => {
               <CardTitle>Seleccionar Carrera</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Carrera</Label>
-                <Select
-                  value={selectedRace?.id || ""}
-                  onValueChange={handleSelectRace}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una carrera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {races.map((race) => (
-                      <SelectItem key={race.id} value={race.id}>
-                        {race.name} ({new Date(race.date).toLocaleDateString("es-ES")})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {races.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">
+                  No tienes carreras asignadas
+                </p>
+              ) : races.length === 1 ? (
+                <div className="space-y-2">
+                  <Label>Carrera</Label>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="font-medium">{races[0].name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(races[0].date).toLocaleDateString("es-ES")}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Carrera</Label>
+                  <Select
+                    value={selectedRace?.id || ""}
+                    onValueChange={handleSelectRace}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona una carrera" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {races.map((race) => (
+                        <SelectItem key={race.id} value={race.id}>
+                          {race.name} ({new Date(race.date).toLocaleDateString("es-ES")})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-              {selectedRace && timingPoints.length > 0 && (
+              {selectedRace && timingPoints.length === 1 && (
+                <div className="space-y-2">
+                  <Label>Punto de Cronometraje</Label>
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="font-medium">
+                      {timingPoints[0].point_order != null ? `${timingPoints[0].point_order}. ` : ""}
+                      {timingPoints[0].name}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {selectedRace && timingPoints.length > 1 && (
                 <div className="space-y-2">
                   <Label>Punto de Cronometraje</Label>
                   <Select
