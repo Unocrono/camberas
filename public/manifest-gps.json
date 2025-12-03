@@ -1,6 +1,6 @@
 {
-  "name": "Camberas GPS - Seguimiento en Vivo",
-  "short_name": "GPS Tracker",
+  "name": "GPS Camberas - Seguimiento en Vivo",
+  "short_name": "GPS Camberas",
   "description": "Comparte tu ubicación en tiempo real durante la carrera",
   "start_url": "/track",
   "display": "standalone",
