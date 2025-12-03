@@ -39,7 +39,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { User as SupabaseUser } from "@supabase/supabase-js";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Race {
   id: string;
@@ -783,6 +783,55 @@ const TimingApp = () => {
     setEditingReading(null);
   };
 
+  const handleDeleteReading = async (reading: TimingReading) => {
+    const confirm = window.confirm(
+      `¿Eliminar lectura del dorsal #${reading.bib_number}?`
+    );
+    if (!confirm) return;
+
+    // If reading has an ID (synced to DB), delete from database
+    if (reading.id && reading.synced) {
+      try {
+        const { error } = await supabase
+          .from("timing_readings")
+          .delete()
+          .eq("id", reading.id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Lectura eliminada",
+          description: `Dorsal #${reading.bib_number} eliminado`,
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error al eliminar",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Remove from local state
+    setReadings((prev) =>
+      prev.filter(
+        (r) =>
+          !(r.timestamp === reading.timestamp && r.bib_number === reading.bib_number)
+      )
+    );
+
+    // Remove from pending sync if exists
+    setPendingSync((prev) => {
+      const newPending = prev.filter(
+        (r) =>
+          !(r.timestamp === reading.timestamp && r.bib_number === reading.bib_number)
+      );
+      localStorage.setItem(READINGS_KEY, JSON.stringify(newPending));
+      return newPending;
+    });
+  };
+
   const handleLogout = async () => {
     if (pendingSync.length > 0) {
       const confirm = window.confirm(
@@ -1081,6 +1130,14 @@ const TimingApp = () => {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteReading(reading)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                         {reading.synced ? (
                           <CheckCircle className="h-5 w-5 text-green-500" />
                         ) : (
