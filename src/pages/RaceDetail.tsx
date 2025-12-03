@@ -99,6 +99,14 @@ const RaceDetail = () => {
 
       if (registrationsError) throw registrationsError;
 
+      // Fetch waves for start times
+      const { data: wavesData, error: wavesError } = await supabase
+        .from("race_waves")
+        .select("race_distance_id, start_time, wave_name")
+        .eq("race_id", id);
+
+      if (wavesError) throw wavesError;
+
       const distancesWithAvailability = distancesData.map((distance: any) => {
         const registeredCount = registrationsData.filter(
           (reg: any) => reg.race_distance_id === distance.id
@@ -107,10 +115,15 @@ const RaceDetail = () => {
           ? distance.max_participants - registeredCount 
           : null;
         
+        // Find the wave for this distance
+        const wave = wavesData?.find((w: any) => w.race_distance_id === distance.id);
+        
         return {
           ...distance,
           registeredCount,
           availablePlaces,
+          start_time: wave?.start_time || null,
+          wave_name: wave?.wave_name || null,
         };
       });
 
@@ -669,6 +682,17 @@ const RaceDetail = () => {
                             <div className="flex items-center gap-2 text-foreground font-medium">
                               <TrendingUp className="h-5 w-5 text-primary" />
                               <span>+{distance.elevation_gain}m desnivel</span>
+                            </div>
+                          )}
+                          {distance.start_time && (
+                            <div className="flex items-center gap-2 text-foreground font-medium">
+                              <Clock className="h-5 w-5 text-primary" />
+                              <span>
+                                Salida: {new Date(distance.start_time).toLocaleTimeString("es-ES", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}h
+                              </span>
                             </div>
                           )}
                           {distance.cutoff_time && (
