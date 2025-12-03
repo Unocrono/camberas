@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,16 +72,20 @@ const Auth = () => {
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [club, setClub] = useState("");
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  
+  // Get return URL from query params (default to "/")
+  const returnTo = searchParams.get('returnTo') || '/';
 
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        navigate("/");
+        navigate(returnTo);
       }
     });
-  }, [navigate]);
+  }, [navigate, returnTo]);
 
   const handleSignUp = async (e: React.FormEvent, isOrganizerSignup: boolean = false) => {
     e.preventDefault();
@@ -122,7 +126,7 @@ const Auth = () => {
         password: validatedData.password,
         options: {
           data: userData,
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}${returnTo}`,
         },
       });
 
@@ -203,7 +207,7 @@ const Auth = () => {
         description: "Has iniciado sesión correctamente.",
       });
       
-      navigate("/");
+      navigate(returnTo);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({

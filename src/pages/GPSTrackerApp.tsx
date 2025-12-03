@@ -487,7 +487,7 @@ const GPSTrackerApp = () => {
             <MapPin className="h-16 w-16 mx-auto text-primary" />
             <h1 className="text-2xl font-bold">Camberas GPS</h1>
             <p className="text-muted-foreground">Inicia sesión para compartir tu ubicación durante la carrera</p>
-            <Button onClick={() => navigate('/auth')} className="w-full">
+            <Button onClick={() => navigate('/auth?returnTo=/track')} className="w-full">
               Iniciar Sesión
             </Button>
           </CardContent>
