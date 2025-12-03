@@ -553,12 +553,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
             <div className="space-y-2">
               <Label>Evento</Label>
-              <Select value={filterDistanceId} onValueChange={setFilterDistanceId} disabled={!filterRaceId}>
+              <Select 
+                value={filterDistanceId || "all"} 
+                onValueChange={(val) => setFilterDistanceId(val === "all" ? "" : val)} 
+                disabled={!filterRaceId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos los eventos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los eventos</SelectItem>
+                  <SelectItem value="all">Todos los eventos</SelectItem>
                   {distances.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name} ({d.distance_km}km)
@@ -570,12 +574,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
             <div className="space-y-2">
               <Label>Punto de Cronometraje</Label>
-              <Select value={filterTimingPointId} onValueChange={setFilterTimingPointId} disabled={!filterRaceId}>
+              <Select 
+                value={filterTimingPointId || "all"} 
+                onValueChange={(val) => setFilterTimingPointId(val === "all" ? "" : val)} 
+                disabled={!filterRaceId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Todos los puntos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los puntos</SelectItem>
+                  <SelectItem value="all">Todos los puntos</SelectItem>
                   {timingPoints.map((tp) => (
                     <SelectItem key={tp.id} value={tp.id}>
                       {tp.name}
@@ -708,12 +716,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Evento</Label>
-              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })}>
+              <Select 
+                value={formData.race_distance_id || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, race_distance_id: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona evento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin evento</SelectItem>
+                  <SelectItem value="none">Sin evento</SelectItem>
                   {distances.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
@@ -724,12 +735,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Punto de Cronometraje</Label>
-              <Select value={formData.timing_point_id} onValueChange={(v) => setFormData({ ...formData, timing_point_id: v })}>
+              <Select 
+                value={formData.timing_point_id || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, timing_point_id: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona punto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin punto</SelectItem>
+                  <SelectItem value="none">Sin punto</SelectItem>
                   {timingPoints.map((tp) => (
                     <SelectItem key={tp.id} value={tp.id}>
                       {tp.name}
@@ -753,12 +767,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Estado (opcional)</Label>
-              <Select value={formData.status_code} onValueChange={(v) => setFormData({ ...formData, status_code: v })}>
+              <Select 
+                value={formData.status_code || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, status_code: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Sin estado especial" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin estado</SelectItem>
+                  <SelectItem value="none">Sin estado</SelectItem>
                   <SelectItem value="dnf">DNF - No terminó</SelectItem>
                   <SelectItem value="dns">DNS - No salió</SelectItem>
                   <SelectItem value="dsq">DSQ - Descalificado</SelectItem>
@@ -824,12 +841,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Evento</Label>
-              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })}>
+              <Select 
+                value={formData.race_distance_id || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, race_distance_id: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona evento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin evento</SelectItem>
+                  <SelectItem value="none">Sin evento</SelectItem>
                   {distances.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name}
@@ -840,12 +860,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Punto de Cronometraje</Label>
-              <Select value={formData.timing_point_id} onValueChange={(v) => setFormData({ ...formData, timing_point_id: v })}>
+              <Select 
+                value={formData.timing_point_id || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, timing_point_id: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona punto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin punto</SelectItem>
+                  <SelectItem value="none">Sin punto</SelectItem>
                   {timingPoints.map((tp) => (
                     <SelectItem key={tp.id} value={tp.id}>
                       {tp.name}
@@ -869,12 +892,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <div className="space-y-2">
               <Label>Estado (opcional)</Label>
-              <Select value={formData.status_code} onValueChange={(v) => setFormData({ ...formData, status_code: v })}>
+              <Select 
+                value={formData.status_code || "none"} 
+                onValueChange={(v) => setFormData({ ...formData, status_code: v === "none" ? "" : v })}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Sin estado especial" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin estado</SelectItem>
+                  <SelectItem value="none">Sin estado</SelectItem>
                   <SelectItem value="dnf">DNF - No terminó</SelectItem>
                   <SelectItem value="dns">DNS - No salió</SelectItem>
                   <SelectItem value="dsq">DSQ - Descalificado</SelectItem>
