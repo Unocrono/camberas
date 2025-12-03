@@ -3,6 +3,8 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
+import { Maximize2, Minimize2, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Checkpoint {
   id: string;
@@ -38,8 +40,17 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const routeLoadedRef = useRef(false);
   const markersLoadedRef = useRef(false);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    // Resize map after state change
+    setTimeout(() => {
+      map.current?.resize();
+    }, 100);
+  };
 
   // Fetch Mapbox token
   useEffect(() => {
@@ -360,13 +371,46 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, className 
   }
 
   return (
-    <div className={`relative rounded-lg overflow-hidden ${className}`}>
-      <div ref={mapContainer} className="w-full h-full" />
-      {(!latitude || !longitude) && (
-        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-          <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+    <>
+      {/* Fullscreen overlay */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <div ref={mapContainer} className="w-full h-full" />
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-4 right-4 z-10"
+            onClick={toggleFullscreen}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+          {(!latitude || !longitude) && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center pointer-events-none">
+              <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+            </div>
+          )}
         </div>
       )}
-    </div>
+
+      {/* Mini map */}
+      {!isFullscreen && (
+        <div className={`relative rounded-lg overflow-hidden ${className}`}>
+          <div ref={mapContainer} className="w-full h-full" />
+          <Button
+            variant="secondary"
+            size="icon"
+            className="absolute top-2 left-2 z-10 h-8 w-8"
+            onClick={toggleFullscreen}
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+          {(!latitude || !longitude) && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+              <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
