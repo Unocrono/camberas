@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Timer, MapPin, User, Loader2 } from "lucide-react";
+import { Plus, Trash2, Timer, MapPin, User, Loader2, Pencil } from "lucide-react";
 
 interface TimerAssignment {
   id: string;
@@ -68,6 +68,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
   const [timerUsers, setTimerUsers] = useState<TimerUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<TimerAssignment | null>(null);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState("");
@@ -236,6 +237,46 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
     }
   };
 
+  const handleUpdateAssignment = async () => {
+    if (!editingAssignment) return;
+
+    try {
+      const { error } = await supabase
+        .from("timer_assignments")
+        .update({
+          user_id: selectedUserId,
+          checkpoint_id: selectedCheckpointId ?? null,
+          notes: notes || null,
+        })
+        .eq("id", editingAssignment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Asignación actualizada",
+        description: "La asignación ha sido modificada correctamente",
+      });
+
+      setDialogOpen(false);
+      resetForm();
+      fetchAssignments();
+    } catch (error: any) {
+      toast({
+        title: "Error al actualizar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditAssignment = (assignment: TimerAssignment) => {
+    setEditingAssignment(assignment);
+    setSelectedUserId(assignment.user_id);
+    setSelectedCheckpointId(assignment.checkpoint_id ?? undefined);
+    setNotes(assignment.notes || "");
+    setDialogOpen(true);
+  };
+
   const handleDeleteAssignment = async (id: string) => {
     if (!confirm("¿Estás seguro de eliminar esta asignación?")) return;
 
@@ -351,6 +392,7 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
     setSelectedUserId("");
     setSelectedCheckpointId(undefined);
     setNotes("");
+    setEditingAssignment(null);
   };
 
   if (!selectedRaceId) {
@@ -400,19 +442,24 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
             </div>
           </div>
 
-          {/* Create assignment dialog */}
+          {/* Create/Edit assignment dialog */}
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Asignaciones a esta carrera</h3>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+              setDialogOpen(open);
+              if (!open) resetForm();
+            }}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => resetForm()}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nueva Asignación
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Asignar Cronometrador</DialogTitle>
+                  <DialogTitle>
+                    {editingAssignment ? "Modificar Asignación" : "Asignar Cronometrador"}
+                  </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -466,8 +513,11 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
                     />
                   </div>
 
-                  <Button onClick={handleCreateAssignment} className="w-full">
-                    Crear Asignación
+                  <Button 
+                    onClick={editingAssignment ? handleUpdateAssignment : handleCreateAssignment} 
+                    className="w-full"
+                  >
+                    {editingAssignment ? "Guardar Cambios" : "Crear Asignación"}
                   </Button>
                 </div>
               </DialogContent>
@@ -517,13 +567,22 @@ export function TimerAssignmentsManagement({ selectedRaceId }: TimerAssignmentsM
                       {new Date(assignment.assigned_at).toLocaleDateString("es-ES")}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteAssignment(assignment.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditAssignment(assignment)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteAssignment(assignment.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
