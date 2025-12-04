@@ -131,9 +131,9 @@ const Races = () => {
   };
 
   const getPageSubtitle = () => {
-    if (timeFilter === 'upcoming') return 'Inscríbete en las próximas carreras de Trail Running y MTB';
+    if (timeFilter === 'upcoming') return 'Inscríbete en las próximas carreras de Trail y MTB';
     if (timeFilter === 'past') return 'Consulta los resultados de carreras anteriores';
-    return 'Encuentra tu próximo desafío en Trail Running o MTB';
+    return 'Encuentra tu próximo desafío en Trail o MTB';
   };
 
   return (

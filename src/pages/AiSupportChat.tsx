@@ -140,7 +140,7 @@ const AiSupportChat = () => {
             <CardHeader>
               <CardTitle>Chat de Soporte</CardTitle>
               <CardDescription>
-                Asistente especializado en trail running y carreras de montaña
+                Asistente especializado en trail y carreras de montaña
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col p-0">

@@ -19,7 +19,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `Eres un entrenador profesional de trail running. Genera un plan de entrenamiento personalizado detallado y estructurado en formato markdown. 
+    const systemPrompt = `Eres un entrenador profesional de trail. Genera un plan de entrenamiento personalizado detallado y estructurado en formato markdown. 
 
 El plan debe incluir:
 - Resumen del objetivo y nivel del atleta

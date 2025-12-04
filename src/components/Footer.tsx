@@ -12,7 +12,7 @@ const Footer = () => {
               Camberas
             </div>
             <p className="text-muted-foreground text-sm">
-              Tu plataforma de carreras de montaña y trail running
+              Tu plataforma de carreras de montaña y trail
             </p>
           </div>
           
