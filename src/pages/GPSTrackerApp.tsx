@@ -50,6 +50,17 @@ interface Registration {
   races: Race;
 }
 
+interface Checkpoint {
+  id: string;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+  geofence_radius: number;
+  checkpoint_order: number;
+  distance_km: number;
+  timing_point_id: string | null;
+}
+
 const GPSTrackerApp = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -74,6 +85,8 @@ const GPSTrackerApp = () => {
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   
   // Refs
   const watchIdRef = useRef<number | null>(null);
@@ -81,6 +94,7 @@ const GPSTrackerApp = () => {
   const startTimeRef = useRef<Date | null>(null);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const wakeLockRef = useRef<any>(null);
+  const passedCheckpointsRef = useRef<Set<string>>(new Set());
 
   // Load pending points from localStorage
   useEffect(() => {
@@ -232,6 +246,35 @@ const GPSTrackerApp = () => {
     fetchRegistrations();
   }, [user]);
 
+  // Fetch checkpoints when registration is selected
+  useEffect(() => {
+    if (!selectedRegistration) {
+      setCheckpoints([]);
+      setPassedCheckpoints(new Set());
+      passedCheckpointsRef.current = new Set();
+      return;
+    }
+
+    const fetchCheckpoints = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('race_checkpoints')
+          .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
+          .eq('race_distance_id', selectedRegistration.race_distance_id)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .order('checkpoint_order', { ascending: true });
+
+        if (error) throw error;
+        setCheckpoints((data || []) as Checkpoint[]);
+      } catch (error) {
+        console.error('Error fetching checkpoints:', error);
+      }
+    };
+
+    fetchCheckpoints();
+  }, [selectedRegistration]);
+
   // Elapsed time counter
   useEffect(() => {
     if (!isTracking || !startTimeRef.current) return;
@@ -302,22 +345,23 @@ const GPSTrackerApp = () => {
   const handlePosition = useCallback(async (position: GeolocationPosition) => {
     if (!selectedRegistration) return;
     
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    const now = new Date().toISOString();
+    
     // Update current position for mini-map
-    setCurrentPosition({
-      lat: position.coords.latitude,
-      lng: position.coords.longitude,
-    });
+    setCurrentPosition({ lat, lng });
     
     const point: GPSPoint = {
       race_id: selectedRegistration.race_id,
       registration_id: selectedRegistration.id,
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude,
+      latitude: lat,
+      longitude: lng,
       altitude: position.coords.altitude,
       accuracy: position.coords.accuracy,
       speed: position.coords.speed,
       battery_level: battery,
-      timestamp: new Date().toISOString(),
+      timestamp: now,
     };
 
     // Update distance
@@ -325,8 +369,8 @@ const GPSTrackerApp = () => {
       const dist = calculateDistance(
         lastPositionRef.current.coords.latitude,
         lastPositionRef.current.coords.longitude,
-        position.coords.latitude,
-        position.coords.longitude
+        lat,
+        lng
       );
       setStats(prev => ({ ...prev, distance: prev.distance + dist }));
     }
@@ -337,7 +381,51 @@ const GPSTrackerApp = () => {
       setStats(prev => ({ ...prev, speed: position.coords.speed! * 3.6 })); // m/s to km/h
     }
 
-    // Send or queue
+    // Geofencing: Check if within any checkpoint radius
+    for (const checkpoint of checkpoints) {
+      if (!checkpoint.latitude || !checkpoint.longitude) continue;
+      if (passedCheckpointsRef.current.has(checkpoint.id)) continue;
+      
+      const distToCheckpoint = calculateDistance(lat, lng, checkpoint.latitude, checkpoint.longitude);
+      const radius = checkpoint.geofence_radius || 50;
+      
+      if (distToCheckpoint <= radius) {
+        // Mark as passed to avoid duplicate registrations
+        passedCheckpointsRef.current.add(checkpoint.id);
+        setPassedCheckpoints(new Set(passedCheckpointsRef.current));
+        
+        // Register timing reading via GPS
+        const timingReading = {
+          race_id: selectedRegistration.race_id,
+          race_distance_id: selectedRegistration.race_distance_id,
+          registration_id: selectedRegistration.id,
+          bib_number: selectedRegistration.bib_number || 0,
+          checkpoint_id: checkpoint.id,
+          timing_point_id: checkpoint.timing_point_id,
+          timing_timestamp: now,
+          reading_type: 'gps_auto',
+          notes: `GPS auto: ${Math.round(distToCheckpoint)}m del checkpoint`,
+        };
+        
+        try {
+          const { error } = await supabase.from('timing_readings').insert(timingReading);
+          if (!error) {
+            toast({
+              title: `📍 ${checkpoint.name}`,
+              description: `Paso registrado (GPS) - ${checkpoint.distance_km}km`,
+            });
+            // Vibrate to notify
+            if ('vibrate' in navigator) {
+              navigator.vibrate([100, 50, 100]);
+            }
+          }
+        } catch (e) {
+          console.error('Error registering GPS timing:', e);
+        }
+      }
+    }
+
+    // Send or queue GPS point
     if (isOnline) {
       try {
         const { error } = await supabase.from('gps_tracking').insert(point);
@@ -359,7 +447,7 @@ const GPSTrackerApp = () => {
       setPendingPoints(prev => [...prev, point]);
       setStats(prev => ({ ...prev, lastUpdate: new Date() }));
     }
-  }, [selectedRegistration, battery, isOnline]);
+  }, [selectedRegistration, battery, isOnline, checkpoints, toast]);
 
   // Start tracking
   const startTracking = useCallback(() => {
