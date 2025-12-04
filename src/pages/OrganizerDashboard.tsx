@@ -148,20 +148,22 @@ const OrganizerDashboard = () => {
         <OrganizerSidebar currentView={currentView} onViewChange={setCurrentView} />
         
         <div className="flex-1 flex flex-col w-full">
-          <header className="h-16 border-b border-border flex items-center gap-4 px-4 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <SidebarTrigger className="mr-2" />
-            <h1 className="text-xl md:text-2xl font-bold">Panel de Organizador</h1>
+          <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+            <div className="flex items-center gap-4 px-4 md:px-6 h-16">
+              <SidebarTrigger className="mr-2" />
+              <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Organizador</h1>
+            </div>
             
             {currentView !== "races" && races.length > 0 && (
-              <div className="ml-auto flex items-center gap-2">
-                <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
+              <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
+                <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                   Carrera:
                 </label>
                 <select
                   id="race-selector"
                   value={selectedRaceId}
                   onChange={(e) => setSelectedRaceId(e.target.value)}
-                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
+                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                 >
                   <option value="">Selecciona</option>
                   {races.map((race) => (
@@ -172,14 +174,14 @@ const OrganizerDashboard = () => {
                 </select>
                 {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
                   <>
-                    <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap hidden md:block">
+                    <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
                       Evento:
                     </label>
                     <select
                       id="distance-selector"
                       value={selectedDistanceId}
                       onChange={(e) => setSelectedDistanceId(e.target.value)}
-                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[180px]"
+                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                     >
                       <option value="">Todos los eventos</option>
                       {distances.map((distance) => (

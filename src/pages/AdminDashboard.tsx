@@ -153,20 +153,22 @@ const AdminDashboard = () => {
         <AdminSidebar currentView={currentView} onViewChange={setCurrentView} />
         
         <div className="flex-1 flex flex-col">
-          <header className="h-16 border-b border-border flex items-center gap-4 px-6 bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <SidebarTrigger />
-            <h1 className="text-2xl font-bold">Panel de Administración</h1>
+          <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
+            <div className="flex items-center gap-4 px-4 md:px-6 h-16">
+              <SidebarTrigger />
+              <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Administración</h1>
+            </div>
             
             {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && currentView !== "organizer-approval" && currentView !== "users" && currentView !== "roadbook-item-types" && currentView !== "contact-settings" && currentView !== "results-status" && races.length > 0 && (
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
                 <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                  Filtrar por carrera:
+                  Carrera:
                 </Label>
                 <select
                   id="race-selector"
                   value={selectedRaceId}
                   onChange={(e) => setSelectedRaceId(e.target.value)}
-                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                 >
                   <option value="">Todas las carreras</option>
                   {races.map((race) => (
@@ -184,7 +186,7 @@ const AdminDashboard = () => {
                       id="distance-selector"
                       value={selectedDistanceId}
                       onChange={(e) => setSelectedDistanceId(e.target.value)}
-                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary min-w-[200px]"
+                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                     >
                       <option value="">Todos los eventos</option>
                       {distances.map((distance) => (
