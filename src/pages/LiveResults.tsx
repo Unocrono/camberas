@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, Radio, Users, Clock, TrendingUp } from "lucide-react";
+import { ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, Radio, Users, Clock, TrendingUp, Map as MapIcon, MapPinned } from "lucide-react";
+import { LiveGPSMap } from "@/components/LiveGPSMap";
 import { toast } from "sonner";
 
 interface RaceResult {
@@ -89,6 +90,8 @@ export default function LiveResults() {
     avgFinishTime: null
   });
   const [readingFilter, setReadingFilter] = useState<ReadingFilter>('all');
+  const [showMap, setShowMap] = useState(false);
+  const [mapboxToken, setMapboxToken] = useState<string>('');
 
   const fetchRaceData = async () => {
     if (!id) return;
@@ -297,6 +300,16 @@ export default function LiveResults() {
         manualPasses,
         avgFinishTime
       });
+
+      // Fetch mapbox token
+      try {
+        const { data: tokenData } = await supabase.functions.invoke('get-mapbox-token');
+        if (tokenData?.MAPBOX_PUBLIC_TOKEN) {
+          setMapboxToken(tokenData.MAPBOX_PUBLIC_TOKEN);
+        }
+      } catch (tokenError) {
+        console.error('Error fetching mapbox token:', tokenError);
+      }
     } catch (error) {
       console.error("Error fetching race data:", error);
       toast.error("Failed to load race results");
@@ -448,11 +461,45 @@ export default function LiveResults() {
             <Activity className="h-8 w-8 text-primary animate-pulse" />
             <h1 className="text-4xl font-bold">{race.name} - Live Results</h1>
           </div>
-          <p className="text-muted-foreground flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            Live updates enabled
-          </p>
+          <div className="flex items-center gap-4">
+            <p className="text-muted-foreground flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              Live updates enabled
+            </p>
+            {mapboxToken && (
+              <Button 
+                variant={showMap ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setShowMap(!showMap)}
+                className="flex items-center gap-2"
+              >
+                <MapPinned className="h-4 w-4" />
+                {showMap ? "Ocultar Mapa" : "Ver Mapa GPS"}
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* GPS Map */}
+        {showMap && mapboxToken && (
+          <Card className="mb-6 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2">
+                <MapIcon className="h-5 w-5 text-primary" />
+                Mapa GPS en Tiempo Real
+                <Badge variant="outline" className="ml-2">
+                  <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse mr-1" />
+                  En vivo
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="h-[400px] w-full">
+                <LiveGPSMap raceId={id!} mapboxToken={mapboxToken} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
