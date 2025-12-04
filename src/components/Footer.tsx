@@ -51,8 +51,26 @@ const Footer = () => {
           </div>
         </div>
         
-        <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-          © 2025 Camberas. Todos los derechos reservados.
+        <div className="mt-8 pt-8 border-t border-border">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              © 2025 Camberas. Todos los derechos reservados.
+            </p>
+            <nav className="flex flex-wrap justify-center gap-4 text-sm">
+              <Link to="/legal" className="text-muted-foreground hover:text-primary transition-colors">
+                Aviso Legal
+              </Link>
+              <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                Privacidad
+              </Link>
+              <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+                Términos
+              </Link>
+              <Link to="/cookies" className="text-muted-foreground hover:text-primary transition-colors">
+                Cookies
+              </Link>
+            </nav>
+          </div>
         </div>
       </div>
     </footer>
