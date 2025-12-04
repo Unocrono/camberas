@@ -419,40 +419,7 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
             </div>
           )}
-          {/* Distance overlay - fullscreen */}
-          {totalDistance !== undefined && (
-            <div className="absolute bottom-4 left-4 right-4 z-10 bg-background/90 backdrop-blur-sm rounded-lg px-4 py-3 shadow-lg">
-              {/* Progress bar */}
-              <div className="mb-3">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-sm font-medium text-foreground">Progreso</span>
-                  <span className="text-sm font-bold text-primary">
-                    {Math.min(100, ((distanceTraveled || 0) / totalDistance * 100)).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(100, ((distanceTraveled || 0) / totalDistance * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex gap-6 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Recorrido</span>
-                  <div className="font-bold text-lg">{(distanceTraveled || 0).toFixed(2)} km</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Restante</span>
-                  <div className="font-bold text-lg">{Math.max(0, totalDistance - (distanceTraveled || 0)).toFixed(2)} km</div>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Total</span>
-                  <div className="font-bold text-lg">{totalDistance.toFixed(1)} km</div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Progress bar disabled - TODO: fix calculation issues */}
         </div>
       )}
 
@@ -485,30 +452,7 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
               <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
             </div>
           )}
-          {/* Distance overlay - mini */}
-          {totalDistance !== undefined && (
-            <div className="absolute bottom-2 left-2 right-2 z-10 bg-background/90 backdrop-blur-sm rounded px-2 py-1.5">
-              {/* Progress bar - mini */}
-              <div className="mb-1.5">
-                <div className="flex justify-between items-center mb-0.5">
-                  <span className="text-[10px] text-muted-foreground">Progreso</span>
-                  <span className="text-[10px] font-bold text-primary">
-                    {Math.min(100, ((distanceTraveled || 0) / totalDistance * 100)).toFixed(1)}%
-                  </span>
-                </div>
-                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all duration-500 ease-out"
-                    style={{ width: `${Math.min(100, ((distanceTraveled || 0) / totalDistance * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span><span className="text-muted-foreground">Recorrido:</span> <strong>{(distanceTraveled || 0).toFixed(2)} km</strong></span>
-                <span><span className="text-muted-foreground">Restante:</span> <strong>{Math.max(0, totalDistance - (distanceTraveled || 0)).toFixed(2)} km</strong></span>
-              </div>
-            </div>
-          )}
+          {/* Progress bar disabled - TODO: fix calculation issues */}
         </div>
       )}
     </>
