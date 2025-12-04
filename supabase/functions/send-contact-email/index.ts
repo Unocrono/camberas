@@ -49,9 +49,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Processing contact form:", { name, email: email.substring(0, 3) + "***", subject });
 
     // Enviar email al equipo de Camberas
-    // Usando onboarding@resend.dev porque el dominio camberas.com no está verificado en Resend
     const emailToSupport = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: ["soporte@camberas.com"],
       reply_to: email,
       subject: `[Contacto Web] ${subject}`,
@@ -66,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Enviar confirmación al usuario
     const confirmationEmail = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [email],
       subject: "Hemos recibido tu mensaje - Camberas",
       html: `
