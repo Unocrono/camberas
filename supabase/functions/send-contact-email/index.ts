@@ -50,7 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Enviar email al equipo de Camberas
     const emailToSupport = await resend.emails.send({
-      from: "Camberas Contact <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: ["soporte@camberas.com"],
       reply_to: email,
       subject: `[Contacto Web] ${subject}`,
@@ -65,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Enviar confirmación al usuario
     const confirmationEmail = await resend.emails.send({
-      from: "Camberas <onboarding@resend.dev>",
+      from: "Camberas <noreply@camberas.com>",
       to: [email],
       subject: "Hemos recibido tu mensaje - Camberas",
       html: `

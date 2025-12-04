@@ -151,6 +151,28 @@ const Auth = () => {
         // Don't fail the signup if email fails
       }
 
+      // Si es organizador, enviar notificación a soporte
+      if (isOrganizerSignup) {
+        try {
+          const { error: notifyError } = await supabase.functions.invoke('send-organizer-request-notification', {
+            body: {
+              organizerName: `${validatedData.first_name} ${validatedData.last_name}`,
+              organizerEmail: validatedData.email,
+              clubName: 'club' in validatedData ? validatedData.club : undefined,
+            },
+          });
+          
+          if (notifyError) {
+            console.error("Error sending organizer notification:", notifyError);
+          } else {
+            console.log("Organizer request notification sent successfully");
+          }
+        } catch (notifyErr) {
+          console.error("Failed to send organizer notification:", notifyErr);
+          // Don't fail the signup if notification fails
+        }
+      }
+
       toast({
         title: "¡Cuenta creada!",
         description: isOrganizerSignup 
