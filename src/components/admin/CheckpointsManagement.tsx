@@ -51,6 +51,7 @@ interface Checkpoint {
   longitude: number | null;
   timing_point_id: string | null;
   checkpoint_type: string;
+  geofence_radius: number | null;
 }
 
 interface RaceDistance {
@@ -126,6 +127,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     latitude: "",
     longitude: "",
     timing_point_id: "",
+    geofence_radius: 50,
   });
 
   useEffect(() => {
@@ -712,6 +714,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       latitude: "",
       longitude: "",
       timing_point_id: "",
+      geofence_radius: 50,
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -727,6 +730,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         latitude: checkpoint.latitude?.toString() || "",
         longitude: checkpoint.longitude?.toString() || "",
         timing_point_id: checkpoint.timing_point_id || "",
+        geofence_radius: checkpoint.geofence_radius || 50,
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -758,6 +762,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           latitude,
           longitude,
           timing_point_id,
+          geofence_radius: formData.geofence_radius,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -781,6 +786,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           latitude,
           longitude,
           timing_point_id,
+          geofence_radius: formData.geofence_radius,
         });
 
       if (error) {
@@ -1380,6 +1386,21 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       Vincula este checkpoint a un lugar físico de cronometraje
                     </p>
                   </div>
+                  {/* Radio GPS para Geofencing */}
+                  <div>
+                    <Label htmlFor="geofence_radius">Radio GPS (metros)</Label>
+                    <Input
+                      id="geofence_radius"
+                      type="number"
+                      min="10"
+                      max="200"
+                      value={formData.geofence_radius}
+                      onChange={(e) => setFormData({ ...formData, geofence_radius: parseInt(e.target.value) || 50 })}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Radio para detección automática de paso por GPS (10-200m, recomendado: 50m)
+                    </p>
+                  </div>
                   <Button type="submit" className="w-full">
                     {isEditing ? "Guardar Cambios" : "Crear Punto de Control"}
                   </Button>
@@ -1435,10 +1456,15 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     </TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
-                        <Badge variant="secondary" className="text-xs">
-                          <Navigation className="h-3 w-3 mr-1" />
-                          {checkpoint.latitude.toFixed(4)}, {checkpoint.longitude.toFixed(4)}
-                        </Badge>
+                        <div className="flex flex-col items-center gap-1">
+                          <Badge variant="secondary" className="text-xs">
+                            <Navigation className="h-3 w-3 mr-1" />
+                            {checkpoint.latitude.toFixed(4)}, {checkpoint.longitude.toFixed(4)}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Radio: {checkpoint.geofence_radius || 50}m
+                          </span>
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}

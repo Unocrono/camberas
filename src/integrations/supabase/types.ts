@@ -339,6 +339,7 @@ export type Database = {
           checkpoint_type: string
           created_at: string
           distance_km: number
+          geofence_radius: number | null
           id: string
           latitude: number | null
           longitude: number | null
@@ -354,6 +355,7 @@ export type Database = {
           checkpoint_type?: string
           created_at?: string
           distance_km: number
+          geofence_radius?: number | null
           id?: string
           latitude?: number | null
           longitude?: number | null
@@ -369,6 +371,7 @@ export type Database = {
           checkpoint_type?: string
           created_at?: string
           distance_km?: number
+          geofence_radius?: number | null
           id?: string
           latitude?: number | null
           longitude?: number | null
