@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, Radio } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, Radio, Users, Clock, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface RaceResult {
@@ -57,6 +58,18 @@ interface TimingReading {
   } | null;
 }
 
+interface RaceStats {
+  totalRegistrations: number;
+  runnersOnRoute: number;
+  finishedCount: number;
+  totalCheckpointPasses: number;
+  gpsPasses: number;
+  manualPasses: number;
+  avgFinishTime: string | null;
+}
+
+type ReadingFilter = 'all' | 'gps' | 'manual' | 'automatic';
+
 export default function LiveResults() {
   const { id } = useParams();
   const [race, setRace] = useState<Race | null>(null);
@@ -66,6 +79,16 @@ export default function LiveResults() {
   const [loading, setLoading] = useState(true);
   const [newResultIds, setNewResultIds] = useState<Set<string>>(new Set());
   const [newReadingIds, setNewReadingIds] = useState<Set<string>>(new Set());
+  const [stats, setStats] = useState<RaceStats>({
+    totalRegistrations: 0,
+    runnersOnRoute: 0,
+    finishedCount: 0,
+    totalCheckpointPasses: 0,
+    gpsPasses: 0,
+    manualPasses: 0,
+    avgFinishTime: null
+  });
+  const [readingFilter, setReadingFilter] = useState<ReadingFilter>('all');
 
   const fetchRaceData = async () => {
     if (!id) return;
@@ -194,7 +217,7 @@ export default function LiveResults() {
         .eq("race_id", id)
         .is("status_code", null)
         .order("timing_timestamp", { ascending: false })
-        .limit(15);
+        .limit(50);
 
       if (!readingsError && readingsData) {
         // Fetch profiles for readings
@@ -229,6 +252,51 @@ export default function LiveResults() {
           setRecentReadings(formattedReadings as TimingReading[]);
         }
       }
+
+      // Fetch stats
+      const [registrationsCount, finishedResults, allReadingsCount] = await Promise.all([
+        supabase.from("registrations").select("id", { count: 'exact', head: true }).eq("race_id", id).eq("status", "confirmed"),
+        supabase.from("race_results").select("finish_time, registration:registrations!inner(race_id)").eq("registration.race_id", id).eq("status", "finished"),
+        supabase.from("timing_readings").select("reading_type", { count: 'exact' }).eq("race_id", id).is("status_code", null)
+      ]);
+
+      const totalRegs = registrationsCount.count || 0;
+      const finishedCount = finishedResults.data?.length || 0;
+      const runnersOnRoute = totalRegs - finishedCount;
+
+      // Count by reading type
+      const gpsPasses = readingsData?.filter((r: any) => r.reading_type === 'gps_auto').length || 0;
+      const manualPasses = readingsData?.filter((r: any) => r.reading_type === 'manual').length || 0;
+
+      // Calculate average finish time
+      let avgFinishTime: string | null = null;
+      if (finishedResults.data && finishedResults.data.length > 0) {
+        const times = finishedResults.data.map((r: any) => {
+          const match = r.finish_time?.match(/(\d{2}):(\d{2}):(\d{2})/);
+          if (match) {
+            return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
+          }
+          return 0;
+        }).filter((t: number) => t > 0);
+        
+        if (times.length > 0) {
+          const avgSeconds = Math.round(times.reduce((a: number, b: number) => a + b, 0) / times.length);
+          const hours = Math.floor(avgSeconds / 3600);
+          const minutes = Math.floor((avgSeconds % 3600) / 60);
+          const seconds = avgSeconds % 60;
+          avgFinishTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+      }
+
+      setStats({
+        totalRegistrations: totalRegs,
+        runnersOnRoute,
+        finishedCount,
+        totalCheckpointPasses: allReadingsCount.count || 0,
+        gpsPasses,
+        manualPasses,
+        avgFinishTime
+      });
     } catch (error) {
       console.error("Error fetching race data:", error);
       toast.error("Failed to load race results");
@@ -386,6 +454,64 @@ export default function LiveResults() {
           </p>
         </div>
 
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-blue-500 mb-1">
+                <Users className="h-4 w-4" />
+                <span className="text-xs font-medium">Inscritos</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.totalRegistrations}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-green-500 mb-1">
+                <Activity className="h-4 w-4" />
+                <span className="text-xs font-medium">En Ruta</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.runnersOnRoute}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-amber-500 mb-1">
+                <Trophy className="h-4 w-4" />
+                <span className="text-xs font-medium">Finalizados</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.finishedCount}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border-purple-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-purple-500 mb-1">
+                <MapPin className="h-4 w-4" />
+                <span className="text-xs font-medium">Pasos Checkpoint</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.totalCheckpointPasses}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border-cyan-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-cyan-500 mb-1">
+                <Satellite className="h-4 w-4" />
+                <span className="text-xs font-medium">GPS / Manual</span>
+              </div>
+              <p className="text-2xl font-bold">{stats.gpsPasses} / {stats.manualPasses}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-rose-500/10 to-rose-600/5 border-rose-500/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-rose-500 mb-1">
+                <Clock className="h-4 w-4" />
+                <span className="text-xs font-medium">Tiempo Medio</span>
+              </div>
+              <p className="text-xl font-bold font-mono">{stats.avgFinishTime || '--:--:--'}</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top 10 Rankings */}
           <Card>
@@ -522,7 +648,7 @@ export default function LiveResults() {
 
         {/* Recent Checkpoint Passes */}
         <Card className="mt-6">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
               Pasos por Checkpoints
@@ -531,10 +657,30 @@ export default function LiveResults() {
                 En vivo
               </Badge>
             </CardTitle>
+            <Select value={readingFilter} onValueChange={(value: ReadingFilter) => setReadingFilter(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtrar por tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tiempos</SelectItem>
+                <SelectItem value="gps">Solo GPS</SelectItem>
+                <SelectItem value="manual">Solo Manuales</SelectItem>
+                <SelectItem value="automatic">Solo RFID</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recentReadings.map((reading, index) => (
+              {recentReadings
+                .filter(reading => {
+                  if (readingFilter === 'all') return true;
+                  if (readingFilter === 'gps') return reading.reading_type === 'gps_auto';
+                  if (readingFilter === 'manual') return reading.reading_type === 'manual';
+                  if (readingFilter === 'automatic') return reading.reading_type === 'automatic';
+                  return true;
+                })
+                .slice(0, 15)
+                .map((reading, index) => (
                 <div
                   key={reading.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border bg-card transition-all duration-500 ${
@@ -600,9 +746,17 @@ export default function LiveResults() {
                 </div>
               ))}
               
-              {recentReadings.length === 0 && (
+              {recentReadings.filter(reading => {
+                  if (readingFilter === 'all') return true;
+                  if (readingFilter === 'gps') return reading.reading_type === 'gps_auto';
+                  if (readingFilter === 'manual') return reading.reading_type === 'manual';
+                  if (readingFilter === 'automatic') return reading.reading_type === 'automatic';
+                  return true;
+                }).length === 0 && (
                 <p className="col-span-full text-center text-muted-foreground py-8">
-                  No hay pasos registrados aún. Los tiempos aparecerán aquí en tiempo real.
+                  {readingFilter === 'all' 
+                    ? 'No hay pasos registrados aún. Los tiempos aparecerán aquí en tiempo real.'
+                    : `No hay tiempos ${readingFilter === 'gps' ? 'GPS' : readingFilter === 'manual' ? 'manuales' : 'RFID'} registrados.`}
                 </p>
               )}
             </div>
