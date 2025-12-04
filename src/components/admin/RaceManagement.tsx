@@ -400,7 +400,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     className="flex-1 flex items-center justify-center gap-2"
                   >
                     <Mountain className="h-4 w-4" />
-                    Trail Running
+                    Trail
                   </Button>
                   <Button
                     type="button"

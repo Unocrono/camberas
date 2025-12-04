@@ -40,7 +40,7 @@ serve(async (req: Request): Promise<Response> => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 30px; text-align: center;">
             <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Camberas</h1>
-            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail Running y Montaña</p>
+            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail y Montaña</p>
           </div>
           
           <div style="padding: 40px 30px;">
@@ -93,13 +93,13 @@ serve(async (req: Request): Promise<Response> => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
           <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 30px; text-align: center;">
             <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Camberas</h1>
-            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail Running y Montaña</p>
+            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail y Montaña</p>
           </div>
           
           <div style="padding: 40px 30px;">
             <h2 style="color: #1f2937; margin-top: 0;">¡Bienvenido/a, ${userName}!</h2>
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
-              Tu cuenta en <strong>Camberas</strong> ha sido creada exitosamente. Ya puedes empezar a explorar las mejores carreras de trail running y montaña en España.
+              Tu cuenta en <strong>Camberas</strong> ha sido creada exitosamente. Ya puedes empezar a explorar las mejores carreras de trail y montaña en España.
             </p>
             
             <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb;">

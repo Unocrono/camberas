@@ -560,7 +560,7 @@ const RaceDetail = () => {
             <CardHeader>
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge variant="secondary" className="text-base py-1">
-                  Trail Running
+                  Trail
                 </Badge>
               </div>
               <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>

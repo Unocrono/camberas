@@ -85,7 +85,7 @@ const TimingShop = () => {
               Alquiler de Sistemas de Cronometraje
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Equipos profesionales de cronometraje RFID para tu carrera de trail running. Precisión, fiabilidad y
+              Equipos profesionales de cronometraje RFID para tu carrera de trail. Precisión, fiabilidad y
               resultados en tiempo real.
             </p>
           </div>

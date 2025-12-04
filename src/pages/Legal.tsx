@@ -37,7 +37,7 @@ const Legal = () => {
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-foreground mb-4">2. Objeto y Ámbito de Aplicación</h2>
               <p className="text-muted-foreground">
-                El presente Aviso Legal regula el uso del sitio web camberas.com (en adelante, "la Plataforma"), así como de sus subdominios y aplicaciones asociadas. La Plataforma tiene como finalidad principal ofrecer servicios de gestión de inscripciones, cronometraje y seguimiento para carreras de montaña, trail running y ciclismo de montaña.
+                El presente Aviso Legal regula el uso del sitio web camberas.com (en adelante, "la Plataforma"), así como de sus subdominios y aplicaciones asociadas. La Plataforma tiene como finalidad principal ofrecer servicios de gestión de inscripciones, cronometraje y seguimiento para carreras de montaña, trail y ciclismo de montaña.
               </p>
             </section>
 

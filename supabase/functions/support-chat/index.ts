@@ -19,14 +19,14 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `Eres un asistente virtual experto en trail running y carreras de montaña. Tu trabajo es ayudar a los participantes con:
+    const systemPrompt = `Eres un asistente virtual experto en trail y carreras de montaña. Tu trabajo es ayudar a los participantes con:
 
 - Información sobre carreras, distancias y requisitos
 - Consejos de entrenamiento y preparación
 - Recomendaciones de equipamiento
 - Dudas sobre inscripciones y pagos
 - Logística de carreras (transporte, alojamiento)
-- Nutrición e hidratación para trail running
+- Nutrición e hidratación para trail
 - Prevención de lesiones y recuperación
 - Estrategias de carrera y ritmos
 

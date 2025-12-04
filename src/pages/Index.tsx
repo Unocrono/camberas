@@ -86,7 +86,7 @@ const Index = () => {
         <div className="absolute inset-0">
           <img 
             src={heroImage} 
-            alt="Trail running" 
+            alt="Trail" 
             className="w-full h-full object-cover" 
             loading="eager"
             fetchPriority="high"
@@ -98,7 +98,7 @@ const Index = () => {
         <div className="relative z-10 container mx-auto px-4 text-center">
           <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6">Camberas</h1>
           <p className="text-xl md:text-2xl text-primary-foreground/90 mb-8 max-w-3xl mx-auto">
-            La plataforma integral para deportistas y organizadores de <span className="font-semibold">Trail Running</span> y <span className="font-semibold">MTB</span>
+            La plataforma integral para deportistas y organizadores de <span className="font-semibold">Trail</span> y <span className="font-semibold">MTB</span>
           </p>
 
           {/* Two Main Sections */}
@@ -177,7 +177,7 @@ const Index = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
                 <Mountain className="h-8 w-8 text-primary-foreground" />
               </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">Trail Running</h3>
+              <h3 className="text-xl font-bold mb-3 text-foreground">Trail</h3>
               <p className="text-muted-foreground">Descubre rutas espectaculares en las mejores montañas de España</p>
             </div>
 
