@@ -21,7 +21,8 @@ import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement"
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
-import { Loader2 } from "lucide-react";
+import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
@@ -36,6 +37,7 @@ const OrganizerDashboard = () => {
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [races, setRaces] = useState<Array<{ id: string; name: string; date: string; race_type: string }>>([]);
   const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -155,43 +157,57 @@ const OrganizerDashboard = () => {
             </div>
             
             {currentView !== "races" && races.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 px-4 md:px-6 pb-3">
-                <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                  Carrera:
-                </label>
-                <select
-                  id="race-selector"
-                  value={selectedRaceId}
-                  onChange={(e) => setSelectedRaceId(e.target.value)}
-                  className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
+              <div className="px-4 md:px-6 pb-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="md:hidden mb-2 w-full justify-between"
+                  onClick={() => setFiltersExpanded(!filtersExpanded)}
                 >
-                  <option value="">Selecciona</option>
-                  {races.map((race) => (
-                    <option key={race.id} value={race.id}>
-                      {race.name}
-                    </option>
-                  ))}
-                </select>
-                {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
-                  <>
-                    <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                      Evento:
-                    </label>
-                    <select
-                      id="distance-selector"
-                      value={selectedDistanceId}
-                      onChange={(e) => setSelectedDistanceId(e.target.value)}
-                      className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
-                    >
-                      <option value="">Todos los eventos</option>
-                      {distances.map((distance) => (
-                        <option key={distance.id} value={distance.id}>
-                          {distance.name} ({distance.distance_km}km)
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
+                  <span className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filtros
+                  </span>
+                  {filtersExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </Button>
+                <div className={`flex flex-wrap items-center gap-2 ${filtersExpanded ? 'flex' : 'hidden md:flex'}`}>
+                  <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Carrera:
+                  </label>
+                  <select
+                    id="race-selector"
+                    value={selectedRaceId}
+                    onChange={(e) => setSelectedRaceId(e.target.value)}
+                    className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
+                  >
+                    <option value="">Selecciona</option>
+                    {races.map((race) => (
+                      <option key={race.id} value={race.id}>
+                        {race.name}
+                      </option>
+                    ))}
+                  </select>
+                  {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
+                    <>
+                      <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                        Evento:
+                      </label>
+                      <select
+                        id="distance-selector"
+                        value={selectedDistanceId}
+                        onChange={(e) => setSelectedDistanceId(e.target.value)}
+                        className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
+                      >
+                        <option value="">Todos los eventos</option>
+                        {distances.map((distance) => (
+                          <option key={distance.id} value={distance.id}>
+                            {distance.name} ({distance.distance_km}km)
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </header>
