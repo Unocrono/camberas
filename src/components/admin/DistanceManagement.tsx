@@ -45,6 +45,7 @@ interface Distance {
   next_bib: number | null;
   gps_tracking_enabled: boolean | null;
   gps_update_frequency: number | null;
+  show_route_map: boolean | null;
 }
 
 interface Race {
@@ -85,6 +86,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     next_bib: "",
     gps_tracking_enabled: false,
     gps_update_frequency: "30",
+    show_route_map: true,
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -184,6 +186,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         next_bib: distance.next_bib?.toString() || "",
         gps_tracking_enabled: distance.gps_tracking_enabled ?? false,
         gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
+        show_route_map: distance.show_route_map ?? true,
       });
     } else {
       setEditingDistance(null);
@@ -204,6 +207,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         next_bib: "",
         gps_tracking_enabled: false,
         gps_update_frequency: "30",
+        show_route_map: true,
       });
     }
     setImageFile(null);
@@ -325,6 +329,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         next_bib: nextBib,
         gps_tracking_enabled: formData.gps_tracking_enabled,
         gps_update_frequency: parseInt(formData.gps_update_frequency) || 30,
+        show_route_map: formData.show_route_map,
       };
 
       if (editingDistance) {
@@ -712,6 +717,23 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   id="is_visible_distance"
                   checked={formData.is_visible}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="show_route_map" className="flex items-center gap-2">
+                    <Route className="h-4 w-4" />
+                    Mostrar mapa de recorrido
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Muestra el botón "Ver Recorrido" en la página del evento (requiere GPX importado en rutómetro)
+                  </p>
+                </div>
+                <Switch
+                  id="show_route_map"
+                  checked={formData.show_route_map}
+                  onCheckedChange={(checked) => setFormData({ ...formData, show_route_map: checked })}
                 />
               </div>
 

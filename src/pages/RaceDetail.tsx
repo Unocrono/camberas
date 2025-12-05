@@ -732,7 +732,7 @@ const RaceDetail = () => {
                         {/* GPX View, Roadbook & Download */}
                         {(distance.gpx_file_url || (roadbooks[distance.id] && roadbooks[distance.id].length > 0)) && (
                           <div className="space-y-2">
-                            {distance.gpx_file_url && (
+                            {distance.gpx_file_url && distance.show_route_map !== false && (
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button 

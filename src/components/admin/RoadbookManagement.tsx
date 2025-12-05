@@ -542,9 +542,35 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       const gpxContent = await file.text();
       const itemCount = await createRoadbookFromGpx(gpxContent);
       
+      // Upload GPX file to storage and update distance
+      if (distanceInfo) {
+        const fileName = `${distanceInfo.race_id}/${distanceInfo.id}-${Date.now()}.gpx`;
+        const { error: uploadError } = await supabase.storage
+          .from('race-gpx')
+          .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+        if (!uploadError) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('race-gpx')
+            .getPublicUrl(fileName);
+
+          // Update distance with GPX URL and enable map display
+          await supabase
+            .from('race_distances')
+            .update({ 
+              gpx_file_url: publicUrl,
+              show_route_map: true 
+            })
+            .eq('id', distanceId);
+
+          // Update local state
+          setDistanceInfo(prev => prev ? { ...prev, gpx_file_url: publicUrl } : null);
+        }
+      }
+      
       toast({ 
         title: "GPX importado", 
-        description: `Se han creado ${itemCount} puntos en el rutómetro` 
+        description: `Se han creado ${itemCount} puntos en el rutómetro y se ha habilitado la visualización del mapa` 
       });
       
       // Refresh data
