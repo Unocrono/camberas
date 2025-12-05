@@ -419,6 +419,7 @@ export type Database = {
           next_bib: number | null
           price: number
           race_id: string
+          show_route_map: boolean | null
           start_location: string | null
           updated_at: string
         }
@@ -441,6 +442,7 @@ export type Database = {
           next_bib?: number | null
           price: number
           race_id: string
+          show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
         }
@@ -463,6 +465,7 @@ export type Database = {
           next_bib?: number | null
           price?: number
           race_id?: string
+          show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
         }
