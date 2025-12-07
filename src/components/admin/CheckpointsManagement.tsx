@@ -128,6 +128,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     longitude: "",
     timing_point_id: "",
     geofence_radius: 50,
+    checkpoint_type: "STANDARD",
   });
 
   useEffect(() => {
@@ -715,6 +716,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       longitude: "",
       timing_point_id: "",
       geofence_radius: 50,
+      checkpoint_type: "STANDARD",
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -731,6 +733,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         longitude: checkpoint.longitude?.toString() || "",
         timing_point_id: checkpoint.timing_point_id || "",
         geofence_radius: checkpoint.geofence_radius || 50,
+        checkpoint_type: checkpoint.checkpoint_type || "STANDARD",
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -763,6 +766,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           longitude,
           timing_point_id,
           geofence_radius: formData.geofence_radius,
+          checkpoint_type: formData.checkpoint_type,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -787,6 +791,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           longitude,
           timing_point_id,
           geofence_radius: formData.geofence_radius,
+          checkpoint_type: formData.checkpoint_type,
         });
 
       if (error) {
@@ -1310,6 +1315,22 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                         required
                       />
                     </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="checkpoint_type">Tipo de Punto</Label>
+                    <select
+                      id="checkpoint_type"
+                      value={formData.checkpoint_type}
+                      onChange={(e) => setFormData({ ...formData, checkpoint_type: e.target.value })}
+                      className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    >
+                      <option value="START">Salida (START)</option>
+                      <option value="STANDARD">Intermedio (STANDARD)</option>
+                      <option value="FINISH">Meta (FINISH)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      FINISH se usa para calcular resultados finales
+                    </p>
                   </div>
                   <div className="border-t pt-4">
                     <div className="flex items-center justify-between mb-3">
