@@ -365,9 +365,21 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
+        // Sync start_time with associated wave
+        if (startTime) {
+          const { error: waveError } = await supabase
+            .from("race_waves")
+            .update({ start_time: startTime })
+            .eq("race_distance_id", editingDistance.id);
+
+          if (waveError) {
+            console.error("Error updating wave start_time:", waveError);
+          }
+        }
+
         toast({
           title: "Distancia actualizada",
-          description: "La distancia se ha actualizado exitosamente",
+          description: "La distancia y hora de salida se han actualizado exitosamente",
         });
       } else {
         const { error } = await supabase
