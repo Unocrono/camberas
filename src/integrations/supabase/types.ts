@@ -609,7 +609,7 @@ export type Database = {
           notes: string | null
           overall_position: number | null
           photo_url: string | null
-          race_distance_id: string | null
+          race_distance_id: string
           registration_id: string
           status: string
           updated_at: string
@@ -623,7 +623,7 @@ export type Database = {
           notes?: string | null
           overall_position?: number | null
           photo_url?: string | null
-          race_distance_id?: string | null
+          race_distance_id: string
           registration_id: string
           status?: string
           updated_at?: string
@@ -637,7 +637,7 @@ export type Database = {
           notes?: string | null
           overall_position?: number | null
           photo_url?: string | null
-          race_distance_id?: string | null
+          race_distance_id?: string
           registration_id?: string
           status?: string
           updated_at?: string
@@ -1743,6 +1743,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_race_results: {
+        Args: { p_race_distance_id: string }
+        Returns: {
+          bib_number: number
+          finish_checkpoint_id: string
+          finish_checkpoint_name: string
+          finish_time: unknown
+          registration_id: string
+        }[]
+      }
       get_organizer_requests: {
         Args: never
         Returns: {
@@ -1775,6 +1785,14 @@ export type Database = {
       is_timer_for_race: {
         Args: { _race_id: string; _user_id: string }
         Returns: boolean
+      }
+      process_event_results: {
+        Args: { p_race_distance_id: string }
+        Returns: {
+          finished_count: number
+          in_progress_count: number
+          processed_count: number
+        }[]
       }
       seed_default_registration_fields: {
         Args: { p_race_id: string }
