@@ -1753,6 +1753,10 @@ export type Database = {
           registration_id: string
         }[]
       }
+      get_age_category: {
+        Args: { p_birth_date: string; p_gender: string; p_race_date: string }
+        Returns: string
+      }
       get_organizer_requests: {
         Args: never
         Returns: {
