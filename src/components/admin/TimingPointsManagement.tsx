@@ -102,6 +102,7 @@ function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </Button>
       </TableCell>
+      <TableCell className="w-16 text-center font-medium">{point.point_order}</TableCell>
       <TableCell className="font-medium">{point.name}</TableCell>
       <TableCell className="text-muted-foreground text-sm">
         {point.notes || "-"}
@@ -160,6 +161,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     notes: "",
     latitude: "",
     longitude: "",
+    point_order: "",
   });
 
   const sensors = useSensors(
@@ -406,6 +408,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       notes: "",
       latitude: "",
       longitude: "",
+      point_order: "",
     });
     setSelectedPoint(null);
     setIsEditing(false);
@@ -418,11 +421,24 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
         notes: point.notes || "",
         latitude: point.latitude?.toString() || "",
         longitude: point.longitude?.toString() || "",
+        point_order: point.point_order?.toString() || "",
       });
       setSelectedPoint(point);
       setIsEditing(true);
     } else {
-      resetForm();
+      // Set next order for new point
+      const maxOrder = timingPoints.length > 0 
+        ? Math.max(...timingPoints.map(p => p.point_order)) 
+        : 0;
+      setFormData({
+        name: "",
+        notes: "",
+        latitude: "",
+        longitude: "",
+        point_order: (maxOrder + 1).toString(),
+      });
+      setSelectedPoint(null);
+      setIsEditing(false);
     }
     setIsDialogOpen(true);
   };
@@ -432,6 +448,17 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
 
     const latitude = formData.latitude ? parseFloat(formData.latitude) : null;
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
+    const pointOrder = formData.point_order ? parseInt(formData.point_order) : 1;
+
+    // Check for duplicate order (excluding current point if editing)
+    const existingWithOrder = timingPoints.find(
+      p => p.point_order === pointOrder && (!isEditing || p.id !== selectedPoint?.id)
+    );
+    
+    if (existingWithOrder) {
+      toast.error(`El orden ${pointOrder} ya está en uso por "${existingWithOrder.name}"`);
+      return;
+    }
 
     if (isEditing && selectedPoint) {
       const { error } = await supabase
@@ -441,6 +468,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
           notes: formData.notes || null,
           latitude,
           longitude,
+          point_order: pointOrder,
         })
         .eq("id", selectedPoint.id);
 
@@ -451,11 +479,6 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       }
       toast.success("Punto de cronometraje actualizado");
     } else {
-      // Get max order for new point
-      const maxOrder = timingPoints.length > 0 
-        ? Math.max(...timingPoints.map(p => p.point_order)) 
-        : 0;
-
       const { error } = await supabase
         .from("timing_points")
         .insert({
@@ -464,7 +487,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
           notes: formData.notes || null,
           latitude,
           longitude,
-          point_order: maxOrder + 1,
+          point_order: pointOrder,
         });
 
       if (error) {
@@ -592,6 +615,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-10"></TableHead>
+                  <TableHead className="w-16 text-center">Orden</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead>Coordenadas</TableHead>
@@ -630,17 +654,33 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
             </DialogHeader>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="Ej: Plaza Mayor, Meta, Km 10..."
-                  required
-                />
+              <div className="grid grid-cols-4 gap-4">
+                <div className="col-span-3 space-y-2">
+                  <Label htmlFor="name">Nombre *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="Ej: Plaza Mayor, Meta, Km 10..."
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="point_order">Orden *</Label>
+                  <Input
+                    id="point_order"
+                    type="number"
+                    min="1"
+                    value={formData.point_order}
+                    onChange={(e) =>
+                      setFormData({ ...formData, point_order: e.target.value })
+                    }
+                    placeholder="1"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

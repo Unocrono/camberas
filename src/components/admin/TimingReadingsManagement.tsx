@@ -189,9 +189,9 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     try {
       const { data, error } = await supabase
         .from("timing_points")
-        .select("id, name")
+        .select("id, name, point_order")
         .eq("race_id", raceId)
-        .order("name", { ascending: true });
+        .order("point_order", { ascending: true });
       
       if (error) throw error;
       setTimingPoints(data || []);
