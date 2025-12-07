@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -1462,7 +1462,19 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     <TableCell className="text-muted-foreground">{checkpoint.lugar || "-"}</TableCell>
                     <TableCell className="text-right">{checkpoint.distance_km.toFixed(3)}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge 
+                        variant="secondary" 
+                        className={`text-xs flex items-center gap-1 w-fit ${
+                          checkpoint.checkpoint_type === 'START' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                            : checkpoint.checkpoint_type === 'FINISH' 
+                              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' 
+                              : ''
+                        }`}
+                      >
+                        {checkpoint.checkpoint_type === 'START' && <Flag className="h-3 w-3" />}
+                        {checkpoint.checkpoint_type === 'FINISH' && <FlagTriangleRight className="h-3 w-3" />}
+                        {checkpoint.checkpoint_type === 'STANDARD' && <MapPin className="h-3 w-3" />}
                         {checkpoint.checkpoint_type || "STANDARD"}
                       </Badge>
                     </TableCell>
