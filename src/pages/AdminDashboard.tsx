@@ -27,10 +27,11 @@ import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsM
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { RaceResultsStatusManagement } from "@/components/admin/RaceResultsStatusManagement";
+import { WavesManagement } from "@/components/admin/WavesManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -260,6 +261,7 @@ const AdminDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "waves" && <WavesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results-status" && <RaceResultsStatusManagement />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}

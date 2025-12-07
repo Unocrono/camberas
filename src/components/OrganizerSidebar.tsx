@@ -43,7 +43,6 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Gestión de Carreras", view: "races", icon: Calendar },
       { title: "Distancias", view: "distances", icon: Route },
-      { title: "Oleadas de Salida", view: "waves", icon: Flag },
       { title: "Reglamento", view: "regulations", icon: Scale },
     ],
   },
@@ -66,6 +65,7 @@ const menuGroups: MenuGroup[] = [
   {
     label: "⏱️ Cronometraje",
     items: [
+      { title: "Horas de Salida", view: "waves", icon: Flag },
       { title: "Cronometradores", view: "timer-assignments", icon: UserCog },
       { title: "Resultados", view: "results", icon: Trophy },
       { title: "Tiempos Parciales", view: "splits", icon: Timer },

@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-type AdminView = "races" | "distances" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -66,8 +66,9 @@ const menuGroups: MenuGroup[] = [
   {
     label: "⏱️ Cronometraje",
     items: [
+      { title: "Horas de Salida", view: "waves", icon: Flag },
       { title: "Resultados", view: "results", icon: Trophy },
-      { title: "Estados de Resultado", view: "results-status", icon: Flag },
+      { title: "Estados de Resultado", view: "results-status", icon: Tag },
       { title: "Tiempos Parciales", view: "splits", icon: Timer },
       { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
       { title: "Cronometradores", view: "timer-assignments", icon: AlarmClock },
