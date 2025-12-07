@@ -421,6 +421,7 @@ export type Database = {
           race_id: string
           show_route_map: boolean | null
           start_location: string | null
+          start_time: string | null
           updated_at: string
         }
         Insert: {
@@ -444,6 +445,7 @@ export type Database = {
           race_id: string
           show_route_map?: boolean | null
           start_location?: string | null
+          start_time?: string | null
           updated_at?: string
         }
         Update: {
@@ -467,6 +469,7 @@ export type Database = {
           race_id?: string
           show_route_map?: boolean | null
           start_location?: string | null
+          start_time?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -33,6 +33,7 @@ interface Distance {
   elevation_gain: number | null;
   price: number;
   max_participants: number | null;
+  start_time: string | null;
   cutoff_time: string | null;
   start_location: string | null;
   finish_location: string | null;
@@ -76,6 +77,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     elevation_gain: "",
     price: "",
     max_participants: "",
+    start_date: "",
+    start_time_value: "",
     cutoff_time: "",
     start_location: "",
     finish_location: "",
@@ -169,6 +172,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const handleOpenDialog = (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
+      // Parse start_time into date and time
+      let startDate = "";
+      let startTimeValue = "";
+      if (distance.start_time) {
+        const dt = new Date(distance.start_time);
+        startDate = dt.toISOString().split('T')[0];
+        startTimeValue = dt.toTimeString().slice(0, 8); // HH:MM:SS
+      }
       setFormData({
         race_id: distance.race_id,
         name: distance.name,
@@ -176,6 +187,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         elevation_gain: distance.elevation_gain?.toString() || "",
         price: distance.price.toString(),
         max_participants: distance.max_participants?.toString() || "",
+        start_date: startDate,
+        start_time_value: startTimeValue,
         cutoff_time: distance.cutoff_time || "",
         start_location: distance.start_location || "",
         finish_location: distance.finish_location || "",
@@ -190,13 +203,18 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       });
     } else {
       setEditingDistance(null);
+      // Get default date from selected race
+      const selectedRace = races.find(r => r.id === selectedRaceId);
+      const defaultDate = selectedRace?.date || "";
       setFormData({
-        race_id: "",
+        race_id: selectedRaceId || "",
         name: "",
         distance_km: "",
         elevation_gain: "",
         price: "",
         max_participants: "",
+        start_date: defaultDate,
+        start_time_value: "",
         cutoff_time: "",
         start_location: "",
         finish_location: "",
@@ -312,6 +330,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         });
       }
 
+      // Build start_time from date and time
+      let startTime: string | null = null;
+      if (formData.start_date && formData.start_time_value) {
+        startTime = `${formData.start_date}T${formData.start_time_value}`;
+      }
+
       const distanceData = {
         race_id: formData.race_id,
         name: validatedData.name,
@@ -319,6 +343,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         elevation_gain: validatedData.elevation_gain || null,
         price: validatedData.price,
         max_participants: validatedData.max_participants || null,
+        start_time: startTime,
         cutoff_time: validatedData.cutoff_time || null,
         start_location: validatedData.start_location || null,
         finish_location: validatedData.finish_location || null,
@@ -439,7 +464,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 <Label htmlFor="race_id">Carrera *</Label>
                 <Select 
                   value={formData.race_id} 
-                  onValueChange={(value) => setFormData({ ...formData, race_id: value })}
+                  onValueChange={(value) => {
+                    const selectedRace = races.find(r => r.id === value);
+                    setFormData({ 
+                      ...formData, 
+                      race_id: value,
+                      start_date: formData.start_date || selectedRace?.date || ""
+                    });
+                  }}
                   disabled={!!editingDistance}
                 >
                   <SelectTrigger>
@@ -522,14 +554,50 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="cutoff_time">Tiempo Límite</Label>
-                <Input
-                  id="cutoff_time"
-                  placeholder="ej: 14 horas"
-                  value={formData.cutoff_time}
-                  onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
-                />
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Horarios
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="start_date">Fecha de Salida</Label>
+                    <Input
+                      id="start_date"
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Por defecto la fecha de la carrera
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="start_time_value">Hora de Salida</Label>
+                    <Input
+                      id="start_time_value"
+                      type="time"
+                      step="1"
+                      placeholder="HH:MM:SS"
+                      value={formData.start_time_value}
+                      onChange={(e) => setFormData({ ...formData, start_time_value: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cutoff_time">Tiempo Límite (HH:MM:SS)</Label>
+                  <Input
+                    id="cutoff_time"
+                    type="time"
+                    step="1"
+                    placeholder="HH:MM:SS"
+                    value={formData.cutoff_time}
+                    onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="space-y-4 border-t pt-4">
