@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRaceSelection } from "@/hooks/useRaceSelection";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { OrganizerSidebar } from "@/components/OrganizerSidebar";
+import { RaceSelectorHeader } from "@/components/admin/RaceSelectorHeader";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { WavesManagement } from "@/components/admin/WavesManagement";
@@ -34,11 +36,19 @@ const OrganizerDashboard = () => {
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<OrganizerView>("races");
-  const [selectedRaceId, setSelectedRaceId] = useState<string>("");
-  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
-  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string; race_type: string }>>([]);
-  const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  const {
+    selectedRaceId,
+    setSelectedRaceId,
+    selectedDistanceId,
+    setSelectedDistanceId,
+    races,
+    distances,
+    selectedRace,
+    loadingRaces,
+    clearSelection,
+  } = useRaceSelection({ type: "organizer", userId: user?.id });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -51,51 +61,6 @@ const OrganizerDashboard = () => {
       checkOrganizerRole();
     }
   }, [user]);
-
-  useEffect(() => {
-    if (isOrganizer && user) {
-      fetchRaces();
-    }
-  }, [isOrganizer, user]);
-
-  useEffect(() => {
-    if (selectedRaceId) {
-      fetchDistances();
-    } else {
-      setDistances([]);
-      setSelectedDistanceId("");
-    }
-  }, [selectedRaceId]);
-
-  const fetchRaces = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("races")
-        .select("id, name, date, race_type")
-        .eq("organizer_id", user!.id)
-        .order("date", { ascending: false });
-
-      if (error) throw error;
-      setRaces(data || []);
-    } catch (error: any) {
-      console.error("Error fetching races:", error);
-    }
-  };
-
-  const fetchDistances = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("race_distances")
-        .select("id, name, distance_km")
-        .eq("race_id", selectedRaceId)
-        .order("distance_km", { ascending: false });
-
-      if (error) throw error;
-      setDistances(data || []);
-    } catch (error: any) {
-      console.error("Error fetching distances:", error);
-    }
-  };
 
   const checkOrganizerRole = async () => {
     try {
@@ -145,6 +110,11 @@ const OrganizerDashboard = () => {
     return null;
   }
 
+  // Views that don't need race filter in the secondary bar
+  const viewsWithoutSecondaryFilter = ["races"];
+  const showSecondaryFilters = !viewsWithoutSecondaryFilter.includes(currentView) && distances.length > 0;
+  const needsDistanceFilter = ["roadbooks", "form-fields", "checkpoints", "splits"].includes(currentView);
+
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background">
@@ -155,9 +125,19 @@ const OrganizerDashboard = () => {
             <div className="flex items-center gap-4 px-4 md:px-6 h-16">
               <SidebarTrigger className="mr-2" />
               <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Organizador</h1>
+              <div className="ml-auto">
+                <RaceSelectorHeader
+                  races={races}
+                  selectedRaceId={selectedRaceId}
+                  selectedRace={selectedRace}
+                  onSelectRace={setSelectedRaceId}
+                  onClearSelection={clearSelection}
+                  loading={loadingRaces}
+                />
+              </div>
             </div>
             
-            {currentView !== "races" && races.length > 0 && (
+            {showSecondaryFilters && needsDistanceFilter && (
               <div className="px-4 md:px-6 pb-3">
                 <Button
                   variant="outline"
@@ -172,42 +152,22 @@ const OrganizerDashboard = () => {
                   {filtersExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
                 <div className={`flex flex-wrap items-center gap-2 ${filtersExpanded ? 'flex' : 'hidden md:flex'}`}>
-                  <label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                    Carrera:
+                  <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Evento:
                   </label>
                   <select
-                    id="race-selector"
-                    value={selectedRaceId}
-                    onChange={(e) => setSelectedRaceId(e.target.value)}
+                    id="distance-selector"
+                    value={selectedDistanceId}
+                    onChange={(e) => setSelectedDistanceId(e.target.value)}
                     className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                   >
-                    <option value="">Selecciona</option>
-                    {races.map((race) => (
-                      <option key={race.id} value={race.id}>
-                        {race.name}
+                    <option value="">Todos los eventos</option>
+                    {distances.map((distance) => (
+                      <option key={distance.id} value={distance.id}>
+                        {distance.name} ({distance.distance_km}km)
                       </option>
                     ))}
                   </select>
-                  {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
-                    <>
-                      <label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                        Evento:
-                      </label>
-                      <select
-                        id="distance-selector"
-                        value={selectedDistanceId}
-                        onChange={(e) => setSelectedDistanceId(e.target.value)}
-                        className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
-                      >
-                        <option value="">Todos los eventos</option>
-                        {distances.map((distance) => (
-                          <option key={distance.id} value={distance.id}>
-                            {distance.name} ({distance.distance_km}km)
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
                 </div>
               </div>
             )}
