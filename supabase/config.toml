@@ -23,3 +23,6 @@ verify_jwt = true
 
 [functions.admin-update-user]
 verify_jwt = true
+
+[functions.process-gps-geofence]
+verify_jwt = false
