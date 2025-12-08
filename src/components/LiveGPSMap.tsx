@@ -3,6 +3,9 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { X, User, MapPin } from 'lucide-react';
 
 interface RunnerPosition {
   id: string;
@@ -12,6 +15,14 @@ interface RunnerPosition {
   timestamp: string;
   bib_number: number | null;
   runner_name: string;
+}
+
+interface RunnerTrackPoint {
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  speed: number | null;
+  altitude: number | null;
 }
 
 interface Checkpoint {
@@ -54,6 +65,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [roadbookItems, setRoadbookItems] = useState<RoadbookItem[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  
+  // New state for runner track
+  const [selectedRunner, setSelectedRunner] = useState<RunnerPosition | null>(null);
+  const [runnerTrack, setRunnerTrack] = useState<RunnerTrackPoint[]>([]);
+  const [loadingTrack, setLoadingTrack] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -101,6 +117,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       map.current.removeSource('route');
     }
     
+    // Clear runner track
+    clearRunnerTrack();
+    
     // Clear existing checkpoint markers
     checkpointMarkers.current.forEach(marker => marker.remove());
     checkpointMarkers.current = [];
@@ -122,6 +141,116 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     const cleanup = setupRealtimeSubscription();
     return cleanup;
   }, [raceId, mapReady]);
+
+  // Load runner track when selected
+  useEffect(() => {
+    if (selectedRunner) {
+      fetchRunnerTrack(selectedRunner.registration_id);
+    } else {
+      clearRunnerTrack();
+    }
+  }, [selectedRunner]);
+
+  const clearRunnerTrack = () => {
+    if (!map.current) return;
+    
+    if (map.current.getLayer('runner-track')) {
+      map.current.removeLayer('runner-track');
+    }
+    if (map.current.getLayer('runner-track-points')) {
+      map.current.removeLayer('runner-track-points');
+    }
+    if (map.current.getSource('runner-track')) {
+      map.current.removeSource('runner-track');
+    }
+    setRunnerTrack([]);
+  };
+
+  const fetchRunnerTrack = async (registrationId: string) => {
+    setLoadingTrack(true);
+    try {
+      const { data, error } = await supabase
+        .from('gps_tracking')
+        .select('latitude, longitude, timestamp, speed, altitude')
+        .eq('registration_id', registrationId)
+        .eq('race_id', raceId)
+        .order('timestamp', { ascending: true });
+
+      if (error) throw error;
+
+      const trackPoints: RunnerTrackPoint[] = (data || []).map(point => ({
+        latitude: parseFloat(String(point.latitude)),
+        longitude: parseFloat(String(point.longitude)),
+        timestamp: point.timestamp,
+        speed: point.speed ? parseFloat(String(point.speed)) : null,
+        altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
+      }));
+
+      setRunnerTrack(trackPoints);
+      addRunnerTrackToMap(trackPoints);
+    } catch (error) {
+      console.error('Error fetching runner track:', error);
+    } finally {
+      setLoadingTrack(false);
+    }
+  };
+
+  const addRunnerTrackToMap = (trackPoints: RunnerTrackPoint[]) => {
+    if (!map.current || trackPoints.length === 0) return;
+
+    // Clear existing runner track
+    clearRunnerTrack();
+
+    const coordinates: [number, number][] = trackPoints.map(point => [point.longitude, point.latitude]);
+
+    // Add runner track as a line
+    map.current.addSource('runner-track', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates: coordinates,
+        },
+      },
+    });
+
+    map.current.addLayer({
+      id: 'runner-track',
+      type: 'line',
+      source: 'runner-track',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round',
+      },
+      paint: {
+        'line-color': '#3b82f6',
+        'line-width': 5,
+        'line-opacity': 0.9,
+      },
+    });
+
+    // Add dots for each GPS point
+    map.current.addLayer({
+      id: 'runner-track-points',
+      type: 'circle',
+      source: 'runner-track',
+      paint: {
+        'circle-radius': 4,
+        'circle-color': '#1d4ed8',
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#ffffff',
+      },
+    });
+
+    // Fit map to runner track
+    if (coordinates.length > 0) {
+      const bounds = new mapboxgl.LngLatBounds();
+      coordinates.forEach(coord => bounds.extend(coord));
+      map.current.fitBounds(bounds, { padding: 80 });
+    }
+  };
 
   const fetchCheckpoints = async () => {
     let query = supabase
@@ -479,6 +608,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         },
         () => {
           fetchInitialPositions();
+          // Also refresh runner track if one is selected
+          if (selectedRunner) {
+            fetchRunnerTrack(selectedRunner.registration_id);
+          }
         }
       )
       .subscribe();
@@ -504,6 +637,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
             </div>
           </div>
         `;
+        
+        // Add click handler to select runner
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          setSelectedRunner(position);
+        });
 
         marker = new mapboxgl.Marker(el)
           .setLngLat([position.longitude, position.latitude])
@@ -511,7 +650,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
             new mapboxgl.Popup({ offset: 25 }).setHTML(
               `<div class="p-2">
                 <strong>${position.runner_name}</strong><br/>
-                Dorsal: ${position.bib_number || 'N/A'}
+                Dorsal: ${position.bib_number || 'N/A'}<br/>
+                <button onclick="window.selectRunner && window.selectRunner('${position.registration_id}')" class="text-blue-500 underline text-sm mt-1">Ver recorrido</button>
               </div>`
             )
           )
@@ -533,9 +673,149 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     }
   };
 
+  // Expose selectRunner to window for popup button
+  useEffect(() => {
+    (window as any).selectRunner = (registrationId: string) => {
+      const runner = runnerPositions.find(r => r.registration_id === registrationId);
+      if (runner) setSelectedRunner(runner);
+    };
+    return () => {
+      delete (window as any).selectRunner;
+    };
+  }, [runnerPositions]);
+
+  const handleSelectRunner = (runner: RunnerPosition) => {
+    setSelectedRunner(runner);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedRunner(null);
+  };
+
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString('es-ES', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
+
   return (
-    <div className="relative w-full h-full min-h-[600px]">
-      <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+    <div className="relative w-full h-full min-h-[600px] flex">
+      {/* Runners Panel */}
+      <div className="w-64 bg-card border-r flex flex-col shrink-0">
+        <div className="p-3 border-b">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Corredores ({runnerPositions.length})
+          </h3>
+        </div>
+        
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1">
+            {runnerPositions.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-2 text-center">
+                No hay datos GPS disponibles
+              </p>
+            ) : (
+              runnerPositions.map((runner) => (
+                <button
+                  key={runner.registration_id}
+                  onClick={() => handleSelectRunner(runner)}
+                  className={`w-full text-left p-2 rounded-lg transition-colors ${
+                    selectedRunner?.registration_id === runner.registration_id
+                      ? 'bg-primary text-primary-foreground'
+                      : 'hover:bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      selectedRunner?.registration_id === runner.registration_id
+                        ? 'bg-primary-foreground text-primary'
+                        : 'bg-primary text-primary-foreground'
+                    }`}>
+                      {runner.bib_number || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{runner.runner_name}</p>
+                      <p className={`text-xs ${
+                        selectedRunner?.registration_id === runner.registration_id
+                          ? 'text-primary-foreground/80'
+                          : 'text-muted-foreground'
+                      }`}>
+                        {formatTime(runner.timestamp)}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Map Container */}
+      <div className="flex-1 relative">
+        <div ref={mapContainer} className="absolute inset-0 rounded-r-lg" />
+        
+        {/* Selected Runner Info Panel */}
+        {selectedRunner && (
+          <div className="absolute top-4 left-4 right-4 max-w-md bg-card rounded-lg shadow-lg border p-4 z-10">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
+                  {selectedRunner.bib_number || '?'}
+                </div>
+                <div>
+                  <h4 className="font-semibold">{selectedRunner.runner_name}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Dorsal #{selectedRunner.bib_number}
+                  </p>
+                </div>
+              </div>
+              <Button size="icon" variant="ghost" onClick={handleClearSelection}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {loadingTrack ? (
+              <p className="text-sm text-muted-foreground mt-3">Cargando recorrido...</p>
+            ) : runnerTrack.length > 0 ? (
+              <div className="mt-3 pt-3 border-t space-y-2">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-blue-500" />
+                    <span>{runnerTrack.length} puntos GPS</span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Inicio: {formatTime(runnerTrack[0].timestamp)}</span>
+                  <span>Último: {formatTime(runnerTrack[runnerTrack.length - 1].timestamp)}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-3">Sin datos de recorrido</p>
+            )}
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur rounded-lg shadow-lg border p-3 z-10">
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-1 bg-[#FF6B35] rounded" />
+              <span>Recorrido GPX</span>
+            </div>
+            {selectedRunner && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-1 bg-[#3b82f6] rounded" />
+                <span>Track del corredor</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       <style>{`
         .runner-marker {
           cursor: pointer;
