@@ -549,7 +549,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   const fetchInitialPositions = async () => {
-    const { data, error } = await supabase
+    // First, get the latest GPS position for each registration in this race
+    // Using a subquery approach to get the most recent position per runner
+    let query = supabase
       .from('gps_tracking')
       .select(`
         id,
@@ -559,7 +561,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         timestamp,
         registrations!inner(
           bib_number,
-          profiles!inner(
+          race_distance_id,
+          user_id,
+          guest_first_name,
+          guest_last_name,
+          profiles(
             first_name,
             last_name
           )
@@ -567,6 +573,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       `)
       .eq('race_id', raceId)
       .order('timestamp', { ascending: false });
+
+    // Filter by distance if specified
+    if (distanceId) {
+      query = query.eq('registrations.race_distance_id', distanceId);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching positions:', error);
@@ -579,6 +592,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     data?.forEach((item: any) => {
       if (!uniqueRegistrations.has(item.registration_id)) {
         uniqueRegistrations.add(item.registration_id);
+        
+        // Get runner name from profile or guest fields
+        let runnerName = 'Corredor';
+        if (item.registrations.profiles?.first_name) {
+          runnerName = `${item.registrations.profiles.first_name} ${item.registrations.profiles.last_name || ''}`.trim();
+        } else if (item.registrations.guest_first_name) {
+          runnerName = `${item.registrations.guest_first_name} ${item.registrations.guest_last_name || ''}`.trim();
+        }
+        
         positions.push({
           id: item.id,
           registration_id: item.registration_id,
@@ -586,7 +608,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           longitude: parseFloat(item.longitude),
           timestamp: item.timestamp,
           bib_number: item.registrations.bib_number,
-          runner_name: `${item.registrations.profiles.first_name} ${item.registrations.profiles.last_name}`,
+          runner_name: runnerName,
         });
       }
     });
