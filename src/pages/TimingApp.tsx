@@ -450,7 +450,7 @@ const TimingApp = () => {
           race_distances!inner(name)
         `)
         .eq("race_id", raceId)
-        .eq("status", "confirmed")
+        .in("status", ["confirmed", "pending"])
         .not("bib_number", "is", null);
 
       if (error) throw error;
