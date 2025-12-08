@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users } from "lucide-react";
+import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users, Radio } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface GPSTimingReading {
@@ -87,6 +87,8 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
   const [filterDistanceId, setFilterDistanceId] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isLive, setIsLive] = useState(true);
+  const [newReadingsCount, setNewReadingsCount] = useState(0);
 
   useEffect(() => {
     fetchRaces();
@@ -110,6 +112,91 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   useEffect(() => {
     fetchReadings();
   }, [filterRaceId, filterDistanceId, searchTerm]);
+
+  // Realtime subscription for GPS readings
+  useEffect(() => {
+    if (!filterRaceId || !isLive) return;
+
+    console.log('Setting up realtime subscription for GPS readings, race:', filterRaceId);
+
+    const channel = supabase
+      .channel(`gps-readings-${filterRaceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'timing_readings',
+          filter: `race_id=eq.${filterRaceId}`
+        },
+        async (payload) => {
+          console.log('New timing reading received:', payload);
+          
+          // Only process GPS geofence readings
+          if (payload.new.reading_type !== 'gps_geofence') {
+            return;
+          }
+
+          // Check distance filter
+          if (filterDistanceId && payload.new.race_distance_id !== filterDistanceId) {
+            return;
+          }
+
+          // Fetch related data for the new reading
+          const { data: enrichedReading, error } = await supabase
+            .from("timing_readings")
+            .select(`
+              *,
+              checkpoint:race_checkpoints(name, distance_km),
+              race_distance:race_distances(name),
+              registration:registrations(guest_first_name, guest_last_name, user_id)
+            `)
+            .eq("id", payload.new.id)
+            .maybeSingle();
+
+          if (error) {
+            console.error('Error fetching enriched reading:', error);
+            return;
+          }
+
+          if (enrichedReading) {
+            // Apply search filter
+            if (searchTerm) {
+              const search = searchTerm.toLowerCase();
+              const bibMatch = enrichedReading.bib_number.toString().includes(search);
+              const nameMatch = enrichedReading.registration
+                ? `${enrichedReading.registration.guest_first_name || ""} ${enrichedReading.registration.guest_last_name || ""}`.toLowerCase().includes(search)
+                : false;
+              if (!bibMatch && !nameMatch) return;
+            }
+
+            setReadings(prev => [enrichedReading, ...prev]);
+            setNewReadingsCount(prev => prev + 1);
+            
+            // Update stats
+            setStats(prev => ({
+              totalReadings: prev.totalReadings + 1,
+              processedReadings: enrichedReading.is_processed ? prev.processedReadings + 1 : prev.processedReadings,
+              uniqueRunners: prev.uniqueRunners, // Will be recalculated on next fetch
+              checkpointsPassed: prev.checkpointsPassed,
+            }));
+
+            toast({
+              title: "Nueva lectura GPS",
+              description: `Dorsal #${enrichedReading.bib_number} - ${enrichedReading.checkpoint?.name || 'Checkpoint'}`,
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [filterRaceId, filterDistanceId, searchTerm, isLive, toast]);
 
   const fetchRaces = async () => {
     try {
@@ -295,19 +382,48 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Satellite className="h-6 w-6 text-primary" />
             Lecturas GPS → Cronometraje
+            {isLive && filterRaceId && (
+              <Badge variant="default" className="ml-2 bg-green-500 animate-pulse flex items-center gap-1">
+                <Radio className="h-3 w-3" />
+                EN VIVO
+              </Badge>
+            )}
+            {newReadingsCount > 0 && (
+              <Badge variant="secondary" className="ml-1">
+                +{newReadingsCount} nuevas
+              </Badge>
+            )}
           </h2>
           <p className="text-muted-foreground">
             Lecturas de cronometraje generadas automáticamente desde datos GPS por geofencing
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleProcessGPS} disabled={processing || !filterRaceId}>
-            {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Procesar GPS (última hora)
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={isLive ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setIsLive(!isLive);
+              if (!isLive) {
+                setNewReadingsCount(0);
+              }
+            }}
+            className={isLive ? "bg-green-600 hover:bg-green-700" : ""}
+          >
+            <Radio className={`h-4 w-4 mr-2 ${isLive ? "animate-pulse" : ""}`} />
+            {isLive ? "En vivo" : "Pausado"}
           </Button>
-          <Button variant="outline" onClick={handleExportCSV} disabled={readings.length === 0}>
+          <Button variant="outline" size="sm" onClick={() => { fetchReadings(); setNewReadingsCount(0); }}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Actualizar
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleProcessGPS} disabled={processing || !filterRaceId}>
+            {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Procesar GPS
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={readings.length === 0}>
             <Download className="h-4 w-4 mr-2" />
-            Exportar CSV
+            CSV
           </Button>
         </div>
       </div>
