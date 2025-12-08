@@ -85,7 +85,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
-  const [filterDistanceId, setFilterDistanceId] = useState<string>("");
+  const [filterDistanceId, setFilterDistanceId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isLive, setIsLive] = useState(true);
   const [newReadingsCount, setNewReadingsCount] = useState(0);
@@ -105,7 +105,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
       fetchDistances(filterRaceId);
     } else {
       setDistances([]);
-      setFilterDistanceId("");
+      setFilterDistanceId("all");
     }
   }, [filterRaceId]);
 
@@ -138,7 +138,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           }
 
           // Check distance filter
-          if (filterDistanceId && payload.new.race_distance_id !== filterDistanceId) {
+          if (filterDistanceId && filterDistanceId !== "all" && payload.new.race_distance_id !== filterDistanceId) {
             return;
           }
 
@@ -251,7 +251,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
         .eq("reading_type", "gps_geofence")
         .order("timing_timestamp", { ascending: false });
 
-      if (filterDistanceId) {
+      if (filterDistanceId && filterDistanceId !== "all") {
         query = query.eq("race_distance_id", filterDistanceId);
       }
 
@@ -496,7 +496,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
                     <SelectValue placeholder="Todos los eventos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los eventos</SelectItem>
+                    <SelectItem value="all">Todos los eventos</SelectItem>
                     {distances.map((d) => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name} ({d.distance_km}km)
