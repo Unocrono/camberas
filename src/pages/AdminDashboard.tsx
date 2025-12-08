@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useRaceSelection } from "@/hooks/useRaceSelection";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Label } from "@/components/ui/label";
 import { AdminSidebar } from "@/components/AdminSidebar";
+import { RaceSelectorHeader } from "@/components/admin/RaceSelectorHeader";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
@@ -42,11 +44,19 @@ const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const [currentView, setCurrentView] = useState<AdminView>("races");
-  const [selectedRaceId, setSelectedRaceId] = useState<string>("");
-  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
-  const [races, setRaces] = useState<Array<{ id: string; name: string; date: string; race_type: string }>>([]);
-  const [distances, setDistances] = useState<Array<{ id: string; name: string; distance_km: number }>>([]);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  const {
+    selectedRaceId,
+    setSelectedRaceId,
+    selectedDistanceId,
+    setSelectedDistanceId,
+    races,
+    distances,
+    selectedRace,
+    loadingRaces,
+    clearSelection,
+  } = useRaceSelection({ type: "admin" });
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -59,50 +69,6 @@ const AdminDashboard = () => {
       checkAdminRole();
     }
   }, [user]);
-
-  useEffect(() => {
-    if (isAdmin) {
-      fetchRaces();
-    }
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (selectedRaceId) {
-      fetchDistances();
-    } else {
-      setDistances([]);
-      setSelectedDistanceId("");
-    }
-  }, [selectedRaceId]);
-
-  const fetchRaces = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("races")
-        .select("id, name, date, race_type")
-        .order("date", { ascending: false });
-
-      if (error) throw error;
-      setRaces(data || []);
-    } catch (error: any) {
-      console.error("Error fetching races:", error);
-    }
-  };
-
-  const fetchDistances = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("race_distances")
-        .select("id, name, distance_km")
-        .eq("race_id", selectedRaceId)
-        .order("distance_km", { ascending: false });
-
-      if (error) throw error;
-      setDistances(data || []);
-    } catch (error: any) {
-      console.error("Error fetching distances:", error);
-    }
-  };
 
   const checkAdminRole = async () => {
     try {
@@ -152,6 +118,14 @@ const AdminDashboard = () => {
     return null;
   }
 
+  // Views that don't need race selector at all
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status"];
+  const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
+  
+  // Views that need distance filter
+  const needsDistanceFilter = ["roadbooks", "form-fields", "checkpoints", "splits"].includes(currentView);
+  const showSecondaryFilters = needsDistanceFilter && distances.length > 0;
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -162,9 +136,21 @@ const AdminDashboard = () => {
             <div className="flex items-center gap-4 px-4 md:px-6 h-16">
               <SidebarTrigger />
               <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Administración</h1>
+              {showRaceSelector && (
+                <div className="ml-auto">
+                  <RaceSelectorHeader
+                    races={races}
+                    selectedRaceId={selectedRaceId}
+                    selectedRace={selectedRace}
+                    onSelectRace={setSelectedRaceId}
+                    onClearSelection={clearSelection}
+                    loading={loadingRaces}
+                  />
+                </div>
+              )}
             </div>
             
-            {currentView !== "races" && currentView !== "edge-functions" && currentView !== "organizer-faqs" && currentView !== "organizer-approval" && currentView !== "users" && currentView !== "roadbook-item-types" && currentView !== "contact-settings" && currentView !== "results-status" && races.length > 0 && (
+            {showSecondaryFilters && (
               <div className="px-4 md:px-6 pb-3">
                 <Button
                   variant="outline"
@@ -179,42 +165,22 @@ const AdminDashboard = () => {
                   {filtersExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
                 <div className={`flex flex-wrap items-center gap-2 ${filtersExpanded ? 'flex' : 'hidden md:flex'}`}>
-                  <Label htmlFor="race-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                    Carrera:
+                  <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Evento:
                   </Label>
                   <select
-                    id="race-selector"
-                    value={selectedRaceId}
-                    onChange={(e) => setSelectedRaceId(e.target.value)}
+                    id="distance-selector"
+                    value={selectedDistanceId}
+                    onChange={(e) => setSelectedDistanceId(e.target.value)}
                     className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
                   >
-                    <option value="">Todas las carreras</option>
-                    {races.map((race) => (
-                      <option key={race.id} value={race.id}>
-                        {race.name} - {new Date(race.date).toLocaleDateString()}
+                    <option value="">Todos los eventos</option>
+                    {distances.map((distance) => (
+                      <option key={distance.id} value={distance.id}>
+                        {distance.name} ({distance.distance_km}km)
                       </option>
                     ))}
                   </select>
-                  {(currentView === "roadbooks" || currentView === "form-fields" || currentView === "checkpoints" || currentView === "splits") && distances.length > 0 && (
-                    <>
-                      <Label htmlFor="distance-selector" className="text-sm text-muted-foreground whitespace-nowrap">
-                        Evento:
-                      </Label>
-                      <select
-                        id="distance-selector"
-                        value={selectedDistanceId}
-                        onChange={(e) => setSelectedDistanceId(e.target.value)}
-                        className="h-9 px-3 py-1 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary flex-1 min-w-[150px] max-w-[300px]"
-                      >
-                        <option value="">Todos los eventos</option>
-                        {distances.map((distance) => (
-                          <option key={distance.id} value={distance.id}>
-                            {distance.name} ({distance.distance_km}km)
-                          </option>
-                        ))}
-                      </select>
-                    </>
-                  )}
                 </div>
               </div>
             )}
