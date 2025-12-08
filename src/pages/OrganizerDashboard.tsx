@@ -21,10 +21,11 @@ import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement"
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
+import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "gps-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -261,6 +262,7 @@ const OrganizerDashboard = () => {
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "gps-readings" && <GPSReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
