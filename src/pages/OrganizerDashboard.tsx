@@ -122,19 +122,19 @@ const OrganizerDashboard = () => {
         
         <div className="flex-1 flex flex-col w-full">
           <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <div className="flex items-center gap-4 px-4 md:px-6 h-16">
+            <div className="flex items-center gap-4 px-4 md:px-6 h-14">
               <SidebarTrigger className="mr-2" />
               <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Organizador</h1>
-              <div className="ml-auto">
-                <RaceSelectorHeader
-                  races={races}
-                  selectedRaceId={selectedRaceId}
-                  selectedRace={selectedRace}
-                  onSelectRace={setSelectedRaceId}
-                  onClearSelection={clearSelection}
-                  loading={loadingRaces}
-                />
-              </div>
+            </div>
+            <div className="px-4 md:px-6 pb-3">
+              <RaceSelectorHeader
+                races={races}
+                selectedRaceId={selectedRaceId}
+                selectedRace={selectedRace}
+                onSelectRace={setSelectedRaceId}
+                onClearSelection={clearSelection}
+                loading={loadingRaces}
+              />
             </div>
             
             {showSecondaryFilters && needsDistanceFilter && (
