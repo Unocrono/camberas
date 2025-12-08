@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag, ChevronDown } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag, ChevronDown, Satellite, Shirt } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -61,17 +61,19 @@ const menuGroups: MenuGroup[] = [
     items: [
       { title: "Inscripciones", view: "registrations", icon: Users },
       { title: "Campos de Formulario", view: "form-fields", icon: FileText },
+      { title: "Resumen de Tallas", view: "tshirt-sizes", icon: Shirt },
     ],
   },
   {
     label: "⏱️ Cronometraje",
     items: [
       { title: "Horas de Salida", view: "waves", icon: Flag },
+      { title: "Cronometradores", view: "timer-assignments", icon: AlarmClock },
       { title: "Resultados", view: "results", icon: Trophy },
       { title: "Estados de Resultado", view: "results-status", icon: Tag },
       { title: "Tiempos Parciales", view: "splits", icon: Timer },
       { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
-      { title: "Cronometradores", view: "timer-assignments", icon: AlarmClock },
+      { title: "Lecturas GPS", view: "gps-readings", icon: Satellite },
     ],
   },
   {
