@@ -28,10 +28,12 @@ import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManag
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { RaceResultsStatusManagement } from "@/components/admin/RaceResultsStatusManagement";
 import { WavesManagement } from "@/components/admin/WavesManagement";
+import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
+import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -266,6 +268,8 @@ const AdminDashboard = () => {
             {currentView === "results-status" && <RaceResultsStatusManagement />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "gps-readings" && <GPSReadingsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
