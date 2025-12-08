@@ -5,8 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, User, MapPin } from 'lucide-react';
+import { X, User, MapPin, Bell } from 'lucide-react';
+import { toast } from 'sonner';
 
+interface CheckpointNotification {
+  id: string;
+  bib_number: number;
+  checkpoint_name: string;
+  runner_name: string;
+  timestamp: string;
+}
 interface RunnerPosition {
   id: string;
   registration_id: string;
@@ -138,8 +146,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   useEffect(() => {
     if (!mapReady) return;
     fetchInitialPositions();
-    const cleanup = setupRealtimeSubscription();
-    return cleanup;
+    const cleanupGPS = setupRealtimeSubscription();
+    const cleanupTimings = setupTimingReadingsSubscription();
+    return () => {
+      cleanupGPS();
+      cleanupTimings();
+    };
   }, [raceId, mapReady]);
 
   // Load runner track when selected
@@ -634,6 +646,64 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           if (selectedRunner) {
             fetchRunnerTrack(selectedRunner.registration_id);
           }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
+  // Setup realtime subscription for timing readings (checkpoint passes)
+  const setupTimingReadingsSubscription = () => {
+    const channel = supabase
+      .channel('timing_readings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'timing_readings',
+          filter: `race_id=eq.${raceId}`,
+        },
+        async (payload) => {
+          const newReading = payload.new as any;
+          
+          // Only show notification for geofence readings
+          if (newReading.reading_type !== 'gps_geofence') return;
+          
+          // Get checkpoint name
+          let checkpointName = 'Checkpoint';
+          if (newReading.checkpoint_id) {
+            const { data: checkpoint } = await supabase
+              .from('race_checkpoints')
+              .select('name')
+              .eq('id', newReading.checkpoint_id)
+              .single();
+            
+            if (checkpoint) {
+              checkpointName = checkpoint.name;
+            }
+          }
+          
+          // Get runner name
+          let runnerName = `Dorsal #${newReading.bib_number}`;
+          if (newReading.registration_id) {
+            const runner = runnerPositions.find(r => r.registration_id === newReading.registration_id);
+            if (runner) {
+              runnerName = runner.runner_name;
+            }
+          }
+          
+          // Show toast notification
+          toast.success(
+            `🏃 ${runnerName} pasó por ${checkpointName}`,
+            {
+              description: `Dorsal #${newReading.bib_number} - ${new Date(newReading.timing_timestamp).toLocaleTimeString('es-ES')}`,
+              duration: 5000,
+            }
+          );
         }
       )
       .subscribe();
