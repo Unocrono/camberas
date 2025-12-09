@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Capacitor } from '@capacitor/core';
 import Index from "./pages/Index";
 import Races from "./pages/Races";
 import RaceDetail from "./pages/RaceDetail";
@@ -40,6 +41,9 @@ import Cookies from "./pages/Cookies";
 
 const queryClient = new QueryClient();
 
+// Detectar si estamos en una app nativa (Android/iOS)
+const isNativePlatform = Capacitor.isNativePlatform();
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -47,7 +51,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          {/* En app nativa, redirigir "/" a "/track" */}
+          <Route path="/" element={isNativePlatform ? <Navigate to="/track" replace /> : <Index />} />
           <Route path="/races" element={<Races />} />
           <Route path="/race/:id" element={<RaceDetail />} />
           <Route path="/race/:id/regulation" element={<RaceRegulation />} />
