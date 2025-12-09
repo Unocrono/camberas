@@ -614,7 +614,8 @@ const GPSTrackerApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col safe-area-inset-top"
+         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {/* Header */}
       <header className="bg-card border-b p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -777,7 +778,7 @@ const GPSTrackerApp = () => {
       </main>
 
       {/* Bottom Action Button */}
-      <div className="p-4 pb-8 safe-area-inset-bottom">
+      <div className="p-4" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
         {!isTracking ? (
           <Button 
             onClick={startTracking} 
