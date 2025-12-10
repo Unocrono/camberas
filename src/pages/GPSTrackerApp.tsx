@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GPSMiniMap } from '@/components/GPSMiniMap';
+import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { 
   Radio, Battery, Navigation, Clock, Wifi, WifiOff, 
   MapPin, Gauge, Play, Square, RefreshCw, AlertTriangle,
@@ -796,6 +797,15 @@ const GPSTrackerApp = () => {
             />
           </CardContent>
         </Card>
+
+        {/* Elevation Profile */}
+        {selectedRegistration && (
+          <ElevationMiniProfile
+            distanceId={selectedRegistration.race_distance_id}
+            currentDistanceKm={stats.distance / 1000}
+            checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
+          />
+        )}
 
         {/* Pending Points */}
         {pendingPoints.length > 0 && (
