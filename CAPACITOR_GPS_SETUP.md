@@ -98,22 +98,97 @@ npx cap open android
 El archivo ya debería tener los permisos básicos. Añade estos permisos adicionales en `android/app/src/main/AndroidManifest.xml`:
 
 ```xml
-<!-- Dentro de <manifest> -->
+<!-- Dentro de <manifest>, antes de <application> -->
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-<!-- Dentro de <application> -->
-<service
-    android:name="com.transistorsoft.locationmanager.service.TrackingService"
-    android:foregroundServiceType="location"
-    android:permission="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 ```
 
-### 6.3. Configurar build.gradle
+### 6.3. Crear Foreground Service para GPS
+
+Para que el GPS funcione en segundo plano en Android, necesitas un Foreground Service. Crea este archivo:
+
+**`android/app/src/main/java/app/lovable/ce90a0d67611478a9cd75d58c8c47bb9/GpsTrackingService.java`**
+
+```java
+package app.lovable.ce90a0d67611478a9cd75d58c8c47bb9;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Intent;
+import android.os.Build;
+import android.os.IBinder;
+import androidx.core.app.NotificationCompat;
+
+public class GpsTrackingService extends Service {
+    private static final String CHANNEL_ID = "gps_tracking_channel";
+    private static final int NOTIFICATION_ID = 1;
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createNotificationChannel();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 
+            PendingIntent.FLAG_IMMUTABLE);
+
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("GPS Camberas")
+            .setContentText("Tracking en curso...")
+            .setSmallIcon(android.R.drawable.ic_menu_mylocation)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build();
+
+        startForeground(NOTIFICATION_ID, notification);
+        return START_STICKY;
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                CHANNEL_ID,
+                "GPS Tracking",
+                NotificationManager.IMPORTANCE_LOW
+            );
+            channel.setDescription("Notificación de tracking GPS activo");
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            if (manager != null) {
+                manager.createNotificationChannel(channel);
+            }
+        }
+    }
+}
+```
+
+### 6.4. Registrar el Service en AndroidManifest.xml
+
+Añade dentro de `<application>`:
+
+```xml
+<service
+    android:name=".GpsTrackingService"
+    android:foregroundServiceType="location"
+    android:exported="false" />
+```
+
+### 6.5. Configurar build.gradle
 
 En `android/app/build.gradle`, asegúrate de tener:
 
@@ -125,6 +200,17 @@ android {
     }
 }
 ```
+
+### 6.6. Iniciar el Service desde la App
+
+Para iniciar el servicio cuando el usuario empieza el tracking, necesitas añadir este código nativo o usar un plugin de Capacitor para invocar el service.
+
+**Opción Simple: Mantener la app abierta**
+
+Si no quieres crear el foreground service, puedes indicar al usuario que:
+1. No cierre la app (solo bloquee la pantalla)
+2. Desactive la optimización de batería para la app:
+   - Configuración → Apps → GPS Camberas → Batería → Sin restricciones
 
 ## Probar la App
 
