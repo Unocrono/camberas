@@ -24,6 +24,7 @@ const CAMBERAS_PINK = '#E91E8C';
 
 const GPS_QUEUE_KEY = 'camberas_gps_queue';
 const GPS_SESSION_KEY = 'camberas_gps_session';
+const SPEED_PACE_PREF_KEY = 'camberas_speed_pace_pref';
 
 interface GPSPoint {
   race_id: string;
@@ -110,7 +111,10 @@ const GPSTrackerApp = () => {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   const [showSplash, setShowSplash] = useState(true);
-  const [showPace, setShowPace] = useState(false); // false = km/h, true = min/km
+  const [showPace, setShowPace] = useState(() => {
+    const stored = localStorage.getItem(SPEED_PACE_PREF_KEY);
+    return stored === 'pace'; // null or 'speed' = false, 'pace' = true
+  });
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -149,6 +153,11 @@ const GPSTrackerApp = () => {
   useEffect(() => {
     localStorage.setItem(GPS_QUEUE_KEY, JSON.stringify(pendingPoints));
   }, [pendingPoints]);
+
+  // Save speed/pace preference to localStorage
+  useEffect(() => {
+    localStorage.setItem(SPEED_PACE_PREF_KEY, showPace ? 'pace' : 'speed');
+  }, [showPace]);
 
   // Online/offline detection
   useEffect(() => {
@@ -257,8 +266,10 @@ const GPSTrackerApp = () => {
         if (gpsEnabled.length === 1) {
           const reg = gpsEnabled[0];
           setSelectedRegistration(reg);
-          // Default: MTB = speed (km/h), Trail = pace (min/km)
-          setShowPace(reg.races.race_type === 'trail');
+          // Only set default if no stored preference
+          if (!localStorage.getItem(SPEED_PACE_PREF_KEY)) {
+            setShowPace(reg.races.race_type === 'trail');
+          }
         }
       } catch (error: any) {
         toast({
@@ -745,8 +756,8 @@ const GPSTrackerApp = () => {
                 onValueChange={(val) => {
                   const reg = registrations.find(r => r.id === val) || null;
                   setSelectedRegistration(reg);
-                  if (reg) {
-                    // Default: MTB = speed (km/h), Trail = pace (min/km)
+                  // Only set default if no stored preference
+                  if (reg && !localStorage.getItem(SPEED_PACE_PREF_KEY)) {
                     setShowPace(reg.races.race_type === 'trail');
                   }
                 }}
