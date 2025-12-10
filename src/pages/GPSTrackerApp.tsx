@@ -11,11 +11,16 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
+import { GPSSplashScreen } from '@/components/GPSSplashScreen';
+import camberasLogo from '@/assets/camberas-logo.png';
 import { 
-  Radio, Battery, Navigation, Clock, Wifi, WifiOff, 
-  MapPin, Gauge, Play, Square, RefreshCw, AlertTriangle,
+  Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
+  Gauge, Play, Square, RefreshCw, AlertTriangle,
   Smartphone, Download, Volume2, VolumeX
 } from 'lucide-react';
+
+// Camberas brand color
+const CAMBERAS_PINK = '#E91E8C';
 
 const GPS_QUEUE_KEY = 'camberas_gps_queue';
 const GPS_SESSION_KEY = 'camberas_gps_session';
@@ -103,6 +108,7 @@ const GPSTrackerApp = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
+  const [showSplash, setShowSplash] = useState(true);
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -636,14 +642,22 @@ const GPSTrackerApp = () => {
     );
   }
 
+  // Splash screen
+  if (showSplash) {
+    return <GPSSplashScreen onComplete={() => setShowSplash(false)} duration={2500} />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-inset-top"
          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {/* Header */}
-      <header className="bg-card border-b p-4 flex items-center justify-between">
+      {/* Header - Camberas branded */}
+      <header 
+        className="border-b p-4 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)' }}
+      >
         <div className="flex items-center gap-2">
-          <MapPin className="h-6 w-6 text-primary" />
-          <span className="font-bold">Camberas GPS</span>
+          <img src={camberasLogo} alt="Camberas" className="h-8 w-8" />
+          <span className="font-bold text-white" style={{ color: CAMBERAS_PINK }}>Camberas GPS</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Sound toggle */}
@@ -653,30 +667,32 @@ const GPSTrackerApp = () => {
               setSoundEnabled(newValue);
               localStorage.setItem('gps_sound_enabled', String(newValue));
               if (newValue) {
-                // Play a test sound to confirm
                 triggerCheckpointFeedback();
               }
             }}
-            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+            className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
             title={soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
           >
             {soundEnabled ? (
-              <Volume2 className="h-4 w-4 text-primary" />
+              <Volume2 className="h-4 w-4" style={{ color: CAMBERAS_PINK }} />
             ) : (
-              <VolumeX className="h-4 w-4 text-muted-foreground" />
+              <VolumeX className="h-4 w-4 text-white/50" />
             )}
           </button>
           
           {isOnline ? (
-            <Badge variant="outline" className="text-green-500 border-green-500">
+            <Badge variant="outline" className="border-emerald-500 text-emerald-400 bg-emerald-500/10">
               <Wifi className="h-3 w-3 mr-1" /> Online
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-orange-500 border-orange-500">
+            <Badge variant="outline" className="border-orange-500 text-orange-400 bg-orange-500/10">
               <WifiOff className="h-3 w-3 mr-1" /> Offline
             </Badge>
           )}
-          <Badge variant={battery < 20 ? "destructive" : "outline"}>
+          <Badge 
+            variant="outline" 
+            className={battery < 20 ? "border-red-500 text-red-400 bg-red-500/10" : "border-white/30 text-white/70"}
+          >
             <Battery className="h-3 w-3 mr-1" /> {battery}%
           </Badge>
         </div>
@@ -684,12 +700,20 @@ const GPSTrackerApp = () => {
 
       {/* Install Banner */}
       {showInstallPrompt && (
-        <div className="bg-primary/10 border-b border-primary/20 p-3 flex items-center justify-between">
+        <div 
+          className="border-b p-3 flex items-center justify-between"
+          style={{ background: `${CAMBERAS_PINK}15`, borderColor: `${CAMBERAS_PINK}30` }}
+        >
           <div className="flex items-center gap-2 text-sm">
-            <Smartphone className="h-4 w-4" />
+            <Smartphone className="h-4 w-4" style={{ color: CAMBERAS_PINK }} />
             <span>Instala la app para mejor experiencia</span>
           </div>
-          <Button size="sm" variant="outline" onClick={handleInstallPWA}>
+          <Button 
+            size="sm" 
+            onClick={handleInstallPWA}
+            style={{ backgroundColor: CAMBERAS_PINK, color: 'white' }}
+            className="hover:opacity-90"
+          >
             <Download className="h-4 w-4 mr-1" /> Instalar
           </Button>
         </div>
@@ -835,7 +859,8 @@ const GPSTrackerApp = () => {
         {!isTracking ? (
           <Button 
             onClick={startTracking} 
-            className="w-full h-20 text-xl"
+            className="w-full h-20 text-xl text-white hover:opacity-90"
+            style={{ backgroundColor: CAMBERAS_PINK }}
             disabled={!selectedRegistration}
           >
             <Play className="h-8 w-8 mr-3" />
