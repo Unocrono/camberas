@@ -42,6 +42,7 @@ interface Race {
   name: string;
   date: string;
   gps_update_frequency: number | null;
+  race_type: string;
 }
 
 interface Registration {
@@ -109,6 +110,7 @@ const GPSTrackerApp = () => {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   const [showSplash, setShowSplash] = useState(true);
+  const [showPace, setShowPace] = useState(false); // false = km/h, true = min/km
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -234,7 +236,8 @@ const GPSTrackerApp = () => {
               id,
               name,
               date,
-              gps_update_frequency
+              gps_update_frequency,
+              race_type
             )
           `)
           .eq('user_id', user.id)
@@ -252,7 +255,10 @@ const GPSTrackerApp = () => {
         setRegistrations(gpsEnabled);
         
         if (gpsEnabled.length === 1) {
-          setSelectedRegistration(gpsEnabled[0]);
+          const reg = gpsEnabled[0];
+          setSelectedRegistration(reg);
+          // Default: MTB = speed (km/h), Trail = pace (min/km)
+          setShowPace(reg.races.race_type === 'trail');
         }
       } catch (error: any) {
         toast({
@@ -736,7 +742,14 @@ const GPSTrackerApp = () => {
               <label className="text-sm text-muted-foreground mb-2 block">Selecciona carrera</label>
               <Select 
                 value={selectedRegistration?.id || ''} 
-                onValueChange={(val) => setSelectedRegistration(registrations.find(r => r.id === val) || null)}
+                onValueChange={(val) => {
+                  const reg = registrations.find(r => r.id === val) || null;
+                  setSelectedRegistration(reg);
+                  if (reg) {
+                    // Default: MTB = speed (km/h), Trail = pace (min/km)
+                    setShowPace(reg.races.race_type === 'trail');
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una carrera" />
@@ -790,11 +803,25 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          <Card>
+          <Card 
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setShowPace(!showPace)}
+          >
             <CardContent className="pt-4 text-center">
               <Gauge className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-2xl font-mono font-bold">{stats.speed.toFixed(1)}</div>
-              <div className="text-xs text-muted-foreground">km/h</div>
+              {showPace ? (
+                <>
+                  <div className="text-2xl font-mono font-bold">
+                    {stats.speed > 0 ? `${Math.floor(60 / stats.speed)}:${String(Math.round((60 / stats.speed % 1) * 60)).padStart(2, '0')}` : '--:--'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">min/km</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-mono font-bold">{stats.speed.toFixed(1)}</div>
+                  <div className="text-xs text-muted-foreground">km/h</div>
+                </>
+              )}
             </CardContent>
           </Card>
           
