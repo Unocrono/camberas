@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNativeGeolocation, GeolocationResult } from '@/hooks/useNativeGeolocation';
+import { useCheckpointFeedback } from '@/hooks/useCheckpointFeedback';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +13,7 @@ import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { 
   Radio, Battery, Navigation, Clock, Wifi, WifiOff, 
   MapPin, Gauge, Play, Square, RefreshCw, AlertTriangle,
-  Smartphone, Download
+  Smartphone, Download, Volume2, VolumeX
 } from 'lucide-react';
 
 const GPS_QUEUE_KEY = 'camberas_gps_queue';
@@ -67,6 +68,18 @@ const GPSTrackerApp = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, watchPosition, getCurrentPosition, clearWatch, requestPermissions } = useNativeGeolocation();
+  
+  // Sound/vibration settings
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const stored = localStorage.getItem('gps_sound_enabled');
+    return stored !== 'false'; // Default to true
+  });
+  
+  const { triggerCheckpointFeedback, vibrateGpsTick } = useCheckpointFeedback({
+    enableSound: soundEnabled,
+    enableVibration: true,
+    soundVolume: 0.7,
+  });
   
   // State
   const [isTracking, setIsTracking] = useState(false);
@@ -411,14 +424,13 @@ const GPSTrackerApp = () => {
         try {
           const { error } = await supabase.from('timing_readings').insert(timingReading);
           if (!error) {
+            // Trigger haptic + sound feedback
+            triggerCheckpointFeedback();
+            
             toast({
               title: `📍 ${checkpoint.name}`,
               description: `Paso registrado (GPS) - ${checkpoint.distance_km}km`,
             });
-            // Vibrate to notify
-            if ('vibrate' in navigator) {
-              navigator.vibrate([100, 50, 100]);
-            }
           }
         } catch (e) {
           console.error('Error registering GPS timing:', e);
@@ -448,7 +460,7 @@ const GPSTrackerApp = () => {
       setPendingPoints(prev => [...prev, point]);
       setStats(prev => ({ ...prev, lastUpdate: new Date() }));
     }
-  }, [selectedRegistration, battery, isOnline, checkpoints, toast]);
+  }, [selectedRegistration, battery, isOnline, checkpoints, toast, triggerCheckpointFeedback]);
 
   // Start tracking - uses native Capacitor API for background support
   const startTracking = useCallback(async () => {
@@ -633,6 +645,27 @@ const GPSTrackerApp = () => {
           <span className="font-bold">Camberas GPS</span>
         </div>
         <div className="flex items-center gap-2">
+          {/* Sound toggle */}
+          <button
+            onClick={() => {
+              const newValue = !soundEnabled;
+              setSoundEnabled(newValue);
+              localStorage.setItem('gps_sound_enabled', String(newValue));
+              if (newValue) {
+                // Play a test sound to confirm
+                triggerCheckpointFeedback();
+              }
+            }}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+            title={soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-4 w-4 text-primary" />
+            ) : (
+              <VolumeX className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
+          
           {isOnline ? (
             <Badge variant="outline" className="text-green-500 border-green-500">
               <Wifi className="h-3 w-3 mr-1" /> Online
