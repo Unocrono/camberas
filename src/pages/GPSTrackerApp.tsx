@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { useNativeGeolocation, GeolocationResult } from '@/hooks/useNativeGeolocation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +66,7 @@ const GPSTrackerApp = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isNative, watchPosition, getCurrentPosition, clearWatch, requestPermissions } = useNativeGeolocation();
   
   // State
   const [isTracking, setIsTracking] = useState(false);
@@ -89,10 +91,10 @@ const GPSTrackerApp = () => {
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   
   // Refs
-  const watchIdRef = useRef<number | null>(null);
+  const watchIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
-  const lastPositionRef = useRef<GeolocationPosition | null>(null);
+  const lastPositionRef = useRef<{ latitude: number; longitude: number; altitude: number | null; accuracy: number | null; speed: number | null; timestamp: string } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const passedCheckpointsRef = useRef<Set<string>>(new Set());
 
@@ -341,12 +343,16 @@ const GPSTrackerApp = () => {
     return R * c;
   };
 
-  // Handle GPS position
-  const handlePosition = useCallback(async (position: GeolocationPosition) => {
+  // Handle GPS position - accepts both native and web format
+  const handlePosition = useCallback(async (position: GeolocationResult | GeolocationPosition) => {
     if (!selectedRegistration) return;
     
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
+    // Normalize position data (works with both native and web)
+    const lat = 'coords' in position ? position.coords.latitude : position.latitude;
+    const lng = 'coords' in position ? position.coords.longitude : position.longitude;
+    const altitude = 'coords' in position ? position.coords.altitude : position.altitude;
+    const accuracy = 'coords' in position ? position.coords.accuracy : position.accuracy;
+    const speed = 'coords' in position ? position.coords.speed : position.speed;
     const now = new Date().toISOString();
     
     // Update current position for mini-map
@@ -357,28 +363,23 @@ const GPSTrackerApp = () => {
       registration_id: selectedRegistration.id,
       latitude: lat,
       longitude: lng,
-      altitude: position.coords.altitude,
-      accuracy: position.coords.accuracy,
-      speed: position.coords.speed,
+      altitude: altitude,
+      accuracy: accuracy,
+      speed: speed,
       battery_level: battery,
       timestamp: now,
     };
 
-    // Update distance
+    // Update distance using stored last position
     if (lastPositionRef.current) {
-      const dist = calculateDistance(
-        lastPositionRef.current.coords.latitude,
-        lastPositionRef.current.coords.longitude,
-        lat,
-        lng
-      );
+      const dist = calculateDistance(lastPositionRef.current.latitude, lastPositionRef.current.longitude, lat, lng);
       setStats(prev => ({ ...prev, distance: prev.distance + dist }));
     }
-    lastPositionRef.current = position;
+    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: now };
 
     // Update speed
-    if (position.coords.speed !== null) {
-      setStats(prev => ({ ...prev, speed: position.coords.speed! * 3.6 })); // m/s to km/h
+    if (speed !== null) {
+      setStats(prev => ({ ...prev, speed: speed! * 3.6 })); // m/s to km/h
     }
 
     // Geofencing: Check if within any checkpoint radius
@@ -449,12 +450,23 @@ const GPSTrackerApp = () => {
     }
   }, [selectedRegistration, battery, isOnline, checkpoints, toast]);
 
-  // Start tracking
-  const startTracking = useCallback(() => {
-    if (!navigator.geolocation || !selectedRegistration) {
+  // Start tracking - uses native Capacitor API for background support
+  const startTracking = useCallback(async () => {
+    if (!selectedRegistration) {
       toast({
         title: 'GPS no disponible',
-        description: 'Tu dispositivo no soporta geolocalización',
+        description: 'Selecciona una carrera primero',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Request permissions first
+    const hasPerms = await requestPermissions();
+    if (!hasPerms) {
+      toast({
+        title: 'Permisos requeridos',
+        description: 'Necesitas permitir acceso al GPS para usar el tracking',
         variant: 'destructive',
       });
       return;
@@ -467,37 +479,33 @@ const GPSTrackerApp = () => {
          30);
 
     // Initial position
-    navigator.geolocation.getCurrentPosition(
-      handlePosition,
-      (error) => {
-        toast({
-          title: 'Error GPS',
-          description: error.message,
-          variant: 'destructive',
-        });
-      },
-      { enableHighAccuracy: !lowBatteryMode, timeout: 10000 }
-    );
+    const initialPos = await getCurrentPosition({ 
+      enableHighAccuracy: !lowBatteryMode, 
+      timeout: 10000 
+    });
+    if (initialPos) {
+      handlePosition(initialPos);
+    }
 
-    // Watch position
-    const id = navigator.geolocation.watchPosition(
-      handlePosition,
-      (error) => console.error('GPS error:', error),
+    // Watch position using native API (supports background on native)
+    const watchId = await watchPosition(
+      (position) => handlePosition(position),
       { 
         enableHighAccuracy: !lowBatteryMode, 
-        maximumAge: 0, 
         timeout: 15000 
       }
     );
-    watchIdRef.current = id;
+    watchIdRef.current = watchId;
 
-    // Interval for periodic updates
-    intervalRef.current = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(
-        handlePosition,
-        () => {},
-        { enableHighAccuracy: !lowBatteryMode, timeout: 10000 }
-      );
+    // Interval for periodic updates (backup)
+    intervalRef.current = setInterval(async () => {
+      const pos = await getCurrentPosition({ 
+        enableHighAccuracy: !lowBatteryMode, 
+        timeout: 10000 
+      });
+      if (pos) {
+        handlePosition(pos);
+      }
     }, frequency * 1000);
 
     startTimeRef.current = new Date();
@@ -513,14 +521,16 @@ const GPSTrackerApp = () => {
 
     toast({
       title: '🏃 Tracking iniciado',
-      description: `Frecuencia: cada ${frequency}s`,
+      description: isNative 
+        ? `Modo nativo activado. Frecuencia: cada ${frequency}s`
+        : `Frecuencia: cada ${frequency}s`,
     });
-  }, [selectedRegistration, lowBatteryMode, handlePosition]);
+  }, [selectedRegistration, lowBatteryMode, handlePosition, requestPermissions, getCurrentPosition, watchPosition, isNative]);
 
   // Stop tracking
-  const stopTracking = useCallback(() => {
+  const stopTracking = useCallback(async () => {
     if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
+      await clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
     if (intervalRef.current) {
@@ -539,7 +549,7 @@ const GPSTrackerApp = () => {
       title: '⏹ Tracking detenido',
       description: `Total: ${stats.pointsSent + pendingPoints.length} puntos`,
     });
-  }, [stats.pointsSent, pendingPoints.length, syncPendingPoints]);
+  }, [stats.pointsSent, pendingPoints.length, syncPendingPoints, clearWatch]);
 
   // Install PWA
   const handleInstallPWA = async () => {
