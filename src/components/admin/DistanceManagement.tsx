@@ -573,7 +573,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date">Fecha de Salida</Label>
+                      <Label htmlFor="start_date">Fecha</Label>
                       <Input
                         id="start_date"
                         type="date"
@@ -610,30 +610,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="start_location">Zona de Salida</Label>
-                      <Input
-                        id="start_location"
-                        placeholder="ej: Plaza Mayor"
-                        value={formData.start_location}
-                        onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="finish_location">Zona de Meta</Label>
-                      <Input
-                        id="finish_location"
-                        placeholder="ej: Parque Central"
-                        value={formData.finish_location}
-                        onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="image_file">Imagen del Recorrido</Label>
+                    <Label htmlFor="image_file">Imagen del Evento</Label>
                     <Input
                       id="image_file"
                       type="file"
@@ -796,6 +774,28 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
                 {/* TAB: GPS */}
                 <TabsContent value="gps" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_location">Zona de Salida</Label>
+                      <Input
+                        id="start_location"
+                        placeholder="ej: Plaza Mayor"
+                        value={formData.start_location}
+                        onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="finish_location">Zona de Meta</Label>
+                      <Input
+                        id="finish_location"
+                        placeholder="ej: Parque Central"
+                        value={formData.finish_location}
+                        onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="gpx_file">Archivo GPX</Label>
                     <Input
