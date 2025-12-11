@@ -8,16 +8,36 @@ interface GPSSplashScreenProps {
 
 export const GPSSplashScreen = ({ onComplete, duration = 2000 }: GPSSplashScreenProps) => {
   const [fadeOut, setFadeOut] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   useEffect(() => {
+    // Safety fallback - always complete after duration regardless of image load
     const fadeTimer = setTimeout(() => setFadeOut(true), duration - 500);
     const completeTimer = setTimeout(onComplete, duration);
+    
+    // Additional safety: force complete after max 5 seconds even if something fails
+    const safetyTimer = setTimeout(() => {
+      console.log('GPSSplashScreen: Safety timeout triggered');
+      onComplete();
+    }, 5000);
     
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(completeTimer);
+      clearTimeout(safetyTimer);
     };
   }, [duration, onComplete]);
+
+  // Preload image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => setImageLoaded(true);
+    img.onerror = () => {
+      console.warn('GPSSplashScreen: Image failed to load');
+      setImageLoaded(true); // Continue anyway
+    };
+    img.src = camberasLogo;
+  }, []);
 
   return (
     <div 
