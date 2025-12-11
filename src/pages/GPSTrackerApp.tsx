@@ -56,9 +56,10 @@ interface Registration {
     distance_km: number;
     gps_tracking_enabled: boolean | null;
     gps_update_frequency: number | null;
-    start_time: string | null;
   };
   races: Race;
+  // Added separately from race_waves
+  wave_start_time?: string | null;
 }
 
 interface Checkpoint {
@@ -240,8 +241,7 @@ const GPSTrackerApp = () => {
               name,
               distance_km,
               gps_tracking_enabled,
-              gps_update_frequency,
-              start_time
+              gps_update_frequency
             ),
             races!inner (
               id,
@@ -261,12 +261,26 @@ const GPSTrackerApp = () => {
         // Filter registrations where GPS is enabled
         const gpsEnabled = (data || []).filter((reg: any) => 
           reg.race_distances?.gps_tracking_enabled
-        ) as Registration[];
+        );
         
-        setRegistrations(gpsEnabled);
+        // Fetch wave start_times for all race_distance_ids
+        const distanceIds = gpsEnabled.map((reg: any) => reg.race_distance_id);
+        const { data: waves } = await supabase
+          .from('race_waves')
+          .select('race_distance_id, start_time')
+          .in('race_distance_id', distanceIds);
         
-        if (gpsEnabled.length === 1) {
-          const reg = gpsEnabled[0];
+        // Map wave start_times to registrations
+        const waveMap = new Map((waves || []).map(w => [w.race_distance_id, w.start_time]));
+        const registrationsWithWaves = gpsEnabled.map((reg: any) => ({
+          ...reg,
+          wave_start_time: waveMap.get(reg.race_distance_id) || null
+        })) as Registration[];
+        
+        setRegistrations(registrationsWithWaves);
+        
+        if (registrationsWithWaves.length === 1) {
+          const reg = registrationsWithWaves[0];
           setSelectedRegistration(reg);
           // Only set default if no stored preference
           if (!localStorage.getItem(SPEED_PACE_PREF_KEY)) {
@@ -316,19 +330,19 @@ const GPSTrackerApp = () => {
     fetchCheckpoints();
   }, [selectedRegistration]);
 
-  // Elapsed time counter - calculates race time from event start_time
+  // Elapsed time counter - calculates race time from wave start_time
   useEffect(() => {
     if (!isTracking) return;
     
     const calculateElapsed = () => {
-      const eventStartTime = selectedRegistration?.race_distances?.start_time;
+      const eventStartTime = selectedRegistration?.wave_start_time;
       if (eventStartTime) {
-        // Calculate elapsed from event start_time
+        // Calculate elapsed from wave start_time
         const startDate = new Date(eventStartTime);
         const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
         return Math.max(0, elapsedSeconds); // Prevent negative values
       } else if (startTimeRef.current) {
-        // Fallback to tracking start time if no event start_time
+        // Fallback to tracking start time if no wave start_time
         return Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
       }
       return 0;
@@ -342,7 +356,7 @@ const GPSTrackerApp = () => {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [isTracking, selectedRegistration?.race_distances?.start_time]);
+  }, [isTracking, selectedRegistration?.wave_start_time]);
 
   // Sync pending points
   const syncPendingPoints = useCallback(async () => {
