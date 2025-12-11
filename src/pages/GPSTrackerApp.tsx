@@ -703,6 +703,11 @@ const GPSTrackerApp = () => {
     return `${(meters / 1000).toFixed(2)}km`;
   };
 
+  // Splash screen - show FIRST while data loads in background
+  if (showSplash) {
+    return <GPSSplashScreen onComplete={() => setShowSplash(false)} duration={2500} />;
+  }
+
   // Auth redirect
   if (!authLoading && !user) {
     return (
@@ -748,11 +753,6 @@ const GPSTrackerApp = () => {
         </Card>
       </div>
     );
-  }
-
-  // Splash screen
-  if (showSplash) {
-    return <GPSSplashScreen onComplete={() => setShowSplash(false)} duration={2500} />;
   }
 
   return (
