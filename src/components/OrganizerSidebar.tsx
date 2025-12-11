@@ -42,7 +42,7 @@ const menuGroups: MenuGroup[] = [
     defaultOpen: true,
     items: [
       { title: "Gestión de Carreras", view: "races", icon: Calendar },
-      { title: "Distancias", view: "distances", icon: Route },
+      { title: "Recorridos", view: "distances", icon: Route },
       { title: "Reglamento", view: "regulations", icon: Scale },
     ],
   },

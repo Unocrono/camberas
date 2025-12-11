@@ -640,11 +640,11 @@ const RaceDetail = () => {
                 </div>
               </div>
 
-              {/* Distancias */}
+              {/* Recorridos */}
               <div>
                 <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                   <Trophy className="h-6 w-6 text-primary" />
-                  Elige tu Distancia
+                  Elige tu Recorrido
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
