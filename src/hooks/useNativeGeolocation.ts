@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { registerPlugin } from '@capacitor/core';
 
 // Background Geolocation plugin interface
 interface BackgroundGeolocationPlugin {
@@ -18,8 +17,23 @@ interface BackgroundGeolocationPlugin {
   openSettings: () => Promise<void>;
 }
 
-// Register the plugin
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+// Lazy load the plugin only when needed on native platforms
+let BackgroundGeolocation: BackgroundGeolocationPlugin | null = null;
+
+const getBackgroundGeolocationPlugin = async (): Promise<BackgroundGeolocationPlugin | null> => {
+  if (BackgroundGeolocation) return BackgroundGeolocation;
+  
+  if (!Capacitor.isNativePlatform()) return null;
+  
+  try {
+    const { registerPlugin } = await import('@capacitor/core');
+    BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+    return BackgroundGeolocation;
+  } catch (e) {
+    console.warn('BackgroundGeolocation plugin not available:', e);
+    return null;
+  }
+};
 
 export interface GeolocationResult {
   latitude: number;
@@ -62,6 +76,7 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
           const result = await navigator.permissions.query({ name: 'geolocation' });
           setHasPermission(result.state === 'granted');
         } catch (e) {
+          // Permissions API not supported, assume null
           setHasPermission(null);
         }
       }
@@ -70,6 +85,13 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
   }, []);
 
   const requestPermissions = useCallback(async (): Promise<boolean> => {
+    // Check if geolocation is available
+    if (!navigator.geolocation) {
+      console.error('Geolocation API not available');
+      setHasPermission(false);
+      return false;
+    }
+    
     // Trigger permission by getting position
     return new Promise((resolve) => {
       navigator.geolocation.getCurrentPosition(
@@ -77,10 +99,12 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
           setHasPermission(true);
           resolve(true);
         },
-        () => {
+        (error) => {
+          console.error('Permission request failed:', error);
           setHasPermission(false);
           resolve(false);
-        }
+        },
+        { timeout: 10000 }
       );
     });
   }, []);
@@ -113,6 +137,11 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
   const getCurrentPosition = useCallback(async (
     options?: UseNativeGeolocationOptions
   ): Promise<GeolocationResult | null> => {
+    if (!navigator.geolocation) {
+      console.error('Geolocation API not available');
+      return null;
+    }
+    
     const opts = {
       enableHighAccuracy: options?.enableHighAccuracy ?? true,
       timeout: options?.timeout ?? 10000,
@@ -135,10 +164,37 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
     callback: (position: GeolocationResult) => void,
     options?: UseNativeGeolocationOptions
   ): Promise<string | null> => {
+    // Fallback to web API function
+    const useWebFallback = () => {
+      if (!navigator.geolocation) {
+        console.error('Geolocation API not available');
+        return null;
+      }
+      
+      const watchId = navigator.geolocation.watchPosition(
+        (position) => callback(positionToResult(position)),
+        (error) => console.error('Web watch error:', error),
+        {
+          enableHighAccuracy: options?.enableHighAccuracy ?? true,
+          timeout: options?.timeout ?? 15000,
+          maximumAge: options?.maximumAge ?? 0,
+        }
+      );
+      webWatchIdRef.current = watchId;
+      return `web-${watchId}`;
+    };
+    
     if (isNative) {
-      // Use background geolocation plugin for native platforms
+      // Try to use background geolocation plugin for native platforms
       try {
-        const watcherId = await BackgroundGeolocation.addWatcher(
+        const plugin = await getBackgroundGeolocationPlugin();
+        
+        if (!plugin) {
+          console.warn('BackgroundGeolocation plugin not available, using web fallback');
+          return useWebFallback();
+        }
+        
+        const watcherId = await plugin.addWatcher(
           {
             backgroundMessage: 'GPS activo para seguimiento de carrera',
             backgroundTitle: 'GPS Camberas',
@@ -150,8 +206,6 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
             if (error) {
               if (error.code === 'NOT_AUTHORIZED') {
                 console.error('Location permission not authorized');
-                // Could prompt user to open settings
-                // BackgroundGeolocation.openSettings();
               }
               console.error('Background location error:', error);
               return;
@@ -165,39 +219,23 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
       } catch (e) {
         console.error('Failed to start background geolocation:', e);
         // Fallback to web API
-        const watchId = navigator.geolocation.watchPosition(
-          (position) => callback(positionToResult(position)),
-          (error) => console.error('Web watch error:', error),
-          {
-            enableHighAccuracy: options?.enableHighAccuracy ?? true,
-            timeout: options?.timeout ?? 15000,
-            maximumAge: options?.maximumAge ?? 0,
-          }
-        );
-        webWatchIdRef.current = watchId;
-        return `web-${watchId}`;
+        return useWebFallback();
       }
     } else {
       // Web fallback
-      const watchId = navigator.geolocation.watchPosition(
-        (position) => callback(positionToResult(position)),
-        (error) => console.error('Web watch error:', error),
-        {
-          enableHighAccuracy: options?.enableHighAccuracy ?? true,
-          timeout: options?.timeout ?? 15000,
-          maximumAge: options?.maximumAge ?? 0,
-        }
-      );
-      webWatchIdRef.current = watchId;
-      return `web-${watchId}`;
+      return useWebFallback();
     }
   }, [isNative]);
 
   const clearWatch = useCallback(async (watchId: string): Promise<void> => {
+    if (!watchId) return;
+    
     if (watchId.startsWith('web-')) {
       // Web watcher
       const numericId = parseInt(watchId.replace('web-', ''), 10);
-      navigator.geolocation.clearWatch(numericId);
+      if (!isNaN(numericId)) {
+        navigator.geolocation.clearWatch(numericId);
+      }
       if (webWatchIdRef.current !== null) {
         navigator.geolocation.clearWatch(webWatchIdRef.current);
         webWatchIdRef.current = null;
@@ -205,7 +243,10 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
     } else {
       // Native background geolocation watcher
       try {
-        await BackgroundGeolocation.removeWatcher({ id: watchId });
+        const plugin = await getBackgroundGeolocationPlugin();
+        if (plugin) {
+          await plugin.removeWatcher({ id: watchId });
+        }
       } catch (e) {
         console.error('Error removing background watcher:', e);
       }
