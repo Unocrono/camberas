@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import gpsIcon from '@/assets/gps-icon.png';
+import camberasLogo from '@/assets/camberas-logo.png';
 
 interface GPSSplashScreenProps {
   onComplete: () => void;
@@ -59,8 +59,8 @@ export const GPSSplashScreen = ({ onComplete, duration = 2000 }: GPSSplashScreen
           }}
         >
           <img 
-            src={gpsIcon} 
-            alt="Camberas GPS" 
+            src={camberasLogo} 
+            alt="Camberas" 
             className="w-28 h-28 object-contain"
           />
         </div>

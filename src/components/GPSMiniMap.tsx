@@ -391,48 +391,70 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
   }
 
   return (
-    <div className={isFullscreen ? "fixed inset-0 z-50 bg-background" : `relative rounded-lg overflow-hidden ${className}`}>
-      <div ref={mapContainer} className="w-full h-full" />
-      
-      {/* Controls */}
-      <div className={`absolute z-10 flex gap-${isFullscreen ? '2' : '1'} ${isFullscreen ? 'top-4 right-4' : 'top-2 left-2'}`}>
-        {!isFullscreen && (
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-8 w-8"
-            onClick={toggleFullscreen}
-          >
-            <Maximize2 className="h-4 w-4" />
-          </Button>
-        )}
-        {latitude && longitude && (
-          <Button
-            variant="secondary"
-            size="icon"
-            className={isFullscreen ? '' : 'h-8 w-8'}
-            onClick={centerOnPosition}
-          >
-            <Crosshair className={isFullscreen ? 'h-5 w-5' : 'h-4 w-4'} />
-          </Button>
-        )}
-        {isFullscreen && (
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={toggleFullscreen}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        )}
-      </div>
-      
-      {/* GPS waiting overlay */}
-      {(!latitude || !longitude) && (
-        <div className={`absolute inset-0 ${isFullscreen ? 'bg-background/80' : 'bg-background/80'} flex items-center justify-center ${isFullscreen ? 'pointer-events-none' : ''}`}>
-          <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+    <>
+      {/* Fullscreen overlay */}
+      {isFullscreen && (
+        <div className="fixed inset-0 z-50 bg-background">
+          <div ref={mapContainer} className="w-full h-full" />
+          <div className="absolute top-4 right-4 z-10 flex gap-2">
+            {latitude && longitude && (
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={centerOnPosition}
+              >
+                <Crosshair className="h-5 w-5" />
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={toggleFullscreen}
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+          {(!latitude || !longitude) && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center pointer-events-none">
+              <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+            </div>
+          )}
+          {/* Progress bar disabled - TODO: fix calculation issues */}
         </div>
       )}
-    </div>
+
+      {/* Mini map */}
+      {!isFullscreen && (
+        <div className={`relative rounded-lg overflow-hidden ${className}`}>
+          <div ref={mapContainer} className="w-full h-full" />
+          <div className="absolute top-2 left-2 z-10 flex gap-1">
+            <Button
+              variant="secondary"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleFullscreen}
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            {latitude && longitude && (
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8"
+                onClick={centerOnPosition}
+              >
+                <Crosshair className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {(!latitude || !longitude) && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+              <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+            </div>
+          )}
+          {/* Progress bar disabled - TODO: fix calculation issues */}
+        </div>
+      )}
+    </>
   );
 }
