@@ -65,6 +65,23 @@ export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) 
     map.current.on('load', () => {
       loadGpxRoute();
     });
+
+    // Fix for map disappearing when entering/exiting fullscreen
+    map.current.on('resize', () => {
+      setTimeout(() => {
+        map.current?.resize();
+      }, 100);
+    });
+
+    // Also listen for fullscreen changes
+    const container = mapContainer.current;
+    const handleFullscreenChange = () => {
+      setTimeout(() => {
+        map.current?.resize();
+      }, 100);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
   };
 
   const loadGpxRoute = async () => {
