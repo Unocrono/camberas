@@ -187,13 +187,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const handleOpenDialog = (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
-      // Parse wave start_time into date and time
+      // Parse wave start_time into date and time (keep original values without timezone conversion)
       let startDate = "";
       let startTimeValue = "";
       if (distance.wave_start_time) {
-        const dt = new Date(distance.wave_start_time);
-        startDate = dt.toISOString().split('T')[0];
-        startTimeValue = dt.toTimeString().slice(0, 8); // HH:MM:SS
+        // Extract date and time directly from ISO string to avoid timezone conversion
+        const isoString = distance.wave_start_time;
+        startDate = isoString.slice(0, 10); // YYYY-MM-DD
+        startTimeValue = isoString.slice(11, 19); // HH:MM:SS
       }
       setFormData({
         race_id: distance.race_id,
