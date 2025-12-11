@@ -16,7 +16,7 @@ import camberasLogo from '@/assets/camberas-logo.png';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
-  Smartphone, Download, Volume2, VolumeX
+  Smartphone, Download, Volume2, VolumeX, Flag
 } from 'lucide-react';
 
 // Camberas brand color
@@ -46,6 +46,12 @@ interface Race {
   race_type: string;
 }
 
+interface RaceWave {
+  id: string;
+  start_time: string | null;
+  wave_name: string;
+}
+
 interface Registration {
   id: string;
   race_id: string;
@@ -58,6 +64,7 @@ interface Registration {
     gps_update_frequency: number | null;
   };
   races: Race;
+  wave?: RaceWave;
 }
 
 interface Checkpoint {
@@ -69,6 +76,7 @@ interface Checkpoint {
   checkpoint_order: number;
   distance_km: number;
   timing_point_id: string | null;
+  checkpoint_type: string;
 }
 
 const GPSTrackerApp = () => {
@@ -98,6 +106,12 @@ const GPSTrackerApp = () => {
   const [battery, setBattery] = useState(100);
   const [lowBatteryMode, setLowBatteryMode] = useState(false);
   const [pendingPoints, setPendingPoints] = useState<GPSPoint[]>([]);
+  const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
+  const [raceElapsed, setRaceElapsed] = useState(0);
+  const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
+  const [finishCheckpoint, setFinishCheckpoint] = useState<Checkpoint | null>(null);
+  const [autoStartEnabled, setAutoStartEnabled] = useState(true);
+  const [autoStartTriggered, setAutoStartTriggered] = useState(false);
   const [stats, setStats] = useState({
     pointsSent: 0,
     distance: 0,
@@ -285,36 +299,117 @@ const GPSTrackerApp = () => {
     fetchRegistrations();
   }, [user]);
 
-  // Fetch checkpoints when registration is selected
+  // Fetch checkpoints and wave info when registration is selected
   useEffect(() => {
     if (!selectedRegistration) {
       setCheckpoints([]);
       setPassedCheckpoints(new Set());
       passedCheckpointsRef.current = new Set();
+      setWaveStartTime(null);
+      setFinishCheckpoint(null);
+      setAutoStartTriggered(false);
       return;
     }
 
-    const fetchCheckpoints = async () => {
+    const fetchCheckpointsAndWave = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch checkpoints (all, including those without coords for finish)
+        const { data: cpData, error: cpError } = await supabase
           .from('race_checkpoints')
-          .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
+          .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id, checkpoint_type')
           .eq('race_distance_id', selectedRegistration.race_distance_id)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
           .order('checkpoint_order', { ascending: true });
 
-        if (error) throw error;
-        setCheckpoints((data || []) as Checkpoint[]);
+        if (cpError) throw cpError;
+        
+        const allCheckpoints = (cpData || []) as Checkpoint[];
+        
+        // Filter checkpoints with coords for geofencing
+        const checkpointsWithCoords = allCheckpoints.filter(cp => cp.latitude && cp.longitude);
+        setCheckpoints(checkpointsWithCoords);
+        
+        // Find finish checkpoint (FINISH type or highest order)
+        const finish = allCheckpoints.find(cp => cp.checkpoint_type === 'FINISH') || 
+                       allCheckpoints[allCheckpoints.length - 1];
+        setFinishCheckpoint(finish || null);
+        
+        // Fetch wave start time
+        const { data: waveData, error: waveError } = await supabase
+          .from('race_waves')
+          .select('id, start_time, wave_name')
+          .eq('race_distance_id', selectedRegistration.race_distance_id)
+          .single();
+
+        if (!waveError && waveData?.start_time) {
+          setWaveStartTime(new Date(waveData.start_time));
+        } else {
+          setWaveStartTime(null);
+        }
       } catch (error) {
-        console.error('Error fetching checkpoints:', error);
+        console.error('Error fetching checkpoints/wave:', error);
       }
     };
 
-    fetchCheckpoints();
+    fetchCheckpointsAndWave();
   }, [selectedRegistration]);
 
-  // Elapsed time counter
+  // Race time counter (from wave start time)
+  useEffect(() => {
+    if (!waveStartTime) {
+      setRaceElapsed(0);
+      return;
+    }
+    
+    const updateRaceElapsed = () => {
+      const now = Date.now();
+      const elapsed = Math.floor((now - waveStartTime.getTime()) / 1000);
+      setRaceElapsed(elapsed > 0 ? elapsed : 0);
+    };
+    
+    updateRaceElapsed();
+    const timer = setInterval(updateRaceElapsed, 1000);
+    
+    return () => clearInterval(timer);
+  }, [waveStartTime]);
+
+  // Update distance to finish based on current position
+  useEffect(() => {
+    if (!currentPosition || !finishCheckpoint) {
+      setDistanceToFinish(null);
+      return;
+    }
+    
+    if (finishCheckpoint.latitude && finishCheckpoint.longitude) {
+      // Direct line distance to finish (rough approximation)
+      const dist = calculateDistanceStatic(
+        currentPosition.lat, 
+        currentPosition.lng, 
+        finishCheckpoint.latitude, 
+        finishCheckpoint.longitude
+      );
+      setDistanceToFinish(dist);
+    } else if (selectedRegistration) {
+      // Estimate based on traveled distance vs total
+      const totalMeters = selectedRegistration.race_distances.distance_km * 1000;
+      const remaining = totalMeters - stats.distance;
+      setDistanceToFinish(remaining > 0 ? remaining : 0);
+    }
+  }, [currentPosition, finishCheckpoint, selectedRegistration, stats.distance]);
+
+  // Helper function for distance calculation
+  const calculateDistanceStatic = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3;
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
+
+
+  // Elapsed time counter (tracking session)
   useEffect(() => {
     if (!isTracking || !startTimeRef.current) return;
     
@@ -563,7 +658,44 @@ const GPSTrackerApp = () => {
     });
   }, [selectedRegistration, lowBatteryMode, handlePosition, requestPermissions, getCurrentPosition, watchPosition, isNative]);
 
-  // Stop tracking
+  // Auto-start when entering start geofence and race time has begun
+  useEffect(() => {
+    if (!autoStartEnabled || autoStartTriggered || isTracking) return;
+    if (!selectedRegistration || !waveStartTime || !currentPosition) return;
+    
+    const now = Date.now();
+    const waveTime = waveStartTime.getTime();
+    
+    // Only auto-start if wave has started (within 60 minutes window)
+    const windowMs = 60 * 60 * 1000; // 60 minutes
+    if (now < waveTime || now > waveTime + windowMs) return;
+    
+    // Find start checkpoint
+    const startCheckpoint = checkpoints.find(cp => 
+      cp.checkpoint_type === 'START' || cp.checkpoint_order === 1
+    );
+    
+    if (!startCheckpoint || !startCheckpoint.latitude || !startCheckpoint.longitude) return;
+    
+    const distToStart = calculateDistanceStatic(
+      currentPosition.lat,
+      currentPosition.lng,
+      startCheckpoint.latitude,
+      startCheckpoint.longitude
+    );
+    
+    const radius = startCheckpoint.geofence_radius || 100;
+    
+    if (distToStart <= radius) {
+      setAutoStartTriggered(true);
+      toast({
+        title: '🚀 Auto-start activado',
+        description: 'Detectada posición de salida. Iniciando tracking...',
+      });
+      startTracking();
+    }
+  }, [currentPosition, waveStartTime, checkpoints, autoStartEnabled, autoStartTriggered, isTracking, selectedRegistration, startTracking, calculateDistanceStatic, toast]);
+
   const stopTracking = useCallback(async () => {
     if (watchIdRef.current !== null) {
       await clearWatch(watchIdRef.current);
@@ -777,21 +909,50 @@ const GPSTrackerApp = () => {
           </Card>
         )}
 
-        {/* Race Info */}
+        {/* Race Info + Start Button */}
         {selectedRegistration && (
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-4 space-y-3">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold">{selectedRegistration.races.name}</h2>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold truncate">{selectedRegistration.races.name}</h2>
                   <p className="text-sm text-muted-foreground">{selectedRegistration.race_distances.name}</p>
                 </div>
                 {selectedRegistration.bib_number && (
-                  <Badge variant="secondary" className="text-lg px-3 py-1">
+                  <Badge variant="secondary" className="text-lg px-3 py-1 ml-2 shrink-0">
                     #{selectedRegistration.bib_number}
                   </Badge>
                 )}
               </div>
+              
+              {/* Start/Stop Button inline */}
+              {!isTracking ? (
+                <Button 
+                  onClick={startTracking} 
+                  className="w-full h-14 text-lg text-white hover:opacity-90"
+                  style={{ backgroundColor: CAMBERAS_PINK }}
+                  disabled={!selectedRegistration}
+                >
+                  <Play className="h-6 w-6 mr-2" />
+                  INICIAR TRACKING
+                </Button>
+              ) : (
+                <Button 
+                  onClick={stopTracking} 
+                  variant="destructive" 
+                  className="w-full h-14 text-lg"
+                >
+                  <Square className="h-6 w-6 mr-2" />
+                  DETENER
+                </Button>
+              )}
+              
+              {/* Auto-start indicator */}
+              {!isTracking && autoStartEnabled && waveStartTime && (
+                <div className="text-xs text-center text-muted-foreground">
+                  Auto-start activado al detectar salida
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -801,8 +962,10 @@ const GPSTrackerApp = () => {
           <Card>
             <CardContent className="pt-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-2xl font-mono font-bold">{formatTime(stats.elapsed)}</div>
-              <div className="text-xs text-muted-foreground">Tiempo</div>
+              <div className="text-2xl font-mono font-bold">
+                {waveStartTime && raceElapsed > 0 ? formatTime(raceElapsed) : '--:--:--'}
+              </div>
+              <div className="text-xs text-muted-foreground">Tiempo Carrera</div>
             </CardContent>
           </Card>
           
@@ -810,7 +973,7 @@ const GPSTrackerApp = () => {
             <CardContent className="pt-4 text-center">
               <Navigation className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
               <div className="text-2xl font-mono font-bold">{formatDistance(stats.distance)}</div>
-              <div className="text-xs text-muted-foreground">Distancia</div>
+              <div className="text-xs text-muted-foreground">Recorrido</div>
             </CardContent>
           </Card>
           
@@ -838,9 +1001,11 @@ const GPSTrackerApp = () => {
           
           <Card>
             <CardContent className="pt-4 text-center">
-              <Radio className={`h-5 w-5 mx-auto mb-1 ${isTracking ? 'text-green-500 animate-pulse' : 'text-muted-foreground'}`} />
-              <div className="text-2xl font-mono font-bold">{stats.pointsSent}</div>
-              <div className="text-xs text-muted-foreground">Puntos enviados</div>
+              <Flag className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+              <div className="text-2xl font-mono font-bold">
+                {distanceToFinish !== null ? formatDistance(distanceToFinish) : '--'}
+              </div>
+              <div className="text-xs text-muted-foreground">A Meta</div>
             </CardContent>
           </Card>
         </div>
@@ -892,29 +1057,8 @@ const GPSTrackerApp = () => {
         )}
       </main>
 
-      {/* Bottom Action Button */}
-      <div className="p-4" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
-        {!isTracking ? (
-          <Button 
-            onClick={startTracking} 
-            className="w-full h-20 text-xl text-white hover:opacity-90"
-            style={{ backgroundColor: CAMBERAS_PINK }}
-            disabled={!selectedRegistration}
-          >
-            <Play className="h-8 w-8 mr-3" />
-            INICIAR TRACKING
-          </Button>
-        ) : (
-          <Button 
-            onClick={stopTracking} 
-            variant="destructive" 
-            className="w-full h-20 text-xl"
-          >
-            <Square className="h-8 w-8 mr-3" />
-            DETENER
-          </Button>
-        )}
-      </div>
+      {/* Bottom safe area padding */}
+      <div style={{ paddingBottom: 'env(safe-area-inset-bottom)' }} />
     </div>
   );
 };
