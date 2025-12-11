@@ -33,7 +33,6 @@ interface Distance {
   elevation_gain: number | null;
   price: number;
   max_participants: number | null;
-  start_time: string | null;
   cutoff_time: string | null;
   start_location: string | null;
   finish_location: string | null;
@@ -47,6 +46,8 @@ interface Distance {
   gps_tracking_enabled: boolean | null;
   gps_update_frequency: number | null;
   show_route_map: boolean | null;
+  // From race_waves join
+  wave_start_time: string | null;
 }
 
 interface Race {
@@ -133,9 +134,13 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
   const fetchDistances = async () => {
     try {
+      // Fetch distances with wave start_time
       let query = supabase
         .from("race_distances")
-        .select("*")
+        .select(`
+          *,
+          race_waves!race_waves_race_distance_id_fkey(start_time)
+        `)
         .order("created_at", { ascending: false });
 
       // Filter by selected race if provided
@@ -159,7 +164,15 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
       const { data, error } = await query;
       if (error) throw error;
-      setDistances(data || []);
+      
+      // Map wave start_time to distance
+      const distancesWithWaveTime = (data || []).map((d: any) => ({
+        ...d,
+        wave_start_time: d.race_waves?.start_time || null,
+        race_waves: undefined, // Clean up the nested object
+      }));
+      
+      setDistances(distancesWithWaveTime);
     } catch (error: any) {
       toast({
         title: "Error al cargar recorridos",
@@ -174,11 +187,11 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const handleOpenDialog = (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
-      // Parse start_time into date and time
+      // Parse wave start_time into date and time
       let startDate = "";
       let startTimeValue = "";
-      if (distance.start_time) {
-        const dt = new Date(distance.start_time);
+      if (distance.wave_start_time) {
+        const dt = new Date(distance.wave_start_time);
         startDate = dt.toISOString().split('T')[0];
         startTimeValue = dt.toTimeString().slice(0, 8); // HH:MM:SS
       }
@@ -340,7 +353,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         });
       }
 
-      // Build start_time from date and time
+      // Build start_time from date and time for race_waves
       let startTime: string | null = null;
       if (formData.start_date && formData.start_time_value) {
         startTime = `${formData.start_date}T${formData.start_time_value}`;
@@ -353,7 +366,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         elevation_gain: validatedData.elevation_gain || null,
         price: validatedData.price,
         max_participants: validatedData.max_participants || null,
-        start_time: startTime,
         cutoff_time: validatedData.cutoff_time || null,
         start_location: validatedData.start_location || null,
         finish_location: validatedData.finish_location || null,
@@ -376,16 +388,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
-        // Sync start_time with associated wave
-        if (startTime) {
-          const { error: waveError } = await supabase
-            .from("race_waves")
-            .update({ start_time: startTime })
-            .eq("race_distance_id", editingDistance.id);
+        // Update start_time in race_waves (source of truth)
+        const { error: waveError } = await supabase
+          .from("race_waves")
+          .update({ start_time: startTime })
+          .eq("race_distance_id", editingDistance.id);
 
-          if (waveError) {
-            console.error("Error updating wave start_time:", waveError);
-          }
+        if (waveError) {
+          console.error("Error updating wave start_time:", waveError);
         }
 
         toast({
@@ -393,11 +403,26 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           description: "El recorrido y hora de salida se han actualizado exitosamente",
         });
       } else {
-        const { error } = await supabase
+        // Insert new distance - wave will be created by trigger
+        const { data: newDistance, error } = await supabase
           .from("race_distances")
-          .insert([distanceData]);
+          .insert([distanceData])
+          .select('id')
+          .single();
 
         if (error) throw error;
+
+        // Update start_time in the newly created wave
+        if (newDistance && startTime) {
+          const { error: waveError } = await supabase
+            .from("race_waves")
+            .update({ start_time: startTime })
+            .eq("race_distance_id", newDistance.id);
+
+          if (waveError) {
+            console.error("Error updating wave start_time:", waveError);
+          }
+        }
 
         toast({
           title: "Recorrido creado",
@@ -944,13 +969,13 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     </div>
                   )}
 
-                  {distance.start_time && (
+                  {distance.wave_start_time && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-xs text-muted-foreground">Salida</p>
                         <p className="font-semibold">
-                          {new Date(distance.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(distance.wave_start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                     </div>
