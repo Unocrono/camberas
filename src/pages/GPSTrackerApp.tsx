@@ -56,6 +56,7 @@ interface Registration {
     distance_km: number;
     gps_tracking_enabled: boolean | null;
     gps_update_frequency: number | null;
+    start_time: string | null;
   };
   races: Race;
 }
@@ -239,7 +240,8 @@ const GPSTrackerApp = () => {
               name,
               distance_km,
               gps_tracking_enabled,
-              gps_update_frequency
+              gps_update_frequency,
+              start_time
             ),
             races!inner (
               id,
@@ -314,19 +316,33 @@ const GPSTrackerApp = () => {
     fetchCheckpoints();
   }, [selectedRegistration]);
 
-  // Elapsed time counter
+  // Elapsed time counter - calculates race time from event start_time
   useEffect(() => {
-    if (!isTracking || !startTimeRef.current) return;
+    if (!isTracking) return;
+    
+    const calculateElapsed = () => {
+      const eventStartTime = selectedRegistration?.race_distances?.start_time;
+      if (eventStartTime) {
+        // Calculate elapsed from event start_time
+        const startDate = new Date(eventStartTime);
+        const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
+        return Math.max(0, elapsedSeconds); // Prevent negative values
+      } else if (startTimeRef.current) {
+        // Fallback to tracking start time if no event start_time
+        return Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
+      }
+      return 0;
+    };
+    
+    // Set initial value immediately
+    setStats(prev => ({ ...prev, elapsed: calculateElapsed() }));
     
     const timer = setInterval(() => {
-      setStats(prev => ({
-        ...prev,
-        elapsed: Math.floor((Date.now() - startTimeRef.current!.getTime()) / 1000),
-      }));
+      setStats(prev => ({ ...prev, elapsed: calculateElapsed() }));
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [isTracking]);
+  }, [isTracking, selectedRegistration?.race_distances?.start_time]);
 
   // Sync pending points
   const syncPendingPoints = useCallback(async () => {
