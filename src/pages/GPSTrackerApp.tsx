@@ -16,7 +16,7 @@ import camberasLogo from '@/assets/camberas-logo.png';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
-  Smartphone, Download, Volume2, VolumeX
+  Smartphone, Download, Volume2, VolumeX, Target
 } from 'lucide-react';
 
 // Camberas brand color
@@ -868,9 +868,13 @@ const GPSTrackerApp = () => {
           
           <Card>
             <CardContent className="pt-4 text-center">
-              <Radio className={`h-5 w-5 mx-auto mb-1 ${isTracking ? 'text-green-500 animate-pulse' : 'text-muted-foreground'}`} />
-              <div className="text-2xl font-mono font-bold">{stats.pointsSent}</div>
-              <div className="text-xs text-muted-foreground">Puntos enviados</div>
+              <Target className={`h-5 w-5 mx-auto mb-1 text-muted-foreground`} />
+              <div className="text-2xl font-mono font-bold">
+                {selectedRegistration?.race_distances?.distance_km 
+                  ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
+                  : '--'}
+              </div>
+              <div className="text-xs text-muted-foreground">Distancia a meta</div>
             </CardContent>
           </Card>
         </div>
@@ -914,10 +918,20 @@ const GPSTrackerApp = () => {
           </Card>
         )}
 
-        {/* Last Update */}
-        {stats.lastUpdate && (
-          <div className="text-center text-sm text-muted-foreground">
-            Última actualización: {stats.lastUpdate.toLocaleTimeString('es-ES')}
+        {/* Last Update & Points Sent */}
+        {(stats.lastUpdate || stats.pointsSent > 0) && (
+          <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground px-2">
+            <div className="text-center">
+              <div className="font-medium">Última actualización</div>
+              <div>{stats.lastUpdate ? stats.lastUpdate.toLocaleTimeString('es-ES') : '--:--:--'}</div>
+            </div>
+            <div className="text-center">
+              <div className="font-medium">Puntos enviados</div>
+              <div className="flex items-center justify-center gap-1">
+                <Radio className={`h-3 w-3 ${isTracking ? 'text-green-500 animate-pulse' : ''}`} />
+                {stats.pointsSent}
+              </div>
+            </div>
           </div>
         )}
       </main>
