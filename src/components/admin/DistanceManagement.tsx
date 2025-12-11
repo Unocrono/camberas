@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff, AlertTriangle, CheckCircle, Euro, Navigation } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -22,7 +23,6 @@ const distanceSchema = z.object({
   cutoff_time: z.string().max(50).optional(),
   start_location: z.string().trim().max(200).optional(),
   finish_location: z.string().trim().max(200).optional(),
-  image_url: z.string().url("URL inválida").optional().or(z.literal("")),
 });
 
 interface Distance {
@@ -82,7 +82,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     cutoff_time: "",
     start_location: "",
     finish_location: "",
-    image_url: "",
     is_visible: true,
     bib_start: "",
     bib_end: "",
@@ -93,7 +92,10 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   });
 
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [gpxFile, setGpxFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [currentGpxUrl, setCurrentGpxUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRaces();
@@ -160,7 +162,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       setDistances(data || []);
     } catch (error: any) {
       toast({
-        title: "Error al cargar distancias",
+        title: "Error al cargar recorridos",
         description: error.message,
         variant: "destructive",
       });
@@ -192,7 +194,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         cutoff_time: distance.cutoff_time || "",
         start_location: distance.start_location || "",
         finish_location: distance.finish_location || "",
-        image_url: distance.image_url || "",
         is_visible: distance.is_visible ?? true,
         bib_start: distance.bib_start?.toString() || "",
         bib_end: distance.bib_end?.toString() || "",
@@ -201,6 +202,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
         show_route_map: distance.show_route_map ?? true,
       });
+      setCurrentImageUrl(distance.image_url);
+      setCurrentGpxUrl(distance.gpx_file_url);
     } else {
       setEditingDistance(null);
       // Get default date from selected race
@@ -218,7 +221,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         cutoff_time: "",
         start_location: "",
         finish_location: "",
-        image_url: "",
         is_visible: true,
         bib_start: "",
         bib_end: "",
@@ -227,8 +229,11 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_update_frequency: "30",
         show_route_map: true,
       });
+      setCurrentImageUrl(null);
+      setCurrentGpxUrl(null);
     }
     setImageFile(null);
+    setGpxFile(null);
     setIsDialogOpen(true);
   };
 
@@ -290,14 +295,19 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         cutoff_time: formData.cutoff_time || undefined,
         start_location: formData.start_location || undefined,
         finish_location: formData.finish_location || undefined,
-        image_url: formData.image_url || undefined,
       });
 
-      let imageUrl = formData.image_url || null;
+      let imageUrl = currentImageUrl;
+      let gpxUrl = currentGpxUrl;
 
       if (imageFile) {
         const uploadedUrl = await uploadFile(imageFile, 'race-photos', `distance-${formData.race_id}`);
         if (uploadedUrl) imageUrl = uploadedUrl;
+      }
+
+      if (gpxFile) {
+        const uploadedGpx = await uploadFile(gpxFile, 'race-gpx', `distance-${formData.race_id}`);
+        if (uploadedGpx) gpxUrl = uploadedGpx;
       }
 
       const bibStart = formData.bib_start ? parseInt(formData.bib_start) : null;
@@ -348,6 +358,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         start_location: validatedData.start_location || null,
         finish_location: validatedData.finish_location || null,
         image_url: imageUrl,
+        gpx_file_url: gpxUrl,
         is_visible: formData.is_visible,
         bib_start: bibStart,
         bib_end: bibEnd,
@@ -378,8 +389,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         }
 
         toast({
-          title: "Distancia actualizada",
-          description: "La distancia y hora de salida se han actualizado exitosamente",
+          title: "Recorrido actualizado",
+          description: "El recorrido y hora de salida se han actualizado exitosamente",
         });
       } else {
         const { error } = await supabase
@@ -389,8 +400,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         if (error) throw error;
 
         toast({
-          title: "Distancia creada",
-          description: "La distancia se ha creado exitosamente",
+          title: "Recorrido creado",
+          description: "El recorrido se ha creado exitosamente",
         });
       }
 
@@ -426,8 +437,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       if (error) throw error;
 
       toast({
-        title: "Distancia eliminada",
-        description: "La distancia se ha eliminado exitosamente",
+        title: "Recorrido eliminado",
+        description: "El recorrido se ha eliminado exitosamente",
       });
 
       fetchDistances();
@@ -446,28 +457,28 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   };
 
   if (loading) {
-    return <div className="text-muted-foreground">Cargando distancias...</div>;
+    return <div className="text-muted-foreground">Cargando recorridos...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold">Gestión de Distancias</h2>
-          <p className="text-muted-foreground">Crea, edita y elimina distancias de tus carreras</p>
+          <h2 className="text-3xl font-bold">Gestión de Recorridos</h2>
+          <p className="text-muted-foreground">Crea, edita y elimina recorridos de tus carreras</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => handleOpenDialog()} className="gap-2">
               <Plus className="h-4 w-4" />
-              Nueva Distancia
+              Nuevo Recorrido
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingDistance ? "Editar Distancia" : "Nueva Distancia"}</DialogTitle>
+              <DialogTitle>{editingDistance ? "Editar Recorrido" : "Nuevo Recorrido"}</DialogTitle>
               <DialogDescription>
-                {editingDistance ? "Modifica los datos de la distancia" : "Completa los datos para crear una nueva distancia"}
+                {editingDistance ? "Modifica los datos del recorrido" : "Completa los datos para crear un nuevo recorrido"}
               </DialogDescription>
             </DialogHeader>
 
@@ -499,326 +510,340 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre de la Distancia *</Label>
-                <Input
-                  id="name"
-                  placeholder="ej: Ultra Trail 100K"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
-              </div>
+              <Tabs defaultValue="recorrido" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="recorrido" className="gap-1">
+                    <Route className="h-4 w-4" />
+                    <span className="hidden sm:inline">Recorrido</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="precios" className="gap-1">
+                    <Euro className="h-4 w-4" />
+                    <span className="hidden sm:inline">Precios</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="dorsales" className="gap-1">
+                    <Users className="h-4 w-4" />
+                    <span className="hidden sm:inline">Dorsales</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="gps" className="gap-1">
+                    <Navigation className="h-4 w-4" />
+                    <span className="hidden sm:inline">GPS</span>
+                  </TabsTrigger>
+                </TabsList>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="distance_km">Distancia (km) *</Label>
-                  <Input
-                    id="distance_km"
-                    type="number"
-                    step="0.001"
-                    min="0"
-                    placeholder="42.195"
-                    value={formData.distance_km}
-                    onChange={(e) => setFormData({ ...formData, distance_km: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="elevation_gain">Desnivel Positivo (m)</Label>
-                  <Input
-                    id="elevation_gain"
-                    type="number"
-                    min="0"
-                    placeholder="2500"
-                    value={formData.elevation_gain}
-                    onChange={(e) => setFormData({ ...formData, elevation_gain: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="price">Precio (€) *</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="45.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="max_participants">Plazas Máximas</Label>
-                  <Input
-                    id="max_participants"
-                    type="number"
-                    min="1"
-                    placeholder="500"
-                    value={formData.max_participants}
-                    onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Horarios
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* TAB: Recorrido */}
+                <TabsContent value="recorrido" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="start_date">Fecha de Salida</Label>
+                    <Label htmlFor="name">Nombre del Recorrido *</Label>
                     <Input
-                      id="start_date"
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      id="name"
+                      placeholder="ej: Ultra Trail 100K"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Por defecto la fecha de la carrera
-                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="distance_km">Distancia (km) *</Label>
+                      <Input
+                        id="distance_km"
+                        type="number"
+                        step="0.001"
+                        min="0"
+                        placeholder="42.195"
+                        value={formData.distance_km}
+                        onChange={(e) => setFormData({ ...formData, distance_km: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="elevation_gain">Desnivel Positivo (m)</Label>
+                      <Input
+                        id="elevation_gain"
+                        type="number"
+                        min="0"
+                        placeholder="2500"
+                        value={formData.elevation_gain}
+                        onChange={(e) => setFormData({ ...formData, elevation_gain: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_date">Fecha de Salida</Label>
+                      <Input
+                        id="start_date"
+                        type="date"
+                        value={formData.start_date}
+                        onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Por defecto la fecha de la carrera
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="start_time_value">Hora de Salida</Label>
+                      <Input
+                        id="start_time_value"
+                        type="time"
+                        step="1"
+                        placeholder="HH:MM:SS"
+                        value={formData.start_time_value}
+                        onChange={(e) => setFormData({ ...formData, start_time_value: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="start_time_value">Hora de Salida</Label>
+                    <Label htmlFor="cutoff_time">Tiempo Límite (HH:MM:SS)</Label>
                     <Input
-                      id="start_time_value"
+                      id="cutoff_time"
                       type="time"
                       step="1"
                       placeholder="HH:MM:SS"
-                      value={formData.start_time_value}
-                      onChange={(e) => setFormData({ ...formData, start_time_value: e.target.value })}
+                      value={formData.cutoff_time}
+                      onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
                     />
                   </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="cutoff_time">Tiempo Límite (HH:MM:SS)</Label>
-                  <Input
-                    id="cutoff_time"
-                    type="time"
-                    step="1"
-                    placeholder="HH:MM:SS"
-                    value={formData.cutoff_time}
-                    onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_location">Zona de Salida</Label>
+                      <Input
+                        id="start_location"
+                        placeholder="ej: Plaza Mayor"
+                        value={formData.start_location}
+                        onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
+                      />
+                    </div>
 
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Gestión de Dorsales
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bib_start">Dorsal Inicial</Label>
-                    <Input
-                      id="bib_start"
-                      type="number"
-                      min="1"
-                      placeholder="ej: 1"
-                      value={formData.bib_start}
-                      onChange={(e) => setFormData({ ...formData, bib_start: e.target.value })}
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="finish_location">Zona de Meta</Label>
+                      <Input
+                        id="finish_location"
+                        placeholder="ej: Parque Central"
+                        value={formData.finish_location}
+                        onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="bib_end">Dorsal Final</Label>
+                    <Label htmlFor="image_file">Imagen del Recorrido</Label>
                     <Input
-                      id="bib_end"
-                      type="number"
-                      min="1"
-                      placeholder="ej: 500"
-                      value={formData.bib_end}
-                      onChange={(e) => setFormData({ ...formData, bib_end: e.target.value })}
+                      id="image_file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
                     />
+                    {currentImageUrl && !imageFile && (
+                      <p className="text-xs text-muted-foreground">✓ Imagen cargada</p>
+                    )}
+                    {imageFile && (
+                      <p className="text-xs text-muted-foreground">
+                        Archivo seleccionado: {imageFile.name}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="next_bib">Siguiente Dorsal</Label>
-                    <Input
-                      id="next_bib"
-                      type="number"
-                      min="1"
-                      placeholder="Auto"
-                      value={formData.next_bib}
-                      onChange={(e) => setFormData({ ...formData, next_bib: e.target.value })}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Se asigna automáticamente si se deja vacío
-                    </p>
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium text-sm">Visibilidad</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="is_visible_distance" className="flex items-center gap-2">
+                          {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          Visible para usuarios
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Si está desactivado, solo los organizadores y administradores podrán ver este recorrido
+                        </p>
+                      </div>
+                      <Switch
+                        id="is_visible_distance"
+                        checked={formData.is_visible}
+                        onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="show_route_map" className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          Mostrar mapa de recorrido
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Muestra el botón "Ver Recorrido" en la página del evento (requiere GPX importado en rutómetro)
+                        </p>
+                      </div>
+                      <Switch
+                        id="show_route_map"
+                        checked={formData.show_route_map}
+                        onCheckedChange={(checked) => setFormData({ ...formData, show_route_map: checked })}
+                      />
+                    </div>
                   </div>
-                </div>
+                </TabsContent>
 
-                {/* Validation warnings */}
-                {formData.bib_start && formData.bib_end && parseInt(formData.bib_start) > parseInt(formData.bib_end) && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      El dorsal inicial no puede ser mayor que el dorsal final
-                    </AlertDescription>
-                  </Alert>
-                )}
+                {/* TAB: Precios */}
+                <TabsContent value="precios" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="price">Precio (€) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="45.00"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        required
+                      />
+                    </div>
 
-                {formData.next_bib && formData.bib_end && parseInt(formData.next_bib) > parseInt(formData.bib_end) && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      El siguiente dorsal ({formData.next_bib}) supera el rango final ({formData.bib_end}). No se podrán asignar más dorsales automáticamente.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {formData.bib_start && formData.bib_end && formData.next_bib && 
-                 parseInt(formData.next_bib) <= parseInt(formData.bib_end) && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <span>
-                      Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1} 
-                      ({formData.next_bib} - {formData.bib_end})
-                    </span>
+                    <div className="space-y-2">
+                      <Label htmlFor="max_participants">Plazas Máximas</Label>
+                      <Input
+                        id="max_participants"
+                        type="number"
+                        min="1"
+                        placeholder="500"
+                        value={formData.max_participants}
+                        onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </TabsContent>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="start_location">Zona de Salida</Label>
-                  <Input
-                    id="start_location"
-                    placeholder="ej: Plaza Mayor"
-                    value={formData.start_location}
-                    onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
-                  />
-                </div>
+                {/* TAB: Dorsales */}
+                <TabsContent value="dorsales" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bib_start">Dorsal Inicial</Label>
+                      <Input
+                        id="bib_start"
+                        type="number"
+                        min="1"
+                        placeholder="ej: 1"
+                        value={formData.bib_start}
+                        onChange={(e) => setFormData({ ...formData, bib_start: e.target.value })}
+                      />
+                    </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="finish_location">Zona de Meta</Label>
-                  <Input
-                    id="finish_location"
-                    placeholder="ej: Parque Central"
-                    value={formData.finish_location}
-                    onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
-                  />
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="bib_end">Dorsal Final</Label>
+                      <Input
+                        id="bib_end"
+                        type="number"
+                        min="1"
+                        placeholder="ej: 500"
+                        value={formData.bib_end}
+                        onChange={(e) => setFormData({ ...formData, bib_end: e.target.value })}
+                      />
+                    </div>
 
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Archivos
-                </h3>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="image_file">Imagen de la Distancia</Label>
-                  <Input
-                    id="image_file"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  />
-                  {formData.image_url && !imageFile && (
-                    <p className="text-xs text-muted-foreground">✓ Imagen cargada</p>
+                    <div className="space-y-2">
+                      <Label htmlFor="next_bib">Siguiente Dorsal</Label>
+                      <Input
+                        id="next_bib"
+                        type="number"
+                        min="1"
+                        placeholder="Auto"
+                        value={formData.next_bib}
+                        onChange={(e) => setFormData({ ...formData, next_bib: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Se asigna automáticamente si se deja vacío
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Validation warnings */}
+                  {formData.bib_start && formData.bib_end && parseInt(formData.bib_start) > parseInt(formData.bib_end) && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        El dorsal inicial no puede ser mayor que el dorsal final
+                      </AlertDescription>
+                    </Alert>
                   )}
-                  {imageFile && (
-                    <p className="text-xs text-muted-foreground">
-                      Archivo seleccionado: {imageFile.name}
-                    </p>
+
+                  {formData.next_bib && formData.bib_end && parseInt(formData.next_bib) > parseInt(formData.bib_end) && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        El siguiente dorsal ({formData.next_bib}) supera el rango final ({formData.bib_end}). No se podrán asignar más dorsales automáticamente.
+                      </AlertDescription>
+                    </Alert>
                   )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="image_url">URL de Imagen (alternativa)</Label>
-                  <Input
-                    id="image_url"
-                    type="url"
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  />
-                </div>
-              </div>
+                  {formData.bib_start && formData.bib_end && formData.next_bib && 
+                   parseInt(formData.next_bib) <= parseInt(formData.bib_end) && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span>
+                        Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1} 
+                        ({formData.next_bib} - {formData.bib_end})
+                      </span>
+                    </div>
+                  )}
+                </TabsContent>
 
-              <div className="space-y-4 border-t pt-4">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  Configuración GPS
-                </h3>
-                
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="gps_tracking_enabled"
-                    checked={formData.gps_tracking_enabled}
-                    onChange={(e) => setFormData({ ...formData, gps_tracking_enabled: e.target.checked })}
-                    className="rounded border-gray-300"
-                  />
-                  <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
-                </div>
-
-                {formData.gps_tracking_enabled && (
+                {/* TAB: GPS */}
+                <TabsContent value="gps" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
+                    <Label htmlFor="gpx_file">Archivo GPX</Label>
                     <Input
-                      id="gps_update_frequency"
-                      type="number"
-                      min="5"
-                      max="300"
-                      value={formData.gps_update_frequency}
-                      onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
+                      id="gpx_file"
+                      type="file"
+                      accept=".gpx"
+                      onChange={(e) => setGpxFile(e.target.files?.[0] || null)}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Frecuencia recomendada: 30-60 segundos para ahorrar batería
-                    </p>
+                    {currentGpxUrl && !gpxFile && (
+                      <p className="text-xs text-muted-foreground">✓ Archivo GPX cargado</p>
+                    )}
+                    {gpxFile && (
+                      <p className="text-xs text-muted-foreground">
+                        Archivo seleccionado: {gpxFile.name}
+                      </p>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <div className="flex items-center justify-between border-t pt-4">
-                <div className="space-y-0.5">
-                  <Label htmlFor="is_visible_distance" className="flex items-center gap-2">
-                    {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    Visible para usuarios
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Si está desactivado, solo los organizadores y administradores podrán ver esta distancia
-                  </p>
-                </div>
-                <Switch
-                  id="is_visible_distance"
-                  checked={formData.is_visible}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
-                />
-              </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="gps_tracking_enabled"
+                      checked={formData.gps_tracking_enabled}
+                      onCheckedChange={(checked) => setFormData({ ...formData, gps_tracking_enabled: checked })}
+                    />
+                    <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
+                  </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="show_route_map" className="flex items-center gap-2">
-                    <Route className="h-4 w-4" />
-                    Mostrar mapa de recorrido
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Muestra el botón "Ver Recorrido" en la página del evento (requiere GPX importado en rutómetro)
-                  </p>
-                </div>
-                <Switch
-                  id="show_route_map"
-                  checked={formData.show_route_map}
-                  onCheckedChange={(checked) => setFormData({ ...formData, show_route_map: checked })}
-                />
-              </div>
+                  {formData.gps_tracking_enabled && (
+                    <div className="space-y-2">
+                      <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
+                      <Input
+                        id="gps_update_frequency"
+                        type="number"
+                        min="5"
+                        max="300"
+                        value={formData.gps_update_frequency}
+                        onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Frecuencia recomendada: 30-60 segundos para ahorrar batería
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
 
               <Button type="submit" className="w-full" disabled={isSubmitting || uploading}>
-                {uploading ? "Subiendo archivos..." : isSubmitting ? "Guardando..." : editingDistance ? "Actualizar Distancia" : "Crear Distancia"}
+                {uploading ? "Subiendo archivos..." : isSubmitting ? "Guardando..." : editingDistance ? "Actualizar Recorrido" : "Crear Recorrido"}
               </Button>
             </form>
           </DialogContent>
@@ -830,8 +855,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Route className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No hay distancias</h3>
-              <p className="text-muted-foreground">Crea tu primera distancia para comenzar</p>
+              <h3 className="text-xl font-semibold mb-2">No hay recorridos</h3>
+              <p className="text-muted-foreground">Crea tu primer recorrido para comenzar</p>
             </CardContent>
           </Card>
           ) : (
@@ -845,7 +870,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       {!distance.is_visible && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
                           <EyeOff className="h-3 w-3" />
-                          Oculta
+                          Oculto
                         </span>
                       )}
                     </div>
@@ -865,9 +890,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar distancia?</AlertDialogTitle>
+                          <AlertDialogTitle>¿Eliminar recorrido?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Esta acción no se puede deshacer. Se eliminará permanentemente la distancia.
+                            Esta acción no se puede deshacer. Se eliminará permanentemente el recorrido.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -900,15 +925,15 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">€</span>
+                    <Euro className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Precio</p>
-                      <p className="font-semibold">{distance.price.toFixed(2)} €</p>
+                      <p className="font-semibold">{distance.price} €</p>
                     </div>
                   </div>
-                  
+
                   {distance.max_participants && (
                     <div className="flex items-center gap-2">
                       <Users className="h-4 w-4 text-muted-foreground" />
@@ -918,62 +943,35 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       </div>
                     </div>
                   )}
-                  
-                  {distance.cutoff_time && (
+
+                  {distance.start_time && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Tiempo límite</p>
-                        <p className="font-semibold">{distance.cutoff_time}</p>
+                        <p className="text-xs text-muted-foreground">Salida</p>
+                        <p className="font-semibold">
+                          {new Date(distance.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
                     </div>
                   )}
-                  
+
                   {distance.bib_start && distance.bib_end && (
                     <div className="flex items-center gap-2">
-                      {distance.next_bib && distance.next_bib > distance.bib_end ? (
-                        <AlertTriangle className="h-4 w-4 text-destructive" />
-                      ) : distance.next_bib && (distance.bib_end - distance.next_bib + 1) <= 10 ? (
-                        <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                      ) : (
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                      )}
+                      <Users className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-xs text-muted-foreground">Dorsales</p>
                         <p className="font-semibold">{distance.bib_start} - {distance.bib_end}</p>
-                        {distance.next_bib && (
-                          <>
-                            {distance.next_bib > distance.bib_end ? (
-                              <p className="text-xs text-destructive font-medium">
-                                ¡Agotados! No hay dorsales disponibles
-                              </p>
-                            ) : (
-                              <p className={`text-xs ${(distance.bib_end - distance.next_bib + 1) <= 10 ? 'text-yellow-600 font-medium' : 'text-muted-foreground'}`}>
-                                Disponibles: {distance.bib_end - distance.next_bib + 1} (Siguiente: {distance.next_bib})
-                              </p>
-                            )}
-                          </>
-                        )}
                       </div>
                     </div>
                   )}
-                  
-                  {distance.start_location && (
+
+                  {distance.gps_tracking_enabled && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-green-600" />
+                      <Navigation className="h-4 w-4 text-green-600" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Salida</p>
-                        <p className="font-semibold text-sm">{distance.start_location}</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {distance.finish_location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-red-600" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Meta</p>
-                        <p className="font-semibold text-sm">{distance.finish_location}</p>
+                        <p className="text-xs text-muted-foreground">GPS</p>
+                        <p className="font-semibold text-green-600">Activo</p>
                       </div>
                     </div>
                   )}
