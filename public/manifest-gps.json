@@ -10,17 +10,17 @@
   "scope": "/track",
   "icons": [
     {
-      "src": "/camberas-logo-512.png",
+      "src": "/gps-icon-512.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/camberas-logo-512.png",
+      "src": "/gps-icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/camberas-logo-512.png",
+      "src": "/gps-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

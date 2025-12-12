@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { GPSSplashScreen } from '@/components/GPSSplashScreen';
-import camberasLogo from '@/assets/camberas-logo.png';
+import gpsLogo from '@/assets/gps-icon.png';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
@@ -703,7 +703,7 @@ const GPSTrackerApp = () => {
         style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)' }}
       >
         <div className="flex items-center gap-2">
-          <img src={camberasLogo} alt="Camberas" className="h-8 w-8" />
+          <img src={gpsLogo} alt="Camberas GPS" className="h-8 w-8 rounded-full" />
           <span className="font-bold text-white" style={{ color: CAMBERAS_PINK }}>Camberas GPS</span>
         </div>
         <div className="flex items-center gap-2">
