@@ -811,11 +811,36 @@ const GPSTrackerApp = () => {
         {selectedRegistration && (
           <Card>
             <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold">{selectedRegistration.races.name}</h2>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-semibold truncate">{selectedRegistration.races.name}</h2>
                   <p className="text-sm text-muted-foreground">{selectedRegistration.race_distances.name}</p>
                 </div>
+                
+                {/* Compact Start/Stop Button */}
+                {!isTracking ? (
+                  <Button 
+                    onClick={startTracking} 
+                    size="sm"
+                    className="text-white px-3 py-1 h-8 text-xs"
+                    style={{ backgroundColor: CAMBERAS_PINK }}
+                    disabled={!selectedRegistration}
+                  >
+                    <Play className="h-3 w-3 mr-1" />
+                    Iniciar
+                  </Button>
+                ) : (
+                  <Button 
+                    onClick={stopTracking} 
+                    variant="destructive" 
+                    size="sm"
+                    className="px-3 py-1 h-8 text-xs"
+                  >
+                    <Square className="h-3 w-3 mr-1" />
+                    Detener
+                  </Button>
+                )}
+
                 {selectedRegistration.bib_number && (
                   <Badge variant="secondary" className="text-lg px-3 py-1">
                     #{selectedRegistration.bib_number}
@@ -936,29 +961,8 @@ const GPSTrackerApp = () => {
         )}
       </main>
 
-      {/* Bottom Action Button */}
-      <div className="p-4" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
-        {!isTracking ? (
-          <Button 
-            onClick={startTracking} 
-            className="w-full h-20 text-xl text-white hover:opacity-90"
-            style={{ backgroundColor: CAMBERAS_PINK }}
-            disabled={!selectedRegistration}
-          >
-            <Play className="h-8 w-8 mr-3" />
-            INICIAR TRACKING
-          </Button>
-        ) : (
-          <Button 
-            onClick={stopTracking} 
-            variant="destructive" 
-            className="w-full h-20 text-xl"
-          >
-            <Square className="h-8 w-8 mr-3" />
-            DETENER
-          </Button>
-        )}
-      </div>
+      {/* Bottom padding for safe area */}
+      <div className="p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} />
     </div>
   );
 };
