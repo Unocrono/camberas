@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock, RefreshCw } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -52,6 +52,10 @@ interface Checkpoint {
   timing_point_id: string | null;
   checkpoint_type: string;
   geofence_radius: number | null;
+  min_time: unknown;
+  max_time: unknown;
+  min_lap_time: unknown;
+  expected_laps: number | null;
 }
 
 interface RaceDistance {
@@ -129,7 +133,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     timing_point_id: "",
     geofence_radius: 50,
     checkpoint_type: "STANDARD",
+    min_time: "",
+    max_time: "",
+    min_lap_time: "",
+    expected_laps: 1,
   });
+  const [isCreatingTimingPoint, setIsCreatingTimingPoint] = useState(false);
+  const [newTimingPointName, setNewTimingPointName] = useState("");
 
   useEffect(() => {
     fetchMapboxToken();
@@ -717,9 +727,75 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       timing_point_id: "",
       geofence_radius: 50,
       checkpoint_type: "STANDARD",
+      min_time: "",
+      max_time: "",
+      min_lap_time: "",
+      expected_laps: 1,
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
+    setIsCreatingTimingPoint(false);
+    setNewTimingPointName("");
+  };
+
+  // Función para formatear interval a string HH:MM:SS
+  const intervalToString = (interval: unknown): string => {
+    if (!interval) return "";
+    const strVal = String(interval);
+    // Si ya es formato HH:MM:SS, retornar
+    if (/^\d{2}:\d{2}:\d{2}$/.test(strVal)) return strVal;
+    // Si viene de PostgreSQL como "01:30:00" o similar
+    const match = strVal.match(/(\d{2}):(\d{2}):(\d{2})/);
+    if (match) return `${match[1]}:${match[2]}:${match[3]}`;
+    return "";
+  };
+
+  // Función para crear un nuevo timing_point
+  const handleCreateTimingPoint = async () => {
+    if (!newTimingPointName.trim()) {
+      toast.error("Ingresa un nombre para el punto de cronometraje");
+      return;
+    }
+
+    // Obtener el orden máximo actual
+    const maxOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
+
+    // Determinar el nombre basado en el tipo de checkpoint
+    let tpName = newTimingPointName.trim();
+    if (formData.checkpoint_type === "START" && !tpName.toUpperCase().includes("START")) {
+      tpName = "START";
+    } else if (formData.checkpoint_type === "FINISH" && !tpName.toUpperCase().includes("FINISH")) {
+      tpName = "FINISH";
+    } else if (formData.checkpoint_type === "STANDARD") {
+      // Auto-generar nombre CP1, CP2, etc. si no se especifica
+      const cpCount = timingPoints.filter(tp => tp.name.startsWith("CP")).length;
+      if (!tpName.toUpperCase().startsWith("CP")) {
+        tpName = `CP${cpCount + 1}`;
+      }
+    }
+
+    const { data, error } = await supabase
+      .from("timing_points")
+      .insert({
+        race_id: selectedRaceId,
+        name: tpName,
+        notes: newTimingPointName !== tpName ? newTimingPointName : null,
+        point_order: maxOrder + 1,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Error al crear punto de cronometraje");
+      console.error(error);
+      return;
+    }
+
+    toast.success(`Punto de cronometraje "${tpName}" creado`);
+    setTimingPoints([...timingPoints, data]);
+    setFormData({ ...formData, timing_point_id: data.id });
+    setIsCreatingTimingPoint(false);
+    setNewTimingPointName("");
   };
 
   const handleOpenDialog = (checkpoint?: Checkpoint) => {
@@ -734,6 +810,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         timing_point_id: checkpoint.timing_point_id || "",
         geofence_radius: checkpoint.geofence_radius || 50,
         checkpoint_type: checkpoint.checkpoint_type || "STANDARD",
+        min_time: intervalToString(checkpoint.min_time),
+        max_time: intervalToString(checkpoint.max_time),
+        min_lap_time: intervalToString(checkpoint.min_lap_time),
+        expected_laps: checkpoint.expected_laps || 1,
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -753,6 +833,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const latitude = formData.latitude ? parseFloat(formData.latitude) : null;
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
     const timing_point_id = formData.timing_point_id || null;
+    
+    // Convertir tiempos a formato interval o null
+    const min_time = formData.min_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_time) ? formData.min_time : null;
+    const max_time = formData.max_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.max_time) ? formData.max_time : null;
+    const min_lap_time = formData.min_lap_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_lap_time) ? formData.min_lap_time : null;
 
     if (isEditing && selectedCheckpoint) {
       const { error } = await supabase
@@ -767,6 +852,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           timing_point_id,
           geofence_radius: formData.geofence_radius,
           checkpoint_type: formData.checkpoint_type,
+          min_time,
+          max_time,
+          min_lap_time,
+          expected_laps: formData.expected_laps,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -792,6 +881,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           timing_point_id,
           geofence_radius: formData.geofence_radius,
           checkpoint_type: formData.checkpoint_type,
+          min_time,
+          max_time,
+          min_lap_time,
+          expected_laps: formData.expected_laps,
         });
 
       if (error) {
@@ -1388,25 +1481,125 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     Este checkpoint se asignará al evento: <strong>{allDistances.find(d => d.id === selectedDistanceId)?.name}</strong>
                   </p>
                   {/* Selector de Punto de Cronometraje */}
-                  <div>
-                    <Label htmlFor="timing_point_id">Punto de Cronometraje</Label>
-                    <select
-                      id="timing_point_id"
-                      value={formData.timing_point_id}
-                      onChange={(e) => setFormData({ ...formData, timing_point_id: e.target.value })}
-                      className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="">Sin asignar</option>
-                      {timingPoints.map((tp) => (
-                        <option key={tp.id} value={tp.id}>
-                          {tp.name}{tp.notes ? ` (${tp.notes})` : ''}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="border-t pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="timing_point_id">Punto de Cronometraje</Label>
+                      {!isCreatingTimingPoint && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsCreatingTimingPoint(true)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Crear nuevo
+                        </Button>
+                      )}
+                    </div>
+                    {isCreatingTimingPoint ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={newTimingPointName}
+                          onChange={(e) => setNewTimingPointName(e.target.value)}
+                          placeholder={formData.checkpoint_type === "START" ? "START" : formData.checkpoint_type === "FINISH" ? "FINISH" : "CP1, CP2..."}
+                          className="flex-1"
+                        />
+                        <Button type="button" size="sm" onClick={handleCreateTimingPoint}>
+                          Crear
+                        </Button>
+                        <Button type="button" size="sm" variant="outline" onClick={() => {
+                          setIsCreatingTimingPoint(false);
+                          setNewTimingPointName("");
+                        }}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    ) : (
+                      <select
+                        id="timing_point_id"
+                        value={formData.timing_point_id}
+                        onChange={(e) => setFormData({ ...formData, timing_point_id: e.target.value })}
+                        className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="">Sin asignar</option>
+                        {timingPoints.map((tp) => (
+                          <option key={tp.id} value={tp.id}>
+                            {tp.name}{tp.notes ? ` (${tp.notes})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
-                      Vincula este checkpoint a un lugar físico de cronometraje
+                      Nomenclatura: START, CP1, CP2..., FINISH
                     </p>
                   </div>
+                  
+                  {/* Parámetros de Tiempo */}
+                  <div className="border-t pt-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium">Parámetros de Cronometraje</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="min_time" className="text-xs">Tiempo Mínimo</Label>
+                        <Input
+                          id="min_time"
+                          type="text"
+                          value={formData.min_time}
+                          onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
+                          placeholder="HH:MM:SS"
+                          pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                        />
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Ignorar lecturas antes de este tiempo
+                        </p>
+                      </div>
+                      <div>
+                        <Label htmlFor="max_time" className="text-xs">Tiempo Máximo</Label>
+                        <Input
+                          id="max_time"
+                          type="text"
+                          value={formData.max_time}
+                          onChange={(e) => setFormData({ ...formData, max_time: e.target.value })}
+                          placeholder="HH:MM:SS"
+                          pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                        />
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Ignorar lecturas después (cutoff)
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="expected_laps" className="text-xs">Vueltas Esperadas</Label>
+                        <Input
+                          id="expected_laps"
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={formData.expected_laps}
+                          onChange={(e) => setFormData({ ...formData, expected_laps: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      {formData.expected_laps > 1 && (
+                        <div>
+                          <Label htmlFor="min_lap_time" className="text-xs">Tiempo Mín. por Vuelta</Label>
+                          <Input
+                            id="min_lap_time"
+                            type="text"
+                            value={formData.min_lap_time}
+                            onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
+                            placeholder="HH:MM:SS"
+                            pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                          />
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Tiempo mínimo entre vueltas
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
                   {/* Radio GPS para Geofencing */}
                   <div>
                     <Label htmlFor="geofence_radius">Radio GPS (metros)</Label>
@@ -1419,7 +1612,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       onChange={(e) => setFormData({ ...formData, geofence_radius: parseInt(e.target.value) || 50 })}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Radio para detección automática de paso por GPS (10-200m, recomendado: 50m)
+                      Radio para detección automática de paso por GPS
                     </p>
                   </div>
                   <Button type="submit" className="w-full">
@@ -1448,6 +1641,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <TableHead className="text-right">Km</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Punto Crono</TableHead>
+                  <TableHead className="text-center">Tiempos</TableHead>
                   <TableHead className="text-center">GPS</TableHead>
                   <TableHead className="w-24 text-right">Acciones</TableHead>
                 </TableRow>
@@ -1479,13 +1673,41 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {checkpoint.timing_point_id ? (
-                        <Badge variant="outline" className="text-xs">
-                          {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">-</span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {checkpoint.timing_point_id ? (
+                          <Badge variant="outline" className="text-xs w-fit">
+                            {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
+                        {(checkpoint.expected_laps || 1) > 1 && (
+                          <Badge variant="secondary" className="text-xs w-fit">
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            {checkpoint.expected_laps} vueltas
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-0.5 text-xs">
+                        {checkpoint.min_time || checkpoint.max_time ? (
+                          <>
+                            {checkpoint.min_time && (
+                              <span className="text-muted-foreground">
+                                Min: {intervalToString(checkpoint.min_time)}
+                              </span>
+                            )}
+                            {checkpoint.max_time && (
+                              <span className="text-muted-foreground">
+                                Max: {intervalToString(checkpoint.max_time)}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-center">
                       {checkpoint.latitude && checkpoint.longitude ? (
