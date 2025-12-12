@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import jsPDF from "jspdf";
 
 interface RaceResult {
   id: string;
@@ -86,6 +87,8 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
   const [splitTimesCache, setSplitTimesCache] = useState<Record<string, SplitTime[]>>({});
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   
   const [formData, setFormData] = useState({
     registration_id: "",
@@ -124,6 +127,39 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       setRegistrations([]);
     }
   }, [selectedDistance]);
+
+  // Realtime subscription for race_results
+  useEffect(() => {
+    if (!selectedDistance || !realtimeEnabled) return;
+
+    const channel = supabase
+      .channel(`race-results-${selectedDistance}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'race_results',
+          filter: `race_distance_id=eq.${selectedDistance}`
+        },
+        (payload) => {
+          setLastUpdate(new Date());
+          // Refetch results on any change
+          fetchResults();
+          
+          if (payload.eventType === 'INSERT') {
+            toast({ title: "Nuevo resultado", description: "Se ha añadido un nuevo resultado", duration: 2000 });
+          } else if (payload.eventType === 'UPDATE') {
+            toast({ title: "Resultado actualizado", description: "Un resultado ha sido modificado", duration: 2000 });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedDistance, realtimeEnabled]);
 
   const fetchRaces = async () => {
     let query = supabase
@@ -688,6 +724,125 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     return timeString;
   };
 
+  // Export results to PDF
+  const exportToPDF = () => {
+    if (results.length === 0) {
+      toast({ title: "Sin resultados", description: "No hay resultados para exportar", variant: "destructive" });
+      return;
+    }
+
+    const doc = new jsPDF();
+    const race = races.find(r => r.id === selectedRace);
+    const distance = distances.find(d => d.id === selectedDistance);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(race?.name || "Resultados", pageWidth / 2, yPos, { align: "center" });
+    yPos += 8;
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${distance?.name} - ${distance?.distance_km} km`, pageWidth / 2, yPos, { align: "center" });
+    yPos += 6;
+    
+    doc.setFontSize(10);
+    doc.text(`Fecha: ${race?.date ? new Date(race.date).toLocaleDateString('es-ES') : '-'}`, pageWidth / 2, yPos, { align: "center" });
+    yPos += 12;
+
+    // General classification
+    const finishedResults = results.filter(r => r.status === 'FIN').sort((a, b) => (a.overall_position || 999) - (b.overall_position || 999));
+    
+    if (finishedResults.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("CLASIFICACIÓN GENERAL", 14, yPos);
+      yPos += 6;
+      
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Pos", 14, yPos);
+      doc.text("Dorsal", 28, yPos);
+      doc.text("Nombre", 45, yPos);
+      doc.text("Tiempo", 120, yPos);
+      doc.text("Género", 150, yPos);
+      doc.text("Pos G", 175, yPos);
+      yPos += 5;
+      
+      doc.setFont("helvetica", "normal");
+      finishedResults.forEach((result) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(String(result.overall_position || '-'), 14, yPos);
+        doc.text(String(result.registration.bib_number || '-'), 28, yPos);
+        doc.text(`${result.registration.profiles?.first_name || ''} ${result.registration.profiles?.last_name || ''}`.substring(0, 35), 45, yPos);
+        doc.text(formatTime(result.finish_time), 120, yPos);
+        doc.text(result.registration.profiles?.gender === 'Masculino' ? 'M' : result.registration.profiles?.gender === 'Femenino' ? 'F' : '-', 150, yPos);
+        doc.text(String(result.gender_position || '-'), 175, yPos);
+        yPos += 4;
+      });
+      yPos += 10;
+    }
+
+    // Gender classifications
+    ['Masculino', 'Femenino'].forEach((gender) => {
+      const genderResults = finishedResults
+        .filter(r => r.registration.profiles?.gender === gender)
+        .sort((a, b) => (a.gender_position || 999) - (b.gender_position || 999));
+      
+      if (genderResults.length > 0) {
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`CLASIFICACIÓN ${gender === 'Masculino' ? 'MASCULINA' : 'FEMENINA'}`, 14, yPos);
+        yPos += 6;
+        
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("Pos", 14, yPos);
+        doc.text("Dorsal", 28, yPos);
+        doc.text("Nombre", 45, yPos);
+        doc.text("Tiempo", 120, yPos);
+        doc.text("Pos Cat", 150, yPos);
+        yPos += 5;
+        
+        doc.setFont("helvetica", "normal");
+        genderResults.slice(0, 20).forEach((result) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(String(result.gender_position || '-'), 14, yPos);
+          doc.text(String(result.registration.bib_number || '-'), 28, yPos);
+          doc.text(`${result.registration.profiles?.first_name || ''} ${result.registration.profiles?.last_name || ''}`.substring(0, 35), 45, yPos);
+          doc.text(formatTime(result.finish_time), 120, yPos);
+          doc.text(String(result.category_position || '-'), 150, yPos);
+          yPos += 4;
+        });
+        yPos += 10;
+      }
+    });
+
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text(`Generado el ${new Date().toLocaleString('es-ES')} - Camberas`, pageWidth / 2, 285, { align: "center" });
+
+    // Save PDF
+    const fileName = `resultados_${distance?.name?.replace(/\s+/g, '_') || 'evento'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+    
+    toast({ title: "PDF exportado", description: `Archivo ${fileName} descargado` });
+  };
+
   const toggleResultExpanded = async (resultId: string) => {
     const newExpanded = new Set(expandedResults);
     
@@ -886,6 +1041,35 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                   {calculating ? "Calculando..." : "Solo Clasificaciones"}
                 </Button>
 
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={exportToPDF}
+                  disabled={results.length === 0}
+                >
+                  <FileText className="h-4 w-4" />
+                  Exportar PDF
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={realtimeEnabled ? "text-green-500" : "text-muted-foreground"}
+                  onClick={() => setRealtimeEnabled(!realtimeEnabled)}
+                  title={realtimeEnabled ? "Tiempo real activado" : "Tiempo real desactivado"}
+                >
+                  {realtimeEnabled ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
+                </Button>
+
+                {lastUpdate && realtimeEnabled && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Radio className="h-3 w-3 text-green-500 animate-pulse" />
+                    Actualizado {lastUpdate.toLocaleTimeString('es-ES')}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 className="gap-2"
@@ -1175,11 +1359,21 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
       {selectedDistance && (
         <Card>
-          <CardHeader>
-            <CardTitle>Resultados ({filteredResults.length})</CardTitle>
-            <CardDescription>
-              {distances.find(d => d.id === selectedDistance)?.name} - {distances.find(d => d.id === selectedDistance)?.distance_km} km
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                Resultados ({filteredResults.length})
+                {realtimeEnabled && (
+                  <Badge variant="outline" className="text-green-500 border-green-500 gap-1">
+                    <Radio className="h-3 w-3 animate-pulse" />
+                    En vivo
+                  </Badge>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {distances.find(d => d.id === selectedDistance)?.name} - {distances.find(d => d.id === selectedDistance)?.distance_km} km
+              </CardDescription>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
