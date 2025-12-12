@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2 } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface RaceResult {
   id: string;
@@ -30,6 +31,15 @@ interface RaceResult {
     race_distance: { name: string };
     profiles: { first_name: string | null; last_name: string | null; gender: string | null } | null;
   };
+}
+
+interface SplitTime {
+  id: string;
+  checkpoint_name: string;
+  checkpoint_order: number;
+  split_time: string;
+  distance_km: number;
+  lap_number: number | null;
 }
 
 interface RaceDistance {
@@ -74,6 +84,8 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     errors: [] 
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set());
+  const [splitTimesCache, setSplitTimesCache] = useState<Record<string, SplitTime[]>>({});
   
   const [formData, setFormData] = useState({
     registration_id: "",
@@ -676,6 +688,85 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     return timeString;
   };
 
+  const toggleResultExpanded = async (resultId: string) => {
+    const newExpanded = new Set(expandedResults);
+    
+    if (newExpanded.has(resultId)) {
+      newExpanded.delete(resultId);
+    } else {
+      newExpanded.add(resultId);
+      
+      // Fetch split times if not cached
+      if (!splitTimesCache[resultId]) {
+        const { data, error } = await supabase
+          .from('split_times')
+          .select('*')
+          .eq('race_result_id', resultId)
+          .order('checkpoint_order', { ascending: true })
+          .order('lap_number', { ascending: true });
+        
+        if (!error && data) {
+          setSplitTimesCache(prev => ({ ...prev, [resultId]: data as SplitTime[] }));
+        }
+      }
+    }
+    
+    setExpandedResults(newExpanded);
+  };
+
+  const SplitTimesRow = ({ resultId }: { resultId: string }) => {
+    const splits = splitTimesCache[resultId] || [];
+    
+    if (splits.length === 0) {
+      return (
+        <TableRow>
+          <TableCell colSpan={9} className="bg-muted/30">
+            <div className="py-3 text-center text-sm text-muted-foreground">
+              <Timer className="h-4 w-4 inline mr-2" />
+              No hay tiempos intermedios registrados
+            </div>
+          </TableCell>
+        </TableRow>
+      );
+    }
+
+    return (
+      <TableRow>
+        <TableCell colSpan={9} className="bg-muted/30 p-0">
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Timer className="h-4 w-4 text-primary" />
+              <span className="font-medium text-sm">Tiempos Intermedios</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+              {splits.map((split) => (
+                <div 
+                  key={split.id} 
+                  className="bg-background rounded-lg p-3 border text-center"
+                >
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {split.checkpoint_name}
+                    {split.lap_number && split.lap_number > 1 && (
+                      <Badge variant="outline" className="ml-1 text-[10px] px-1">
+                        Lap {split.lap_number}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="font-mono font-medium">
+                    {formatTime(split.split_time)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    KM {split.distance_km}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -1106,6 +1197,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead className="w-12">Pos</TableHead>
                       <TableHead className="w-16">Dorsal</TableHead>
                       <TableHead>Nombre</TableHead>
@@ -1118,46 +1210,65 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredResults.map((result, index) => (
-                      <TableRow key={result.id}>
-                        <TableCell className="font-medium">
-                          {result.status === 'FIN' ? result.overall_position || '-' : '-'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">#{result.registration.bib_number}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          {result.registration.profiles?.first_name} {result.registration.profiles?.last_name}
-                        </TableCell>
-                        <TableCell>
-                          {result.registration.profiles?.gender === 'Masculino' ? 'M' : 
-                           result.registration.profiles?.gender === 'Femenino' ? 'F' : '-'}
-                        </TableCell>
-                        <TableCell className="font-mono">
-                          {formatTime(result.finish_time)}
-                        </TableCell>
-                        <TableCell>{result.gender_position || '-'}</TableCell>
-                        <TableCell>{result.category_position || '-'}</TableCell>
-                        <TableCell>{getStatusBadge(result.status)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
+                    {filteredResults.map((result) => (
+                      <>
+                        <TableRow key={result.id} className="cursor-pointer hover:bg-muted/50">
+                          <TableCell className="p-0">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleEdit(result)}
+                              className="h-8 w-8"
+                              onClick={() => toggleResultExpanded(result.id)}
                             >
-                              <Pencil className="h-4 w-4" />
+                              {expandedResults.has(result.id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(result.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {result.status === 'FIN' ? result.overall_position || '-' : '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">#{result.registration.bib_number}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {result.registration.profiles?.first_name} {result.registration.profiles?.last_name}
+                          </TableCell>
+                          <TableCell>
+                            {result.registration.profiles?.gender === 'Masculino' ? 'M' : 
+                             result.registration.profiles?.gender === 'Femenino' ? 'F' : '-'}
+                          </TableCell>
+                          <TableCell className="font-mono">
+                            {formatTime(result.finish_time)}
+                          </TableCell>
+                          <TableCell>{result.gender_position || '-'}</TableCell>
+                          <TableCell>{result.category_position || '-'}</TableCell>
+                          <TableCell>{getStatusBadge(result.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); handleEdit(result); }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => { e.stopPropagation(); handleDelete(result.id); }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                        {expandedResults.has(result.id) && (
+                          <SplitTimesRow resultId={result.id} />
+                        )}
+                      </>
                     ))}
                   </TableBody>
                 </Table>
