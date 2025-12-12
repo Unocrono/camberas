@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 
@@ -53,6 +53,13 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [processProgress, setProcessProgress] = useState<{
+    step: 'idle' | 'splits' | 'results' | 'done';
+    message: string;
+    splitCount?: number;
+    resultCount?: number;
+  }>({ step: 'idle', message: '' });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<RaceResult | null>(null);
@@ -184,6 +191,63 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       toast({ title: "Error cargando inscripciones", description: error.message, variant: "destructive" });
     } else {
       setRegistrations(data || []);
+    }
+  };
+
+  const handleProcessTimesAndResults = async () => {
+    if (!selectedDistance) {
+      toast({ title: "Selecciona un evento", description: "Debes seleccionar un evento para procesar", variant: "destructive" });
+      return;
+    }
+
+    setProcessing(true);
+    setProcessProgress({ step: 'splits', message: 'Generando split times desde lecturas...' });
+
+    try {
+      // Step 1: Generate split times from timing_readings
+      const { data: splitData, error: splitError } = await supabase.rpc('generate_split_times', {
+        p_race_distance_id: selectedDistance
+      });
+
+      if (splitError) throw splitError;
+
+      const splitResult = splitData?.[0];
+      setProcessProgress({ 
+        step: 'results', 
+        message: 'Calculando clasificaciones y resultados...',
+        splitCount: (splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0)
+      });
+
+      // Step 2: Process event results (calculate positions)
+      const { data: resultData, error: resultError } = await supabase.rpc('process_event_results', {
+        p_race_distance_id: selectedDistance
+      });
+
+      if (resultError) throw resultError;
+
+      const result = resultData?.[0];
+      setProcessProgress({ 
+        step: 'done', 
+        message: 'Procesamiento completado',
+        splitCount: (splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0),
+        resultCount: result?.processed_count || 0
+      });
+
+      toast({
+        title: "Procesamiento completado",
+        description: `Splits: ${(splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0)} | Resultados: ${result?.processed_count || 0} (${result?.finished_count || 0} finalizados, ${result?.in_progress_count || 0} en carrera)`,
+      });
+
+      fetchResults();
+    } catch (error: any) {
+      setProcessProgress({ step: 'idle', message: '' });
+      toast({ title: "Error en procesamiento", description: error.message, variant: "destructive" });
+    } finally {
+      setProcessing(false);
+      // Reset progress after 3 seconds
+      setTimeout(() => {
+        setProcessProgress({ step: 'idle', message: '' });
+      }, 3000);
     }
   };
 
@@ -674,16 +738,62 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
           </div>
 
           {selectedDistance && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="default"
-                className="gap-2"
-                onClick={handleCalculateResults}
-                disabled={calculating}
-              >
-                {calculating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
-                {calculating ? "Calculando..." : "Calcular Resultados"}
-              </Button>
+            <div className="space-y-4">
+              {/* Process Progress Card */}
+              {processProgress.step !== 'idle' && (
+                <Card className="border-primary/20 bg-primary/5">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-3">
+                      {processProgress.step === 'done' ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">{processProgress.message}</p>
+                        <div className="flex gap-4 text-sm text-muted-foreground mt-1">
+                          {processProgress.splitCount !== undefined && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {processProgress.splitCount} splits
+                            </span>
+                          )}
+                          {processProgress.resultCount !== undefined && (
+                            <span className="flex items-center gap-1">
+                              <Trophy className="h-3 w-3" />
+                              {processProgress.resultCount} resultados
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {processProgress.step !== 'done' && (
+                      <Progress value={processProgress.step === 'splits' ? 33 : 66} className="mt-3" />
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="default"
+                  className="gap-2"
+                  onClick={handleProcessTimesAndResults}
+                  disabled={processing || calculating}
+                >
+                  {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                  {processing ? "Procesando..." : "Procesar Tiempos y Resultados"}
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  className="gap-2"
+                  onClick={handleCalculateResults}
+                  disabled={calculating || processing}
+                >
+                  {calculating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
+                  {calculating ? "Calculando..." : "Solo Clasificaciones"}
+                </Button>
 
               <Button
                 variant="outline"
@@ -966,6 +1076,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                   </form>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
           )}
         </CardContent>
