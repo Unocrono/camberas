@@ -339,11 +339,15 @@ export type Database = {
           checkpoint_type: string
           created_at: string
           distance_km: number
+          expected_laps: number | null
           geofence_radius: number | null
           id: string
           latitude: number | null
           longitude: number | null
           lugar: string | null
+          max_time: unknown
+          min_lap_time: unknown
+          min_time: unknown
           name: string
           race_distance_id: string | null
           race_id: string
@@ -355,11 +359,15 @@ export type Database = {
           checkpoint_type?: string
           created_at?: string
           distance_km: number
+          expected_laps?: number | null
           geofence_radius?: number | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           lugar?: string | null
+          max_time?: unknown
+          min_lap_time?: unknown
+          min_time?: unknown
           name: string
           race_distance_id?: string | null
           race_id: string
@@ -371,11 +379,15 @@ export type Database = {
           checkpoint_type?: string
           created_at?: string
           distance_km?: number
+          expected_laps?: number | null
           geofence_radius?: number | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           lugar?: string | null
+          max_time?: unknown
+          min_lap_time?: unknown
+          min_time?: unknown
           name?: string
           race_distance_id?: string | null
           race_id?: string
@@ -1748,6 +1760,26 @@ export type Database = {
           finish_checkpoint_name: string
           finish_time: unknown
           registration_id: string
+        }[]
+      }
+      calculate_split_times: {
+        Args: { p_race_distance_id: string }
+        Returns: {
+          bib_number: number
+          checkpoint_id: string
+          checkpoint_name: string
+          checkpoint_order: number
+          lap_number: number
+          registration_id: string
+          split_time: unknown
+          timing_reading_id: string
+        }[]
+      }
+      generate_split_times: {
+        Args: { p_race_distance_id: string }
+        Returns: {
+          inserted_count: number
+          updated_count: number
         }[]
       }
       get_age_category: {
