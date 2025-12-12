@@ -35,8 +35,7 @@ interface GPSMiniMapProps {
 }
 
 export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTraveled, totalDistance, className = '' }: GPSMiniMapProps) {
-  const miniMapContainer = useRef<HTMLDivElement>(null);
-  const fullscreenMapContainer = useRef<HTMLDivElement>(null);
+  const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
   const poiMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -48,30 +47,26 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
   const markersLoadedRef = useRef(false);
 
   const toggleFullscreen = () => {
-    const newFullscreen = !isFullscreen;
-    setIsFullscreen(newFullscreen);
-    
-    // After state change, resize map multiple times to ensure it renders
-    setTimeout(() => {
-      map.current?.resize();
-      // Re-center on current position or fit to route
-      if (latitude && longitude) {
-        map.current?.flyTo({
-          center: [longitude, latitude],
-          zoom: 15,
-          duration: 300,
-        });
-      }
-    }, 50);
-    
-    setTimeout(() => {
-      map.current?.resize();
-    }, 200);
-    
-    setTimeout(() => {
-      map.current?.resize();
-    }, 500);
+    setIsFullscreen(prev => !prev);
   };
+
+  // Handle resize when fullscreen changes
+  useEffect(() => {
+    if (!map.current) return;
+    
+    // Resize map after state change with multiple attempts
+    const resizeMap = () => {
+      map.current?.resize();
+    };
+    
+    // Use requestAnimationFrame for smoother transitions
+    requestAnimationFrame(() => {
+      resizeMap();
+      setTimeout(resizeMap, 50);
+      setTimeout(resizeMap, 150);
+      setTimeout(resizeMap, 300);
+    });
+  }, [isFullscreen]);
 
   const centerOnPosition = () => {
     if (map.current && latitude && longitude) {
@@ -104,7 +99,7 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
 
   // Initialize map
   useEffect(() => {
-    const container = miniMapContainer.current;
+    const container = mapContainer.current;
     if (!container || !mapboxToken) return;
 
     mapboxgl.accessToken = mapboxToken;
@@ -163,26 +158,6 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
       markersLoadedRef.current = false;
     };
   }, [mapboxToken]);
-
-  // Handle fullscreen container changes - move map to the right container
-  useEffect(() => {
-    if (!map.current) return;
-    
-    const targetContainer = isFullscreen ? fullscreenMapContainer.current : miniMapContainer.current;
-    if (!targetContainer) return;
-    
-    // Check if map needs to be moved to a different container
-    const currentContainer = map.current.getContainer().parentElement;
-    if (currentContainer !== targetContainer) {
-      const mapCanvas = map.current.getContainer();
-      targetContainer.appendChild(mapCanvas);
-    }
-    
-    // Resize after moving
-    setTimeout(() => map.current?.resize(), 0);
-    setTimeout(() => map.current?.resize(), 100);
-    setTimeout(() => map.current?.resize(), 300);
-  }, [isFullscreen]);
 
   // Load GPX route
   useEffect(() => {
@@ -431,41 +406,18 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
   }
 
   return (
-    <>
-      {/* Fullscreen overlay */}
-      {isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-background">
-          <div ref={fullscreenMapContainer} className="w-full h-full" />
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
-            {latitude && longitude && (
-              <Button
-                variant="secondary"
-                size="icon"
-                onClick={centerOnPosition}
-              >
-                <Crosshair className="h-5 w-5" />
-              </Button>
-            )}
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={toggleFullscreen}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-          {(!latitude || !longitude) && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center pointer-events-none">
-              <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Mini map */}
-      <div className={`relative rounded-lg overflow-hidden ${className} ${isFullscreen ? 'invisible h-0' : ''}`}>
-        <div ref={miniMapContainer} className="w-full h-full" />
-        <div className="absolute top-2 left-2 z-10 flex gap-1">
+    <div 
+      className={`relative overflow-hidden ${
+        isFullscreen 
+          ? 'fixed inset-0 z-50 rounded-none' 
+          : `rounded-lg ${className}`
+      }`}
+    >
+      <div ref={mapContainer} className="w-full h-full" />
+      
+      {/* Controls */}
+      <div className={`absolute z-10 flex gap-2 ${isFullscreen ? 'top-4 right-4' : 'top-2 left-2'}`}>
+        {!isFullscreen && (
           <Button
             variant="secondary"
             size="icon"
@@ -474,23 +426,34 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
-          {latitude && longitude && (
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-8 w-8"
-              onClick={centerOnPosition}
-            >
-              <Crosshair className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-        {(!latitude || !longitude) && (
-          <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-            <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
-          </div>
+        )}
+        {latitude && longitude && (
+          <Button
+            variant="secondary"
+            size="icon"
+            className={isFullscreen ? '' : 'h-8 w-8'}
+            onClick={centerOnPosition}
+          >
+            <Crosshair className={isFullscreen ? 'h-5 w-5' : 'h-4 w-4'} />
+          </Button>
+        )}
+        {isFullscreen && (
+          <Button
+            variant="secondary"
+            size="icon"
+            onClick={toggleFullscreen}
+          >
+            <X className="h-5 w-5" />
+          </Button>
         )}
       </div>
-    </>
+      
+      {/* GPS waiting overlay */}
+      {(!latitude || !longitude) && (
+        <div className="absolute inset-0 bg-background/80 flex items-center justify-center pointer-events-none">
+          <span className="text-muted-foreground text-sm">Esperando señal GPS...</span>
+        </div>
+      )}
+    </div>
   );
 }
