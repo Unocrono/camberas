@@ -566,8 +566,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   const fetchInitialPositions = async () => {
-    // First, get the latest GPS position for each registration in this race
-    // Using a subquery approach to get the most recent position per runner
+    // Get GPS positions with registration info
     let query = supabase
       .from('gps_tracking')
       .select(`
@@ -576,25 +575,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         latitude,
         longitude,
         timestamp,
-        registrations!inner(
+        registrations(
           bib_number,
           race_distance_id,
           user_id,
           guest_first_name,
-          guest_last_name,
-          profiles(
-            first_name,
-            last_name
-          )
+          guest_last_name
         )
       `)
       .eq('race_id', raceId)
       .order('timestamp', { ascending: false });
-
-    // Filter by distance if specified
-    if (distanceId) {
-      query = query.eq('registrations.race_distance_id', distanceId);
-    }
 
     const { data, error } = await query;
 
@@ -603,17 +593,52 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       return;
     }
 
+    // Filter by distance if specified (after fetch to avoid nested filter issues)
+    let filteredData = data || [];
+    if (distanceId) {
+      filteredData = filteredData.filter((item: any) => 
+        item.registrations?.race_distance_id === distanceId
+      );
+    }
+
+    // Get unique user_ids to fetch profiles
+    const userIds = [...new Set(
+      filteredData
+        .filter((item: any) => item.registrations?.user_id)
+        .map((item: any) => item.registrations.user_id)
+    )];
+
+    // Fetch profiles for all users
+    let profilesMap: Record<string, { first_name: string | null; last_name: string | null }> = {};
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name')
+        .in('id', userIds);
+      
+      profiles?.forEach((profile: any) => {
+        profilesMap[profile.id] = {
+          first_name: profile.first_name,
+          last_name: profile.last_name
+        };
+      });
+    }
+
     const positions: RunnerPosition[] = [];
     const uniqueRegistrations = new Set<string>();
 
-    data?.forEach((item: any) => {
+    filteredData.forEach((item: any) => {
+      if (!item.registrations) return;
+      
       if (!uniqueRegistrations.has(item.registration_id)) {
         uniqueRegistrations.add(item.registration_id);
         
         // Get runner name from profile or guest fields
         let runnerName = 'Corredor';
-        if (item.registrations.profiles?.first_name) {
-          runnerName = `${item.registrations.profiles.first_name} ${item.registrations.profiles.last_name || ''}`.trim();
+        const profile = item.registrations.user_id ? profilesMap[item.registrations.user_id] : null;
+        
+        if (profile?.first_name) {
+          runnerName = `${profile.first_name} ${profile.last_name || ''}`.trim();
         } else if (item.registrations.guest_first_name) {
           runnerName = `${item.registrations.guest_first_name} ${item.registrations.guest_last_name || ''}`.trim();
         }
