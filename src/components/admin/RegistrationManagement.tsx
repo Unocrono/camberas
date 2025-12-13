@@ -630,8 +630,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                         </TableCell>
                         <TableCell>{getStatusBadge(reg.status)}</TableCell>
                         <TableCell>
-                          <Badge variant={reg.payment_status === "completed" ? "default" : "secondary"}>
-                            {reg.payment_status === "completed" ? "Pagado" : "Pendiente"}
+                          <Badge variant={reg.payment_status === "paid" ? "default" : reg.payment_status === "refunded" ? "outline" : "secondary"}>
+                            {reg.payment_status === "paid" ? "Pagado" : reg.payment_status === "refunded" ? "Reembolsado" : "Pendiente"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -818,7 +818,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="completed">Pagado</SelectItem>
+                    <SelectItem value="paid">Pagado</SelectItem>
+                    <SelectItem value="refunded">Reembolsado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -921,7 +922,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="completed">Pagado</SelectItem>
+                    <SelectItem value="paid">Pagado</SelectItem>
+                    <SelectItem value="refunded">Reembolsado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
