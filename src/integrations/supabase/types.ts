@@ -1786,6 +1786,19 @@ export type Database = {
         Args: { p_birth_date: string; p_gender: string; p_race_date: string }
         Returns: string
       }
+      get_live_gps_positions: {
+        Args: { p_distance_id?: string; p_race_id: string }
+        Returns: {
+          bib_number: number
+          gps_id: string
+          gps_timestamp: string
+          latitude: number
+          longitude: number
+          race_distance_id: string
+          registration_id: string
+          runner_name: string
+        }[]
+      }
       get_organizer_requests: {
         Args: never
         Returns: {
