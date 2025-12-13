@@ -157,7 +157,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       cleanupGPS();
       cleanupTimings();
     };
-  }, [raceId, mapReady]);
+  }, [raceId, distanceId, mapReady]);
 
   // Load runner track when selected
   useEffect(() => {
