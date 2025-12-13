@@ -5,8 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, User, MapPin, Bell } from 'lucide-react';
+import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CheckpointNotification {
   id: string;
@@ -78,6 +79,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [selectedRunner, setSelectedRunner] = useState<RunnerPosition | null>(null);
   const [runnerTrack, setRunnerTrack] = useState<RunnerTrackPoint[]>([]);
   const [loadingTrack, setLoadingTrack] = useState(false);
+  
+  // Mobile panel state
+  const isMobile = useIsMobile();
+  const [isRunnersPanelExpanded, setIsRunnersPanelExpanded] = useState(false);
 
   // Initialize map
   useEffect(() => {
@@ -793,62 +798,64 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   return (
-    <div className="relative w-full h-full min-h-[600px] flex">
-      {/* Runners Panel */}
-      <div className="w-64 bg-card border-r flex flex-col shrink-0">
-        <div className="p-3 border-b">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Corredores ({runnerPositions.length})
-          </h3>
-        </div>
-        
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
-            {runnerPositions.length === 0 ? (
-              <p className="text-sm text-muted-foreground p-2 text-center">
-                No hay datos GPS disponibles
-              </p>
-            ) : (
-              runnerPositions.map((runner) => (
-                <button
-                  key={runner.registration_id}
-                  onClick={() => handleSelectRunner(runner)}
-                  className={`w-full text-left p-2 rounded-lg transition-colors ${
-                    selectedRunner?.registration_id === runner.registration_id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                      selectedRunner?.registration_id === runner.registration_id
-                        ? 'bg-primary-foreground text-primary'
-                        : 'bg-primary text-primary-foreground'
-                    }`}>
-                      {runner.bib_number || '?'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{runner.runner_name}</p>
-                      <p className={`text-xs ${
-                        selectedRunner?.registration_id === runner.registration_id
-                          ? 'text-primary-foreground/80'
-                          : 'text-muted-foreground'
-                      }`}>
-                        {formatTime(runner.timestamp)}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              ))
-            )}
+    <div className="relative w-full h-full min-h-[500px] md:min-h-[600px] flex flex-col md:flex-row">
+      {/* Desktop Runners Panel - Left side */}
+      {!isMobile && (
+        <div className="w-64 bg-card border-r flex flex-col shrink-0">
+          <div className="p-3 border-b">
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <User className="h-4 w-4" />
+              Corredores ({runnerPositions.length})
+            </h3>
           </div>
-        </ScrollArea>
-      </div>
+          
+          <ScrollArea className="flex-1">
+            <div className="p-2 space-y-1">
+              {runnerPositions.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2 text-center">
+                  No hay datos GPS disponibles
+                </p>
+              ) : (
+                runnerPositions.map((runner) => (
+                  <button
+                    key={runner.registration_id}
+                    onClick={() => handleSelectRunner(runner)}
+                    className={`w-full text-left p-2 rounded-lg transition-colors ${
+                      selectedRunner?.registration_id === runner.registration_id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-muted'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        selectedRunner?.registration_id === runner.registration_id
+                          ? 'bg-primary-foreground text-primary'
+                          : 'bg-primary text-primary-foreground'
+                      }`}>
+                        {runner.bib_number || '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{runner.runner_name}</p>
+                        <p className={`text-xs ${
+                          selectedRunner?.registration_id === runner.registration_id
+                            ? 'text-primary-foreground/80'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {formatTime(runner.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
 
       {/* Map Container */}
       <div className="flex-1 relative">
-        <div ref={mapContainer} className="absolute inset-0 rounded-r-lg" />
+        <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" />
         
         {/* Selected Runner Info Panel */}
         {selectedRunner && (
@@ -891,8 +898,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           </div>
         )}
 
-        {/* Legend */}
-        <div className="absolute bottom-4 left-4 bg-card/90 backdrop-blur rounded-lg shadow-lg border p-3 z-10">
+        {/* Legend - Hidden on mobile when panel is expanded */}
+        <div className={`absolute bottom-4 left-4 bg-card/90 backdrop-blur rounded-lg shadow-lg border p-3 z-10 ${
+          isMobile && isRunnersPanelExpanded ? 'hidden' : ''
+        }`}>
           <div className="space-y-2 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-4 h-1 bg-[#FF6B35] rounded" />
@@ -908,6 +917,122 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         </div>
       </div>
 
+      {/* Mobile Runners Panel - Bottom collapsible */}
+      {isMobile && (
+        <div 
+          className={`absolute bottom-0 left-0 right-0 bg-card border-t rounded-t-2xl shadow-lg z-20 transition-all duration-300 ease-in-out ${
+            isRunnersPanelExpanded ? 'h-[60vh]' : 'h-auto'
+          }`}
+        >
+          {/* Handle to expand/collapse */}
+          <button
+            onClick={() => setIsRunnersPanelExpanded(!isRunnersPanelExpanded)}
+            className="w-full flex flex-col items-center pt-2 pb-3 px-4"
+          >
+            <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mb-2" />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                <span className="font-semibold">Corredores ({runnerPositions.length})</span>
+              </div>
+              {isRunnersPanelExpanded ? (
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-5 w-5 text-muted-foreground" />
+              )}
+            </div>
+          </button>
+
+          {/* Collapsed state - show mini list */}
+          {!isRunnersPanelExpanded && runnerPositions.length > 0 && (
+            <div className="px-4 pb-3">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {runnerPositions.slice(0, 5).map((runner) => (
+                  <button
+                    key={runner.registration_id}
+                    onClick={() => {
+                      handleSelectRunner(runner);
+                    }}
+                    className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-full border transition-colors ${
+                      selectedRunner?.registration_id === runner.registration_id
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted/50 hover:bg-muted border-border'
+                    }`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                      selectedRunner?.registration_id === runner.registration_id
+                        ? 'bg-primary-foreground text-primary'
+                        : 'bg-primary text-primary-foreground'
+                    }`}>
+                      {runner.bib_number || '?'}
+                    </div>
+                    <span className="text-sm font-medium whitespace-nowrap">
+                      {runner.runner_name.split(' ')[0]}
+                    </span>
+                  </button>
+                ))}
+                {runnerPositions.length > 5 && (
+                  <button
+                    onClick={() => setIsRunnersPanelExpanded(true)}
+                    className="flex-shrink-0 px-3 py-2 rounded-full bg-muted/50 border border-border text-sm text-muted-foreground"
+                  >
+                    +{runnerPositions.length - 5} más
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Expanded state - full list */}
+          {isRunnersPanelExpanded && (
+            <ScrollArea className="h-[calc(60vh-60px)]">
+              <div className="p-4 space-y-2">
+                {runnerPositions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No hay datos GPS disponibles
+                  </p>
+                ) : (
+                  runnerPositions.map((runner) => (
+                    <button
+                      key={runner.registration_id}
+                      onClick={() => {
+                        handleSelectRunner(runner);
+                        setIsRunnersPanelExpanded(false);
+                      }}
+                      className={`w-full text-left p-3 rounded-xl transition-colors ${
+                        selectedRunner?.registration_id === runner.registration_id
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/50 hover:bg-muted'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                          selectedRunner?.registration_id === runner.registration_id
+                            ? 'bg-primary-foreground text-primary'
+                            : 'bg-primary text-primary-foreground'
+                        }`}>
+                          {runner.bib_number || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{runner.runner_name}</p>
+                          <p className={`text-sm ${
+                            selectedRunner?.registration_id === runner.registration_id
+                              ? 'text-primary-foreground/80'
+                              : 'text-muted-foreground'
+                          }`}>
+                            Última actualización: {formatTime(runner.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
+      )}
+
       <style>{`
         .runner-marker {
           cursor: pointer;
@@ -920,6 +1045,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         .roadbook-marker {
           cursor: pointer;
           z-index: 3;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
         }
       `}</style>
     </div>
