@@ -566,7 +566,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   const fetchInitialPositions = async () => {
-    // Get GPS positions with registration info
+    // Get GPS positions with registration info (registration data may be hidden by RLS)
     let query = supabase
       .from('gps_tracking')
       .select(`
@@ -593,15 +593,19 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       return;
     }
 
-    // Filter by distance if specified (after fetch to avoid nested filter issues)
     let filteredData = data || [];
+
+    // Filter by distance only when we actually received registration data
     if (distanceId) {
-      filteredData = filteredData.filter((item: any) => 
-        item.registrations?.race_distance_id === distanceId
-      );
+      const hasVisibleRegistrations = filteredData.some((item: any) => item.registrations);
+      if (hasVisibleRegistrations) {
+        filteredData = filteredData.filter((item: any) => 
+          item.registrations?.race_distance_id === distanceId
+        );
+      }
     }
 
-    // Get unique user_ids to fetch profiles
+    // Get unique user_ids to fetch profiles (when available)
     const userIds = [...new Set(
       filteredData
         .filter((item: any) => item.registrations?.user_id)
@@ -628,19 +632,22 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     const uniqueRegistrations = new Set<string>();
 
     filteredData.forEach((item: any) => {
-      if (!item.registrations) return;
-      
       if (!uniqueRegistrations.has(item.registration_id)) {
         uniqueRegistrations.add(item.registration_id);
         
-        // Get runner name from profile or guest fields
         let runnerName = 'Corredor';
-        const profile = item.registrations.user_id ? profilesMap[item.registrations.user_id] : null;
-        
-        if (profile?.first_name) {
-          runnerName = `${profile.first_name} ${profile.last_name || ''}`.trim();
-        } else if (item.registrations.guest_first_name) {
-          runnerName = `${item.registrations.guest_first_name} ${item.registrations.guest_last_name || ''}`.trim();
+        let bibNumber: number | null = null;
+
+        const registration = item.registrations;
+        if (registration) {
+          bibNumber = registration.bib_number ?? null;
+          const profile = registration.user_id ? profilesMap[registration.user_id] : null;
+          
+          if (profile?.first_name) {
+            runnerName = `${profile.first_name} ${profile.last_name || ''}`.trim();
+          } else if (registration.guest_first_name) {
+            runnerName = `${registration.guest_first_name} ${registration.guest_last_name || ''}`.trim();
+          }
         }
         
         positions.push({
@@ -649,7 +656,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           latitude: parseFloat(item.latitude),
           longitude: parseFloat(item.longitude),
           timestamp: item.timestamp,
-          bib_number: item.registrations.bib_number,
+          bib_number: bibNumber,
           runner_name: runnerName,
         });
       }
@@ -658,7 +665,6 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     setRunnerPositions(positions);
     updateMarkers(positions);
   };
-
   const setupRealtimeSubscription = () => {
     const channel = supabase
       .channel('gps_tracking_changes')
