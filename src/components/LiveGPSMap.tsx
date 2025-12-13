@@ -798,7 +798,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   return (
-    <div className="relative w-full h-full min-h-[500px] md:min-h-[600px] flex flex-col md:flex-row">
+    <div className={`relative w-full ${isMobile ? 'h-[calc(100vh-120px)]' : 'h-full min-h-[600px]'} flex flex-col md:flex-row`}>
       {/* Desktop Runners Panel - Left side */}
       {!isMobile && (
         <div className="w-64 bg-card border-r flex flex-col shrink-0">
@@ -853,8 +853,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         </div>
       )}
 
-      {/* Map Container */}
-      <div className="flex-1 relative">
+      {/* Map Container - Full height on mobile */}
+      <div className="flex-1 relative min-h-0">
         <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" />
         
         {/* Selected Runner Info Panel */}
@@ -920,20 +920,20 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       {/* Mobile Runners Panel - Bottom collapsible */}
       {isMobile && (
         <div 
-          className={`absolute bottom-0 left-0 right-0 bg-card border-t rounded-t-2xl shadow-lg z-20 transition-all duration-300 ease-in-out ${
-            isRunnersPanelExpanded ? 'h-[60vh]' : 'h-auto'
+          className={`absolute left-0 right-0 bg-card border-t rounded-t-2xl shadow-lg z-20 transition-all duration-300 ease-in-out ${
+            isRunnersPanelExpanded ? 'bottom-0 h-[50vh]' : 'bottom-0 h-auto max-h-32'
           }`}
         >
           {/* Handle to expand/collapse */}
           <button
             onClick={() => setIsRunnersPanelExpanded(!isRunnersPanelExpanded)}
-            className="w-full flex flex-col items-center pt-2 pb-3 px-4"
+            className="w-full flex flex-col items-center pt-2 pb-2 px-4"
           >
             <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mb-2" />
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                <span className="font-semibold">Corredores ({runnerPositions.length})</span>
+                <span className="font-semibold text-sm">Corredores ({runnerPositions.length})</span>
               </div>
               {isRunnersPanelExpanded ? (
                 <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -985,7 +985,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
           {/* Expanded state - full list */}
           {isRunnersPanelExpanded && (
-            <ScrollArea className="h-[calc(60vh-60px)]">
+            <ScrollArea className="h-[calc(50vh-60px)]">
               <div className="p-4 space-y-2">
                 {runnerPositions.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
