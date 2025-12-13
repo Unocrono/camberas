@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Download, Filter, Hash } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Download, Filter, Hash, Plus, Pencil, Trash2 } from "lucide-react";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 
 interface Registration {
@@ -24,6 +25,8 @@ interface Registration {
   guest_last_name: string | null;
   guest_phone: string | null;
   guest_dni_passport: string | null;
+  race_id: string;
+  race_distance_id: string;
   race: {
     id: string;
     name: string;
@@ -31,6 +34,7 @@ interface Registration {
     organizer_id?: string | null;
   };
   race_distance: {
+    id: string;
     name: string;
     distance_km: number;
   };
@@ -42,22 +46,65 @@ interface Registration {
   } | null;
 }
 
+interface RaceDistance {
+  id: string;
+  name: string;
+  distance_km: number;
+  race_id: string;
+}
+
 interface RegistrationManagementProps {
   isOrganizer?: boolean;
   selectedRaceId?: string;
 }
+
+interface RegistrationFormData {
+  guest_first_name: string;
+  guest_last_name: string;
+  guest_email: string;
+  guest_phone: string;
+  guest_dni_passport: string;
+  race_id: string;
+  race_distance_id: string;
+  status: string;
+  payment_status: string;
+  bib_number: string;
+}
+
+const emptyFormData: RegistrationFormData = {
+  guest_first_name: "",
+  guest_last_name: "",
+  guest_email: "",
+  guest_phone: "",
+  guest_dni_passport: "",
+  race_id: "",
+  race_distance_id: "",
+  status: "pending",
+  payment_status: "pending",
+  bib_number: "",
+};
 
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([]);
   const [races, setRaces] = useState<any[]>([]);
+  const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Filters
   const [selectedRace, setSelectedRace] = useState<string>("all");
+  const [selectedDistance, setSelectedDistance] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // CRUD
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingRegistration, setEditingRegistration] = useState<Registration | null>(null);
+  const [formData, setFormData] = useState<RegistrationFormData>(emptyFormData);
+  const [formDistances, setFormDistances] = useState<RaceDistance[]>([]);
+  const [saving, setSaving] = useState(false);
 
   // Bib assignment
   const [assigningBib, setAssigningBib] = useState<string | null>(null);
@@ -78,7 +125,42 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   useEffect(() => {
     applyFilters();
-  }, [registrations, selectedRace, selectedStatus, searchTerm]);
+  }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm]);
+
+  useEffect(() => {
+    if (selectedRace && selectedRace !== "all") {
+      fetchDistancesForRace(selectedRace);
+    } else {
+      setDistances([]);
+      setSelectedDistance("all");
+    }
+  }, [selectedRace]);
+
+  useEffect(() => {
+    if (formData.race_id) {
+      fetchFormDistances(formData.race_id);
+    } else {
+      setFormDistances([]);
+    }
+  }, [formData.race_id]);
+
+  const fetchDistancesForRace = async (raceId: string) => {
+    const { data } = await supabase
+      .from("race_distances")
+      .select("id, name, distance_km, race_id")
+      .eq("race_id", raceId)
+      .order("distance_km");
+    setDistances(data || []);
+  };
+
+  const fetchFormDistances = async (raceId: string) => {
+    const { data } = await supabase
+      .from("race_distances")
+      .select("id, name, distance_km, race_id")
+      .eq("race_id", raceId)
+      .order("distance_km");
+    setFormDistances(data || []);
+  };
 
   const fetchData = async () => {
     try {
@@ -116,6 +198,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           guest_last_name,
           guest_phone,
           guest_dni_passport,
+          race_id,
+          race_distance_id,
           race:races!registrations_race_id_fkey (
             id,
             name,
@@ -123,6 +207,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             organizer_id
           ),
           race_distance:race_distances!registrations_race_distance_id_fkey (
+            id,
             name,
             distance_km
           ),
@@ -169,6 +254,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       filtered = filtered.filter((reg) => reg.race.id === selectedRace);
     }
 
+    if (selectedDistance !== "all") {
+      filtered = filtered.filter((reg) => reg.race_distance.id === selectedDistance);
+    }
+
     if (selectedStatus !== "all") {
       filtered = filtered.filter((reg) => reg.status === selectedStatus);
     }
@@ -193,6 +282,110 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
 
     setFilteredRegistrations(filtered);
+  };
+
+  const handleCreate = async () => {
+    if (!formData.race_id || !formData.race_distance_id) {
+      toast({ title: "Error", description: "Selecciona carrera y recorrido", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const insertData: any = {
+        race_id: formData.race_id,
+        race_distance_id: formData.race_distance_id,
+        guest_first_name: formData.guest_first_name || null,
+        guest_last_name: formData.guest_last_name || null,
+        guest_email: formData.guest_email || null,
+        guest_phone: formData.guest_phone || null,
+        guest_dni_passport: formData.guest_dni_passport || null,
+        status: formData.status,
+        payment_status: formData.payment_status,
+        bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
+      };
+
+      const { error } = await supabase.from("registrations").insert(insertData);
+      if (error) throw error;
+
+      toast({ title: "Inscripción creada" });
+      setIsCreateOpen(false);
+      setFormData(emptyFormData);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!editingRegistration) return;
+    setSaving(true);
+    try {
+      const updateData: any = {
+        guest_first_name: formData.guest_first_name || null,
+        guest_last_name: formData.guest_last_name || null,
+        guest_email: formData.guest_email || null,
+        guest_phone: formData.guest_phone || null,
+        guest_dni_passport: formData.guest_dni_passport || null,
+        status: formData.status,
+        payment_status: formData.payment_status,
+        bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
+        race_distance_id: formData.race_distance_id,
+      };
+
+      const { error } = await supabase
+        .from("registrations")
+        .update(updateData)
+        .eq("id", editingRegistration.id);
+      if (error) throw error;
+
+      toast({ title: "Inscripción actualizada" });
+      setIsEditOpen(false);
+      setEditingRegistration(null);
+      setFormData(emptyFormData);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase.from("registrations").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Inscripción eliminada" });
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const openEditDialog = (reg: Registration) => {
+    setEditingRegistration(reg);
+    setFormData({
+      guest_first_name: reg.guest_first_name || reg.profiles?.first_name || "",
+      guest_last_name: reg.guest_last_name || reg.profiles?.last_name || "",
+      guest_email: reg.guest_email || "",
+      guest_phone: reg.guest_phone || reg.profiles?.phone || "",
+      guest_dni_passport: reg.guest_dni_passport || reg.profiles?.dni_passport || "",
+      race_id: reg.race_id,
+      race_distance_id: reg.race_distance_id,
+      status: reg.status,
+      payment_status: reg.payment_status,
+      bib_number: reg.bib_number?.toString() || "",
+    });
+    setIsEditOpen(true);
+  };
+
+  const openCreateDialog = () => {
+    setFormData({
+      ...emptyFormData,
+      race_id: selectedRaceId || (selectedRace !== "all" ? selectedRace : ""),
+    });
+    setIsCreateOpen(true);
   };
 
   const handleAssignBib = async (registrationId: string) => {
@@ -310,10 +503,16 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             {filteredRegistrations.length !== registrations.length && `de ${registrations.length} totales`}
           </p>
         </div>
-        <Button onClick={exportToCSV} className="gap-2" disabled={filteredRegistrations.length === 0}>
-          <Download className="h-4 w-4" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={openCreateDialog} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Nueva Inscripción
+          </Button>
+          <Button onClick={exportToCSV} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
+            <Download className="h-4 w-4" />
+            Exportar CSV
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -325,7 +524,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Recorrido</Label>
+              <Select value={selectedDistance} onValueChange={setSelectedDistance} disabled={!selectedRace || selectedRace === "all"}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los recorridos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los recorridos</SelectItem>
+                  {distances.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.distance_km}km)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label>Estado</Label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
@@ -419,7 +635,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <Dialog
                               open={assigningBib === reg.id}
                               onOpenChange={(open) => {
@@ -438,8 +654,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                     setBibNumber(reg.bib_number?.toString() || "");
                                   }}
                                 >
-                                  <Hash className="h-4 w-4 mr-1" />
-                                  Dorsal
+                                  <Hash className="h-4 w-4" />
                                 </Button>
                               </DialogTrigger>
                               <DialogContent>
@@ -467,6 +682,32 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 </div>
                               </DialogContent>
                             </Dialog>
+
+                            <Button variant="outline" size="sm" onClick={() => openEditDialog(reg)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Eliminar inscripción?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción eliminará la inscripción de {firstName} {lastName} y no se puede deshacer.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(reg.id)}>
+                                    Eliminar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                             
                             <RegistrationResponsesView registrationId={reg.id} />
                           </div>
@@ -480,6 +721,226 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Dialog */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nueva Inscripción</DialogTitle>
+            <DialogDescription>Crear inscripción manualmente (invitado)</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nombre *</Label>
+                <Input
+                  value={formData.guest_first_name}
+                  onChange={(e) => setFormData({ ...formData, guest_first_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Apellidos *</Label>
+                <Input
+                  value={formData.guest_last_name}
+                  onChange={(e) => setFormData({ ...formData, guest_last_name: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.guest_email}
+                onChange={(e) => setFormData({ ...formData, guest_email: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                  value={formData.guest_phone}
+                  onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>DNI/Pasaporte</Label>
+                <Input
+                  value={formData.guest_dni_passport}
+                  onChange={(e) => setFormData({ ...formData, guest_dni_passport: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Carrera *</Label>
+              <Select value={formData.race_id} onValueChange={(v) => setFormData({ ...formData, race_id: v, race_distance_id: "" })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar carrera" />
+                </SelectTrigger>
+                <SelectContent>
+                  {races.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Recorrido *</Label>
+              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })} disabled={!formData.race_id}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar recorrido" />
+                </SelectTrigger>
+                <SelectContent>
+                  {formDistances.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name} ({d.distance_km}km)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="confirmed">Confirmada</SelectItem>
+                    <SelectItem value="cancelled">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pago</Label>
+                <Select value={formData.payment_status} onValueChange={(v) => setFormData({ ...formData, payment_status: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="completed">Pagado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Dorsal</Label>
+                <Input
+                  type="number"
+                  value={formData.bib_number}
+                  onChange={(e) => setFormData({ ...formData, bib_number: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={saving}>{saving ? "Guardando..." : "Crear"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar Inscripción</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nombre</Label>
+                <Input
+                  value={formData.guest_first_name}
+                  onChange={(e) => setFormData({ ...formData, guest_first_name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Apellidos</Label>
+                <Input
+                  value={formData.guest_last_name}
+                  onChange={(e) => setFormData({ ...formData, guest_last_name: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.guest_email}
+                onChange={(e) => setFormData({ ...formData, guest_email: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Teléfono</Label>
+                <Input
+                  value={formData.guest_phone}
+                  onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>DNI/Pasaporte</Label>
+                <Input
+                  value={formData.guest_dni_passport}
+                  onChange={(e) => setFormData({ ...formData, guest_dni_passport: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Recorrido</Label>
+              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {formDistances.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name} ({d.distance_km}km)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Estado</Label>
+                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="confirmed">Confirmada</SelectItem>
+                    <SelectItem value="cancelled">Cancelada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pago</Label>
+                <Select value={formData.payment_status} onValueChange={(v) => setFormData({ ...formData, payment_status: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendiente</SelectItem>
+                    <SelectItem value="completed">Pagado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Dorsal</Label>
+                <Input
+                  type="number"
+                  value={formData.bib_number}
+                  onChange={(e) => setFormData({ ...formData, bib_number: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
