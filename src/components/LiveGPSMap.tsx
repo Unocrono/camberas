@@ -566,98 +566,37 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   const fetchInitialPositions = async () => {
-    // Get GPS positions with registration info (registration data may be hidden by RLS)
-    let query = supabase
+    // Get latest GPS position for each registration in this race
+    const { data, error } = await supabase
       .from('gps_tracking')
-      .select(`
-        id,
-        registration_id,
-        latitude,
-        longitude,
-        timestamp,
-        registrations(
-          bib_number,
-          race_distance_id,
-          user_id,
-          guest_first_name,
-          guest_last_name
-        )
-      `)
+      .select('id, registration_id, latitude, longitude, timestamp')
       .eq('race_id', raceId)
       .order('timestamp', { ascending: false });
-
-    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching positions:', error);
       return;
     }
 
-    let filteredData = data || [];
-
-    // Filter by distance only when we actually received registration data
-    if (distanceId) {
-      const hasVisibleRegistrations = filteredData.some((item: any) => item.registrations);
-      if (hasVisibleRegistrations) {
-        filteredData = filteredData.filter((item: any) => 
-          item.registrations?.race_distance_id === distanceId
-        );
-      }
-    }
-
-    // Get unique user_ids to fetch profiles (when available)
-    const userIds = [...new Set(
-      filteredData
-        .filter((item: any) => item.registrations?.user_id)
-        .map((item: any) => item.registrations.user_id)
-    )];
-
-    // Fetch profiles for all users
-    let profilesMap: Record<string, { first_name: string | null; last_name: string | null }> = {};
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name')
-        .in('id', userIds);
-      
-      profiles?.forEach((profile: any) => {
-        profilesMap[profile.id] = {
-          first_name: profile.first_name,
-          last_name: profile.last_name
-        };
-      });
-    }
-
     const positions: RunnerPosition[] = [];
     const uniqueRegistrations = new Set<string>();
 
-    filteredData.forEach((item: any) => {
+    (data || []).forEach((item: any) => {
+      if (!item.registration_id) return;
+
       if (!uniqueRegistrations.has(item.registration_id)) {
         uniqueRegistrations.add(item.registration_id);
-        
-        let runnerName = 'Corredor';
-        let bibNumber: number | null = null;
 
-        const registration = item.registrations;
-        if (registration) {
-          bibNumber = registration.bib_number ?? null;
-          const profile = registration.user_id ? profilesMap[registration.user_id] : null;
-          
-          if (profile?.first_name) {
-            runnerName = `${profile.first_name} ${profile.last_name || ''}`.trim();
-          } else if (registration.guest_first_name) {
-            runnerName = `${registration.guest_first_name} ${registration.guest_last_name || ''}`.trim();
-          }
-        }
-        
         positions.push({
           id: item.id,
           registration_id: item.registration_id,
-          latitude: parseFloat(item.latitude),
-          longitude: parseFloat(item.longitude),
+          latitude: parseFloat(String(item.latitude)),
+          longitude: parseFloat(String(item.longitude)),
           timestamp: item.timestamp,
-          bib_number: bibNumber,
-          runner_name: runnerName,
+          bib_number: null,
+          // No podemos leer nombre/dorsal desde tablas protegidas por RLS
+          // pero sí mostrar la posición GPS anónima del corredor
+          runner_name: `Corredor ${uniqueRegistrations.size}`,
         });
       }
     });
