@@ -566,40 +566,26 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   const fetchInitialPositions = async () => {
-    // Get latest GPS position for each registration in this race
-    const { data, error } = await supabase
-      .from('gps_tracking')
-      .select('id, registration_id, latitude, longitude, timestamp')
-      .eq('race_id', raceId)
-      .order('timestamp', { ascending: false });
+    // Use RPC function to get positions with runner info (bypasses RLS)
+    const { data, error } = await supabase.rpc('get_live_gps_positions', {
+      p_race_id: raceId,
+      p_distance_id: distanceId || null
+    });
 
     if (error) {
       console.error('Error fetching positions:', error);
       return;
     }
 
-    const positions: RunnerPosition[] = [];
-    const uniqueRegistrations = new Set<string>();
-
-    (data || []).forEach((item: any) => {
-      if (!item.registration_id) return;
-
-      if (!uniqueRegistrations.has(item.registration_id)) {
-        uniqueRegistrations.add(item.registration_id);
-
-        positions.push({
-          id: item.id,
-          registration_id: item.registration_id,
-          latitude: parseFloat(String(item.latitude)),
-          longitude: parseFloat(String(item.longitude)),
-          timestamp: item.timestamp,
-          bib_number: null,
-          // No podemos leer nombre/dorsal desde tablas protegidas por RLS
-          // pero sí mostrar la posición GPS anónima del corredor
-          runner_name: `Corredor ${uniqueRegistrations.size}`,
-        });
-      }
-    });
+    const positions: RunnerPosition[] = (data || []).map((item: any) => ({
+      id: item.gps_id,
+      registration_id: item.registration_id,
+      latitude: parseFloat(String(item.latitude)),
+      longitude: parseFloat(String(item.longitude)),
+      timestamp: item.gps_timestamp,
+      bib_number: item.bib_number,
+      runner_name: item.runner_name || 'Corredor',
+    }));
 
     setRunnerPositions(positions);
     updateMarkers(positions);
