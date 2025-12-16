@@ -357,11 +357,17 @@ Deno.serve(async (req) => {
       const gpsTime = new Date(gps.timestamp)
 
       // Find applicable checkpoints for this registration's race/distance
+      // IMPORTANT: Only use checkpoints that belong to the runner's specific race_distance
       const applicableCheckpoints = checkpoints.filter((cp: Checkpoint) => {
         // Must be same race
         if (cp.race_id !== gps.race_id) return false
-        // If checkpoint has race_distance_id, must match registration's distance
-        if (cp.race_distance_id && cp.race_distance_id !== registration.race_distance_id) return false
+        
+        // STRICT: Checkpoint MUST belong to the same race_distance as the registration
+        // This prevents cross-contamination between different events in the same race
+        if (cp.race_distance_id !== registration.race_distance_id) {
+          return false
+        }
+        
         // Must have coordinates
         if (!cp.latitude || !cp.longitude) return false
         return true
