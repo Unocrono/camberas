@@ -1250,14 +1250,26 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       // Get max timing_point order
       const maxTpOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
 
-      // Create timing_points for each checkpoint with coordinates
-      const timingPointsToInsert = roadbookItems
-        .filter(item => item.latitude && item.longitude) // Solo los que tienen coordenadas
+      // Fetch existing timing_points for this race to avoid duplicates
+      const { data: existingTps } = await supabase
+        .from("timing_points")
+        .select("id, name, notes")
+        .eq("race_id", selectedRaceId);
+
+      const existingTpNames = new Set((existingTps || []).map(tp => tp.name));
+      const existingTpMap = new Map<string, string>();
+      (existingTps || []).forEach(tp => {
+        if (tp.notes) existingTpMap.set(tp.notes, tp.id);
+        existingTpMap.set(tp.name, tp.id);
+      });
+
+      // Prepare timing_points, filtering out duplicates
+      const timingPointCandidates = roadbookItems
+        .filter(item => item.latitude && item.longitude)
         .map((item, index) => {
           const isFirst = index === 0;
           const isLast = index === roadbookItems.length - 1;
           
-          // Nombre del timing point: START, FINISH o "{descripción} PC"
           let tpName = `${item.description} PC`;
           if (isFirst) tpName = "START";
           else if (isLast) tpName = "FINISH";
@@ -1272,6 +1284,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           };
         });
 
+      // Only insert timing_points that don't already exist
+      const timingPointsToInsert = timingPointCandidates.filter(tp => !existingTpNames.has(tp.name));
+
       let createdTimingPoints: TimingPoint[] = [];
       if (timingPointsToInsert.length > 0) {
         const { data: tpData, error: tpError } = await supabase
@@ -1281,18 +1296,16 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
         if (tpError) {
           console.error("Error creating timing points:", tpError);
-          // Continue anyway, checkpoints can be created without timing points
         } else {
           createdTimingPoints = tpData || [];
         }
       }
 
-      // Create a map from description to timing_point_id
-      const tpMap = new Map<string, string>();
+      // Create a map from description to timing_point_id (existing + new)
+      const tpMap = new Map<string, string>(existingTpMap);
       createdTimingPoints.forEach(tp => {
-        if (tp.notes) {
-          tpMap.set(tp.notes, tp.id);
-        }
+        if (tp.notes) tpMap.set(tp.notes, tp.id);
+        tpMap.set(tp.name, tp.id);
       });
 
       // Create checkpoints from roadbook items with timing_point_id and checkpoint_type assigned
