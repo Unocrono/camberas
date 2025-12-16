@@ -154,3 +154,80 @@ export function calculateTrackDistance(track: GpxTrack): number {
   }
   return totalDistance;
 }
+
+// Find the closest point on track to current position
+// Returns index of closest point and distance to it
+export function findClosestTrackPoint(
+  trackPoints: GpxTrackPoint[],
+  currentLat: number,
+  currentLon: number
+): { index: number; distance: number } {
+  let closestIndex = 0;
+  let minDistance = Infinity;
+
+  for (let i = 0; i < trackPoints.length; i++) {
+    const dist = calculateHaversineDistance(
+      currentLat,
+      currentLon,
+      trackPoints[i].lat,
+      trackPoints[i].lon
+    );
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIndex = i;
+    }
+  }
+
+  return { index: closestIndex, distance: minDistance };
+}
+
+// Calculate distance remaining to end of track from a given index
+export function calculateDistanceFromPointToEnd(
+  trackPoints: GpxTrackPoint[],
+  startIndex: number
+): number {
+  let distance = 0;
+  for (let i = startIndex; i < trackPoints.length - 1; i++) {
+    distance += calculateHaversineDistance(
+      trackPoints[i].lat,
+      trackPoints[i].lon,
+      trackPoints[i + 1].lat,
+      trackPoints[i + 1].lon
+    );
+  }
+  return distance;
+}
+
+// Calculate distance to finish from current position on track
+// Returns distance in km
+export function calculateDistanceToFinish(
+  trackPoints: GpxTrackPoint[],
+  currentLat: number,
+  currentLon: number
+): number {
+  if (!trackPoints || trackPoints.length === 0) return 0;
+
+  // Find closest point on track
+  const { index: closestIndex } = findClosestTrackPoint(
+    trackPoints,
+    currentLat,
+    currentLon
+  );
+
+  // Calculate distance from closest point to end
+  const distanceFromClosestToEnd = calculateDistanceFromPointToEnd(
+    trackPoints,
+    closestIndex
+  );
+
+  return distanceFromClosestToEnd;
+}
+
+// Get all track points from parsed GPX (combines all tracks)
+export function getAllTrackPoints(parsedGpx: ParsedGpx): GpxTrackPoint[] {
+  const allPoints: GpxTrackPoint[] = [];
+  parsedGpx.tracks.forEach((track) => {
+    allPoints.push(...track.points);
+  });
+  return allPoints;
+}
