@@ -1253,14 +1253,24 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       // Create timing_points for each checkpoint with coordinates
       const timingPointsToInsert = roadbookItems
         .filter(item => item.latitude && item.longitude) // Solo los que tienen coordenadas
-        .map((item, index) => ({
-          race_id: selectedRaceId,
-          name: `${item.description} PC`,
-          notes: item.description,
-          point_order: maxTpOrder + index + 1,
-          latitude: item.latitude,
-          longitude: item.longitude,
-        }));
+        .map((item, index) => {
+          const isFirst = index === 0;
+          const isLast = index === roadbookItems.length - 1;
+          
+          // Nombre del timing point: START, FINISH o "{descripción} PC"
+          let tpName = `${item.description} PC`;
+          if (isFirst) tpName = "START";
+          else if (isLast) tpName = "FINISH";
+          
+          return {
+            race_id: selectedRaceId,
+            name: tpName,
+            notes: item.description,
+            point_order: maxTpOrder + index + 1,
+            latitude: item.latitude,
+            longitude: item.longitude,
+          };
+        });
 
       let createdTimingPoints: TimingPoint[] = [];
       if (timingPointsToInsert.length > 0) {
@@ -1285,18 +1295,29 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         }
       });
 
-      // Create checkpoints from roadbook items with timing_point_id assigned
-      const checkpointsToInsert = roadbookItems.map((item, index) => ({
-        race_id: selectedRaceId,
-        race_distance_id: selectedDistanceId,
-        name: item.description,
-        lugar: item.via || null,
-        checkpoint_order: startOrder + index,
-        distance_km: item.km_total,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        timing_point_id: tpMap.get(item.description) || null,
-      }));
+      // Create checkpoints from roadbook items with timing_point_id and checkpoint_type assigned
+      const checkpointsToInsert = roadbookItems.map((item, index) => {
+        const isFirst = index === 0;
+        const isLast = index === roadbookItems.length - 1;
+        
+        // Tipo de checkpoint: START, FINISH o STANDARD
+        let checkpointType = "STANDARD";
+        if (isFirst) checkpointType = "START";
+        else if (isLast) checkpointType = "FINISH";
+        
+        return {
+          race_id: selectedRaceId,
+          race_distance_id: selectedDistanceId,
+          name: item.description,
+          lugar: item.via || null,
+          checkpoint_order: startOrder + index,
+          distance_km: item.km_total,
+          latitude: item.latitude,
+          longitude: item.longitude,
+          timing_point_id: tpMap.get(item.description) || null,
+          checkpoint_type: checkpointType,
+        };
+      });
 
       const { error: insertError } = await supabase
         .from("race_checkpoints")
