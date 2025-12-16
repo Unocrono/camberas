@@ -154,13 +154,21 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     input.click();
   };
 
-  const generateFileName = (raceName: string, date: string, type: string): string => {
-    // Normalize race name for filename
-    const normalizedName = raceName
+  // Función para normalizar texto quitando acentos, tildes y caracteres especiales
+  const normalizeForFilename = (text: string): string => {
+    return text
+      .normalize("NFD") // Descompone caracteres acentuados (é → e + ́)
+      .replace(/[\u0300-\u036f]/g, "") // Quita diacríticos (acentos, tildes)
+      .replace(/ñ/gi, "n") // Reemplaza ñ por n
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-");
-    
+      .replace(/[^a-z0-9\s-]/g, "") // Quita caracteres especiales
+      .replace(/\s+/g, "-") // Reemplaza espacios por guiones
+      .replace(/-+/g, "-") // Evita guiones múltiples
+      .trim();
+  };
+
+  const generateFileName = (raceName: string, date: string, type: string): string => {
+    const normalizedName = normalizeForFilename(raceName);
     const year = new Date(date).getFullYear();
     const extension = type === "logo" ? "png" : "jpg";
     
@@ -169,7 +177,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
   const getStoragePath = (raceName: string, date: string, type: string): string => {
     const year = new Date(date).getFullYear();
-    const folderName = `${raceName} ${year}`;
+    const normalizedFolderName = normalizeForFilename(raceName);
+    const folderName = `${normalizedFolderName}-${year}`;
     const fileName = generateFileName(raceName, date, type);
     
     return `${year}/${folderName}/${fileName}`;
