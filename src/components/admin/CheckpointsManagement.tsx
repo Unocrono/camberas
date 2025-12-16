@@ -132,7 +132,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     longitude: "",
     timing_point_id: "",
     geofence_radius: 50,
-    checkpoint_type: "STANDARD",
+    checkpoint_type: "CONTROL",
     min_time: "",
     max_time: "",
     min_lap_time: "",
@@ -726,7 +726,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       longitude: "",
       timing_point_id: "",
       geofence_radius: 50,
-      checkpoint_type: "STANDARD",
+      checkpoint_type: "CONTROL",
       min_time: "",
       max_time: "",
       min_lap_time: "",
@@ -812,7 +812,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         longitude: checkpoint.longitude?.toString() || "",
         timing_point_id: checkpoint.timing_point_id || "",
         geofence_radius: checkpoint.geofence_radius || 50,
-        checkpoint_type: checkpoint.checkpoint_type || "STANDARD",
+        checkpoint_type: checkpoint.checkpoint_type || "CONTROL",
         min_time: intervalToString(checkpoint.min_time),
         max_time: intervalToString(checkpoint.max_time),
         min_lap_time: intervalToString(checkpoint.min_lap_time),
@@ -1300,8 +1300,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         const isFirst = index === 0;
         const isLast = index === roadbookItems.length - 1;
         
-        // Tipo de checkpoint: START, FINISH o STANDARD
-        let checkpointType = "STANDARD";
+        // Tipo de checkpoint: START, FINISH o CONTROL
+        let checkpointType = "CONTROL";
         if (isFirst) checkpointType = "START";
         else if (isLast) checkpointType = "FINISH";
         
@@ -1486,7 +1486,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                     >
                       <option value="START">Salida (START)</option>
-                      <option value="STANDARD">Intermedio (STANDARD)</option>
+                      <option value="CONTROL">Intermedio (CONTROL)</option>
                       <option value="FINISH">Meta (FINISH)</option>
                     </select>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -1588,7 +1588,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                             type="button" 
                             size="sm" 
                             onClick={handleCreateTimingPoint}
-                            disabled={!formData.name.trim() && formData.checkpoint_type === "STANDARD"}
+                            disabled={!formData.name.trim() && formData.checkpoint_type === "CONTROL"}
                             className="flex-1"
                           >
                             Crear Punto de Cronometraje
@@ -1755,8 +1755,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       >
                         {checkpoint.checkpoint_type === 'START' && <Flag className="h-3 w-3" />}
                         {checkpoint.checkpoint_type === 'FINISH' && <FlagTriangleRight className="h-3 w-3" />}
-                        {checkpoint.checkpoint_type === 'STANDARD' && <MapPin className="h-3 w-3" />}
-                        {checkpoint.checkpoint_type || "STANDARD"}
+                        {checkpoint.checkpoint_type === 'CONTROL' && <MapPin className="h-3 w-3" />}
+                        {checkpoint.checkpoint_type || "CONTROL"}
                       </Badge>
                     </TableCell>
                     <TableCell>
