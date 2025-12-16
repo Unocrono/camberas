@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
     let startTime: string | null = null
     let endTime: string | null = null
     let forceReprocess = false
+    let specificGpsId: string | null = null
 
     // If POST request, check body for additional parameters
     if (req.method === 'POST') {
@@ -124,12 +125,13 @@ Deno.serve(async (req) => {
         startTime = body.start_time || null
         endTime = body.end_time || null
         forceReprocess = body.force_reprocess || false
+        specificGpsId = body.gps_id || null // Specific GPS point to process (from trigger)
       } catch {
         // Body parsing failed, use URL params
       }
     }
 
-    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
+    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, GPS ID: ${specificGpsId || 'none'}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
 
     // Determine time range for GPS readings
     let gpsQuery = supabase
@@ -137,19 +139,52 @@ Deno.serve(async (req) => {
       .select('*')
       .order('timestamp', { ascending: true })
 
-    if (startTime && endTime) {
+    if (specificGpsId) {
+      // When called from trigger, process ONLY the specific GPS point
+      gpsQuery = gpsQuery.eq('id', specificGpsId)
+      console.log(`Processing specific GPS point: ${specificGpsId}`)
+    } else if (startTime && endTime) {
       // Use explicit time range
       gpsQuery = gpsQuery.gte('timestamp', startTime).lte('timestamp', endTime)
       console.log(`Using time range: ${startTime} to ${endTime}`)
     } else {
-      // Use minutes_back
-      const cutoffTime = new Date(Date.now() - minutesBack * 60 * 1000).toISOString()
-      gpsQuery = gpsQuery.gte('timestamp', cutoffTime)
-      console.log(`Using cutoff time: ${cutoffTime}`)
-    }
-
-    if (raceId) {
-      gpsQuery = gpsQuery.eq('race_id', raceId)
+      // Use minutes_back - but use the LATEST gps timestamp as reference, not server time
+      // This prevents timezone issues
+      if (raceId) {
+        gpsQuery = gpsQuery.eq('race_id', raceId)
+      }
+      // Get the most recent GPS reading first to use as reference
+      const { data: latestGps } = await supabase
+        .from('gps_tracking')
+        .select('timestamp')
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single()
+      
+      if (latestGps) {
+        const latestTimestamp = new Date(latestGps.timestamp)
+        const cutoffTime = new Date(latestTimestamp.getTime() - minutesBack * 60 * 1000).toISOString()
+        gpsQuery = supabase
+          .from('gps_tracking')
+          .select('*')
+          .gte('timestamp', cutoffTime)
+          .order('timestamp', { ascending: true })
+        if (raceId) {
+          gpsQuery = gpsQuery.eq('race_id', raceId)
+        }
+        console.log(`Using cutoff time: ${cutoffTime} (${minutesBack} min before latest GPS: ${latestGps.timestamp})`)
+      } else {
+        console.log('No GPS readings found at all')
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'No GPS readings to process',
+            processed: 0,
+            created: 0
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
     }
 
     const { data: gpsReadings, error: gpsError } = await gpsQuery
