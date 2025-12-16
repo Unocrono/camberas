@@ -198,6 +198,23 @@ export function calculateDistanceFromPointToEnd(
   return distance;
 }
 
+// Calculate distance from start of track to a given index
+export function calculateDistanceFromStartToPoint(
+  trackPoints: GpxTrackPoint[],
+  endIndex: number
+): number {
+  let distance = 0;
+  for (let i = 0; i < endIndex && i < trackPoints.length - 1; i++) {
+    distance += calculateHaversineDistance(
+      trackPoints[i].lat,
+      trackPoints[i].lon,
+      trackPoints[i + 1].lat,
+      trackPoints[i + 1].lon
+    );
+  }
+  return distance;
+}
+
 // Calculate distance to finish from current position on track
 // Returns distance in km
 export function calculateDistanceToFinish(

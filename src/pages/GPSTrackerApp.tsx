@@ -13,7 +13,7 @@ import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { GPSSplashScreen } from '@/components/GPSSplashScreen';
 import gpsLogo from '@/assets/gps-icon.png';
-import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints } from '@/lib/gpxParser';
+import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints, findClosestTrackPoint, calculateDistanceFromStartToPoint } from '@/lib/gpxParser';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
@@ -120,6 +120,7 @@ const GPSTrackerApp = () => {
   });
   const [trackPoints, setTrackPoints] = useState<GpxTrackPoint[]>([]);
   const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
+  const [projectedDistanceKm, setProjectedDistanceKm] = useState<number | null>(null);
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -369,13 +370,26 @@ const GPSTrackerApp = () => {
     loadGpxTrack();
   }, [selectedRegistration]);
 
-  // Recalculate distance to finish when position changes
+  // Recalculate distance to finish and projected distance when position changes
   useEffect(() => {
     if (!currentPosition || trackPoints.length === 0) {
       setDistanceToFinish(null);
+      setProjectedDistanceKm(null);
       return;
     }
 
+    // Find closest point on track
+    const { index: closestIndex } = findClosestTrackPoint(
+      trackPoints,
+      currentPosition.lat,
+      currentPosition.lng
+    );
+
+    // Calculate distance from start to closest point (for elevation profile)
+    const distanceFromStart = calculateDistanceFromStartToPoint(trackPoints, closestIndex);
+    setProjectedDistanceKm(distanceFromStart);
+
+    // Calculate distance from closest point to end (for distance to finish)
     const distance = calculateDistanceToFinish(
       trackPoints,
       currentPosition.lat,
@@ -981,7 +995,7 @@ const GPSTrackerApp = () => {
         {selectedRegistration && (
           <ElevationMiniProfile
             distanceId={selectedRegistration.race_distance_id}
-            currentDistanceKm={stats.distance / 1000}
+            currentDistanceKm={projectedDistanceKm ?? stats.distance / 1000}
             checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
           />
         )}
