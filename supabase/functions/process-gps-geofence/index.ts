@@ -238,6 +238,10 @@ Deno.serve(async (req) => {
       waves?.map(w => [w.race_distance_id, w.start_time ? new Date(w.start_time) : null]) || []
     )
 
+    // Log wave start times for debugging
+    for (const wave of waves || []) {
+      console.log(`Wave start for distance ${wave.race_distance_id}: ${wave.start_time}`)
+    }
     console.log(`Loaded wave start times for ${waves?.length || 0} distances`)
 
     // Get existing timing readings to avoid duplicates and for lap calculation
@@ -317,6 +321,14 @@ Deno.serve(async (req) => {
         let raceTimeMs: number | null = null
         if (waveStart) {
           raceTimeMs = gpsTime.getTime() - waveStart.getTime()
+          // Debug: log the actual values for first few readings
+          if (checkpoint.name === 'Meta' || checkpoint.checkpoint_type === 'FINISH') {
+            console.log(
+              `DEBUG META: bib ${registration.bib_number}, gpsTime=${gps.timestamp}, ` +
+              `waveStart=${waveStart.toISOString()}, raceTimeMs=${raceTimeMs}, ` +
+              `raceTime=${formatMs(raceTimeMs)}`
+            )
+          }
         }
 
         // Validate min_time constraint (minimum race time to reach this checkpoint)
