@@ -750,37 +750,39 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     return "";
   };
 
-  // Función para crear un nuevo timing_point
+  // Función para crear un nuevo timing_point con nombre y coordenadas del checkpoint
   const handleCreateTimingPoint = async () => {
-    if (!newTimingPointName.trim()) {
-      toast.error("Ingresa un nombre para el punto de cronometraje");
-      return;
-    }
-
     // Obtener el orden máximo actual
     const maxOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
 
-    // Determinar el nombre basado en el tipo de checkpoint
-    let tpName = newTimingPointName.trim();
-    if (formData.checkpoint_type === "START" && !tpName.toUpperCase().includes("START")) {
-      tpName = "START";
-    } else if (formData.checkpoint_type === "FINISH" && !tpName.toUpperCase().includes("FINISH")) {
-      tpName = "FINISH";
-    } else if (formData.checkpoint_type === "STANDARD") {
-      // Auto-generar nombre CP1, CP2, etc. si no se especifica
-      const cpCount = timingPoints.filter(tp => tp.name.startsWith("CP")).length;
-      if (!tpName.toUpperCase().startsWith("CP")) {
-        tpName = `CP${cpCount + 1}`;
-      }
+    // Usar nombre del checkpoint + " PC" como nombre del timing point
+    const checkpointName = formData.name.trim() || newTimingPointName.trim();
+    if (!checkpointName) {
+      toast.error("Primero ingresa el nombre del punto de control");
+      return;
     }
+
+    // Generar nombre para el timing point
+    let tpName = `${checkpointName} PC`;
+    if (formData.checkpoint_type === "START") {
+      tpName = "START";
+    } else if (formData.checkpoint_type === "FINISH") {
+      tpName = "FINISH";
+    }
+
+    // Obtener coordenadas del formulario
+    const lat = formData.latitude ? parseFloat(formData.latitude) : null;
+    const lng = formData.longitude ? parseFloat(formData.longitude) : null;
 
     const { data, error } = await supabase
       .from("timing_points")
       .insert({
         race_id: selectedRaceId,
         name: tpName,
-        notes: newTimingPointName !== tpName ? newTimingPointName : null,
+        notes: checkpointName !== tpName ? checkpointName : null,
         point_order: maxOrder + 1,
+        latitude: lat,
+        longitude: lng,
       })
       .select()
       .single();
@@ -791,7 +793,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       return;
     }
 
-    toast.success(`Punto de cronometraje "${tpName}" creado`);
+    const coordMsg = lat && lng ? ` con coordenadas (${lat.toFixed(4)}, ${lng.toFixed(4)})` : "";
+    toast.success(`Punto de cronometraje "${tpName}" creado${coordMsg}`);
     setTimingPoints([...timingPoints, data]);
     setFormData({ ...formData, timing_point_id: data.id });
     setIsCreatingTimingPoint(false);
@@ -1497,22 +1500,41 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       )}
                     </div>
                     {isCreatingTimingPoint ? (
-                      <div className="flex gap-2">
-                        <Input
-                          value={newTimingPointName}
-                          onChange={(e) => setNewTimingPointName(e.target.value)}
-                          placeholder={formData.checkpoint_type === "START" ? "START" : formData.checkpoint_type === "FINISH" ? "FINISH" : "CP1, CP2..."}
-                          className="flex-1"
-                        />
-                        <Button type="button" size="sm" onClick={handleCreateTimingPoint}>
-                          Crear
-                        </Button>
-                        <Button type="button" size="sm" variant="outline" onClick={() => {
-                          setIsCreatingTimingPoint(false);
-                          setNewTimingPointName("");
-                        }}>
-                          Cancelar
-                        </Button>
+                      <div className="space-y-2">
+                        <div className="p-3 bg-muted rounded-md">
+                          <p className="text-sm text-muted-foreground mb-1">Se creará el punto de cronometraje:</p>
+                          <p className="font-medium">
+                            {formData.checkpoint_type === "START" 
+                              ? "START" 
+                              : formData.checkpoint_type === "FINISH" 
+                                ? "FINISH" 
+                                : formData.name.trim() 
+                                  ? `${formData.name.trim()} PC`
+                                  : "(Ingresa nombre del checkpoint)"}
+                          </p>
+                          {formData.latitude && formData.longitude && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              📍 Coordenadas: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            type="button" 
+                            size="sm" 
+                            onClick={handleCreateTimingPoint}
+                            disabled={!formData.name.trim() && formData.checkpoint_type === "STANDARD"}
+                            className="flex-1"
+                          >
+                            Crear Punto de Cronometraje
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => {
+                            setIsCreatingTimingPoint(false);
+                            setNewTimingPointName("");
+                          }}>
+                            Cancelar
+                          </Button>
+                        </div>
                       </div>
                     ) : (
                       <select
