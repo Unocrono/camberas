@@ -40,7 +40,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface TimingReading {
   id: string;
@@ -101,6 +102,10 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [races, setRaces] = useState<Race[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
@@ -432,6 +437,68 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(readings.map(r => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) {
+      toast({
+        title: "Sin selección",
+        description: "Selecciona al menos una lectura para eliminar",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsDeleteMultipleDialogOpen(true);
+  };
+
+  const handleConfirmDeleteMultiple = async () => {
+    if (selectedIds.size === 0) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("timing_readings")
+        .delete()
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      toast({
+        title: "Lecturas eliminadas",
+        description: `Se han eliminado ${selectedIds.size} lecturas correctamente`,
+      });
+      
+      setIsDeleteMultipleDialogOpen(false);
+      setSelectedIds(new Set());
+      fetchReadings();
+    } catch (error: any) {
+      console.error("Error deleting readings:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron eliminar las lecturas",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExportCSV = () => {
     if (readings.length === 0) {
       toast({
@@ -509,9 +576,18 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Gestión de Lecturas</h2>
-          <p className="text-muted-foreground">{readings.length} lecturas</p>
+          <p className="text-muted-foreground">
+            {readings.length} lecturas
+            {selectedIds.size > 0 && ` (${selectedIds.size} seleccionadas)`}
+          </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button onClick={handleDeleteMultiple} variant="destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar ({selectedIds.size})
+            </Button>
+          )}
           <Button onClick={handleExportCSV} variant="outline" disabled={readings.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
@@ -628,6 +704,12 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <Checkbox
+                      checked={readings.length > 0 && selectedIds.size === readings.length}
+                      onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                    />
+                  </TableHead>
                   <TableHead>Dorsal</TableHead>
                   <TableHead>Participante</TableHead>
                   <TableHead>Evento</TableHead>
@@ -641,7 +723,13 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               </TableHeader>
               <TableBody>
                 {readings.map((reading) => (
-                  <TableRow key={reading.id}>
+                  <TableRow key={reading.id} className={selectedIds.has(reading.id) ? "bg-muted/50" : ""}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIds.has(reading.id)}
+                        onCheckedChange={(checked) => handleSelectOne(reading.id, !!checked)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{reading.bib_number}</TableCell>
                     <TableCell>
                       {reading.registration
@@ -943,6 +1031,25 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             <AlertDialogAction onClick={handleConfirmDelete} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Multiple Dialog */}
+      <AlertDialog open={isDeleteMultipleDialogOpen} onOpenChange={setIsDeleteMultipleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedIds.size} lecturas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará {selectedIds.size} lecturas seleccionadas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMultiple} disabled={saving} className="bg-destructive hover:bg-destructive/90">
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar {selectedIds.size} lecturas
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

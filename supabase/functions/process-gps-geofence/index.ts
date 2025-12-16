@@ -62,21 +62,46 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Parse optional parameters
+    // Parse optional parameters from URL or body
     const url = new URL(req.url)
-    const raceId = url.searchParams.get('race_id')
-    const minutesBack = parseInt(url.searchParams.get('minutes_back') || '10')
+    let raceId = url.searchParams.get('race_id')
+    let minutesBack = parseInt(url.searchParams.get('minutes_back') || '10')
+    let startTime: string | null = null
+    let endTime: string | null = null
+    let forceReprocess = false
 
-    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, Minutes back: ${minutesBack}`)
+    // If POST request, check body for additional parameters
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json()
+        raceId = body.race_id || raceId
+        minutesBack = body.minutes_back || minutesBack
+        startTime = body.start_time || null
+        endTime = body.end_time || null
+        forceReprocess = body.force_reprocess || false
+      } catch {
+        // Body parsing failed, use URL params
+      }
+    }
 
-    // Get recent GPS readings (last N minutes)
-    const cutoffTime = new Date(Date.now() - minutesBack * 60 * 1000).toISOString()
-    
+    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
+
+    // Determine time range for GPS readings
     let gpsQuery = supabase
       .from('gps_tracking')
       .select('*')
-      .gte('timestamp', cutoffTime)
       .order('timestamp', { ascending: true })
+
+    if (startTime && endTime) {
+      // Use explicit time range
+      gpsQuery = gpsQuery.gte('timestamp', startTime).lte('timestamp', endTime)
+      console.log(`Using time range: ${startTime} to ${endTime}`)
+    } else {
+      // Use minutes_back
+      const cutoffTime = new Date(Date.now() - minutesBack * 60 * 1000).toISOString()
+      gpsQuery = gpsQuery.gte('timestamp', cutoffTime)
+      console.log(`Using cutoff time: ${cutoffTime}`)
+    }
 
     if (raceId) {
       gpsQuery = gpsQuery.eq('race_id', raceId)
@@ -164,11 +189,12 @@ Deno.serve(async (req) => {
     }
 
     // Create a set of existing readings for quick lookup (registration_id + checkpoint_id)
-    const existingSet = new Set(
-      existingReadings?.map(r => `${r.registration_id}:${r.checkpoint_id}`) || []
-    )
+    // If force_reprocess is true, we'll skip the duplicate check
+    const existingSet = forceReprocess 
+      ? new Set<string>()
+      : new Set(existingReadings?.map(r => `${r.registration_id}:${r.checkpoint_id}`) || [])
 
-    console.log(`Found ${existingSet.size} existing GPS-based timing readings`)
+    console.log(`Found ${existingReadings?.length || 0} existing GPS-based timing readings, force_reprocess: ${forceReprocess}`)
 
     // Process GPS readings and create timing_readings
     const newTimingReadings: any[] = []
