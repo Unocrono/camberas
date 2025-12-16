@@ -134,26 +134,51 @@ Deno.serve(async (req) => {
     console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, GPS ID: ${specificGpsId || 'none'}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
 
     // Determine time range for GPS readings
-    let gpsQuery = supabase
-      .from('gps_tracking')
-      .select('*')
-      .order('timestamp', { ascending: true })
+    let gpsReadings: GPSReading[] | null = null
+    let gpsError: any = null
 
     if (specificGpsId) {
       // When called from trigger, process ONLY the specific GPS point
-      gpsQuery = gpsQuery.eq('id', specificGpsId)
-      console.log(`Processing specific GPS point: ${specificGpsId}`)
+      console.log(`Fetching specific GPS point: ${specificGpsId}`)
+      const result = await supabase
+        .from('gps_tracking')
+        .select('*')
+        .eq('id', specificGpsId)
+        .single()
+      
+      if (result.error) {
+        console.error('Error fetching specific GPS point:', result.error)
+        gpsError = result.error
+      } else if (result.data) {
+        gpsReadings = [result.data]
+        console.log(`Found GPS point: lat=${result.data.latitude}, lon=${result.data.longitude}, timestamp=${result.data.timestamp}`)
+      }
     } else if (startTime && endTime) {
       // Use explicit time range
-      gpsQuery = gpsQuery.gte('timestamp', startTime).lte('timestamp', endTime)
       console.log(`Using time range: ${startTime} to ${endTime}`)
-    } else {
-      // Use minutes_back - but use the LATEST gps timestamp as reference, not server time
-      // This prevents timezone issues
+      const result = await supabase
+        .from('gps_tracking')
+        .select('*')
+        .gte('timestamp', startTime)
+        .lte('timestamp', endTime)
+        .order('timestamp', { ascending: true })
+      
       if (raceId) {
-        gpsQuery = gpsQuery.eq('race_id', raceId)
+        const filtered = await supabase
+          .from('gps_tracking')
+          .select('*')
+          .eq('race_id', raceId)
+          .gte('timestamp', startTime)
+          .lte('timestamp', endTime)
+          .order('timestamp', { ascending: true })
+        gpsReadings = filtered.data
+        gpsError = filtered.error
+      } else {
+        gpsReadings = result.data
+        gpsError = result.error
       }
-      // Get the most recent GPS reading first to use as reference
+    } else {
+      // Use minutes_back - use the LATEST gps timestamp as reference
       const { data: latestGps } = await supabase
         .from('gps_tracking')
         .select('timestamp')
@@ -164,15 +189,21 @@ Deno.serve(async (req) => {
       if (latestGps) {
         const latestTimestamp = new Date(latestGps.timestamp)
         const cutoffTime = new Date(latestTimestamp.getTime() - minutesBack * 60 * 1000).toISOString()
-        gpsQuery = supabase
+        console.log(`Using cutoff time: ${cutoffTime} (${minutesBack} min before latest GPS: ${latestGps.timestamp})`)
+        
+        let query = supabase
           .from('gps_tracking')
           .select('*')
           .gte('timestamp', cutoffTime)
           .order('timestamp', { ascending: true })
+        
         if (raceId) {
-          gpsQuery = gpsQuery.eq('race_id', raceId)
+          query = query.eq('race_id', raceId)
         }
-        console.log(`Using cutoff time: ${cutoffTime} (${minutesBack} min before latest GPS: ${latestGps.timestamp})`)
+        
+        const result = await query
+        gpsReadings = result.data
+        gpsError = result.error
       } else {
         console.log('No GPS readings found at all')
         return new Response(
@@ -187,15 +218,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: gpsReadings, error: gpsError } = await gpsQuery
-
     if (gpsError) {
       console.error('Error fetching GPS readings:', gpsError)
       throw gpsError
     }
 
     if (!gpsReadings || gpsReadings.length === 0) {
-      console.log('No GPS readings found in the specified time window')
+      console.log('No GPS readings found to process')
       return new Response(
         JSON.stringify({ 
           success: true, 
