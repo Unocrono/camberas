@@ -908,7 +908,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                     Nuevo Punto
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>{selectedItem ? "Editar Punto" : "Nuevo Punto"}</DialogTitle>
                   </DialogHeader>

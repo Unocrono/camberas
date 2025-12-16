@@ -643,7 +643,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
 
         {/* Add/Edit Dialog */}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {isEditing ? "Editar" : "Nuevo"} Punto de Cronometraje
