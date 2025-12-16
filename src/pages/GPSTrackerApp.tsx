@@ -13,6 +13,7 @@ import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { GPSSplashScreen } from '@/components/GPSSplashScreen';
 import gpsLogo from '@/assets/gps-icon.png';
+import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints } from '@/lib/gpxParser';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
@@ -117,6 +118,8 @@ const GPSTrackerApp = () => {
     const stored = localStorage.getItem(SPEED_PACE_PREF_KEY);
     return stored === 'pace'; // null or 'speed' = false, 'pace' = true
   });
+  const [trackPoints, setTrackPoints] = useState<GpxTrackPoint[]>([]);
+  const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -329,6 +332,57 @@ const GPSTrackerApp = () => {
 
     fetchCheckpoints();
   }, [selectedRegistration]);
+
+  // Load GPX track points for distance to finish calculation
+  useEffect(() => {
+    if (!selectedRegistration) {
+      setTrackPoints([]);
+      setDistanceToFinish(null);
+      return;
+    }
+
+    const loadGpxTrack = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('race_distances')
+          .select('gpx_file_url')
+          .eq('id', selectedRegistration.race_distance_id)
+          .maybeSingle();
+
+        if (error || !data?.gpx_file_url) {
+          console.log('No GPX file found for distance');
+          setTrackPoints([]);
+          return;
+        }
+
+        const response = await fetch(data.gpx_file_url);
+        const gpxText = await response.text();
+        const parsedGpx = parseGpxFile(gpxText);
+        const points = getAllTrackPoints(parsedGpx);
+        setTrackPoints(points);
+      } catch (error) {
+        console.error('Error loading GPX for distance calculation:', error);
+        setTrackPoints([]);
+      }
+    };
+
+    loadGpxTrack();
+  }, [selectedRegistration]);
+
+  // Recalculate distance to finish when position changes
+  useEffect(() => {
+    if (!currentPosition || trackPoints.length === 0) {
+      setDistanceToFinish(null);
+      return;
+    }
+
+    const distance = calculateDistanceToFinish(
+      trackPoints,
+      currentPosition.lat,
+      currentPosition.lng
+    );
+    setDistanceToFinish(distance);
+  }, [currentPosition, trackPoints]);
 
   // Elapsed time counter - calculates race time from wave start_time
   useEffect(() => {
@@ -891,15 +945,19 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          <Card>
+        <Card>
             <CardContent className="pt-4 text-center">
               <Target className={`h-5 w-5 mx-auto mb-1 text-muted-foreground`} />
               <div className="text-2xl font-mono font-bold">
-                {selectedRegistration?.race_distances?.distance_km 
-                  ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
-                  : '--'}
+                {distanceToFinish !== null 
+                  ? formatDistance(distanceToFinish * 1000)
+                  : selectedRegistration?.race_distances?.distance_km 
+                    ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
+                    : '--'}
               </div>
-              <div className="text-xs text-muted-foreground">Distancia a meta</div>
+              <div className="text-xs text-muted-foreground">
+                {distanceToFinish !== null ? 'Distancia a meta (GPX)' : 'Distancia a meta'}
+              </div>
             </CardContent>
           </Card>
         </div>
