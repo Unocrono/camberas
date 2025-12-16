@@ -241,13 +241,15 @@ Deno.serve(async (req) => {
     // Get unique race IDs from GPS readings
     const raceIds = [...new Set(gpsReadings.map(r => r.race_id))]
 
-    // Fetch checkpoints with coordinates for these races (including time constraints)
+    // Fetch checkpoints with coordinates AND timing_point for these races (including time constraints)
+    // IMPORTANT: Only process checkpoints that have a timing_point_id assigned
     const { data: checkpoints, error: cpError } = await supabase
       .from('race_checkpoints')
       .select('id, race_id, race_distance_id, timing_point_id, name, latitude, longitude, distance_km, checkpoint_order, geofence_radius, checkpoint_type, min_time, max_time, min_lap_time, expected_laps')
       .in('race_id', raceIds)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)
+      .not('timing_point_id', 'is', null)
 
     if (cpError) {
       console.error('Error fetching checkpoints:', cpError)
