@@ -1247,7 +1247,45 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
       const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
 
-      // Create checkpoints from roadbook items
+      // Get max timing_point order
+      const maxTpOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
+
+      // Create timing_points for each checkpoint with coordinates
+      const timingPointsToInsert = roadbookItems
+        .filter(item => item.latitude && item.longitude) // Solo los que tienen coordenadas
+        .map((item, index) => ({
+          race_id: selectedRaceId,
+          name: `${item.description} PC`,
+          notes: item.description,
+          point_order: maxTpOrder + index + 1,
+          latitude: item.latitude,
+          longitude: item.longitude,
+        }));
+
+      let createdTimingPoints: TimingPoint[] = [];
+      if (timingPointsToInsert.length > 0) {
+        const { data: tpData, error: tpError } = await supabase
+          .from("timing_points")
+          .insert(timingPointsToInsert)
+          .select();
+
+        if (tpError) {
+          console.error("Error creating timing points:", tpError);
+          // Continue anyway, checkpoints can be created without timing points
+        } else {
+          createdTimingPoints = tpData || [];
+        }
+      }
+
+      // Create a map from description to timing_point_id
+      const tpMap = new Map<string, string>();
+      createdTimingPoints.forEach(tp => {
+        if (tp.notes) {
+          tpMap.set(tp.notes, tp.id);
+        }
+      });
+
+      // Create checkpoints from roadbook items with timing_point_id assigned
       const checkpointsToInsert = roadbookItems.map((item, index) => ({
         race_id: selectedRaceId,
         race_distance_id: selectedDistanceId,
@@ -1257,6 +1295,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         distance_km: item.km_total,
         latitude: item.latitude,
         longitude: item.longitude,
+        timing_point_id: tpMap.get(item.description) || null,
       }));
 
       const { error: insertError } = await supabase
@@ -1265,7 +1304,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
 
       if (insertError) throw insertError;
 
-      toast.success(`${roadbookItems.length} puntos de control importados desde el rutómetro`);
+      // Refresh timing points list
+      await fetchTimingPoints();
+
+      const tpCount = createdTimingPoints.length;
+      const tpMsg = tpCount > 0 ? ` y ${tpCount} puntos de cronometraje` : "";
+      toast.success(`${roadbookItems.length} puntos de control${tpMsg} importados desde el rutómetro`);
       fetchCheckpoints();
     } catch (error: any) {
       console.error("Error importing from roadbook:", error);
