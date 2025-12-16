@@ -976,7 +976,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       <div>
                         <p className="text-xs text-muted-foreground">Salida</p>
                         <p className="font-semibold">
-                          {new Date(distance.wave_start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          {distance.wave_start_time.slice(11, 16)}
                         </p>
                       </div>
                     </div>
