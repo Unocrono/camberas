@@ -1354,7 +1354,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   Añadir Punto de Control
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {isEditing ? "Editar Punto de Control" : "Crear Punto de Control"}

@@ -680,7 +680,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
       {/* Add Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Añadir Lectura</DialogTitle>
             <DialogDescription>Registra una nueva lectura de cronometraje manual</DialogDescription>
@@ -806,7 +806,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Lectura</DialogTitle>
             <DialogDescription>Modifica los datos de la lectura</DialogDescription>

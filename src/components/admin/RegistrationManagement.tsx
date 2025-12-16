@@ -724,7 +724,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva Inscripción</DialogTitle>
             <DialogDescription>Crear inscripción manualmente (invitado)</DialogDescription>
@@ -842,7 +842,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Inscripción</DialogTitle>
           </DialogHeader>
