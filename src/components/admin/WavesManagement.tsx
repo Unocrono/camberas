@@ -117,12 +117,13 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
       
       let startTimestamp: string | null = null;
       if (formData.start_date && formData.start_time) {
-        // Asegurar formato HH:mm:ss
+        // Asegurar formato HH:mm:ss y construir timestamp sin conversión UTC
         let timeValue = formData.start_time;
         if (timeValue.length === 5) {
           timeValue += ":00"; // Si es HH:mm, añadir :00
         }
-        startTimestamp = new Date(`${formData.start_date}T${timeValue}`).toISOString();
+        // Usar mismo formato que DistanceManagement (sin .toISOString() para evitar conversión UTC)
+        startTimestamp = `${formData.start_date}T${timeValue}`;
       }
 
       const { error } = await supabase
