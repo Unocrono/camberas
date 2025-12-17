@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
     let endTime: string | null = null
     let forceReprocess = false
     let specificGpsId: string | null = null
+    let gpsIds: string[] | null = null // Array of GPS IDs for batch processing (like trigger)
 
     // If POST request, check body for additional parameters
     if (req.method === 'POST') {
@@ -149,12 +150,13 @@ Deno.serve(async (req) => {
         endTime = body.end_time || null
         forceReprocess = body.force_reprocess || false
         specificGpsId = body.gps_id || null // Specific GPS point to process (from trigger)
+        gpsIds = body.gps_ids || null // Array of GPS IDs for batch reimport
       } catch {
         // Body parsing failed, use URL params
       }
     }
 
-    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, GPS ID: ${specificGpsId || 'none'}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
+    console.log(`Processing GPS geofence. Race: ${raceId || 'all'}, GPS ID: ${specificGpsId || 'none'}, GPS IDs count: ${gpsIds?.length || 0}, Minutes back: ${minutesBack}, Start: ${startTime}, End: ${endTime}, Force: ${forceReprocess}`)
 
     // Determine time range for GPS readings
     let gpsReadings: GPSReading[] | null = null
@@ -175,6 +177,22 @@ Deno.serve(async (req) => {
       } else if (result.data) {
         gpsReadings = [result.data]
         console.log(`Found GPS point: lat=${result.data.latitude}, lon=${result.data.longitude}, timestamp=${result.data.timestamp}`)
+      }
+    } else if (gpsIds && gpsIds.length > 0) {
+      // Batch processing by GPS IDs (same as trigger, but multiple)
+      console.log(`Fetching ${gpsIds.length} GPS points by ID (batch mode like trigger)`)
+      const result = await supabase
+        .from('gps_tracking')
+        .select('*')
+        .in('id', gpsIds)
+        .order('timestamp', { ascending: true })
+      
+      if (result.error) {
+        console.error('Error fetching GPS points by IDs:', result.error)
+        gpsError = result.error
+      } else {
+        gpsReadings = result.data
+        console.log(`Found ${gpsReadings?.length || 0} GPS points`)
       }
     } else if (startTime && endTime) {
       // Use explicit time range
