@@ -498,28 +498,23 @@ const TimingApp = () => {
     }
   };
 
-  // Fetch race start time from roadbook
-  const fetchRaceStartTime = async (raceId: string, raceDate: string) => {
+  // Fetch race start time from wave (source of truth)
+  const fetchRaceStartTime = async (raceId: string, _raceDate: string) => {
     try {
-      // Get start_time from any roadbook of this race
-      const { data: roadbooks, error } = await supabase
-        .from("roadbooks")
-        .select(`
-          start_time,
-          race_distances!inner(race_id)
-        `)
-        .eq("race_distances.race_id", raceId)
+      // Get start_time from race_waves (earliest wave as reference)
+      const { data: waves, error } = await supabase
+        .from("race_waves")
+        .select("start_time")
+        .eq("race_id", raceId)
         .not("start_time", "is", null)
+        .order("start_time", { ascending: true })
         .limit(1);
 
       if (error) throw error;
 
-      if (roadbooks && roadbooks.length > 0 && roadbooks[0].start_time) {
-        // Combine race date with start_time
-        const startTimeStr = roadbooks[0].start_time as string;
-        const [hours, minutes, seconds] = startTimeStr.split(":").map(Number);
-        const startDate = new Date(raceDate);
-        startDate.setHours(hours, minutes, seconds || 0, 0);
+      if (waves && waves.length > 0 && waves[0].start_time) {
+        // race_waves.start_time is already a full timestamp with timezone
+        const startDate = new Date(waves[0].start_time);
         setRaceStartTime(startDate);
         localStorage.setItem(`start_time_${raceId}`, startDate.toISOString());
       }
