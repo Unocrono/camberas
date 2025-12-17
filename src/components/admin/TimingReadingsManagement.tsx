@@ -633,29 +633,43 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         return time; // Ya tiene HH:MM:SS
       };
 
-      // Construir timestamps como objetos Date para convertir a UTC correctamente
-      // El usuario introduce hora local, pero los GPS están en UTC
-      const startLocal = new Date(`${reimportDate}T${normalizeTime(reimportStartTime)}`);
-      const endLocal = new Date(`${reimportDate}T${normalizeTime(reimportEndTime)}`);
-      
-      // Validar que las fechas son válidas
-      if (isNaN(startLocal.getTime()) || isNaN(endLocal.getTime())) {
-        throw new Error("La fecha u hora introducida no es válida");
-      }
-      
-      // Convertir a ISO string (que incluye la timezone correcta)
-      const startTimestamp = startLocal.toISOString();
-      const endTimestamp = endLocal.toISOString();
+      // Construir timestamps en formato local (sin conversión a UTC)
+      // Los GPS se almacenan en hora local, así que comparamos directamente
+      const startTimestamp = `${reimportDate}T${normalizeTime(reimportStartTime)}`;
+      const endTimestamp = `${reimportDate}T${normalizeTime(reimportEndTime)}`;
       
       console.log(`Reimporting GPS readings:`);
-      console.log(`  Local input: ${reimportDate}T${reimportStartTime} to ${reimportDate}T${reimportEndTime}`);
-      console.log(`  UTC range: ${startTimestamp} to ${endTimestamp}`);
+      console.log(`  Time range: ${startTimestamp} to ${endTimestamp}`);
       
+      // PASO 1: Obtener los IDs de GPS en el rango (como hace el trigger)
+      const { data: gpsData, error: gpsError } = await supabase
+        .from('gps_tracking')
+        .select('id')
+        .eq('race_id', filterRaceId)
+        .gte('timestamp', startTimestamp)
+        .lte('timestamp', endTimestamp)
+        .order('timestamp', { ascending: true });
+      
+      if (gpsError) throw gpsError;
+      
+      if (!gpsData || gpsData.length === 0) {
+        toast({
+          title: "Sin lecturas GPS",
+          description: "No se encontraron lecturas GPS en el rango especificado",
+          variant: "destructive",
+        });
+        setReimporting(false);
+        return;
+      }
+      
+      const gpsIds = gpsData.map(g => g.id);
+      console.log(`Found ${gpsIds.length} GPS readings to reimport`);
+      
+      // PASO 2: Enviar los IDs a la edge function (mismo flujo que el trigger)
       const { data, error } = await supabase.functions.invoke("process-gps-geofence", {
         body: { 
           race_id: filterRaceId,
-          start_time: startTimestamp,
-          end_time: endTimestamp,
+          gps_ids: gpsIds,
           force_reprocess: true
         },
       });
