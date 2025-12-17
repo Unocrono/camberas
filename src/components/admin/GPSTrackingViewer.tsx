@@ -78,13 +78,11 @@ interface RaceDistance {
   distance_km: number;
 }
 
-interface Checkpoint {
+interface TimingPoint {
   id: string;
   name: string;
   latitude: number | null;
   longitude: number | null;
-  distance_km: number;
-  race_distance_id: string | null;
 }
 
 interface GPSTrackingViewerProps {
@@ -110,15 +108,16 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
   const [deleting, setDeleting] = useState(false);
   const [races, setRaces] = useState<Race[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
-  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
   
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
-  // Filters
+  // Filters - ya viene filtrado por carrera desde props
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
   const [filterDistanceId, setFilterDistanceId] = useState<string>("all");
+  const [filterTimingPointId, setFilterTimingPointId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
 
   // Pagination
@@ -139,18 +138,19 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
   useEffect(() => {
     if (filterRaceId) {
       fetchDistances(filterRaceId);
-      fetchCheckpoints(filterRaceId);
+      fetchTimingPoints(filterRaceId);
     } else {
       setDistances([]);
-      setCheckpoints([]);
+      setTimingPoints([]);
       setFilterDistanceId("all");
+      setFilterTimingPointId("all");
     }
   }, [filterRaceId]);
 
   useEffect(() => {
     fetchReadings();
     setSelectedIds(new Set());
-  }, [filterRaceId, filterDistanceId, searchTerm, page]);
+  }, [filterRaceId, filterDistanceId, filterTimingPointId, searchTerm, page]);
 
   const fetchRaces = async () => {
     try {
@@ -181,20 +181,18 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     }
   };
 
-  const fetchCheckpoints = async (raceId: string) => {
+  const fetchTimingPoints = async (raceId: string) => {
     try {
       const { data, error } = await supabase
-        .from("race_checkpoints")
-        .select("id, name, latitude, longitude, distance_km, race_distance_id")
+        .from("timing_points")
+        .select("id, name, latitude, longitude")
         .eq("race_id", raceId)
-        .not("latitude", "is", null)
-        .not("longitude", "is", null)
-        .order("checkpoint_order");
+        .order("point_order");
       
       if (error) throw error;
-      setCheckpoints(data || []);
+      setTimingPoints(data || []);
     } catch (error: any) {
-      console.error("Error fetching checkpoints:", error);
+      console.error("Error fetching timing points:", error);
     }
   };
 
@@ -295,31 +293,23 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     return "-";
   };
 
-  const getClosestCheckpoint = (reading: GPSTracking): { name: string; distance: number } | null => {
-    if (!checkpoints.length) return null;
-    
-    // Filter checkpoints by distance if applicable
-    const distanceId = reading.registration?.race_distance_id;
-    const relevantCheckpoints = distanceId 
-      ? checkpoints.filter(cp => !cp.race_distance_id || cp.race_distance_id === distanceId)
-      : checkpoints;
-    
-    if (!relevantCheckpoints.length) return null;
+  const getClosestTimingPoint = (reading: GPSTracking): { name: string; distance: number } | null => {
+    // Only consider timing points with coordinates
+    const pointsWithCoords = timingPoints.filter(tp => tp.latitude !== null && tp.longitude !== null);
+    if (!pointsWithCoords.length) return null;
 
     let closest: { name: string; distance: number } | null = null;
     
-    for (const cp of relevantCheckpoints) {
-      if (cp.latitude === null || cp.longitude === null) continue;
-      
+    for (const tp of pointsWithCoords) {
       const dist = calculateDistance(
         reading.latitude,
         reading.longitude,
-        cp.latitude,
-        cp.longitude
+        tp.latitude!,
+        tp.longitude!
       );
       
       if (!closest || dist < closest.distance) {
-        closest = { name: cp.name, distance: dist };
+        closest = { name: tp.name, distance: dist };
       }
     }
     
@@ -327,25 +317,21 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
   };
 
   const getDistanceToFinish = (reading: GPSTracking): number | null => {
-    const distanceId = reading.registration?.race_distance_id;
-    if (!distanceId) return null;
-    
-    // Find finish checkpoint for this distance
-    const finishCheckpoint = checkpoints.find(
-      cp => cp.race_distance_id === distanceId && 
-           cp.name.toLowerCase().includes("meta") &&
-           cp.latitude !== null && cp.longitude !== null
+    // Find "Meta" timing point
+    const finishPoint = timingPoints.find(
+      tp => tp.name.toLowerCase().includes("meta") &&
+           tp.latitude !== null && tp.longitude !== null
     );
     
-    if (!finishCheckpoint || finishCheckpoint.latitude === null || finishCheckpoint.longitude === null) {
+    if (!finishPoint || finishPoint.latitude === null || finishPoint.longitude === null) {
       return null;
     }
     
     return calculateDistance(
       reading.latitude,
       reading.longitude,
-      finishCheckpoint.latitude,
-      finishCheckpoint.longitude
+      finishPoint.latitude,
+      finishPoint.longitude
     );
   };
 
@@ -412,11 +398,11 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     const headers = [
       "ID", "Dorsal", "Participante", "Carrera", "Evento", 
       "Latitud", "Longitud", "Altitud", "Velocidad", "Precisión",
-      "Timestamp", "Timestamp UTC", "Batería", "CP Cercano", "Dist CP (km)", "Dist Meta (km)"
+      "Timestamp", "Timestamp UTC", "Batería", "Pto Crono Cercano", "Dist Pto (km)", "Dist Meta (km)"
     ];
     
     const rows = readings.map((r) => {
-      const closest = getClosestCheckpoint(r);
+      const closest = getClosestTimingPoint(r);
       const distToFinish = getDistanceToFinish(r);
       
       return [
@@ -535,19 +521,6 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Carrera</label>
-              <Select value={filterRaceId} onValueChange={(v) => { setFilterRaceId(v); setPage(0); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar carrera" />
-                </SelectTrigger>
-                <SelectContent>
-                  {races.map((race) => (
-                    <SelectItem key={race.id} value={race.id}>{race.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
               <label className="text-sm font-medium mb-1 block">Evento</label>
               <Select value={filterDistanceId} onValueChange={(v) => { setFilterDistanceId(v); setPage(0); }} disabled={!filterRaceId}>
                 <SelectTrigger>
@@ -557,6 +530,20 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
                   <SelectItem value="all">Todos los eventos</SelectItem>
                   {distances.map((d) => (
                     <SelectItem key={d.id} value={d.id}>{d.name} ({d.distance_km}km)</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1 block">Punto de Cronometraje</label>
+              <Select value={filterTimingPointId} onValueChange={(v) => { setFilterTimingPointId(v); setPage(0); }} disabled={!filterRaceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los puntos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los puntos</SelectItem>
+                  {timingPoints.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>{tp.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -576,7 +563,7 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
             <div className="flex items-end">
               <Badge variant="secondary" className="h-9 px-3 flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
-                {checkpoints.length} checkpoints con coordenadas
+                {timingPoints.filter(tp => tp.latitude && tp.longitude).length} puntos con coordenadas
               </Badge>
             </div>
           </div>
@@ -606,8 +593,8 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
                 <TableHead>Precisión</TableHead>
                 <TableHead>Timestamp</TableHead>
                 <TableHead>Batería</TableHead>
-                <TableHead>CP Cercano</TableHead>
-                <TableHead>Dist CP</TableHead>
+                <TableHead>Pto Crono Cercano</TableHead>
+                <TableHead>Dist Pto</TableHead>
                 <TableHead>Dist Meta</TableHead>
               </TableRow>
             </TableHeader>
@@ -626,7 +613,7 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
                 </TableRow>
               ) : (
                 readings.map((reading) => {
-                  const closest = getClosestCheckpoint(reading);
+                  const closest = getClosestTimingPoint(reading);
                   const distToFinish = getDistanceToFinish(reading);
                   
                   return (
