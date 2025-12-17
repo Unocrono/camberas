@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface TimingReading {
@@ -106,6 +106,8 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
+  const [isChangeTimingPointDialogOpen, setIsChangeTimingPointDialogOpen] = useState(false);
+  const [newTimingPointId, setNewTimingPointId] = useState<string>("");
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
@@ -499,6 +501,56 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     }
   };
 
+  const handleChangeTimingPoint = () => {
+    if (selectedIds.size === 0) {
+      toast({
+        title: "Sin selección",
+        description: "Selecciona al menos una lectura para cambiar el punto de cronometraje",
+        variant: "destructive",
+      });
+      return;
+    }
+    setNewTimingPointId("");
+    setIsChangeTimingPointDialogOpen(true);
+  };
+
+  const handleConfirmChangeTimingPoint = async () => {
+    if (selectedIds.size === 0) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("timing_readings")
+        .update({ 
+          timing_point_id: newTimingPointId || null,
+          updated_at: new Date().toISOString()
+        })
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      const pointName = timingPoints.find(tp => tp.id === newTimingPointId)?.name || "ninguno";
+      toast({
+        title: "Punto de crono actualizado",
+        description: `Se han actualizado ${selectedIds.size} lecturas al punto "${pointName}"`,
+      });
+      
+      setIsChangeTimingPointDialogOpen(false);
+      setSelectedIds(new Set());
+      setNewTimingPointId("");
+      fetchReadings();
+    } catch (error: any) {
+      console.error("Error updating timing point:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo actualizar el punto de cronometraje",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleExportCSV = () => {
     if (readings.length === 0) {
       toast({
@@ -583,10 +635,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         </div>
         <div className="flex gap-2 flex-wrap">
           {selectedIds.size > 0 && (
-            <Button onClick={handleDeleteMultiple} variant="destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Eliminar ({selectedIds.size})
-            </Button>
+            <>
+              <Button onClick={handleChangeTimingPoint} variant="outline">
+                <ArrowRightLeft className="h-4 w-4 mr-2" />
+                Cambiar Punto ({selectedIds.size})
+              </Button>
+              <Button onClick={handleDeleteMultiple} variant="destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar ({selectedIds.size})
+              </Button>
+            </>
           )}
           <Button onClick={handleExportCSV} variant="outline" disabled={readings.length === 0}>
             <Download className="h-4 w-4 mr-2" />
@@ -1054,6 +1112,49 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change Timing Point Dialog */}
+      <Dialog open={isChangeTimingPointDialogOpen} onOpenChange={setIsChangeTimingPointDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Punto de Cronometraje</DialogTitle>
+            <DialogDescription>
+              Selecciona el nuevo punto de cronometraje para las {selectedIds.size} lecturas seleccionadas.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Nuevo Punto de Cronometraje</Label>
+              <Select value={newTimingPointId || "none"} onValueChange={(v) => setNewTimingPointId(v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona punto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin punto asignado</SelectItem>
+                  {timingPoints.map((tp) => (
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Esto asignará el punto de cronometraje seleccionado a todas las lecturas marcadas. 
+              Útil para corregir lecturas GPS que fueron asignadas incorrectamente.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsChangeTimingPointDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmChangeTimingPoint} disabled={saving}>
+              {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Cambiar Punto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
