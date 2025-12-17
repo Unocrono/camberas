@@ -64,7 +64,7 @@ export function MapControls({
           <Button
             size="icon"
             variant="secondary"
-            className="h-8 w-8 bg-card shadow-md border"
+            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
             onClick={onCenterRoute}
             disabled={!hasRoute}
           >
@@ -82,7 +82,7 @@ export function MapControls({
           <Button
             size="icon"
             variant="secondary"
-            className="h-8 w-8 bg-card shadow-md border"
+            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
             onClick={onCenterRunners}
             disabled={!hasRunners}
           >
@@ -100,7 +100,7 @@ export function MapControls({
           <Button
             size="icon"
             variant={isFollowing ? "default" : "secondary"}
-            className={`h-8 w-8 shadow-md border ${isFollowing ? '' : 'bg-card'}`}
+            className={`h-8 w-8 shadow-md border ${isFollowing ? 'bg-primary text-primary-foreground' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}
             onClick={onFollowRunner}
             disabled={!hasRunners}
           >
@@ -121,7 +121,7 @@ export function MapControls({
           <Button
             size="icon"
             variant="secondary"
-            className="h-8 w-8 bg-card shadow-md border"
+            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
             onClick={onZoomIn}
           >
             <ZoomIn className="h-4 w-4" />
@@ -138,7 +138,7 @@ export function MapControls({
           <Button
             size="icon"
             variant="secondary"
-            className="h-8 w-8 bg-card shadow-md border"
+            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
             onClick={onZoomOut}
           >
             <ZoomOut className="h-4 w-4" />
@@ -160,7 +160,7 @@ export function MapControls({
               <Button
                 size="icon"
                 variant="secondary"
-                className="h-8 w-8 bg-card shadow-md border"
+                className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
               >
                 <Layers className="h-4 w-4" />
               </Button>
@@ -190,7 +190,7 @@ export function MapControls({
           <Button
             size="icon"
             variant="secondary"
-            className="h-8 w-8 bg-card shadow-md border"
+            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
             onClick={onToggleFullscreen}
           >
             <Maximize2 className="h-4 w-4" />
