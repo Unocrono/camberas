@@ -5,11 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users } from 'lucide-react';
+import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapControls } from '@/components/MapControls';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { TrackPlaybackControls } from '@/components/TrackPlaybackControls';
 
 interface CheckpointNotification {
   id: string;
@@ -82,6 +83,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [selectedRunner, setSelectedRunner] = useState<RunnerPosition | null>(null);
   const [runnerTrack, setRunnerTrack] = useState<RunnerTrackPoint[]>([]);
   const [loadingTrack, setLoadingTrack] = useState(false);
+  
+  // Playback mode state
+  const [isPlaybackMode, setIsPlaybackMode] = useState(false);
+  const playbackMarker = useRef<mapboxgl.Marker | null>(null);
   
   // Mobile panel state
   const isMobile = useIsMobile();
@@ -300,6 +305,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       map.current.removeSource('runner-track');
     }
     setRunnerTrack([]);
+    
+    // Remove playback marker
+    if (playbackMarker.current) {
+      playbackMarker.current.remove();
+      playbackMarker.current = null;
+    }
+    setIsPlaybackMode(false);
   };
 
   const fetchRunnerTrack = async (registrationId: string) => {
@@ -866,7 +878,48 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
   const handleClearSelection = () => {
     setSelectedRunner(null);
+    setIsPlaybackMode(false);
+    if (playbackMarker.current) {
+      playbackMarker.current.remove();
+      playbackMarker.current = null;
+    }
   };
+
+  const handleStartPlayback = () => {
+    setIsPlaybackMode(true);
+  };
+
+  const handlePlaybackPositionChange = useCallback((index: number, point: RunnerTrackPoint) => {
+    if (!map.current) return;
+    
+    // Create or update playback marker
+    if (!playbackMarker.current) {
+      const el = document.createElement('div');
+      el.className = 'playback-marker';
+      el.innerHTML = `
+        <div class="flex flex-col items-center">
+          <div style="background-color: #ef4444; border: 3px solid white; box-shadow: 0 0 10px rgba(239,68,68,0.6);" class="rounded-full w-10 h-10 flex items-center justify-center text-white font-bold text-sm animate-pulse">
+            ${selectedRunner?.bib_number || '?'}
+          </div>
+        </div>
+      `;
+      
+      playbackMarker.current = new mapboxgl.Marker(el)
+        .setLngLat([point.longitude, point.latitude])
+        .addTo(map.current);
+    } else {
+      playbackMarker.current.setLngLat([point.longitude, point.latitude]);
+    }
+
+    // Follow the playback marker if following is enabled
+    if (isFollowing) {
+      map.current.flyTo({
+        center: [point.longitude, point.latitude],
+        zoom: map.current.getZoom(),
+        duration: 300,
+      });
+    }
+  }, [selectedRunner, isFollowing]);
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('es-ES', { 
@@ -954,7 +1007,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         </TooltipProvider>
         
         {/* Selected Runner Info Panel */}
-        {selectedRunner && (
+        {selectedRunner && !isPlaybackMode && (
           <div className="absolute top-4 left-4 right-4 max-w-md bg-card rounded-lg shadow-lg border p-4 z-10">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -976,12 +1029,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
             {loadingTrack ? (
               <p className="text-sm text-muted-foreground mt-3">Cargando recorrido...</p>
             ) : runnerTrack.length > 0 ? (
-              <div className="mt-3 pt-3 border-t space-y-2">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-blue-500" />
-                    <span>{runnerTrack.length} puntos GPS</span>
+              <div className="mt-3 pt-3 border-t space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4 text-blue-500" />
+                      <span>{runnerTrack.length} puntos GPS</span>
+                    </div>
                   </div>
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={handleStartPlayback}
+                    className="gap-1.5"
+                  >
+                    <Play className="h-4 w-4" />
+                    Reproducir
+                  </Button>
                 </div>
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Inicio: {formatTime(runnerTrack[0].timestamp)}</span>
@@ -991,6 +1055,28 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
             ) : (
               <p className="text-sm text-muted-foreground mt-3">Sin datos de recorrido</p>
             )}
+          </div>
+        )}
+
+        {/* Playback Controls Panel */}
+        {selectedRunner && isPlaybackMode && runnerTrack.length > 0 && (
+          <div className="absolute top-4 left-4 right-4 max-w-md z-10">
+            <div className="relative">
+              <Button 
+                size="icon" 
+                variant="secondary" 
+                onClick={handleClearSelection}
+                className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white shadow-md z-10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <TrackPlaybackControls
+                trackPoints={runnerTrack}
+                onPositionChange={handlePlaybackPositionChange}
+                runnerName={selectedRunner.runner_name}
+                bibNumber={selectedRunner.bib_number}
+              />
+            </div>
           </div>
         )}
 
@@ -1141,6 +1227,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         .roadbook-marker {
           cursor: pointer;
           z-index: 3;
+        }
+        .playback-marker {
+          cursor: pointer;
+          z-index: 20;
         }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
