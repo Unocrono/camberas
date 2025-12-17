@@ -367,9 +367,7 @@ Deno.serve(async (req) => {
     // Process GPS readings and create timing_readings
     const newTimingReadings: any[] = []
     const processedPairs = new Map<string, { timestampMs: number, lap: number }>() // Track what we've processed in this batch
-    let skippedMinTime = 0
-    let skippedMaxTime = 0
-    let skippedLapTime = 0
+    let skippedLapTime = 0 // Only min_lap_time filter is applied here
 
     for (const gps of gpsReadings as GPSReading[]) {
       const registration = registrationMap.get(gps.registration_id)
@@ -430,31 +428,10 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Validate min_time constraint (minimum race time to reach this checkpoint)
-        const minTimeMs = parseIntervalToMs(checkpoint.min_time)
-        if (minTimeMs !== null && raceTimeMs !== null) {
-          if (raceTimeMs < minTimeMs) {
-            console.log(
-              `Skipping checkpoint "${checkpoint.name}" for bib ${registration.bib_number}: ` +
-              `race time ${formatMs(raceTimeMs)} < min_time ${formatMs(minTimeMs)}`
-            )
-            skippedMinTime++
-            continue
-          }
-        }
-
-        // Validate max_time constraint (maximum race time - cutoff)
-        const maxTimeMs = parseIntervalToMs(checkpoint.max_time)
-        if (maxTimeMs !== null && raceTimeMs !== null) {
-          if (raceTimeMs > maxTimeMs) {
-            console.log(
-              `Skipping checkpoint "${checkpoint.name}" for bib ${registration.bib_number}: ` +
-              `race time ${formatMs(raceTimeMs)} > max_time ${formatMs(maxTimeMs)}`
-            )
-            skippedMaxTime++
-            continue
-          }
-        }
+        // NOTE: min_time and max_time filters are NOT applied here
+        // All readings within geofence are saved to timing_readings
+        // The min_time/max_time filters are applied later when calculating split_times
+        // This ensures we never lose raw timing data
 
         // Get existing readings for this pair to determine lap number
         const existingForPair = existingReadingsMap.get(pairKey) || []
@@ -538,7 +515,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Skipped readings - min_time: ${skippedMinTime}, max_time: ${skippedMaxTime}, min_lap_time: ${skippedLapTime}`)
+    console.log(`Skipped readings - min_lap_time: ${skippedLapTime} (min_time/max_time filters applied at split_times calculation)`)
 
     // Insert new timing readings
     let createdCount = 0
@@ -567,10 +544,9 @@ Deno.serve(async (req) => {
         created: createdCount,
         checkpoints_checked: checkpoints.length,
         skipped: {
-          min_time: skippedMinTime,
-          max_time: skippedMaxTime,
           min_lap_time: skippedLapTime
-        }
+        },
+        note: 'min_time and max_time filters are applied when calculating split_times, not here'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
