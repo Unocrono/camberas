@@ -83,6 +83,7 @@ interface TimingPoint {
   name: string;
   latitude: number | null;
   longitude: number | null;
+  geofence_radius: number | null; // Radio en metros desde race_checkpoints
 }
 
 interface GPSTrackingViewerProps {
@@ -183,14 +184,39 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
 
   const fetchTimingPoints = async (raceId: string) => {
     try {
-      const { data, error } = await supabase
+      // Obtener timing points
+      const { data: tpData, error: tpError } = await supabase
         .from("timing_points")
         .select("id, name, latitude, longitude")
         .eq("race_id", raceId)
         .order("point_order");
       
-      if (error) throw error;
-      setTimingPoints(data || []);
+      if (tpError) throw tpError;
+
+      // Obtener los geofence_radius de race_checkpoints que referencian estos timing points
+      const { data: cpData, error: cpError } = await supabase
+        .from("race_checkpoints")
+        .select("timing_point_id, geofence_radius")
+        .eq("race_id", raceId)
+        .not("timing_point_id", "is", null);
+
+      if (cpError) throw cpError;
+
+      // Crear mapa de timing_point_id -> geofence_radius
+      const geofenceMap = new Map<string, number>();
+      cpData?.forEach(cp => {
+        if (cp.timing_point_id && cp.geofence_radius) {
+          geofenceMap.set(cp.timing_point_id, cp.geofence_radius);
+        }
+      });
+
+      // Combinar datos
+      const timingPointsWithGeofence: TimingPoint[] = (tpData || []).map(tp => ({
+        ...tp,
+        geofence_radius: geofenceMap.get(tp.id) || 50 // Default 50m si no hay checkpoint asociado
+      }));
+
+      setTimingPoints(timingPointsWithGeofence);
     } catch (error: any) {
       console.error("Error fetching timing points:", error);
     }
@@ -268,6 +294,23 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
             : "";
           return bibMatch || guestName.includes(search) || profileName.includes(search);
         });
+      }
+
+      // Apply timing point geofence filter (client-side)
+      if (filterTimingPointId && filterTimingPointId !== "all") {
+        const selectedTP = timingPoints.find(tp => tp.id === filterTimingPointId);
+        if (selectedTP && selectedTP.latitude !== null && selectedTP.longitude !== null) {
+          const geofenceRadiusKm = (selectedTP.geofence_radius || 50) / 1000; // Convert meters to km
+          filteredData = filteredData.filter((r) => {
+            const distance = calculateDistance(
+              r.latitude,
+              r.longitude,
+              selectedTP.latitude!,
+              selectedTP.longitude!
+            );
+            return distance <= geofenceRadiusKm;
+          });
+        }
       }
 
       setReadings(filteredData);
@@ -543,7 +586,9 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
                 <SelectContent>
                   <SelectItem value="all">Todos los puntos</SelectItem>
                   {timingPoints.map((tp) => (
-                    <SelectItem key={tp.id} value={tp.id}>{tp.name}</SelectItem>
+                    <SelectItem key={tp.id} value={tp.id}>
+                      {tp.name} {tp.geofence_radius ? `(radio: ${tp.geofence_radius}m)` : ""}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -560,11 +605,19 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
                 />
               </div>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
               <Badge variant="secondary" className="h-9 px-3 flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 {timingPoints.filter(tp => tp.latitude && tp.longitude).length} puntos con coordenadas
               </Badge>
+              {filterTimingPointId && filterTimingPointId !== "all" && (() => {
+                const selectedTP = timingPoints.find(tp => tp.id === filterTimingPointId);
+                return selectedTP ? (
+                  <Badge variant="outline" className="h-9 px-3 flex items-center gap-2 border-primary">
+                    Geofence: {selectedTP.geofence_radius || 50}m
+                  </Badge>
+                ) : null;
+              })()}
             </div>
           </div>
         </CardContent>
