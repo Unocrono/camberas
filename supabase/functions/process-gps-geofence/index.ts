@@ -180,19 +180,34 @@ Deno.serve(async (req) => {
       }
     } else if (gpsIds && gpsIds.length > 0) {
       // Batch processing by GPS IDs (same as trigger, but multiple)
-      console.log(`Fetching ${gpsIds.length} GPS points by ID (batch mode like trigger)`)
-      const result = await supabase
-        .from('gps_tracking')
-        .select('*')
-        .in('id', gpsIds)
-        .order('timestamp', { ascending: true })
+      // Process in chunks of 200 to avoid query size limits
+      const CHUNK_SIZE = 200
+      console.log(`Fetching ${gpsIds.length} GPS points by ID in chunks of ${CHUNK_SIZE}`)
       
-      if (result.error) {
-        console.error('Error fetching GPS points by IDs:', result.error)
-        gpsError = result.error
-      } else {
-        gpsReadings = result.data
-        console.log(`Found ${gpsReadings?.length || 0} GPS points`)
+      gpsReadings = []
+      for (let i = 0; i < gpsIds.length; i += CHUNK_SIZE) {
+        const chunk = gpsIds.slice(i, i + CHUNK_SIZE)
+        console.log(`Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(gpsIds.length / CHUNK_SIZE)} (${chunk.length} IDs)`)
+        
+        const result = await supabase
+          .from('gps_tracking')
+          .select('*')
+          .in('id', chunk)
+          .order('timestamp', { ascending: true })
+        
+        if (result.error) {
+          console.error('Error fetching GPS points chunk:', result.error)
+          gpsError = result.error
+          break
+        }
+        
+        if (result.data) {
+          gpsReadings.push(...result.data)
+        }
+      }
+      
+      if (!gpsError) {
+        console.log(`Found ${gpsReadings.length} GPS points total`)
       }
     } else if (startTime && endTime) {
       // Use explicit time range
