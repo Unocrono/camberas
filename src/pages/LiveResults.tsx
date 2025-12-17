@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { LiveGPSMap } from "@/components/LiveGPSMap";
 import { toast } from "sonner";
+import { ShareResultsButton } from "@/components/results/ShareResultsButton";
+import { ExportResultsButton } from "@/components/results/ExportResultsButton";
+import { ResultCard } from "@/components/results/ResultCard";
 
 interface RaceResult {
   id: string;
@@ -418,22 +421,29 @@ export default function LiveResults() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Header */}
-      <div className="relative bg-gradient-to-br from-primary/10 via-background to-background border-b">
-        <div className="container mx-auto px-4 py-6 md:py-10">
-          <Button asChild variant="ghost" size="sm" className="mb-4">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Hero Header with improved design */}
+      <div className="relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        
+        <div className="relative container mx-auto px-4 py-6 md:py-10 border-b">
+          <Button asChild variant="ghost" size="sm" className="mb-4 hover:bg-primary/10">
             <Link to={`/race/${id}`}><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la carrera</Link>
           </Button>
           
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
             {race.logo_url && (
-              <img src={race.logo_url} alt={race.name} className="h-16 w-16 md:h-20 md:w-20 object-contain rounded-lg bg-white p-2" />
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+                <img src={race.logo_url} alt={race.name} className="relative h-16 w-16 md:h-20 md:w-20 object-contain rounded-xl bg-white p-2 shadow-lg" />
+              </div>
             )}
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-2 mb-2">
-                <Badge variant="default" className="bg-green-500 hover:bg-green-500 animate-pulse">
-                  <span className="inline-block h-2 w-2 rounded-full bg-white mr-1.5" />
+                <Badge variant="default" className="bg-green-500 hover:bg-green-500 shadow-lg shadow-green-500/30">
+                  <span className="inline-block h-2 w-2 rounded-full bg-white mr-1.5 animate-pulse" />
                   EN VIVO
                 </Badge>
                 {mapboxToken && (
@@ -442,8 +452,15 @@ export default function LiveResults() {
                     {showMap ? "Ocultar mapa" : "Ver mapa"}
                   </Button>
                 )}
+                <ShareResultsButton raceName={race.name} raceId={id!} />
+                <ExportResultsButton 
+                  results={allResults} 
+                  raceName={race.name} 
+                  raceDate={race.date}
+                  distanceName={selectedDistance !== "all" ? distances.find(d => d.id === selectedDistance)?.name : undefined}
+                />
               </div>
-              <h1 className="text-2xl md:text-4xl font-bold tracking-tight">{race.name}</h1>
+              <h1 className="text-2xl md:text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">{race.name}</h1>
               <p className="text-muted-foreground flex items-center gap-2 mt-1">
                 <MapPin className="h-4 w-4" /> {race.location} • {new Date(race.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
@@ -454,9 +471,9 @@ export default function LiveResults() {
 
       {/* GPS Map */}
       {showMap && mapboxToken && (
-        <div className="border-b">
+        <div className="border-b bg-muted/30">
           <div className="container mx-auto px-4 py-4">
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden shadow-xl">
               <div className="h-[300px] md:h-[400px] w-full">
                 <LiveGPSMap raceId={id!} mapboxToken={mapboxToken} />
               </div>
@@ -571,37 +588,80 @@ export default function LiveResults() {
           </TabsList>
 
           {/* Rankings Tab */}
-          <TabsContent value="rankings" className="space-y-4">
+          <TabsContent value="rankings" className="space-y-6">
+            {/* Podium for Top 3 */}
+            {topResults.length >= 3 && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {/* Second place */}
+                <div className="md:order-1 md:mt-8">
+                  <ResultCard
+                    position={topResults[1]?.overall_position || null}
+                    bibNumber={topResults[1]?.registration.bib_number || null}
+                    runnerName={getRunnerName(topResults[1])}
+                    distanceName={topResults[1]?.registration.race_distances.name}
+                    finishTime={formatTime(topResults[1]?.finish_time)}
+                    pace={calculatePace(topResults[1]?.finish_time, topResults[1]?.registration.race_distances.distance_km)}
+                    photoUrl={topResults[1]?.photo_url}
+                    isNew={newResultIds.has(topResults[1]?.id)}
+                    variant="podium"
+                  />
+                </div>
+                {/* First place - center */}
+                <div className="md:order-2">
+                  <ResultCard
+                    position={topResults[0]?.overall_position || null}
+                    bibNumber={topResults[0]?.registration.bib_number || null}
+                    runnerName={getRunnerName(topResults[0])}
+                    distanceName={topResults[0]?.registration.race_distances.name}
+                    finishTime={formatTime(topResults[0]?.finish_time)}
+                    pace={calculatePace(topResults[0]?.finish_time, topResults[0]?.registration.race_distances.distance_km)}
+                    photoUrl={topResults[0]?.photo_url}
+                    isNew={newResultIds.has(topResults[0]?.id)}
+                    variant="podium"
+                  />
+                </div>
+                {/* Third place */}
+                <div className="md:order-3 md:mt-12">
+                  <ResultCard
+                    position={topResults[2]?.overall_position || null}
+                    bibNumber={topResults[2]?.registration.bib_number || null}
+                    runnerName={getRunnerName(topResults[2])}
+                    distanceName={topResults[2]?.registration.race_distances.name}
+                    finishTime={formatTime(topResults[2]?.finish_time)}
+                    pace={calculatePace(topResults[2]?.finish_time, topResults[2]?.registration.race_distances.distance_km)}
+                    photoUrl={topResults[2]?.photo_url}
+                    isNew={newResultIds.has(topResults[2]?.id)}
+                    variant="podium"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Top 10 */}
-              <Card>
+              {/* Top 10 (after podium) */}
+              <Card className="shadow-lg">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Trophy className="h-5 w-5 text-yellow-500" />
-                    Top 10 General
+                    Clasificación General
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {topResults.length > 0 ? topResults.map((result) => (
-                    <div
+                  {topResults.length > 0 ? topResults.slice(3).map((result) => (
+                    <ResultCard
                       key={result.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border bg-card/50 transition-all ${
-                        newResultIds.has(result.id) ? "ring-2 ring-primary animate-pulse" : ""
-                      }`}
-                    >
-                      {getPositionBadge(result.overall_position)}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{getRunnerName(result)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          #{result.registration.bib_number} • {result.registration.race_distances.name}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-mono font-bold">{formatTime(result.finish_time)}</p>
-                        <p className="text-xs text-muted-foreground">{calculatePace(result.finish_time, result.registration.race_distances.distance_km)} /km</p>
-                      </div>
-                    </div>
-                  )) : (
+                      position={result.overall_position}
+                      bibNumber={result.registration.bib_number}
+                      runnerName={getRunnerName(result)}
+                      distanceName={result.registration.race_distances.name}
+                      finishTime={formatTime(result.finish_time)}
+                      pace={calculatePace(result.finish_time, result.registration.race_distances.distance_km)}
+                      categoryPosition={result.category_position}
+                      genderPosition={result.gender_position}
+                      photoUrl={result.photo_url}
+                      isNew={newResultIds.has(result.id)}
+                    />
+                  )) : topResults.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Trophy className="h-12 w-12 mx-auto mb-3 opacity-20" />
                       <p>Aún no hay finalizados</p>
@@ -612,29 +672,30 @@ export default function LiveResults() {
               </Card>
 
               {/* All Results List */}
-              <Card>
+              <Card className="shadow-lg">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-lg">
                     <span className="flex items-center gap-2">
                       <Users className="h-5 w-5 text-primary" />
                       Todos los Resultados
                     </span>
-                    <Badge variant="outline">{filteredResults.filter(r => r.status === 'FIN').length}</Badge>
+                    <Badge variant="secondary" className="font-mono">{filteredResults.filter(r => r.status === 'FIN').length}</Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="max-h-[400px] overflow-y-auto space-y-2">
+                <CardContent className="max-h-[400px] overflow-y-auto space-y-1">
                   {filteredResults.filter(r => r.status === 'FIN').length > 0 ? (
                     filteredResults.filter(r => r.status === 'FIN').sort((a, b) => (a.overall_position || 999) - (b.overall_position || 999)).map((result) => (
-                      <div key={result.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                        <Badge variant="secondary" className="w-12 justify-center font-mono">
-                          {result.overall_position || '-'}º
-                        </Badge>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate text-sm">{getRunnerName(result)}</p>
-                          <p className="text-xs text-muted-foreground">#{result.registration.bib_number}</p>
-                        </div>
-                        <p className="font-mono text-sm">{formatTime(result.finish_time)}</p>
-                      </div>
+                      <ResultCard
+                        key={result.id}
+                        position={result.overall_position}
+                        bibNumber={result.registration.bib_number}
+                        runnerName={getRunnerName(result)}
+                        distanceName={result.registration.race_distances.name}
+                        finishTime={formatTime(result.finish_time)}
+                        pace={calculatePace(result.finish_time, result.registration.race_distances.distance_km)}
+                        isNew={newResultIds.has(result.id)}
+                        variant="compact"
+                      />
                     ))
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">
