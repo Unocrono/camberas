@@ -184,7 +184,7 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
 
   const fetchTimingPoints = async (raceId: string) => {
     try {
-      // Obtener timing points
+      // Obtener timing points con sus coordenadas y geofence desde race_checkpoints
       const { data: tpData, error: tpError } = await supabase
         .from("timing_points")
         .select("id, name, latitude, longitude")
@@ -193,29 +193,45 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
       
       if (tpError) throw tpError;
 
-      // Obtener los geofence_radius de race_checkpoints que referencian estos timing points
+      // Obtener las coordenadas y geofence_radius de race_checkpoints
+      // Usamos las coordenadas del checkpoint si el timing_point no las tiene
       const { data: cpData, error: cpError } = await supabase
         .from("race_checkpoints")
-        .select("timing_point_id, geofence_radius")
+        .select("timing_point_id, geofence_radius, latitude, longitude")
         .eq("race_id", raceId)
         .not("timing_point_id", "is", null);
 
       if (cpError) throw cpError;
 
-      // Crear mapa de timing_point_id -> geofence_radius
-      const geofenceMap = new Map<string, number>();
+      // Crear mapa de timing_point_id -> datos del checkpoint
+      const checkpointMap = new Map<string, { geofence_radius: number | null; latitude: number | null; longitude: number | null }>();
       cpData?.forEach(cp => {
-        if (cp.timing_point_id && cp.geofence_radius) {
-          geofenceMap.set(cp.timing_point_id, cp.geofence_radius);
+        if (cp.timing_point_id) {
+          // Si ya existe, combinar (tomar el primer geofence encontrado o el mayor)
+          const existing = checkpointMap.get(cp.timing_point_id);
+          if (!existing || (cp.geofence_radius && (!existing.geofence_radius || cp.geofence_radius > existing.geofence_radius))) {
+            checkpointMap.set(cp.timing_point_id, {
+              geofence_radius: cp.geofence_radius,
+              latitude: cp.latitude,
+              longitude: cp.longitude
+            });
+          }
         }
       });
 
-      // Combinar datos
-      const timingPointsWithGeofence: TimingPoint[] = (tpData || []).map(tp => ({
-        ...tp,
-        geofence_radius: geofenceMap.get(tp.id) || 50 // Default 50m si no hay checkpoint asociado
-      }));
+      // Combinar datos: preferir coordenadas del checkpoint sobre las del timing_point
+      const timingPointsWithGeofence: TimingPoint[] = (tpData || []).map(tp => {
+        const cpInfo = checkpointMap.get(tp.id);
+        return {
+          ...tp,
+          // Usar coordenadas del checkpoint si están disponibles, sino las del timing_point
+          latitude: cpInfo?.latitude ?? tp.latitude,
+          longitude: cpInfo?.longitude ?? tp.longitude,
+          geofence_radius: cpInfo?.geofence_radius || 50 // Default 50m
+        };
+      });
 
+      console.log("Timing points con geofence:", timingPointsWithGeofence);
       setTimingPoints(timingPointsWithGeofence);
     } catch (error: any) {
       console.error("Error fetching timing points:", error);
@@ -299,8 +315,13 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
       // Apply timing point geofence filter (client-side)
       if (filterTimingPointId && filterTimingPointId !== "all") {
         const selectedTP = timingPoints.find(tp => tp.id === filterTimingPointId);
+        console.log("Timing point seleccionado:", selectedTP);
+        
         if (selectedTP && selectedTP.latitude !== null && selectedTP.longitude !== null) {
           const geofenceRadiusKm = (selectedTP.geofence_radius || 50) / 1000; // Convert meters to km
+          console.log(`Filtrando por geofence: ${selectedTP.name}, radio: ${geofenceRadiusKm * 1000}m, coords: ${selectedTP.latitude}, ${selectedTP.longitude}`);
+          
+          const beforeCount = filteredData.length;
           filteredData = filteredData.filter((r) => {
             const distance = calculateDistance(
               r.latitude,
@@ -310,6 +331,9 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
             );
             return distance <= geofenceRadiusKm;
           });
+          console.log(`Filtrado geofence: ${beforeCount} -> ${filteredData.length} lecturas`);
+        } else {
+          console.warn("Timing point sin coordenadas, no se aplica filtro geofence:", selectedTP);
         }
       }
 
