@@ -86,6 +86,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   
   // Playback mode state
   const [isPlaybackMode, setIsPlaybackMode] = useState(false);
+  const [pendingPlayback, setPendingPlayback] = useState(false);
   const playbackMarker = useRef<mapboxgl.Marker | null>(null);
   
   // Mobile panel state
@@ -291,6 +292,14 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       clearRunnerTrack();
     }
   }, [selectedRunner]);
+
+  // Auto-start playback when track is loaded and pendingPlayback is true
+  useEffect(() => {
+    if (pendingPlayback && runnerTrack.length > 0 && !loadingTrack) {
+      setIsPlaybackMode(true);
+      setPendingPlayback(false);
+    }
+  }, [pendingPlayback, runnerTrack, loadingTrack]);
 
   const clearRunnerTrack = () => {
     if (!map.current) return;
@@ -889,6 +898,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     setIsPlaybackMode(true);
   };
 
+  const handleQuickPlayback = (runner: RunnerPosition, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedRunner(runner);
+    setPendingPlayback(true);
+    if (isMobile) {
+      setIsRunnersPanelExpanded(false);
+    }
+  };
+
   const handlePlaybackPositionChange = useCallback((index: number, point: RunnerTrackPoint) => {
     if (!map.current) return;
     
@@ -949,35 +967,52 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                 </p>
               ) : (
                 runnerPositions.map((runner) => (
-                  <button
+                  <div
                     key={runner.registration_id}
-                    onClick={() => handleSelectRunner(runner)}
-                    className={`w-full text-left p-2 rounded-lg transition-colors ${
+                    className={`w-full p-2 rounded-lg transition-colors ${
                       selectedRunner?.registration_id === runner.registration_id
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        selectedRunner?.registration_id === runner.registration_id
-                          ? 'bg-primary-foreground text-primary'
-                          : 'bg-primary text-primary-foreground'
-                      }`}>
-                        {runner.bib_number || '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{runner.runner_name}</p>
-                        <p className={`text-xs ${
+                      <button
+                        onClick={() => handleSelectRunner(runner)}
+                        className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                      >
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                           selectedRunner?.registration_id === runner.registration_id
-                            ? 'text-primary-foreground/80'
-                            : 'text-muted-foreground'
+                            ? 'bg-primary-foreground text-primary'
+                            : 'bg-primary text-primary-foreground'
                         }`}>
-                          {formatTime(runner.timestamp)}
-                        </p>
-                      </div>
+                          {runner.bib_number || '?'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{runner.runner_name}</p>
+                          <p className={`text-xs ${
+                            selectedRunner?.registration_id === runner.registration_id
+                              ? 'text-primary-foreground/80'
+                              : 'text-muted-foreground'
+                          }`}>
+                            {formatTime(runner.timestamp)}
+                          </p>
+                        </div>
+                      </button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={(e) => handleQuickPlayback(runner, e)}
+                        className={`h-8 w-8 flex-shrink-0 ${
+                          selectedRunner?.registration_id === runner.registration_id
+                            ? 'text-primary-foreground hover:bg-primary-foreground/20'
+                            : 'text-primary hover:bg-primary/10'
+                        }`}
+                        title="Reproducir recorrido"
+                      >
+                        <Play className="h-4 w-4" />
+                      </Button>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
@@ -1175,38 +1210,55 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                   </p>
                 ) : (
                   runnerPositions.map((runner) => (
-                    <button
+                    <div
                       key={runner.registration_id}
-                      onClick={() => {
-                        handleSelectRunner(runner);
-                        setIsRunnersPanelExpanded(false);
-                      }}
-                      className={`w-full text-left p-3 rounded-xl transition-colors ${
+                      className={`w-full p-3 rounded-xl transition-colors ${
                         selectedRunner?.registration_id === runner.registration_id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                          selectedRunner?.registration_id === runner.registration_id
-                            ? 'bg-primary-foreground text-primary'
-                            : 'bg-primary text-primary-foreground'
-                        }`}>
-                          {runner.bib_number || '?'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{runner.runner_name}</p>
-                          <p className={`text-sm ${
+                        <button
+                          onClick={() => {
+                            handleSelectRunner(runner);
+                            setIsRunnersPanelExpanded(false);
+                          }}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                             selectedRunner?.registration_id === runner.registration_id
-                              ? 'text-primary-foreground/80'
-                              : 'text-muted-foreground'
+                              ? 'bg-primary-foreground text-primary'
+                              : 'bg-primary text-primary-foreground'
                           }`}>
-                            Última actualización: {formatTime(runner.timestamp)}
-                          </p>
-                        </div>
+                            {runner.bib_number || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{runner.runner_name}</p>
+                            <p className={`text-sm ${
+                              selectedRunner?.registration_id === runner.registration_id
+                                ? 'text-primary-foreground/80'
+                                : 'text-muted-foreground'
+                            }`}>
+                              Última actualización: {formatTime(runner.timestamp)}
+                            </p>
+                          </div>
+                        </button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={(e) => handleQuickPlayback(runner, e)}
+                          className={`h-10 w-10 flex-shrink-0 ${
+                            selectedRunner?.registration_id === runner.registration_id
+                              ? 'text-primary-foreground hover:bg-primary-foreground/20'
+                              : 'text-primary hover:bg-primary/10'
+                          }`}
+                          title="Reproducir recorrido"
+                        >
+                          <Play className="h-5 w-5" />
+                        </Button>
                       </div>
-                    </button>
+                    </div>
                   ))
                 )}
               </div>
