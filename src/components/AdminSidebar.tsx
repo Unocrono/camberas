@@ -73,7 +73,7 @@ const menuGroups: MenuGroup[] = [
       { title: "Estados de Resultado", view: "results-status", icon: Tag },
       { title: "Tiempos Parciales", view: "splits", icon: Timer },
       { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
-      { title: "Lecturas GPS", view: "gps-readings", icon: Satellite },
+      { title: "Visor de Lecturas GPS", view: "gps-readings", icon: Satellite },
     ],
   },
   {
