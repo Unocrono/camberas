@@ -96,11 +96,10 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     let startTime = "";
     
     if (wave.start_time) {
-      // Extract date and time directly from string to avoid timezone conversion
-      // Same method as DistanceManagement
-      const isoString = wave.start_time;
-      startDate = isoString.slice(0, 10); // YYYY-MM-DD
-      startTime = isoString.slice(11, 19); // HH:MM:SS
+      // Convert UTC to local time for display
+      const utcDate = new Date(wave.start_time);
+      startDate = format(utcDate, "yyyy-MM-dd");
+      startTime = format(utcDate, "HH:mm:ss");
     }
     
     setFormData({
@@ -119,13 +118,14 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
       
       let startTimestamp: string | null = null;
       if (formData.start_date && formData.start_time) {
-        // Asegurar formato HH:mm:ss y construir timestamp sin conversión UTC
+        // Asegurar formato HH:mm:ss
         let timeValue = formData.start_time;
         if (timeValue.length === 5) {
           timeValue += ":00"; // Si es HH:mm, añadir :00
         }
-        // Usar mismo formato que DistanceManagement (sin .toISOString() para evitar conversión UTC)
-        startTimestamp = `${formData.start_date}T${timeValue}`;
+        // Create local date and convert to ISO (UTC) for storage
+        const localDate = new Date(`${formData.start_date}T${timeValue}`);
+        startTimestamp = localDate.toISOString();
       }
 
       const { error } = await supabase
@@ -161,11 +161,9 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
   const formatStartTime = (startTime: string | null) => {
     if (!startTime) return "Sin configurar";
     try {
-      // Extract date and time directly from string to avoid timezone conversion
-      const datePart = startTime.slice(0, 10); // YYYY-MM-DD
-      const timePart = startTime.slice(11, 16); // HH:mm
-      const [year, month, day] = datePart.split("-");
-      return `${day}/${month}/${year} ${timePart}`;
+      // Convert UTC to local time for display
+      const utcDate = new Date(startTime);
+      return format(utcDate, "dd/MM/yyyy HH:mm", { locale: es });
     } catch {
       return "Fecha inválida";
     }
