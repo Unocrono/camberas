@@ -111,9 +111,9 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   
   // Reimport GPS state
   const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
-  const [reimportDate, setReimportDate] = useState("");
-  const [reimportStartTime, setReimportStartTime] = useState("");
-  const [reimportEndTime, setReimportEndTime] = useState("");
+  const [reimportDate, setReimportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reimportStartTime, setReimportStartTime] = useState("00:00");
+  const [reimportEndTime, setReimportEndTime] = useState("23:59");
   const [reimporting, setReimporting] = useState(false);
   const [waveInfo, setWaveInfo] = useState<{ date: string; time: string } | null>(null);
   
@@ -619,10 +619,20 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
     setReimporting(true);
     try {
+      // Validar que tenemos todos los valores necesarios
+      if (!reimportDate || !reimportStartTime || !reimportEndTime) {
+        throw new Error("Debes completar la fecha y las horas de inicio y fin");
+      }
+
       // Construir timestamps como objetos Date para convertir a UTC correctamente
       // El usuario introduce hora local, pero los GPS están en UTC
       const startLocal = new Date(`${reimportDate}T${reimportStartTime}:00`);
       const endLocal = new Date(`${reimportDate}T${reimportEndTime}:00`);
+      
+      // Validar que las fechas son válidas
+      if (isNaN(startLocal.getTime()) || isNaN(endLocal.getTime())) {
+        throw new Error("La fecha u hora introducida no es válida");
+      }
       
       // Convertir a ISO string (que incluye la timezone correcta)
       const startTimestamp = startLocal.toISOString();
