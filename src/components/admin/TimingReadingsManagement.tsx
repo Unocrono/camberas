@@ -624,10 +624,19 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         throw new Error("Debes completar la fecha y las horas de inicio y fin");
       }
 
+      // Normalizar formato de tiempo: si ya tiene segundos no añadir más
+      const normalizeTime = (time: string) => {
+        const parts = time.split(':');
+        if (parts.length === 2) {
+          return `${time}:00`; // HH:MM → HH:MM:SS
+        }
+        return time; // Ya tiene HH:MM:SS
+      };
+
       // Construir timestamps como objetos Date para convertir a UTC correctamente
       // El usuario introduce hora local, pero los GPS están en UTC
-      const startLocal = new Date(`${reimportDate}T${reimportStartTime}:00`);
-      const endLocal = new Date(`${reimportDate}T${reimportEndTime}:00`);
+      const startLocal = new Date(`${reimportDate}T${normalizeTime(reimportStartTime)}`);
+      const endLocal = new Date(`${reimportDate}T${normalizeTime(reimportEndTime)}`);
       
       // Validar que las fechas son válidas
       if (isNaN(startLocal.getTime()) || isNaN(endLocal.getTime())) {
