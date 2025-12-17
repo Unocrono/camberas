@@ -161,8 +161,11 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
   const formatStartTime = (startTime: string | null) => {
     if (!startTime) return "Sin configurar";
     try {
-      const date = new Date(startTime);
-      return format(date, "dd/MM/yyyy HH:mm", { locale: es });
+      // Extract date and time directly from string to avoid timezone conversion
+      const datePart = startTime.slice(0, 10); // YYYY-MM-DD
+      const timePart = startTime.slice(11, 16); // HH:mm
+      const [year, month, day] = datePart.split("-");
+      return `${day}/${month}/${year} ${timePart}`;
     } catch {
       return "Fecha inválida";
     }
