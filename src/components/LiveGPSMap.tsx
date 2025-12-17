@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MapControls } from '@/components/MapControls';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 interface CheckpointNotification {
   id: string;
@@ -69,6 +71,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const checkpointMarkers = useRef<mapboxgl.Marker[]>([]);
   const roadbookMarkers = useRef<mapboxgl.Marker[]>([]);
+  const routeCoordinates = useRef<[number, number][]>([]);
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [roadbookItems, setRoadbookItems] = useState<RoadbookItem[]>([]);
@@ -83,6 +86,122 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   // Mobile panel state
   const isMobile = useIsMobile();
   const [isRunnersPanelExpanded, setIsRunnersPanelExpanded] = useState(false);
+  
+  // Map controls state
+  const [mapStyle, setMapStyle] = useState<'outdoors' | 'satellite' | 'streets' | 'light' | 'dark'>('outdoors');
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [hasRoute, setHasRoute] = useState(false);
+
+  // Map control functions
+  const handleCenterRoute = useCallback(() => {
+    if (!map.current || routeCoordinates.current.length === 0) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    routeCoordinates.current.forEach(coord => bounds.extend(coord));
+    map.current.fitBounds(bounds, { padding: 50 });
+  }, []);
+
+  const handleCenterRunners = useCallback(() => {
+    if (!map.current || runnerPositions.length === 0) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    runnerPositions.forEach(pos => {
+      bounds.extend([pos.longitude, pos.latitude]);
+    });
+    map.current.fitBounds(bounds, { padding: 50 });
+  }, [runnerPositions]);
+
+  const handleZoomIn = useCallback(() => {
+    if (!map.current) return;
+    map.current.zoomIn();
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (!map.current) return;
+    map.current.zoomOut();
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (!mapContainer.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      mapContainer.current.parentElement?.requestFullscreen();
+    }
+  }, []);
+
+  const handleChangeStyle = useCallback((style: 'outdoors' | 'satellite' | 'streets' | 'light' | 'dark') => {
+    if (!map.current) return;
+    const styleUrls: Record<string, string> = {
+      outdoors: 'mapbox://styles/mapbox/outdoors-v12',
+      satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+      streets: 'mapbox://styles/mapbox/streets-v12',
+      light: 'mapbox://styles/mapbox/light-v11',
+      dark: 'mapbox://styles/mapbox/dark-v11',
+    };
+    map.current.setStyle(styleUrls[style]);
+    setMapStyle(style);
+    
+    // Re-add route layer after style change
+    map.current.once('style.load', () => {
+      if (routeCoordinates.current.length > 0 && map.current) {
+        // Re-add the route
+        if (!map.current.getSource('route')) {
+          map.current.addSource('route', {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: {
+                type: 'LineString',
+                coordinates: routeCoordinates.current,
+              },
+            },
+          });
+          
+          map.current.addLayer({
+            id: 'route',
+            type: 'line',
+            source: 'route',
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: {
+              'line-color': '#FF6B35',
+              'line-width': 4,
+              'line-opacity': 0.8,
+            },
+          });
+        }
+      }
+    });
+  }, []);
+
+  const handleFollowRunner = useCallback(() => {
+    if (!selectedRunner) {
+      toast.info('Selecciona un corredor primero');
+      return;
+    }
+    setIsFollowing(prev => !prev);
+    if (!isFollowing && map.current) {
+      map.current.flyTo({
+        center: [selectedRunner.longitude, selectedRunner.latitude],
+        zoom: 16,
+      });
+    }
+  }, [selectedRunner, isFollowing]);
+
+  // Follow selected runner when position updates
+  useEffect(() => {
+    if (!isFollowing || !selectedRunner || !map.current) return;
+    const updatedRunner = runnerPositions.find(r => r.registration_id === selectedRunner.registration_id);
+    if (updatedRunner) {
+      map.current.flyTo({
+        center: [updatedRunner.longitude, updatedRunner.latitude],
+        zoom: map.current.getZoom(),
+        duration: 1000,
+      });
+    }
+  }, [runnerPositions, selectedRunner, isFollowing]);
 
   // Initialize map
   useEffect(() => {
@@ -522,6 +641,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     });
 
     if (coordinates.length === 0) return;
+    
+    // Store coordinates for map controls
+    routeCoordinates.current = coordinates;
+    setHasRoute(true);
 
     // Remove existing route if any
     if (map.current.getLayer('route')) {
@@ -812,6 +935,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       {/* Map Container - Full height on mobile */}
       <div className="flex-1 relative min-h-0">
         <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" />
+        
+        {/* Map Controls */}
+        <TooltipProvider>
+          <MapControls
+            onCenterRoute={handleCenterRoute}
+            onCenterRunners={handleCenterRunners}
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onToggleFullscreen={handleToggleFullscreen}
+            onChangeStyle={handleChangeStyle}
+            onFollowRunner={handleFollowRunner}
+            isFollowing={isFollowing}
+            hasRoute={hasRoute}
+            hasRunners={runnerPositions.length > 0}
+            currentStyle={mapStyle}
+          />
+        </TooltipProvider>
         
         {/* Selected Runner Info Panel */}
         {selectedRunner && (
