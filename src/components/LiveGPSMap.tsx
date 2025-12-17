@@ -301,7 +301,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     }
   }, [pendingPlayback, runnerTrack, loadingTrack]);
 
-  const clearRunnerTrack = () => {
+  // Clean map layers only (don't clear state)
+  const clearMapTrackLayers = () => {
     if (!map.current) return;
     
     if (map.current.getLayer('runner-track')) {
@@ -313,7 +314,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     if (map.current.getSource('runner-track')) {
       map.current.removeSource('runner-track');
     }
+  };
+
+  const clearRunnerTrack = () => {
+    clearMapTrackLayers();
     setRunnerTrack([]);
+    setIsPlaybackMode(false);
     
     // Remove playback marker
     if (playbackMarker.current) {
@@ -355,8 +361,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const addRunnerTrackToMap = (trackPoints: RunnerTrackPoint[]) => {
     if (!map.current || trackPoints.length === 0) return;
 
-    // Clear existing runner track
-    clearRunnerTrack();
+    // Clear existing map layers only (keep state)
+    clearMapTrackLayers();
 
     const coordinates: [number, number][] = trackPoints.map(point => [point.longitude, point.latitude]);
 
