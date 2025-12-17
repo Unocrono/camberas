@@ -98,7 +98,7 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     if (wave.start_time) {
       const date = new Date(wave.start_time);
       startDate = format(date, "yyyy-MM-dd");
-      startTime = format(date, "HH:mm");
+      startTime = format(date, "HH:mm:ss");
     }
     
     setFormData({
@@ -117,7 +117,12 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
       
       let startTimestamp: string | null = null;
       if (formData.start_date && formData.start_time) {
-        startTimestamp = new Date(`${formData.start_date}T${formData.start_time}:00`).toISOString();
+        // Asegurar formato HH:mm:ss
+        let timeValue = formData.start_time;
+        if (timeValue.length === 5) {
+          timeValue += ":00"; // Si es HH:mm, añadir :00
+        }
+        startTimestamp = new Date(`${formData.start_date}T${timeValue}`).toISOString();
       }
 
       const { error } = await supabase
@@ -263,6 +268,7 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
                   <Input
                     id="start_time"
                     type="time"
+                    step="1"
                     value={formData.start_time}
                     onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                   />
