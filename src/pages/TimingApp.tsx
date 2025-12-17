@@ -573,12 +573,59 @@ const TimingApp = () => {
     }
   }, [runners, isOnline]);
 
+  // Fetch existing readings from database for the selected timing point
+  const fetchExistingReadings = useCallback(async (raceId: string, timingPointId: string | null) => {
+    if (!isOnline) return;
+    
+    try {
+      let query = supabase
+        .from("timing_readings")
+        .select("id, bib_number, timing_timestamp, status_code, notes, synced:is_processed")
+        .eq("race_id", raceId)
+        .order("timing_timestamp", { ascending: false })
+        .limit(100);
+      
+      // Filter by timing point if selected
+      if (timingPointId) {
+        query = query.eq("timing_point_id", timingPointId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Map to TimingReading format and merge with runner info
+      const dbReadings: TimingReading[] = (data || []).map((r: any) => {
+        const runner = runners.find((run) => run.bib_number === r.bib_number);
+        return {
+          id: r.id,
+          bib_number: r.bib_number,
+          timestamp: r.timing_timestamp,
+          runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+          synced: true,
+          status_code: r.status_code || undefined,
+          notes: r.notes || undefined,
+        };
+      });
+
+      setReadings(dbReadings);
+    } catch (error) {
+      console.error("Error fetching existing readings:", error);
+    }
+  }, [isOnline, runners]);
+
   // Fetch abandons when race is selected and runners are loaded
   useEffect(() => {
     if (selectedRace && runners.length > 0 && currentView === "timing") {
       fetchAbandons(selectedRace.id);
     }
   }, [selectedRace, runners, currentView, fetchAbandons]);
+
+  // Fetch existing readings when timing view is active and timing point is selected
+  useEffect(() => {
+    if (selectedRace && selectedTimingPoint && runners.length > 0 && currentView === "timing") {
+      fetchExistingReadings(selectedRace.id, selectedTimingPoint.id);
+    }
+  }, [selectedRace, selectedTimingPoint, runners, currentView, fetchExistingReadings]);
 
   // Edit abandon handlers
   const handleOpenEditAbandon = (abandon: RegisteredAbandon) => {
@@ -669,7 +716,7 @@ const TimingApp = () => {
     }
   };
 
-  const handleStartTiming = () => {
+  const handleStartTiming = async () => {
     if (!selectedRace || !selectedTimingPoint) {
       toast({
         title: "Selección incompleta",
@@ -688,6 +735,9 @@ const TimingApp = () => {
       expires_at: Date.now() + 5 * 24 * 60 * 60 * 1000,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+
+    // Fetch existing readings for this timing point
+    await fetchExistingReadings(selectedRace.id, selectedTimingPoint.id);
 
     setCurrentView("timing");
     setTimeout(() => inputRef.current?.focus(), 100);
