@@ -88,6 +88,29 @@ function parseIntervalToMs(interval: string | null): number | null {
   return totalMs > 0 ? totalMs : null
 }
 
+// Parse timestamp string to milliseconds since epoch (treating as LOCAL time, no timezone conversion)
+// Input format: "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss+00"
+function parseLocalTimestampToMs(timestamp: string | null): number | null {
+  if (!timestamp) return null
+  
+  // Extract date/time parts directly from string, ignoring any timezone suffix
+  // This treats the timestamp as LOCAL time regardless of any +00 suffix
+  const match = timestamp.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
+  if (!match) return null
+  
+  const year = parseInt(match[1], 10)
+  const month = parseInt(match[2], 10) - 1 // JS months are 0-indexed
+  const day = parseInt(match[3], 10)
+  const hours = parseInt(match[4], 10)
+  const mins = parseInt(match[5], 10)
+  const secs = parseInt(match[6], 10)
+  
+  // Create date treating these values as local time (in the runtime's timezone)
+  // But since we're only calculating differences, this works as long as both timestamps
+  // are parsed the same way
+  return Date.UTC(year, month, day, hours, mins, secs)
+}
+
 // Format milliseconds to readable time
 function formatMs(ms: number): string {
   const hours = Math.floor(ms / 3600000)
@@ -300,13 +323,15 @@ Deno.serve(async (req) => {
       throw wavesError
     }
 
-    const waveStartMap = new Map<string, Date | null>(
-      waves?.map(w => [w.race_distance_id, w.start_time ? new Date(w.start_time) : null]) || []
+    // Map wave start times as raw strings (hora local)
+    // Will be parsed consistently with GPS timestamps
+    const waveStartMap = new Map<string, string | null>(
+      waves?.map(w => [w.race_distance_id, w.start_time]) || []
     )
 
     // Log wave start times for debugging
     for (const wave of waves || []) {
-      console.log(`Wave start for distance ${wave.race_distance_id}: ${wave.start_time}`)
+      console.log(`Wave start for distance ${wave.race_distance_id}: ${wave.start_time} (hora local)`)
     }
     console.log(`Loaded wave start times for ${waves?.length || 0} distances`)
 
@@ -341,7 +366,7 @@ Deno.serve(async (req) => {
 
     // Process GPS readings and create timing_readings
     const newTimingReadings: any[] = []
-    const processedPairs = new Map<string, { timestamp: Date, lap: number }>() // Track what we've processed in this batch
+    const processedPairs = new Map<string, { timestampMs: number, lap: number }>() // Track what we've processed in this batch
     let skippedMinTime = 0
     let skippedMaxTime = 0
     let skippedLapTime = 0
@@ -353,8 +378,9 @@ Deno.serve(async (req) => {
         continue
       }
 
-      const waveStart = waveStartMap.get(registration.race_distance_id)
-      const gpsTime = new Date(gps.timestamp)
+      // Get wave start and GPS timestamps as local time (no timezone conversion)
+      const waveStartStr = waveStartMap.get(registration.race_distance_id)
+      const gpsTimeMs = parseLocalTimestampToMs(gps.timestamp)
 
       // Find applicable checkpoints for this registration's race/distance
       // IMPORTANT: Only use checkpoints that belong to the runner's specific race_distance
@@ -389,15 +415,16 @@ Deno.serve(async (req) => {
 
         const pairKey = `${gps.registration_id}:${checkpoint.id}`
 
-        // Calculate race time (elapsed time since wave start)
+        // Calculate race time (elapsed time since wave start) - using local timestamps
         let raceTimeMs: number | null = null
-        if (waveStart) {
-          raceTimeMs = gpsTime.getTime() - waveStart.getTime()
+        const waveStartMs = parseLocalTimestampToMs(waveStartStr || null)
+        if (waveStartMs && gpsTimeMs) {
+          raceTimeMs = gpsTimeMs - waveStartMs
           // Debug: log the actual values for first few readings
           if (checkpoint.name === 'Meta' || checkpoint.checkpoint_type === 'FINISH') {
             console.log(
               `DEBUG META: bib ${registration.bib_number}, gpsTime=${gps.timestamp}, ` +
-              `waveStart=${waveStart.toISOString()}, raceTimeMs=${raceTimeMs}, ` +
+              `waveStart=${waveStartStr}, raceTimeMs=${raceTimeMs}, ` +
               `raceTime=${formatMs(raceTimeMs)}`
             )
           }
@@ -434,24 +461,24 @@ Deno.serve(async (req) => {
         const batchEntry = processedPairs.get(pairKey)
         
         // Combine existing readings with batch entry to get last reading
-        let lastReadingTime: Date | null = null
+        let lastReadingTimeMs: number | null = null
         let currentLap = 1
 
         if (existingForPair.length > 0) {
           const lastExisting = existingForPair[existingForPair.length - 1]
-          lastReadingTime = new Date(lastExisting.timing_timestamp)
+          lastReadingTimeMs = parseLocalTimestampToMs(lastExisting.timing_timestamp)
           currentLap = lastExisting.lap_number
         }
 
-        if (batchEntry && (!lastReadingTime || batchEntry.timestamp > lastReadingTime)) {
-          lastReadingTime = batchEntry.timestamp
+        if (batchEntry && (!lastReadingTimeMs || batchEntry.timestampMs > lastReadingTimeMs)) {
+          lastReadingTimeMs = batchEntry.timestampMs
           currentLap = batchEntry.lap
         }
 
         // Check min_lap_time constraint (minimum time between laps at same checkpoint)
         const minLapTimeMs = parseIntervalToMs(checkpoint.min_lap_time)
-        if (lastReadingTime && minLapTimeMs !== null) {
-          const timeSinceLastReading = gpsTime.getTime() - lastReadingTime.getTime()
+        if (lastReadingTimeMs && gpsTimeMs && minLapTimeMs !== null) {
+          const timeSinceLastReading = gpsTimeMs - lastReadingTimeMs
           if (timeSinceLastReading < minLapTimeMs) {
             // Not enough time has passed for a new lap, skip
             skippedLapTime++
@@ -472,7 +499,7 @@ Deno.serve(async (req) => {
 
         // For multi-lap, determine the new lap number
         let newLap = currentLap
-        if (lastReadingTime) {
+        if (lastReadingTimeMs) {
           // This is a new lap
           newLap = currentLap + 1
           if (newLap > expectedLaps && !forceReprocess) {
@@ -507,7 +534,7 @@ Deno.serve(async (req) => {
         })
 
         // Update batch tracking
-        processedPairs.set(pairKey, { timestamp: gpsTime, lap: newLap })
+        processedPairs.set(pairKey, { timestampMs: gpsTimeMs!, lap: newLap })
       }
     }
 

@@ -208,6 +208,7 @@ export type Database = {
           registration_id: string
           speed: number | null
           timestamp: string
+          timestamp_utc: string | null
         }
         Insert: {
           accuracy?: number | null
@@ -221,6 +222,7 @@ export type Database = {
           registration_id: string
           speed?: number | null
           timestamp?: string
+          timestamp_utc?: string | null
         }
         Update: {
           accuracy?: number | null
@@ -234,6 +236,7 @@ export type Database = {
           registration_id?: string
           speed?: number | null
           timestamp?: string
+          timestamp_utc?: string | null
         }
         Relationships: [
           {
