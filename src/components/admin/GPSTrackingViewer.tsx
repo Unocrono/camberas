@@ -43,8 +43,7 @@ interface GPSTracking {
   altitude: number | null;
   accuracy: number | null;
   speed: number | null;
-  timestamp: string;
-  timestamp_utc: string | null;
+  timestamp: string;  // UTC (stored as timestamptz)
   battery_level: number | null;
   created_at: string;
   registration?: {
@@ -465,12 +464,13 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     const headers = [
       "ID", "Dorsal", "Participante", "Carrera", "Evento", 
       "Latitud", "Longitud", "Altitud", "Velocidad", "Precisión",
-      "Timestamp", "Timestamp UTC", "Batería", "Pto Crono Cercano", "Dist Pto (km)", "Dist Meta (km)"
+      "Timestamp (UTC)", "Timestamp (Local)", "Batería", "Pto Crono Cercano", "Dist Pto (km)", "Dist Meta (km)"
     ];
     
     const rows = readings.map((r) => {
       const closest = getClosestTimingPoint(r);
       const distToFinish = getDistanceToFinish(r);
+      const localTime = new Date(r.timestamp).toLocaleString('es-ES');
       
       return [
         r.id,
@@ -484,7 +484,7 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
         r.speed ?? "-",
         r.accuracy ?? "-",
         r.timestamp,
-        r.timestamp_utc || "-",
+        localTime,
         r.battery_level ?? "-",
         closest?.name || "-",
         closest?.distance?.toFixed(3) || "-",
@@ -505,14 +505,21 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     });
   };
 
-  // Format timestamp without timezone conversion - shows the stored time as-is
+  // Format timestamp: convert UTC to local time for display
   const formatDateTime = (dateStr: string) => {
-    // Extract date/time parts directly from ISO string, ignoring timezone suffix
-    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
-    if (!match) return dateStr;
-    
-    const [, year, month, day, hour, minute, second] = match;
-    return `${day}/${month}/${year}, ${hour}:${minute}:${second}`;
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('es-ES', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);

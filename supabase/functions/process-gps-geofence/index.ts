@@ -11,8 +11,7 @@ interface GPSReading {
   race_id: string
   latitude: number
   longitude: number
-  timestamp: string
-  timestamp_utc?: string  // UTC timestamp - use this for calculations when available
+  timestamp: string  // UTC (stored as timestamptz)
   altitude?: number
   speed?: number
   accuracy?: number
@@ -421,12 +420,9 @@ Deno.serve(async (req) => {
         continue
       }
 
-      // Get wave start and GPS timestamps
-      // IMPORTANT: Use timestamp_utc when available, as it's the correct UTC time
-      // The 'timestamp' field may contain local time incorrectly tagged as UTC
+      // Get wave start and GPS timestamps (both are UTC)
       const waveStartStr = waveStartMap.get(registration.race_distance_id)
-      const gpsTimestampToUse = gps.timestamp_utc || gps.timestamp
-      const gpsTimeMs = parseLocalTimestampToMs(gpsTimestampToUse)
+      const gpsTimeMs = parseLocalTimestampToMs(gps.timestamp)
 
       // Find applicable checkpoints for this registration's race/distance
       // IMPORTANT: Only use checkpoints that belong to the runner's specific race_distance
@@ -469,8 +465,7 @@ Deno.serve(async (req) => {
           // Debug: log the actual values for first few readings
           if (checkpoint.name === 'Meta' || checkpoint.checkpoint_type === 'FINISH') {
             console.log(
-              `DEBUG META: bib ${registration.bib_number}, gpsTimeUsed=${gpsTimestampToUse}, ` +
-              `timestamp_utc=${gps.timestamp_utc || 'N/A'}, timestamp=${gps.timestamp}, ` +
+              `DEBUG META: bib ${registration.bib_number}, gpsTime=${gps.timestamp}, ` +
               `waveStart=${waveStartStr}, raceTimeMs=${raceTimeMs}, raceTime=${formatMs(raceTimeMs)}`
             )
           }
@@ -550,7 +545,7 @@ Deno.serve(async (req) => {
           bib_number: registration.bib_number,
           checkpoint_id: checkpoint.id,
           timing_point_id: checkpoint.timing_point_id,
-          timing_timestamp: gpsTimestampToUse, // Use UTC timestamp when available
+          timing_timestamp: gps.timestamp, // UTC
           reading_timestamp: new Date().toISOString(),
           reading_type: 'gps_geofence',
           notes: `GPS geofence detection. Distance: ${distance.toFixed(1)}m, Race time: ${raceTimeMs ? formatMs(raceTimeMs) : 'unknown'}`,
