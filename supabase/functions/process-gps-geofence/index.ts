@@ -244,16 +244,22 @@ Deno.serve(async (req) => {
         .single()
       
       if (latestGps) {
-        const latestTimestamp = new Date(latestGps.timestamp)
-        const cutoffTime = new Date(latestTimestamp.getTime() - minutesBack * 60 * 1000).toISOString()
-        console.log(`Using cutoff time: ${cutoffTime} (${minutesBack} min before latest GPS: ${latestGps.timestamp})`)
-        
         let query = supabase
           .from('gps_tracking')
           .select('*')
-          .gte('timestamp', cutoffTime)
           .order('timestamp', { ascending: true })
-          .limit(10000) // Increase limit to process more GPS points
+          .limit(50000) // High limit to process all GPS points
+        
+        // Only apply time filter if minutes_back is reasonable (< 1440 = 24h)
+        // For reimport, use minutes_back=9999 to get ALL points
+        if (minutesBack < 1440) {
+          const latestTimestamp = new Date(latestGps.timestamp)
+          const cutoffTime = new Date(latestTimestamp.getTime() - minutesBack * 60 * 1000).toISOString()
+          console.log(`Using cutoff time: ${cutoffTime} (${minutesBack} min before latest GPS: ${latestGps.timestamp})`)
+          query = query.gte('timestamp', cutoffTime)
+        } else {
+          console.log(`Processing ALL GPS points (minutes_back=${minutesBack} >= 1440)`)
+        }
         
         if (raceId) {
           query = query.eq('race_id', raceId)
@@ -262,6 +268,7 @@ Deno.serve(async (req) => {
         const result = await query
         gpsReadings = result.data
         gpsError = result.error
+        console.log(`Found ${gpsReadings?.length || 0} GPS points total`)
       } else {
         console.log('No GPS readings found at all')
         return new Response(
