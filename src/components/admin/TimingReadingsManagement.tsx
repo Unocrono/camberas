@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft, RefreshCw } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface TimingReading {
@@ -108,6 +108,14 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
   const [isChangeTimingPointDialogOpen, setIsChangeTimingPointDialogOpen] = useState(false);
   const [newTimingPointId, setNewTimingPointId] = useState<string>("");
+  
+  // Reimport GPS state
+  const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
+  const [reimportDate, setReimportDate] = useState("");
+  const [reimportStartTime, setReimportStartTime] = useState("");
+  const [reimportEndTime, setReimportEndTime] = useState("");
+  const [reimporting, setReimporting] = useState(false);
+  const [waveInfo, setWaveInfo] = useState<{ date: string; time: string } | null>(null);
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
@@ -551,6 +559,114 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     }
   };
 
+  const handleOpenReimportDialog = async () => {
+    if (!filterRaceId) return;
+    
+    // Get the wave start time for the selected distance (or first distance if "all")
+    const distanceId = filterDistanceId && filterDistanceId !== "all" ? filterDistanceId : distances[0]?.id;
+    
+    if (distanceId) {
+      try {
+        const { data: wave, error } = await supabase
+          .from("race_waves")
+          .select("start_time")
+          .eq("race_distance_id", distanceId)
+          .maybeSingle();
+        
+        if (!error && wave?.start_time) {
+          const datePart = wave.start_time.slice(0, 10);
+          const timePart = wave.start_time.slice(11, 19);
+          
+          setReimportDate(datePart);
+          setReimportStartTime(timePart);
+          setReimportEndTime("23:59:59");
+          setWaveInfo({ date: datePart, time: timePart });
+        } else {
+          const today = new Date().toISOString().split('T')[0];
+          setReimportDate(today);
+          setReimportStartTime("00:00:00");
+          setReimportEndTime("23:59:59");
+          setWaveInfo(null);
+        }
+      } catch (err) {
+        console.error("Error fetching wave:", err);
+        const today = new Date().toISOString().split('T')[0];
+        setReimportDate(today);
+        setReimportStartTime("00:00:00");
+        setReimportEndTime("23:59:59");
+        setWaveInfo(null);
+      }
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      setReimportDate(today);
+      setReimportStartTime("00:00:00");
+      setReimportEndTime("23:59:59");
+      setWaveInfo(null);
+    }
+    
+    setIsReimportDialogOpen(true);
+  };
+
+  const handleReimportGPS = async () => {
+    if (!filterRaceId) {
+      toast({
+        title: "Selecciona una carrera",
+        description: "Debes seleccionar una carrera para reimportar las lecturas GPS",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReimporting(true);
+    try {
+      const startTimestamp = `${reimportDate}T${reimportStartTime}`;
+      const endTimestamp = `${reimportDate}T${reimportEndTime}`;
+      const startDate = new Date(startTimestamp);
+      const endDate = new Date(endTimestamp);
+      
+      const { data, error } = await supabase.functions.invoke("process-gps-geofence", {
+        body: { 
+          race_id: filterRaceId,
+          start_time: startDate.toISOString(),
+          end_time: endDate.toISOString(),
+          force_reprocess: true
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Reimportación completada",
+        description: `Procesadas ${data?.processed || 0} lecturas GPS, creadas ${data?.created || 0} nuevas lecturas`,
+      });
+
+      setIsReimportDialogOpen(false);
+      fetchReadings();
+    } catch (error: any) {
+      console.error("Error reimporting GPS:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo reimportar las lecturas GPS",
+        variant: "destructive",
+      });
+    } finally {
+      setReimporting(false);
+    }
+  };
+
+  const handleTimeChange = (value: string, setter: (v: string) => void) => {
+    let cleaned = value.replace(/[^\d:]/g, '');
+    const digits = cleaned.replace(/:/g, '');
+    if (digits.length <= 2) {
+      cleaned = digits;
+    } else if (digits.length <= 4) {
+      cleaned = `${digits.slice(0, 2)}:${digits.slice(2)}`;
+    } else {
+      cleaned = `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4, 6)}`;
+    }
+    setter(cleaned);
+  };
+
   const handleExportCSV = () => {
     if (readings.length === 0) {
       toast({
@@ -646,6 +762,10 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               </Button>
             </>
           )}
+          <Button onClick={handleOpenReimportDialog} variant="outline" disabled={!filterRaceId}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Reimportar GPS
+          </Button>
           <Button onClick={handleExportCSV} variant="outline" disabled={readings.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
@@ -1151,6 +1271,67 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             <Button onClick={handleConfirmChangeTimingPoint} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Cambiar Punto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reimport GPS Dialog */}
+      <Dialog open={isReimportDialogOpen} onOpenChange={setIsReimportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reimportar Lecturas GPS</DialogTitle>
+            <DialogDescription>
+              Reprocesa las lecturas GPS de la carrera para un rango de tiempo específico.
+              Esto eliminará las lecturas GPS existentes y las volverá a generar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {waveInfo && (
+              <div className="p-3 bg-muted rounded-md text-sm">
+                <p><strong>Hora de salida configurada:</strong> {waveInfo.date} a las {waveInfo.time}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <Input
+                type="date"
+                value={reimportDate}
+                onChange={(e) => setReimportDate(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Hora Inicio</Label>
+                <Input
+                  type="text"
+                  placeholder="HH:MM:SS"
+                  value={reimportStartTime}
+                  onChange={(e) => handleTimeChange(e.target.value, setReimportStartTime)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora Fin</Label>
+                <Input
+                  type="text"
+                  placeholder="HH:MM:SS"
+                  value={reimportEndTime}
+                  onChange={(e) => handleTimeChange(e.target.value, setReimportEndTime)}
+                />
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Se procesarán todas las lecturas GPS dentro del rango de tiempo especificado 
+              y se crearán lecturas de cronometraje cuando un corredor pase por un checkpoint con geofence.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReimportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleReimportGPS} disabled={reimporting || !reimportDate}>
+              {reimporting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Reimportar
             </Button>
           </DialogFooter>
         </DialogContent>
