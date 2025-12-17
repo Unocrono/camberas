@@ -619,16 +619,18 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
     setReimporting(true);
     try {
+      // Construir timestamps en formato ISO sin convertir a UTC
+      // Los GPS timestamps están guardados como hora local, así que enviamos hora local
       const startTimestamp = `${reimportDate}T${reimportStartTime}`;
       const endTimestamp = `${reimportDate}T${reimportEndTime}`;
-      const startDate = new Date(startTimestamp);
-      const endDate = new Date(endTimestamp);
+      
+      console.log(`Reimporting GPS readings from ${startTimestamp} to ${endTimestamp}`);
       
       const { data, error } = await supabase.functions.invoke("process-gps-geofence", {
         body: { 
           race_id: filterRaceId,
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
+          start_time: startTimestamp,  // Enviar como hora local sin convertir
+          end_time: endTimestamp,      // Enviar como hora local sin convertir
           force_reprocess: true
         },
       });
