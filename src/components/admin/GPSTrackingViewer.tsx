@@ -452,15 +452,14 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     });
   };
 
+  // Format timestamp without timezone conversion - shows the stored time as-is
   const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    // Extract date/time parts directly from ISO string, ignoring timezone suffix
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+    if (!match) return dateStr;
+    
+    const [, year, month, day, hour, minute, second] = match;
+    return `${day}/${month}/${year}, ${hour}:${minute}:${second}`;
   };
 
   const totalPages = Math.ceil(totalCount / pageSize);
