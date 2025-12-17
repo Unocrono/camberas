@@ -102,12 +102,10 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   // Reimport dialog
   const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
   const [reimporting, setReimporting] = useState(false);
-  const [reimportDate, setReimportDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
+  const [reimportDate, setReimportDate] = useState("");
   const [reimportStartTime, setReimportStartTime] = useState("00:00:00");
   const [reimportEndTime, setReimportEndTime] = useState("23:59:59");
+  const [waveInfo, setWaveInfo] = useState<{ date: string; time: string } | null>(null);
 
   useEffect(() => {
     fetchRaces();
@@ -353,6 +351,55 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
     }
   };
 
+  const handleOpenReimportDialog = async () => {
+    if (!filterRaceId) return;
+    
+    // Get the wave start time for the selected distance (or first distance if "all")
+    const distanceId = filterDistanceId && filterDistanceId !== "all" ? filterDistanceId : distances[0]?.id;
+    
+    if (distanceId) {
+      try {
+        const { data: wave, error } = await supabase
+          .from("race_waves")
+          .select("start_time")
+          .eq("race_distance_id", distanceId)
+          .maybeSingle();
+        
+        if (!error && wave?.start_time) {
+          // Extract date and time from the wave start_time (avoid timezone conversion)
+          const datePart = wave.start_time.slice(0, 10); // YYYY-MM-DD
+          const timePart = wave.start_time.slice(11, 19); // HH:mm:ss
+          
+          setReimportDate(datePart);
+          setReimportStartTime(timePart);
+          setReimportEndTime("23:59:59");
+          setWaveInfo({ date: datePart, time: timePart });
+        } else {
+          // Fallback to today if no wave configured
+          const today = new Date().toISOString().split('T')[0];
+          setReimportDate(today);
+          setReimportStartTime("00:00:00");
+          setReimportEndTime("23:59:59");
+          setWaveInfo(null);
+        }
+      } catch (err) {
+        console.error("Error fetching wave:", err);
+        const today = new Date().toISOString().split('T')[0];
+        setReimportDate(today);
+        setReimportStartTime("00:00:00");
+        setReimportEndTime("23:59:59");
+        setWaveInfo(null);
+      }
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      setReimportDate(today);
+      setReimportStartTime("00:00:00");
+      setReimportEndTime("23:59:59");
+      setWaveInfo(null);
+    }
+    
+    setIsReimportDialogOpen(true);
+  };
   const handleReimportGPS = async () => {
     if (!filterRaceId) {
       toast({
@@ -505,7 +552,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualizar
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setIsReimportDialogOpen(true)} disabled={!filterRaceId}>
+          <Button variant="outline" size="sm" onClick={handleOpenReimportDialog} disabled={!filterRaceId}>
             <Upload className="h-4 w-4 mr-2" />
             Reimportar GPS
           </Button>
@@ -688,7 +735,11 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           <DialogHeader>
             <DialogTitle>Reimportar Lecturas GPS</DialogTitle>
             <DialogDescription>
-              Selecciona el rango de fecha y hora para reimportar las lecturas GPS desde los datos de tracking
+              {waveInfo ? (
+                <>Hora de salida del evento: {waveInfo.date} {waveInfo.time}</>
+              ) : (
+                <>Selecciona el rango de fecha y hora para reimportar las lecturas GPS</>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
