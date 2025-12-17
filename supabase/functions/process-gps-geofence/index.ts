@@ -253,6 +253,7 @@ Deno.serve(async (req) => {
           .select('*')
           .gte('timestamp', cutoffTime)
           .order('timestamp', { ascending: true })
+          .limit(10000) // Increase limit to process more GPS points
         
         if (raceId) {
           query = query.eq('race_id', raceId)
