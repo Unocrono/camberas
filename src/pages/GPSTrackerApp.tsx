@@ -36,7 +36,8 @@ interface GPSPoint {
   accuracy: number | null;
   speed: number | null;
   battery_level: number;
-  timestamp: string;
+  timestamp: string;       // Hora local España
+  timestamp_utc: string;   // Lectura original GPS (UTC)
 }
 
 interface Race {
@@ -478,6 +479,19 @@ const GPSTrackerApp = () => {
     return R * c;
   };
 
+  // Helper: Obtener hora local España sin conversión UTC
+  const getSpainLocalTimestamp = () => {
+    const now = new Date();
+    // Formato: YYYY-MM-DDTHH:mm:ss (sin Z, sin offset)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    const secs = String(now.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${mins}:${secs}`;
+  };
+
   // Handle GPS position - accepts both native and web format
   const handlePosition = useCallback(async (position: GeolocationResult | GeolocationPosition) => {
     if (!selectedRegistration) return;
@@ -488,7 +502,10 @@ const GPSTrackerApp = () => {
     const altitude = 'coords' in position ? position.coords.altitude : position.altitude;
     const accuracy = 'coords' in position ? position.coords.accuracy : position.accuracy;
     const speed = 'coords' in position ? position.coords.speed : position.speed;
-    const now = new Date().toISOString();
+    
+    // Timestamps: UTC para auditoría, local para cálculos
+    const nowUtc = new Date().toISOString();
+    const nowLocal = getSpainLocalTimestamp();
     
     // Update current position for mini-map
     setCurrentPosition({ lat, lng });
@@ -502,7 +519,8 @@ const GPSTrackerApp = () => {
       accuracy: accuracy,
       speed: speed,
       battery_level: battery,
-      timestamp: now,
+      timestamp: nowLocal,       // Hora local España
+      timestamp_utc: nowUtc,     // UTC original
     };
 
     // Update distance using stored last position
@@ -510,7 +528,7 @@ const GPSTrackerApp = () => {
       const dist = calculateDistance(lastPositionRef.current.latitude, lastPositionRef.current.longitude, lat, lng);
       setStats(prev => ({ ...prev, distance: prev.distance + dist }));
     }
-    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: now };
+    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: nowLocal };
 
     // Update speed
     if (speed !== null) {
@@ -538,7 +556,7 @@ const GPSTrackerApp = () => {
           bib_number: selectedRegistration.bib_number || 0,
           checkpoint_id: checkpoint.id,
           timing_point_id: checkpoint.timing_point_id,
-          timing_timestamp: now,
+          timing_timestamp: nowLocal,
           reading_type: 'gps_auto',
           notes: `GPS auto: ${Math.round(distToCheckpoint)}m del checkpoint`,
         };
