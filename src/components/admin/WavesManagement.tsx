@@ -96,9 +96,11 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     let startTime = "";
     
     if (wave.start_time) {
-      const date = new Date(wave.start_time);
-      startDate = format(date, "yyyy-MM-dd");
-      startTime = format(date, "HH:mm:ss");
+      // Extract date and time directly from string to avoid timezone conversion
+      // Same method as DistanceManagement
+      const isoString = wave.start_time;
+      startDate = isoString.slice(0, 10); // YYYY-MM-DD
+      startTime = isoString.slice(11, 19); // HH:MM:SS
     }
     
     setFormData({
