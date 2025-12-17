@@ -30,7 +30,7 @@ import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManag
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { RaceResultsStatusManagement } from "@/components/admin/RaceResultsStatusManagement";
 import { WavesManagement } from "@/components/admin/WavesManagement";
-import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
+import { GPSTrackingViewer } from "@/components/admin/GPSTrackingViewer";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -234,7 +234,7 @@ const AdminDashboard = () => {
             {currentView === "results-status" && <RaceResultsStatusManagement />}
             {currentView === "splits" && <SplitTimesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement selectedRaceId={selectedRaceId} />}
-            {currentView === "gps-readings" && <GPSReadingsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "gps-readings" && <GPSTrackingViewer selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
