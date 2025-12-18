@@ -40,8 +40,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft, RefreshCw, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RFIDImportDialog } from "./RFIDImportDialog";
 
 interface TimingReading {
   id: string;
@@ -116,6 +117,9 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [reimportEndTime, setReimportEndTime] = useState("23:59");
   const [reimporting, setReimporting] = useState(false);
   const [waveInfo, setWaveInfo] = useState<{ date: string; time: string } | null>(null);
+  
+  // RFID Import state
+  const [isRFIDImportDialogOpen, setIsRFIDImportDialogOpen] = useState(false);
   
   // Filters
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
@@ -807,6 +811,10 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             <RefreshCw className="h-4 w-4 mr-2" />
             Reimportar GPS
           </Button>
+          <Button onClick={() => setIsRFIDImportDialogOpen(true)} variant="outline" disabled={!filterRaceId}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar RFID
+          </Button>
           <Button onClick={handleExportCSV} variant="outline" disabled={readings.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Exportar CSV
@@ -1377,6 +1385,16 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* RFID Import Dialog */}
+      <RFIDImportDialog
+        open={isRFIDImportDialogOpen}
+        onOpenChange={setIsRFIDImportDialogOpen}
+        raceId={filterRaceId}
+        timingPoints={timingPoints}
+        distances={distances}
+        onImportComplete={fetchReadings}
+      />
     </div>
   );
 }
