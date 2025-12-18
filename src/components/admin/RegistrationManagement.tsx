@@ -981,7 +981,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(reg.id)}>
+                                  <AlertDialogAction 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleDelete(reg.id);
+                                    }}
+                                  >
                                     Eliminar
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
