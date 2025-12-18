@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface RegistrationImportDialogProps {
@@ -48,7 +49,15 @@ interface ColumnMapping {
   field: string;
 }
 
-const IMPORTABLE_FIELDS = [
+interface FormField {
+  value: string;
+  label: string;
+  isCustom?: boolean;
+  fieldId?: string;
+}
+
+// Base registration fields (always available)
+const BASE_FIELDS: FormField[] = [
   { value: "ignore", label: "-- Ignorar --" },
   { value: "guest_first_name", label: "Nombre" },
   { value: "guest_last_name", label: "Apellidos" },
@@ -59,6 +68,8 @@ const IMPORTABLE_FIELDS = [
   { value: "bib_number", label: "Dorsal" },
   { value: "status", label: "Estado" },
   { value: "payment_status", label: "Estado de Pago" },
+  { value: "guest_emergency_contact", label: "Contacto de Emergencia" },
+  { value: "guest_emergency_phone", label: "Teléfono de Emergencia" },
 ];
 
 // Auto-detection mapping
@@ -72,7 +83,11 @@ const AUTO_DETECT_PATTERNS: Record<string, RegExp[]> = {
   bib_number: [/^dorsal$/i, /^bib$/i, /^número$/i, /^numero$/i],
   status: [/^estado$/i, /^status$/i],
   payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i],
+  guest_emergency_contact: [/^emergencia$/i, /^contacto.?emergencia$/i],
+  guest_emergency_phone: [/^tel.?emergencia$/i, /^phone.?emergency$/i],
 };
+
+type Encoding = "utf-8" | "iso-8859-1";
 
 function parseCSV(text: string): { headers: string[]; rows: CSVRow[] } {
   const lines = text.trim().split(/\r?\n/);
@@ -131,15 +146,40 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-function autoDetectMapping(headers: string[]): ColumnMapping[] {
+function autoDetectMapping(headers: string[], availableFields: FormField[]): ColumnMapping[] {
   return headers.map((header) => {
-    const normalizedHeader = header.trim();
+    const normalizedHeader = header.trim().toLowerCase();
+    
+    // First check against base patterns
     for (const [field, patterns] of Object.entries(AUTO_DETECT_PATTERNS)) {
       if (patterns.some((pattern) => pattern.test(normalizedHeader))) {
         return { csvColumn: header, field };
       }
     }
+    
+    // Then check against custom form field labels
+    for (const field of availableFields) {
+      if (field.isCustom && field.label.toLowerCase() === normalizedHeader) {
+        return { csvColumn: header, field: field.value };
+      }
+    }
+    
     return { csvColumn: header, field: "ignore" };
+  });
+}
+
+// Detect if text has encoding issues (replacement characters)
+function hasEncodingIssues(text: string): boolean {
+  return text.includes("�") || text.includes("\ufffd");
+}
+
+// Read file with specific encoding
+async function readFileWithEncoding(file: File, encoding: Encoding): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file, encoding);
   });
 }
 
@@ -158,6 +198,39 @@ export function RegistrationImportDialog({
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>(distanceId || "");
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
   const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [availableFields, setAvailableFields] = useState<FormField[]>(BASE_FIELDS);
+  const [encoding, setEncoding] = useState<Encoding>("utf-8");
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [newFieldName, setNewFieldName] = useState("");
+  const [showNewFieldInput, setShowNewFieldInput] = useState<string | null>(null);
+
+  // Load form fields when race/distance changes
+  useEffect(() => {
+    if (!raceId || !open) return;
+
+    const loadFormFields = async () => {
+      const { data: formFields } = await supabase
+        .from("registration_form_fields")
+        .select("id, field_name, field_label")
+        .or(`race_id.eq.${raceId},race_distance_id.eq.${selectedDistanceId || distanceId}`)
+        .eq("is_visible", true);
+
+      if (formFields) {
+        const customFields: FormField[] = formFields
+          .filter(f => !BASE_FIELDS.some(bf => bf.value === f.field_name))
+          .map(f => ({
+            value: `custom_${f.id}`,
+            label: f.field_label,
+            isCustom: true,
+            fieldId: f.id,
+          }));
+        
+        setAvailableFields([...BASE_FIELDS, ...customFields]);
+      }
+    };
+
+    loadFormFields();
+  }, [raceId, selectedDistanceId, distanceId, open]);
 
   const resetState = useCallback(() => {
     setStep("upload");
@@ -165,7 +238,53 @@ export function RegistrationImportDialog({
     setColumnMappings([]);
     setImportProgress({ current: 0, total: 0, errors: 0 });
     setImportErrors([]);
+    setCurrentFile(null);
+    setEncoding("utf-8");
+    setNewFieldName("");
+    setShowNewFieldInput(null);
   }, []);
+
+  const processFile = useCallback(
+    async (file: File, selectedEncoding: Encoding) => {
+      try {
+        const text = await readFileWithEncoding(file, selectedEncoding);
+        
+        // Check for encoding issues
+        if (hasEncodingIssues(text) && selectedEncoding === "utf-8") {
+          // Try ISO-8859-1 automatically
+          const textLatin = await readFileWithEncoding(file, "iso-8859-1");
+          if (!hasEncodingIssues(textLatin)) {
+            setEncoding("iso-8859-1");
+            const parsed = parseCSV(textLatin);
+            setCsvData(parsed);
+            setColumnMappings(autoDetectMapping(parsed.headers, availableFields));
+            return;
+          }
+        }
+
+        const parsed = parseCSV(text);
+
+        if (parsed.headers.length === 0 || parsed.rows.length === 0) {
+          toast({
+            title: "Archivo vacío",
+            description: "El archivo CSV no contiene datos",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setCsvData(parsed);
+        setColumnMappings(autoDetectMapping(parsed.headers, availableFields));
+      } catch (error) {
+        toast({
+          title: "Error al leer archivo",
+          description: "No se pudo procesar el archivo CSV",
+          variant: "destructive",
+        });
+      }
+    },
+    [availableFields, toast]
+  );
 
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -181,50 +300,96 @@ export function RegistrationImportDialog({
         return;
       }
 
-      try {
-        const text = await file.text();
-        const parsed = parseCSV(text);
+      setCurrentFile(file);
 
-        if (parsed.headers.length === 0 || parsed.rows.length === 0) {
-          toast({
-            title: "Archivo vacío",
-            description: "El archivo CSV no contiene datos",
-            variant: "destructive",
-          });
-          return;
-        }
+      // Fetch distances for the race
+      const { data } = await supabase
+        .from("race_distances")
+        .select("id, name")
+        .eq("race_id", raceId)
+        .order("distance_km");
 
-        setCsvData(parsed);
-        setColumnMappings(autoDetectMapping(parsed.headers));
-
-        // Fetch distances for the race
-        const { data } = await supabase
-          .from("race_distances")
-          .select("id, name")
-          .eq("race_id", raceId)
-          .order("distance_km");
-
-        setDistances(data || []);
-        if (data && data.length === 1) {
-          setSelectedDistanceId(data[0].id);
-        } else if (distanceId) {
-          setSelectedDistanceId(distanceId);
-        }
-
-        setStep("mapping");
-      } catch (error) {
-        toast({
-          title: "Error al leer archivo",
-          description: "No se pudo procesar el archivo CSV",
-          variant: "destructive",
-        });
+      setDistances(data || []);
+      if (data && data.length === 1) {
+        setSelectedDistanceId(data[0].id);
+      } else if (distanceId) {
+        setSelectedDistanceId(distanceId);
       }
+
+      await processFile(file, "utf-8");
+      setStep("mapping");
 
       // Reset input
       event.target.value = "";
     },
-    [raceId, distanceId, toast]
+    [raceId, distanceId, toast, processFile]
   );
+
+  const handleEncodingChange = useCallback(
+    async (newEncoding: Encoding) => {
+      setEncoding(newEncoding);
+      if (currentFile) {
+        await processFile(currentFile, newEncoding);
+      }
+    },
+    [currentFile, processFile]
+  );
+
+  const handleCreateNewField = async (csvColumn: string) => {
+    if (!newFieldName.trim() || !selectedDistanceId) {
+      toast({
+        title: "Error",
+        description: "Introduce un nombre para el campo y selecciona un recorrido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const fieldName = `custom_${newFieldName.toLowerCase().replace(/\s+/g, "_")}`;
+      
+      const { data: newField, error } = await supabase
+        .from("registration_form_fields")
+        .insert({
+          race_id: raceId,
+          race_distance_id: selectedDistanceId,
+          field_name: fieldName,
+          field_label: newFieldName.trim(),
+          field_type: "text",
+          is_required: false,
+          is_visible: true,
+          is_system_field: false,
+          field_order: availableFields.length,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newFormField: FormField = {
+        value: `custom_${newField.id}`,
+        label: newField.field_label,
+        isCustom: true,
+        fieldId: newField.id,
+      };
+
+      setAvailableFields(prev => [...prev, newFormField]);
+      updateMapping(csvColumn, newFormField.value);
+      setNewFieldName("");
+      setShowNewFieldInput(null);
+
+      toast({
+        title: "Campo creado",
+        description: `El campo "${newFieldName}" ha sido creado`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error al crear campo",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const updateMapping = (csvColumn: string, field: string) => {
     setColumnMappings((prev) =>
@@ -298,6 +463,9 @@ export function RegistrationImportDialog({
       const mappedData = getMappedData(row);
 
       try {
+        // Separate base fields from custom fields
+        const customFieldMappings: { fieldId: string; value: string }[] = [];
+        
         const insertData: any = {
           race_id: raceId,
           race_distance_id: selectedDistanceId,
@@ -307,12 +475,28 @@ export function RegistrationImportDialog({
           guest_phone: mappedData.guest_phone || null,
           guest_dni_passport: mappedData.guest_dni_passport || null,
           guest_birth_date: mappedData.guest_birth_date || null,
+          guest_emergency_contact: mappedData.guest_emergency_contact || null,
+          guest_emergency_phone: mappedData.guest_emergency_phone || null,
           status: mappedData.status || "confirmed",
           payment_status: mappedData.payment_status || "paid",
           bib_number: mappedData.bib_number ? parseInt(mappedData.bib_number) : null,
         };
 
-        const { error } = await supabase.from("registrations").insert(insertData);
+        // Collect custom field values
+        for (const [key, value] of Object.entries(mappedData)) {
+          if (key.startsWith("custom_") && value) {
+            const field = availableFields.find(f => f.value === key);
+            if (field?.fieldId) {
+              customFieldMappings.push({ fieldId: field.fieldId, value });
+            }
+          }
+        }
+
+        const { data: registration, error } = await supabase
+          .from("registrations")
+          .insert(insertData)
+          .select("id")
+          .single();
 
         if (error) {
           errors.push(`Fila ${i + 2}: ${error.message}`);
@@ -322,6 +506,17 @@ export function RegistrationImportDialog({
             errors: prev.errors + 1,
           }));
         } else {
+          // Insert custom field responses
+          if (registration && customFieldMappings.length > 0) {
+            const responses = customFieldMappings.map(cf => ({
+              registration_id: registration.id,
+              field_id: cf.fieldId,
+              field_value: cf.value,
+            }));
+            
+            await supabase.from("registration_responses").insert(responses);
+          }
+          
           successCount++;
           setImportProgress((prev) => ({
             ...prev,
@@ -412,7 +607,7 @@ export function RegistrationImportDialog({
           {/* Step 2: Mapping */}
           {step === "mapping" && csvData && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Recorrido de destino *</Label>
                   <Select value={selectedDistanceId} onValueChange={setSelectedDistanceId}>
@@ -428,6 +623,18 @@ export function RegistrationImportDialog({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Codificación del archivo</Label>
+                  <Select value={encoding} onValueChange={(v) => handleEncodingChange(v as Encoding)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="utf-8">UTF-8</SelectItem>
+                      <SelectItem value="iso-8859-1">ISO-8859-1 (Latin-1 / Excel)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-end">
                   <Badge variant="secondary" className="h-10 px-4 flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4" />
@@ -436,7 +643,7 @@ export function RegistrationImportDialog({
                 </div>
               </div>
 
-              <ScrollArea className="h-[350px] border rounded-lg">
+              <ScrollArea className="h-[320px] border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -450,21 +657,63 @@ export function RegistrationImportDialog({
                       <TableRow key={mapping.csvColumn}>
                         <TableCell className="font-medium">{mapping.csvColumn}</TableCell>
                         <TableCell>
-                          <Select
-                            value={mapping.field}
-                            onValueChange={(value) => updateMapping(mapping.csvColumn, value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {IMPORTABLE_FIELDS.map((f) => (
-                                <SelectItem key={f.value} value={f.value}>
-                                  {f.label}
+                          {showNewFieldInput === mapping.csvColumn ? (
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="Nombre del nuevo campo"
+                                value={newFieldName}
+                                onChange={(e) => setNewFieldName(e.target.value)}
+                                className="flex-1"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleCreateNewField(mapping.csvColumn)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setShowNewFieldInput(null);
+                                  setNewFieldName("");
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Select
+                              value={mapping.field}
+                              onValueChange={(value) => {
+                                if (value === "create_new") {
+                                  setShowNewFieldInput(mapping.csvColumn);
+                                  setNewFieldName(mapping.csvColumn);
+                                } else {
+                                  updateMapping(mapping.csvColumn, value);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableFields.map((f) => (
+                                  <SelectItem key={f.value} value={f.value}>
+                                    {f.label}
+                                    {f.isCustom && " (personalizado)"}
+                                  </SelectItem>
+                                ))}
+                                <SelectItem value="create_new" className="text-primary font-medium">
+                                  <span className="flex items-center gap-2">
+                                    <Plus className="h-4 w-4" />
+                                    Crear nuevo campo...
+                                  </span>
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                              </SelectContent>
+                            </Select>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {csvData.rows[0]?.[mapping.csvColumn] || "-"}
