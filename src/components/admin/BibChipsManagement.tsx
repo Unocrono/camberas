@@ -84,7 +84,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
   const [bibChips, setBibChips] = useState<BibChip[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterDistanceId, setFilterDistanceId] = useState<string>(selectedDistanceId || "");
+  const [filterDistanceId, setFilterDistanceId] = useState<string>(selectedDistanceId || "all");
   
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -120,9 +120,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
   }, [selectedRaceId]);
 
   useEffect(() => {
-    if (selectedDistanceId) {
-      setFilterDistanceId(selectedDistanceId);
-    }
+    setFilterDistanceId(selectedDistanceId || "all");
   }, [selectedDistanceId]);
 
   const fetchDistances = async () => {
@@ -171,7 +169,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
   const handleOpenCreate = () => {
     setEditingChip(null);
     setFormData({
-      race_distance_id: filterDistanceId || (distances[0]?.id || ""),
+      race_distance_id: filterDistanceId !== "all" ? filterDistanceId : (distances[0]?.id || ""),
       bib_number: "",
       chip_code: "",
       chip_code_2: "",
@@ -429,7 +427,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
       chip.chip_code_5?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDistance =
-      filterDistanceId === "" || chip.race_distance_id === filterDistanceId;
+      filterDistanceId === "all" || chip.race_distance_id === filterDistanceId;
 
     return matchesSearch && matchesDistance;
   });
@@ -466,7 +464,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => {
-              setImportDistanceId(filterDistanceId || (distances[0]?.id || ""));
+              setImportDistanceId(filterDistanceId !== "all" ? filterDistanceId : (distances[0]?.id || ""));
               setImportResults(null);
               setImportDialogOpen(true);
             }}>
@@ -497,7 +495,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
               <SelectValue placeholder="Todos los eventos" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos los eventos</SelectItem>
+              <SelectItem value="all">Todos los eventos</SelectItem>
               {distances.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
                   {d.name} ({d.distance_km}km)
@@ -514,7 +512,7 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
           </div>
         ) : filteredChips.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            {searchTerm || filterDistanceId
+            {searchTerm || filterDistanceId !== "all"
               ? "No se encontraron chips con esos filtros"
               : "No hay chips asignados. Añade el primero."}
           </div>
