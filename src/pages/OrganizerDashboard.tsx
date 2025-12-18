@@ -24,10 +24,11 @@ import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsM
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
+import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "gps-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments";
+type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "gps-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments" | "bib-chips";
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -219,6 +220,15 @@ const OrganizerDashboard = () => {
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "bib-chips" && (
+              selectedRaceId ? (
+                <BibChipsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar los chips RFID</p>
+                </div>
+              )
+            )}
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
