@@ -438,6 +438,8 @@ const TimingApp = () => {
 
   const fetchRunners = async (raceId: string) => {
     try {
+      console.log("Fetching runners for race:", raceId);
+      
       const { data, error } = await supabase
         .from("registrations")
         .select(`
@@ -447,13 +449,15 @@ const TimingApp = () => {
           guest_first_name,
           guest_last_name,
           user_id,
+          status,
           race_distances!inner(name)
         `)
         .eq("race_id", raceId)
-        .in("status", ["confirmed", "pending"])
         .not("bib_number", "is", null);
 
       if (error) throw error;
+
+      console.log("Registrations found:", data?.length, data);
 
       // Fetch profiles for registered users
       const runnersData: Runner[] = await Promise.all(
@@ -485,6 +489,7 @@ const TimingApp = () => {
         })
       );
 
+      console.log("Runners loaded:", runnersData.length);
       setRunners(runnersData);
       // Store in localStorage for offline
       localStorage.setItem(`runners_${raceId}`, JSON.stringify(runnersData));
@@ -793,7 +798,9 @@ const TimingApp = () => {
 
         toast({
           title: `#${bib} registrado`,
-          description: runner ? `${runner.first_name} ${runner.last_name}` : "Dorsal no encontrado en lista",
+          description: runner 
+            ? `${runner.first_name} ${runner.last_name}` 
+            : "⚠️ NO REGISTRADO - Dorsal no encontrado en lista",
         });
       } catch (error) {
         console.error("Error syncing reading:", error);
@@ -1495,8 +1502,10 @@ const TimingApp = () => {
                           #{reading.bib_number}
                         </Badge>
                         <div>
-                          <p className="font-medium">
-                            {reading.runner_name || "Dorsal no registrado"}
+                          <p className="font-medium flex items-center gap-2">
+                            {reading.runner_name || (
+                              <span className="text-orange-500 font-bold">NO REGISTRADO</span>
+                            )}
                             {reading.status_code && (
                               <Badge variant="secondary" className="ml-2 text-xs">
                                 {STATUS_OPTIONS.find(s => s.value === reading.status_code)?.label}
