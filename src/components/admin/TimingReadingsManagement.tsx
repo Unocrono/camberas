@@ -420,16 +420,27 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   };
 
   const handleConfirmDelete = async () => {
-    if (!deletingReading) return;
+    if (!deletingReading?.id) {
+      toast({
+        title: "Error",
+        description: "No hay lectura seleccionada para eliminar",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("timing_readings")
         .delete()
-        .eq("id", deletingReading.id);
+        .eq("id", deletingReading.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error details:", error);
+        throw error;
+      }
 
       toast({
         title: "Lectura eliminada",
@@ -443,7 +454,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       console.error("Error deleting reading:", error);
       toast({
         title: "Error",
-        description: error.message || "No se pudo eliminar la lectura",
+        description: error.message || error.details || "No se pudo eliminar la lectura",
         variant: "destructive",
       });
     } finally {
@@ -486,16 +497,29 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("timing_readings")
-        .delete()
-        .in("id", Array.from(selectedIds));
+      const idsArray = Array.from(selectedIds);
+      
+      // Delete in batches to avoid issues with large arrays
+      const batchSize = 100;
+      let deletedCount = 0;
+      
+      for (let i = 0; i < idsArray.length; i += batchSize) {
+        const batch = idsArray.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("timing_readings")
+          .delete()
+          .in("id", batch);
 
-      if (error) throw error;
+        if (error) {
+          console.error("Delete batch error:", error);
+          throw error;
+        }
+        deletedCount += batch.length;
+      }
 
       toast({
         title: "Lecturas eliminadas",
-        description: `Se han eliminado ${selectedIds.size} lecturas correctamente`,
+        description: `Se han eliminado ${deletedCount} lecturas correctamente`,
       });
       
       setIsDeleteMultipleDialogOpen(false);
@@ -505,7 +529,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       console.error("Error deleting readings:", error);
       toast({
         title: "Error",
-        description: error.message || "No se pudieron eliminar las lecturas",
+        description: error.message || error.details || "No se pudieron eliminar las lecturas",
         variant: "destructive",
       });
     } finally {
