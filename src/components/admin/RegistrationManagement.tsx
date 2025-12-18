@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3 } from "lucide-react";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 
@@ -87,6 +87,22 @@ const emptyFormData: RegistrationFormData = {
   bib_number: "",
 };
 
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "type" | "distance" | "status" | "payment" | "actions";
+
+const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
+  { key: "bib_number", label: "Dorsal" },
+  { key: "participant", label: "Participante" },
+  { key: "email", label: "Email" },
+  { key: "dni", label: "DNI" },
+  { key: "type", label: "Tipo" },
+  { key: "distance", label: "Distancia" },
+  { key: "status", label: "Estado" },
+  { key: "payment", label: "Pago" },
+  { key: "actions", label: "Acciones" },
+];
+
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "email", "dni", "distance", "status", "payment", "actions"];
+
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -130,6 +146,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  // Column visibility
+  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_VISIBLE_COLUMNS));
+
   const toggleRowSelection = (id: string) => {
     setSelectedRows(prev => {
       const newSet = new Set(prev);
@@ -143,15 +166,21 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   };
 
   const toggleAllRows = () => {
-    if (selectedRows.size === filteredRegistrations.length) {
+    if (selectedRows.size === paginatedRegistrations.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(filteredRegistrations.map(r => r.id)));
+      setSelectedRows(new Set(paginatedRegistrations.map(r => r.id)));
     }
   };
 
-  const isAllSelected = filteredRegistrations.length > 0 && selectedRows.size === filteredRegistrations.length;
-  const isSomeSelected = selectedRows.size > 0 && selectedRows.size < filteredRegistrations.length;
+  const paginatedRegistrations = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = Math.min(startIdx + pageSize, filteredRegistrations.length);
+    return filteredRegistrations.slice(startIdx, endIdx);
+  }, [filteredRegistrations, currentPage, pageSize]);
+
+  const isAllSelected = paginatedRegistrations.length > 0 && selectedRows.size === paginatedRegistrations.length;
+  const isSomeSelected = selectedRows.size > 0 && selectedRows.size < paginatedRegistrations.length;
 
   // Bulk action handlers
   const handleBulkDelete = async () => {
@@ -498,7 +527,36 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       );
     }
 
+    // Sort by bib_number (nulls last)
+    filtered.sort((a, b) => {
+      if (a.bib_number === null && b.bib_number === null) return 0;
+      if (a.bib_number === null) return 1;
+      if (b.bib_number === null) return -1;
+      return a.bib_number - b.bib_number;
+    });
+
     setFilteredRegistrations(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  // Pagination calculations
+  const totalRecords = filteredRegistrations.length;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const toggleColumn = (column: ColumnKey) => {
+    setVisibleColumns(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(column)) {
+        newSet.delete(column);
+      } else {
+        newSet.add(column);
+      }
+      return newSet;
+    });
   };
 
   const handleCreate = async () => {
@@ -870,6 +928,47 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       {/* Registrations Table */}
       <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">
+                Mostrando {totalRecords > 0 ? ((currentPage - 1) * pageSize) + 1 : 0}-{Math.min(currentPage * pageSize, totalRecords)} de {totalRecords}
+              </span>
+              <Select value={pageSize.toString()} onValueChange={(v) => { setPageSize(Number(v)); setCurrentPage(1); }}>
+                <SelectTrigger className="w-[100px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Columns3 className="h-4 w-4" />
+                  Columnas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {ALL_COLUMNS.map((col) => (
+                  <DropdownMenuCheckboxItem
+                    key={col.key}
+                    checked={visibleColumns.has(col.key)}
+                    onCheckedChange={() => toggleColumn(col.key)}
+                  >
+                    {col.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -883,30 +982,31 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
                     />
                   </TableHead>
-                  <TableHead>Participante</TableHead>
-                  <TableHead>DNI</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Carrera</TableHead>
-                  <TableHead>Distancia</TableHead>
-                  <TableHead>Dorsal</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Pago</TableHead>
-                  <TableHead>Acciones</TableHead>
+                  {visibleColumns.has("bib_number") && <TableHead className="w-[80px]">Dorsal</TableHead>}
+                  {visibleColumns.has("participant") && <TableHead>Participante</TableHead>}
+                  {visibleColumns.has("email") && <TableHead>Email</TableHead>}
+                  {visibleColumns.has("dni") && <TableHead>DNI</TableHead>}
+                  {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
+                  {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
+                  {visibleColumns.has("status") && <TableHead>Estado</TableHead>}
+                  {visibleColumns.has("payment") && <TableHead>Pago</TableHead>}
+                  {visibleColumns.has("actions") && <TableHead>Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRegistrations.length === 0 ? (
+                {paginatedRegistrations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={visibleColumns.size + 1} className="text-center text-muted-foreground py-8">
                       No se encontraron inscripciones
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredRegistrations.map((reg) => {
+                  paginatedRegistrations.map((reg) => {
                     const isGuest = !reg.user_id;
                     const firstName = reg.profiles?.first_name || reg.guest_first_name || "";
                     const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
                     const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
+                    const email = reg.guest_email || "";
                     
                     return (
                       <TableRow key={reg.id} data-state={selectedRows.has(reg.id) ? "selected" : undefined}>
@@ -917,120 +1017,135 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             aria-label={`Seleccionar ${firstName} ${lastName}`}
                           />
                         </TableCell>
-                        <TableCell className="font-medium">
-                          <div>
-                            {firstName} {lastName}
-                            {isGuest && reg.guest_email && (
-                              <div className="text-xs text-muted-foreground">{reg.guest_email}</div>
+                        {visibleColumns.has("bib_number") && (
+                          <TableCell className="font-mono font-bold">
+                            {reg.bib_number ? (
+                              <Badge variant="outline">#{reg.bib_number}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{dniPassport || "N/A"}</TableCell>
-                        <TableCell>
-                          <Badge variant={isGuest ? "outline" : "secondary"}>
-                            {isGuest ? "Invitado" : "Registrado"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{reg.race.name}</TableCell>
-                        <TableCell>
-                          {reg.race_distance.name} ({reg.race_distance.distance_km}km)
-                        </TableCell>
-                        <TableCell>
-                          {reg.bib_number ? (
-                            <Badge variant="outline">#{reg.bib_number}</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">Sin asignar</span>
-                          )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(reg.status)}</TableCell>
-                        <TableCell>
-                          <Badge variant={reg.payment_status === "paid" ? "default" : reg.payment_status === "refunded" ? "outline" : "secondary"}>
-                            {reg.payment_status === "paid" ? "Pagado" : reg.payment_status === "refunded" ? "Reembolsado" : "Pendiente"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Dialog
-                              open={assigningBib === reg.id}
-                              onOpenChange={(open) => {
-                                if (!open) {
-                                  setAssigningBib(null);
-                                  setBibNumber("");
-                                }
-                              }}
-                            >
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setAssigningBib(reg.id);
-                                    setBibNumber(reg.bib_number?.toString() || "");
-                                  }}
-                                >
-                                  <Hash className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Asignar Dorsal</DialogTitle>
-                                  <DialogDescription>
-                                    Asignar número de dorsal a {firstName} {lastName}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 mt-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="bib">Número de Dorsal</Label>
-                                    <Input
-                                      id="bib"
-                                      type="number"
-                                      min="1"
-                                      value={bibNumber}
-                                      onChange={(e) => setBibNumber(e.target.value)}
-                                      placeholder="Ej: 123"
-                                    />
-                                  </div>
-                                  <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
-                                    Asignar
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-
-                            <Button variant="outline" size="sm" onClick={() => openEditDialog(reg)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-
-                            <AlertDialog open={deleteDialogId === reg.id} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => setDeleteDialogId(reg.id)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>¿Eliminar inscripción?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta acción eliminará la inscripción de {firstName} {lastName} y no se puede deshacer.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      handleDelete(reg.id);
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("participant") && (
+                          <TableCell className="font-medium">
+                            {firstName} {lastName}
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("email") && (
+                          <TableCell className="text-sm text-muted-foreground">
+                            {email || "-"}
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("dni") && (
+                          <TableCell>{dniPassport || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("type") && (
+                          <TableCell>
+                            <Badge variant={isGuest ? "outline" : "secondary"}>
+                              {isGuest ? "Invitado" : "Registrado"}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("distance") && (
+                          <TableCell>
+                            {reg.race_distance.name} ({reg.race_distance.distance_km}km)
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("status") && (
+                          <TableCell>{getStatusBadge(reg.status)}</TableCell>
+                        )}
+                        {visibleColumns.has("payment") && (
+                          <TableCell>
+                            <Badge variant={reg.payment_status === "paid" ? "default" : reg.payment_status === "refunded" ? "outline" : "secondary"}>
+                              {reg.payment_status === "paid" ? "Pagado" : reg.payment_status === "refunded" ? "Reembolsado" : "Pendiente"}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("actions") && (
+                          <TableCell>
+                            <div className="flex gap-1">
+                              <Dialog
+                                open={assigningBib === reg.id}
+                                onOpenChange={(open) => {
+                                  if (!open) {
+                                    setAssigningBib(null);
+                                    setBibNumber("");
+                                  }
+                                }}
+                              >
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setAssigningBib(reg.id);
+                                      setBibNumber(reg.bib_number?.toString() || "");
                                     }}
                                   >
-                                    Eliminar
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                            
-                            <RegistrationResponsesView registrationId={reg.id} />
-                          </div>
-                        </TableCell>
+                                    <Hash className="h-4 w-4" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Asignar Dorsal</DialogTitle>
+                                    <DialogDescription>
+                                      Asignar número de dorsal a {firstName} {lastName}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 mt-4">
+                                    <div className="space-y-2">
+                                      <Label htmlFor="bib">Número de Dorsal</Label>
+                                      <Input
+                                        id="bib"
+                                        type="number"
+                                        min="1"
+                                        value={bibNumber}
+                                        onChange={(e) => setBibNumber(e.target.value)}
+                                        placeholder="Ej: 123"
+                                      />
+                                    </div>
+                                    <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
+                                      Asignar
+                                    </Button>
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                              <Button variant="outline" size="sm" onClick={() => openEditDialog(reg)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+
+                              <AlertDialog open={deleteDialogId === reg.id} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="outline" size="sm" onClick={() => setDeleteDialogId(reg.id)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>¿Eliminar inscripción?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Esta acción eliminará la inscripción de {firstName} {lastName} y no se puede deshacer.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        handleDelete(reg.id);
+                                      }}
+                                    >
+                                      Eliminar
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                              
+                              <RegistrationResponsesView registrationId={reg.id} />
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })
@@ -1038,6 +1153,74 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               </TableBody>
             </Table>
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <div className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronsLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-1 mx-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        className="w-8"
+                        onClick={() => goToPage(pageNum)}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronsRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
