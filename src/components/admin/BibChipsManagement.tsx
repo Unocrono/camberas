@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -44,8 +44,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Pencil, Trash2, Search, Cpu } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Search, Cpu, Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 
 interface BibChip {
   id: string;
@@ -90,6 +92,14 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chipToDelete, setChipToDelete] = useState<BibChip | null>(null);
   const [saving, setSaving] = useState(false);
+  
+  // Import CSV states
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importDistanceId, setImportDistanceId] = useState<string>("");
+  const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importResults, setImportResults] = useState<{ success: number; errors: string[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -282,6 +292,132 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
     }
   };
 
+  // CSV Import functions
+  const parseCSVLine = (line: string): string[] => {
+    // Detect separator: tab or comma
+    const tabCount = (line.match(/\t/g) || []).length;
+    const commaCount = (line.match(/,/g) || []).length;
+    const separator = tabCount > commaCount ? "\t" : ",";
+    
+    return line.split(separator).map(cell => cell.trim().replace(/^["']|["']$/g, ''));
+  };
+
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !importDistanceId) return;
+
+    setImporting(true);
+    setImportProgress(0);
+    setImportResults(null);
+
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(line => line.trim());
+      
+      if (lines.length === 0) {
+        throw new Error("El archivo está vacío");
+      }
+
+      // Parse header to detect column positions
+      const header = parseCSVLine(lines[0].toLowerCase());
+      const dorsalIndex = header.findIndex(h => 
+        h.includes("dorsal") || h.includes("bib") || h === "numero" || h === "nº"
+      );
+      const chip1Index = header.findIndex(h => 
+        h === "chip" || h === "chip1" || h === "chip_1" || h === "chip_code"
+      );
+      
+      // If no header detected, assume first column is dorsal, rest are chips
+      const hasHeader = dorsalIndex >= 0 || chip1Index >= 0;
+      const startRow = hasHeader ? 1 : 0;
+      
+      const dataRows = lines.slice(startRow);
+      const errors: string[] = [];
+      let successCount = 0;
+      
+      // Process in batches of 50
+      const batchSize = 50;
+      for (let i = 0; i < dataRows.length; i += batchSize) {
+        const batch = dataRows.slice(i, i + batchSize);
+        const chipsToInsert: any[] = [];
+        
+        for (const line of batch) {
+          const cells = parseCSVLine(line);
+          if (cells.length < 2) continue;
+          
+          // Get dorsal from first column or detected column
+          const dorsalCol = dorsalIndex >= 0 ? dorsalIndex : 0;
+          const bib = parseInt(cells[dorsalCol]);
+          
+          if (isNaN(bib)) {
+            errors.push(`Línea inválida: "${line.substring(0, 50)}..." - Dorsal no numérico`);
+            continue;
+          }
+          
+          // Get chips from remaining columns
+          const chipStartIndex = dorsalCol === 0 ? 1 : (chip1Index >= 0 ? chip1Index : 1);
+          const chips = cells.slice(chipStartIndex).filter(c => c.trim());
+          
+          if (chips.length === 0) {
+            errors.push(`Dorsal ${bib}: Sin chips`);
+            continue;
+          }
+          
+          chipsToInsert.push({
+            race_id: selectedRaceId,
+            race_distance_id: importDistanceId,
+            bib_number: bib,
+            chip_code: chips[0] || null,
+            chip_code_2: chips[1] || null,
+            chip_code_3: chips[2] || null,
+            chip_code_4: chips[3] || null,
+            chip_code_5: chips[4] || null,
+          });
+        }
+        
+        if (chipsToInsert.length > 0) {
+          const { error } = await supabase
+            .from("bib_chips")
+            .upsert(chipsToInsert, { 
+              onConflict: "race_distance_id,bib_number",
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            errors.push(`Error en lote: ${error.message}`);
+          } else {
+            successCount += chipsToInsert.length;
+          }
+        }
+        
+        setImportProgress(Math.round(((i + batch.length) / dataRows.length) * 100));
+      }
+      
+      setImportResults({ success: successCount, errors });
+      
+      if (successCount > 0) {
+        toast({ 
+          title: "Importación completada", 
+          description: `${successCount} chips importados correctamente` 
+        });
+        fetchBibChips();
+      }
+    } catch (error: any) {
+      console.error("Error importing CSV:", error);
+      setImportResults({ success: 0, errors: [error.message] });
+      toast({
+        title: "Error de importación",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   const filteredChips = bibChips.filter((chip) => {
     const matchesSearch =
       searchTerm === "" ||
@@ -328,10 +464,20 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
               Asigna chips RFID a los dorsales por evento
             </CardDescription>
           </div>
-          <Button onClick={handleOpenCreate}>
-            <Plus className="h-4 w-4 mr-2" />
-            Añadir Chip
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => {
+              setImportDistanceId(filterDistanceId || (distances[0]?.id || ""));
+              setImportResults(null);
+              setImportDialogOpen(true);
+            }}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar CSV
+            </Button>
+            <Button onClick={handleOpenCreate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Añadir Chip
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -566,6 +712,109 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {editingChip ? "Guardar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import CSV Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Importar Chips desde CSV
+            </DialogTitle>
+            <DialogDescription>
+              Sube un archivo CSV con columnas: dorsal, chip1, chip2, chip3, chip4, chip5
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Evento destino *</Label>
+              <Select value={importDistanceId} onValueChange={setImportDistanceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distances.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.distance_km}km)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Formato aceptado:</strong>
+                <ul className="list-disc list-inside mt-2 text-sm">
+                  <li>Separadores: coma (,) o tabulador</li>
+                  <li>Primera columna: dorsal</li>
+                  <li>Columnas siguientes: chip1, chip2...</li>
+                  <li>Cabecera opcional</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="csv-file">Archivo CSV</Label>
+              <Input
+                id="csv-file"
+                type="file"
+                accept=".csv,.txt,.tsv"
+                ref={fileInputRef}
+                onChange={handleImportCSV}
+                disabled={importing || !importDistanceId}
+              />
+            </div>
+
+            {importing && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Importando...
+                </div>
+                <Progress value={importProgress} />
+              </div>
+            )}
+
+            {importResults && (
+              <div className="space-y-2">
+                {importResults.success > 0 && (
+                  <Alert className="border-green-500/50 bg-green-500/10">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription className="text-green-700">
+                      {importResults.success} chips importados correctamente
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {importResults.errors.length > 0 && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="font-medium">{importResults.errors.length} error(es):</div>
+                      <ul className="list-disc list-inside text-sm max-h-32 overflow-y-auto mt-1">
+                        {importResults.errors.slice(0, 5).map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                        {importResults.errors.length > 5 && (
+                          <li>...y {importResults.errors.length - 5} más</li>
+                        )}
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
