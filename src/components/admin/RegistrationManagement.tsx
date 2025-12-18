@@ -10,8 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Download, Filter, Hash, Plus, Pencil, Trash2 } from "lucide-react";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload } from "lucide-react";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
+import { RegistrationImportDialog } from "./RegistrationImportDialog";
 
 interface Registration {
   id: string;
@@ -109,6 +110,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Bib assignment
   const [assigningBib, setAssigningBib] = useState<string | null>(null);
   const [bibNumber, setBibNumber] = useState("");
+  
+  // Import dialog
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -508,12 +512,30 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             <Plus className="h-4 w-4" />
             Nueva Inscripción
           </Button>
+          <Button 
+            onClick={() => setIsImportOpen(true)} 
+            variant="outline" 
+            className="gap-2"
+            disabled={!selectedRaceId && selectedRace === "all"}
+          >
+            <Upload className="h-4 w-4" />
+            Importar CSV
+          </Button>
           <Button onClick={exportToCSV} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
             <Download className="h-4 w-4" />
             Exportar CSV
           </Button>
         </div>
       </div>
+
+      {/* Import Dialog */}
+      <RegistrationImportDialog
+        open={isImportOpen}
+        onOpenChange={setIsImportOpen}
+        raceId={selectedRaceId || (selectedRace !== "all" ? selectedRace : "")}
+        distanceId={selectedDistance !== "all" ? selectedDistance : undefined}
+        onImportComplete={fetchData}
+      />
 
       {/* Filters */}
       <Card>
