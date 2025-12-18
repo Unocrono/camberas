@@ -68,6 +68,16 @@ interface DetectedFormat {
   dateFormat: string;
 }
 
+type ImportMode = 'auto' | 'simple';
+
+interface SimpleFormatConfig {
+  separator: string;
+  chipColumn: number;
+  timeColumn: number;
+  dateFormat: 'time_only' | 'date_time_eu' | 'date_time_us' | 'date_time_iso';
+  timeFormat: 'hms' | 'hms_ms';
+}
+
 interface ImportResult {
   total: number;
   imported: number;
@@ -229,6 +239,16 @@ export function RFIDImportDialog({
   const [parsedReadings, setParsedReadings] = useState<ParsedReading[]>([]);
   const [bibChips, setBibChips] = useState<BibChip[]>([]);
   
+  // Import mode
+  const [importMode, setImportMode] = useState<ImportMode>('auto');
+  const [simpleConfig, setSimpleConfig] = useState<SimpleFormatConfig>({
+    separator: ',',
+    chipColumn: 1,
+    timeColumn: 2,
+    dateFormat: 'time_only',
+    timeFormat: 'hms_ms',
+  });
+  
   // Form fields
   const [selectedTimingPointId, setSelectedTimingPointId] = useState<string>("");
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
@@ -257,6 +277,64 @@ export function RFIDImportDialog({
     }
   }, [raceId]);
 
+  // Parse simple format line
+  const parseSimpleLine = useCallback((
+    line: string,
+    config: SimpleFormatConfig,
+    defaultDateStr: string
+  ): { chipCode: string; timestamp: Date } | null => {
+    const parts = line.split(config.separator);
+    if (parts.length < Math.max(config.chipColumn, config.timeColumn)) return null;
+
+    const chipCode = parts[config.chipColumn - 1]?.trim();
+    const timeStr = parts[config.timeColumn - 1]?.replace(/"/g, '').trim();
+
+    if (!chipCode || !timeStr) return null;
+
+    let timestamp: Date;
+
+    try {
+      if (config.dateFormat === 'time_only') {
+        // Only time: HH:MM:SS or HH:MM:SS.mmm
+        const match = config.timeFormat === 'hms_ms'
+          ? timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})\.?(\d*)/)
+          : timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
+        if (!match) return null;
+        const [, hours, minutes, seconds, ms] = match;
+        const dateObj = new Date(defaultDateStr);
+        dateObj.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
+        timestamp = dateObj;
+      } else if (config.dateFormat === 'date_time_eu') {
+        // DD/MM/YYYY HH:MM:SS
+        const match = timeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\.?(\d*)/);
+        if (!match) return null;
+        const [, day, month, year, hours, minutes, seconds, ms] = match;
+        timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+          parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
+      } else if (config.dateFormat === 'date_time_us') {
+        // MM/DD/YYYY HH:MM:SS
+        const match = timeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\.?(\d*)/);
+        if (!match) return null;
+        const [, month, day, year, hours, minutes, seconds, ms] = match;
+        timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+          parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
+      } else {
+        // ISO: YYYY-MM-DD HH:MM:SS
+        const match = timeStr.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2}):(\d{2})\.?(\d*)/);
+        if (!match) return null;
+        const [, year, month, day, hours, minutes, seconds, ms] = match;
+        timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day),
+          parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
+      }
+    } catch {
+      return null;
+    }
+
+    if (isNaN(timestamp.getTime())) return null;
+
+    return { chipCode, timestamp };
+  }, []);
+
   // Handle file selection
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
@@ -272,18 +350,20 @@ export function RFIDImportDialog({
 
       const lines = content.split('\n').filter(line => line.trim().length > 0);
       
-      // Detect format
-      const format = detectFormat(lines);
-      setDetectedFormat(format);
+      if (importMode === 'auto') {
+        // Detect format automatically
+        const format = detectFormat(lines);
+        setDetectedFormat(format);
 
-      if (!format) {
-        toast({
-          title: "Formato no reconocido",
-          description: "El archivo no tiene un formato válido de lecturas RFID",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
+        if (!format) {
+          toast({
+            title: "Formato no reconocido automáticamente",
+            description: "Prueba con el modo 'Formato Simple' para configurar manualmente",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
       }
 
       // Load bib_chips mapping
@@ -304,13 +384,32 @@ export function RFIDImportDialog({
 
   // Parse and resolve readings when settings change
   const parseAndResolve = useCallback(() => {
-    if (!fileContent || !detectedFormat) return;
+    if (!fileContent) return;
+    
+    // For auto mode, require detected format
+    if (importMode === 'auto' && !detectedFormat) return;
 
     const lines = fileContent.split('\n').filter(line => line.trim().length > 0);
     const readings: ParsedReading[] = [];
 
     for (const line of lines) {
-      const parsed = parseLine(line, detectedFormat, defaultDate);
+      let parsed: { readerId?: string; chipCode: string; bibNumber?: number | null; timestamp: Date } | null = null;
+      
+      if (importMode === 'simple') {
+        // Use simple format parser
+        const simpleParsed = parseSimpleLine(line, simpleConfig, defaultDate);
+        if (simpleParsed) {
+          parsed = {
+            readerId: '',
+            chipCode: simpleParsed.chipCode,
+            bibNumber: null,
+            timestamp: simpleParsed.timestamp,
+          };
+        }
+      } else {
+        // Use auto format parser
+        parsed = parseLine(line, detectedFormat!, defaultDate);
+      }
       
       if (!parsed) {
         readings.push({
@@ -328,13 +427,13 @@ export function RFIDImportDialog({
       }
 
       // Try to resolve chip to bib number
-      let resolvedBib = parsed.bibNumber;
+      let resolvedBib = parsed.bibNumber || null;
       let resolvedDistanceId: string | null = selectedDistanceId || null;
 
       if (!resolvedBib) {
         // Look up in bib_chips
         const chipMatch = bibChips.find(bc => {
-          const chipLower = parsed.chipCode.toLowerCase();
+          const chipLower = parsed!.chipCode.toLowerCase();
           return (
             bc.chip_code?.toLowerCase() === chipLower ||
             bc.chip_code_2?.toLowerCase() === chipLower ||
@@ -351,9 +450,9 @@ export function RFIDImportDialog({
       }
 
       readings.push({
-        reader_id: parsed.readerId,
+        reader_id: parsed.readerId || '',
         chip_code: parsed.chipCode,
-        bib_number: parsed.bibNumber,
+        bib_number: parsed.bibNumber || null,
         timestamp: parsed.timestamp,
         raw_line: line,
         resolved_bib: resolvedBib,
@@ -364,7 +463,7 @@ export function RFIDImportDialog({
     }
 
     setParsedReadings(readings);
-  }, [fileContent, detectedFormat, defaultDate, bibChips, selectedDistanceId]);
+  }, [fileContent, detectedFormat, defaultDate, bibChips, selectedDistanceId, importMode, simpleConfig, parseSimpleLine]);
 
   // Re-parse when settings change
   const handleSettingsChange = useCallback(() => {
@@ -373,7 +472,7 @@ export function RFIDImportDialog({
 
   // Initial parse when entering preview step
   useState(() => {
-    if (step === 'preview' && fileContent && detectedFormat) {
+    if (step === 'preview' && fileContent && (detectedFormat || importMode === 'simple')) {
       parseAndResolve();
     }
   });
@@ -480,6 +579,7 @@ export function RFIDImportDialog({
     setParsedReadings([]);
     setImportResult(null);
     setStep('upload');
+    // Don't reset importMode or simpleConfig to preserve user's preference
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -510,6 +610,130 @@ export function RFIDImportDialog({
         <div className="flex-1 overflow-hidden">
           {step === 'upload' && (
             <div className="space-y-6 py-4">
+              {/* Import Mode Selection */}
+              <div className="space-y-2">
+                <Label>Modo de importación</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Card 
+                    className={`p-4 cursor-pointer transition-colors ${importMode === 'auto' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/50'}`}
+                    onClick={() => setImportMode('auto')}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${importMode === 'auto' ? 'border-primary bg-primary' : 'border-muted-foreground/50'}`} />
+                      <span className="font-medium">Automático</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Detecta formato RFID Timing estándar (4 columnas)
+                    </p>
+                  </Card>
+                  <Card 
+                    className={`p-4 cursor-pointer transition-colors ${importMode === 'simple' ? 'border-primary bg-primary/5' : 'hover:border-muted-foreground/50'}`}
+                    onClick={() => setImportMode('simple')}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-4 h-4 rounded-full border-2 ${importMode === 'simple' ? 'border-primary bg-primary' : 'border-muted-foreground/50'}`} />
+                      <span className="font-medium">Formato Simple</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Configura columnas manualmente (Chip, Hora)
+                    </p>
+                  </Card>
+                </div>
+              </div>
+
+              {/* Simple format configuration */}
+              {importMode === 'simple' && (
+                <Card>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label>Separador</Label>
+                        <Select 
+                          value={simpleConfig.separator} 
+                          onValueChange={(v) => setSimpleConfig(c => ({ ...c, separator: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value=",">Coma (,)</SelectItem>
+                            <SelectItem value=";">Punto y coma (;)</SelectItem>
+                            <SelectItem value="\t">Tabulador</SelectItem>
+                            <SelectItem value=" ">Espacio</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Columna Chip</Label>
+                        <Select 
+                          value={simpleConfig.chipColumn.toString()} 
+                          onValueChange={(v) => setSimpleConfig(c => ({ ...c, chipColumn: parseInt(v) }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <SelectItem key={n} value={n.toString()}>Columna {n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Columna Hora</Label>
+                        <Select 
+                          value={simpleConfig.timeColumn.toString()} 
+                          onValueChange={(v) => setSimpleConfig(c => ({ ...c, timeColumn: parseInt(v) }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[1, 2, 3, 4, 5].map(n => (
+                              <SelectItem key={n} value={n.toString()}>Columna {n}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Formato de fecha</Label>
+                        <Select 
+                          value={simpleConfig.dateFormat} 
+                          onValueChange={(v: any) => setSimpleConfig(c => ({ ...c, dateFormat: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="time_only">Solo hora (HH:MM:SS)</SelectItem>
+                            <SelectItem value="date_time_eu">DD/MM/YYYY HH:MM:SS</SelectItem>
+                            <SelectItem value="date_time_us">MM/DD/YYYY HH:MM:SS</SelectItem>
+                            <SelectItem value="date_time_iso">YYYY-MM-DD HH:MM:SS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Formato de hora</Label>
+                        <Select 
+                          value={simpleConfig.timeFormat} 
+                          onValueChange={(v: any) => setSimpleConfig(c => ({ ...c, timeFormat: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="hms">HH:MM:SS</SelectItem>
+                            <SelectItem value="hms_ms">HH:MM:SS.mmm</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* File Upload */}
               <div 
                 className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
@@ -532,23 +756,28 @@ export function RFIDImportDialog({
                     <Upload className="h-10 w-10 text-muted-foreground" />
                     <p className="font-medium">Haz clic para seleccionar un archivo</p>
                     <p className="text-sm text-muted-foreground">
-                      Formatos soportados: .txt del lector RFID Timing
+                      {importMode === 'auto' 
+                        ? 'Formatos soportados: .txt del lector RFID Timing'
+                        : 'Cualquier archivo .txt o .csv con Chip y Hora'
+                      }
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Format info */}
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>Formatos soportados</AlertTitle>
-                <AlertDescription className="mt-2 space-y-1 text-sm">
-                  <p>• ID_Lector, Chip, 0, "HH:MM:SS.mmm"</p>
-                  <p>• ID_Lector, Chip, Chip, "HH:MM:SS.mmm"</p>
-                  <p>• ID_Lector, Chip, Dorsal, "HH:MM:SS.mmm"</p>
-                  <p>• Con fecha: "DD/MM/YYYY HH:MM:SS" o "YYYY-MM-DD HH:MM:SS"</p>
-                </AlertDescription>
-              </Alert>
+              {/* Format info - only for auto mode */}
+              {importMode === 'auto' && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Formatos detectados automáticamente</AlertTitle>
+                  <AlertDescription className="mt-2 space-y-1 text-sm">
+                    <p>• ID_Lector, Chip, 0, "HH:MM:SS.mmm"</p>
+                    <p>• ID_Lector, Chip, Chip, "HH:MM:SS.mmm"</p>
+                    <p>• ID_Lector, Chip, Dorsal, "HH:MM:SS.mmm"</p>
+                    <p>• Con fecha: "DD/MM/YYYY HH:MM:SS" o "YYYY-MM-DD HH:MM:SS"</p>
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           )}
 
@@ -561,6 +790,7 @@ export function RFIDImportDialog({
                   <p className="font-medium">{file?.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {parsedReadings.length} líneas • {uniqueChips} chips únicos
+                    {importMode === 'simple' && ' • Formato simple'}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleReset}>
@@ -568,8 +798,8 @@ export function RFIDImportDialog({
                 </Button>
               </div>
 
-              {/* Detected format */}
-              {detectedFormat && (
+              {/* Detected format - only for auto mode */}
+              {importMode === 'auto' && detectedFormat && (
                 <Alert>
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
                   <AlertTitle>Formato detectado</AlertTitle>
@@ -578,12 +808,24 @@ export function RFIDImportDialog({
                   </AlertDescription>
                 </Alert>
               )}
+              
+              {/* Simple format info */}
+              {importMode === 'simple' && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertTitle>Formato configurado</AlertTitle>
+                  <AlertDescription>
+                    Chip en columna {simpleConfig.chipColumn}, Hora en columna {simpleConfig.timeColumn} 
+                    {simpleConfig.dateFormat === 'time_only' && ` (usando fecha: ${defaultDate})`}
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Settings */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    {!detectedFormat?.hasDate && (
+                    {(importMode === 'simple' && simpleConfig.dateFormat === 'time_only') || (importMode === 'auto' && !detectedFormat?.hasDate) ? (
                       <div className="space-y-2">
                         <Label>Fecha de las lecturas *</Label>
                         <Input
@@ -595,7 +837,7 @@ export function RFIDImportDialog({
                           }}
                         />
                       </div>
-                    )}
+                    ) : null}
                     <div className="space-y-2">
                       <Label>ID del Lector</Label>
                       <Input
