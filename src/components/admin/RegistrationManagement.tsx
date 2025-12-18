@@ -155,20 +155,35 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   // Bulk action handlers
   const handleBulkDelete = async () => {
+    console.log("handleBulkDelete called with ids:", Array.from(selectedRows));
     setBulkActionLoading(true);
     try {
       const ids = Array.from(selectedRows);
-      const { error } = await supabase
+      const { error, count } = await supabase
         .from("registrations")
         .delete()
-        .in("id", ids);
-      if (error) throw error;
+        .in("id", ids)
+        .select();
+      
+      console.log("Bulk delete result:", { error, count });
+      
+      if (error) {
+        console.error("Bulk delete error:", error);
+        throw error;
+      }
+      
       toast({ title: `${ids.length} inscripciones eliminadas` });
       setSelectedRows(new Set());
       setBulkDeleteDialog(false);
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error("Bulk delete catch error:", error);
+      toast({ 
+        title: "Error al eliminar", 
+        description: error.message || "No se pudieron eliminar las inscripciones", 
+        variant: "destructive" 
+      });
+      setBulkDeleteDialog(false);
     } finally {
       setBulkActionLoading(false);
     }
@@ -555,14 +570,31 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   };
 
   const handleDelete = async (id: string) => {
+    console.log("handleDelete called with id:", id);
     try {
-      const { error } = await supabase.from("registrations").delete().eq("id", id);
-      if (error) throw error;
+      const { error, count } = await supabase
+        .from("registrations")
+        .delete()
+        .eq("id", id)
+        .select();
+      
+      console.log("Delete result:", { error, count });
+      
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
+      
       toast({ title: "Inscripción eliminada" });
       setDeleteDialogId(null);
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      console.error("Delete catch error:", error);
+      toast({ 
+        title: "Error al eliminar", 
+        description: error.message || "No se pudo eliminar la inscripción", 
+        variant: "destructive" 
+      });
       setDeleteDialogId(null);
     }
   };
@@ -984,7 +1016,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDelete(reg.id)}>
+                                  <AlertDialogAction 
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleDelete(reg.id);
+                                    }}
+                                  >
                                     Eliminar
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
