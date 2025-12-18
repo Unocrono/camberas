@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload } from "lucide-react";
@@ -113,6 +114,32 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   
   // Import dialog
   const [isImportOpen, setIsImportOpen] = useState(false);
+  
+  // Row selection
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+
+  const toggleRowSelection = (id: string) => {
+    setSelectedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleAllRows = () => {
+    if (selectedRows.size === filteredRegistrations.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredRegistrations.map(r => r.id)));
+    }
+  };
+
+  const isAllSelected = filteredRegistrations.length > 0 && selectedRows.size === filteredRegistrations.length;
+  const isSomeSelected = selectedRows.size > 0 && selectedRows.size < filteredRegistrations.length;
 
   useEffect(() => {
     fetchData();
@@ -129,6 +156,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   useEffect(() => {
     applyFilters();
+    setSelectedRows(new Set()); // Clear selection when filters change
   }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm]);
 
   useEffect(() => {
@@ -591,6 +619,18 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         </CardContent>
       </Card>
 
+      {/* Selection indicator */}
+      {selectedRows.size > 0 && (
+        <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg border">
+          <span className="text-sm font-medium">
+            {selectedRows.size} inscripción{selectedRows.size !== 1 ? "es" : ""} seleccionada{selectedRows.size !== 1 ? "s" : ""}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())}>
+            Deseleccionar
+          </Button>
+        </div>
+      )}
+
       {/* Registrations Table */}
       <Card>
         <CardContent className="p-0">
@@ -598,6 +638,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={toggleAllRows}
+                      aria-label="Seleccionar todas"
+                      className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                    />
+                  </TableHead>
                   <TableHead>Participante</TableHead>
                   <TableHead>DNI</TableHead>
                   <TableHead>Tipo</TableHead>
@@ -612,7 +660,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <TableBody>
                 {filteredRegistrations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       No se encontraron inscripciones
                     </TableCell>
                   </TableRow>
@@ -624,7 +672,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
                     
                     return (
-                      <TableRow key={reg.id}>
+                      <TableRow key={reg.id} data-state={selectedRows.has(reg.id) ? "selected" : undefined}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedRows.has(reg.id)}
+                            onCheckedChange={() => toggleRowSelection(reg.id)}
+                            aria-label={`Seleccionar ${firstName} ${lastName}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div>
                             {firstName} {lastName}
