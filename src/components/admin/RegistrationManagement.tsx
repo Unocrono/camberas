@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route } from "lucide-react";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 
@@ -117,6 +118,16 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   
   // Row selection
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  
+  // Bulk actions
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkStatusDialog, setBulkStatusDialog] = useState(false);
+  const [bulkPaymentDialog, setBulkPaymentDialog] = useState(false);
+  const [bulkDistanceDialog, setBulkDistanceDialog] = useState(false);
+  const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [bulkStatus, setBulkStatus] = useState("confirmed");
+  const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
+  const [bulkDistanceId, setBulkDistanceId] = useState("");
 
   const toggleRowSelection = (id: string) => {
     setSelectedRows(prev => {
@@ -140,6 +151,164 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   const isAllSelected = filteredRegistrations.length > 0 && selectedRows.size === filteredRegistrations.length;
   const isSomeSelected = selectedRows.size > 0 && selectedRows.size < filteredRegistrations.length;
+
+  // Bulk action handlers
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const { error } = await supabase
+        .from("registrations")
+        .delete()
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `${ids.length} inscripciones eliminadas` });
+      setSelectedRows(new Set());
+      setBulkDeleteDialog(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkStatus = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const { error } = await supabase
+        .from("registrations")
+        .update({ status: bulkStatus })
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Estado actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkStatusDialog(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkPaymentStatus = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const { error } = await supabase
+        .from("registrations")
+        .update({ payment_status: bulkPaymentStatus })
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Estado de pago actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkPaymentDialog(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkDistance = async () => {
+    if (!bulkDistanceId) {
+      toast({ title: "Selecciona un recorrido", variant: "destructive" });
+      return;
+    }
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const { error } = await supabase
+        .from("registrations")
+        .update({ race_distance_id: bulkDistanceId })
+        .in("id", ids);
+      if (error) throw error;
+      toast({ title: `Recorrido actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkDistanceDialog(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkAssignBibs = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      // Get the registrations to assign bibs, ordered by creation date
+      const selectedRegs = filteredRegistrations
+        .filter(r => ids.includes(r.id))
+        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      // Group by distance to assign bibs correctly per distance range
+      const byDistance = new Map<string, Registration[]>();
+      selectedRegs.forEach(reg => {
+        const list = byDistance.get(reg.race_distance_id) || [];
+        list.push(reg);
+        byDistance.set(reg.race_distance_id, list);
+      });
+
+      let totalAssigned = 0;
+      for (const [distanceId, regs] of byDistance) {
+        // Get distance info for bib range
+        const { data: distanceData } = await supabase
+          .from("race_distances")
+          .select("bib_start, bib_end, next_bib")
+          .eq("id", distanceId)
+          .single();
+        
+        if (!distanceData?.bib_start) {
+          toast({ 
+            title: "Advertencia", 
+            description: `Recorrido sin rango de dorsales configurado`,
+            variant: "destructive"
+          });
+          continue;
+        }
+
+        let nextBib = distanceData.next_bib || distanceData.bib_start;
+        const maxBib = distanceData.bib_end || 99999;
+
+        for (const reg of regs) {
+          if (reg.bib_number) continue; // Skip if already has bib
+          if (nextBib > maxBib) {
+            toast({ title: "Advertencia", description: "Se agotaron los dorsales disponibles" });
+            break;
+          }
+
+          const { error } = await supabase
+            .from("registrations")
+            .update({ bib_number: nextBib })
+            .eq("id", reg.id);
+          
+          if (!error) {
+            nextBib++;
+            totalAssigned++;
+          }
+        }
+
+        // Update next_bib for the distance
+        await supabase
+          .from("race_distances")
+          .update({ next_bib: nextBib })
+          .eq("id", distanceId);
+      }
+
+      toast({ title: `${totalAssigned} dorsales asignados automáticamente` });
+      setSelectedRows(new Set());
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -619,12 +788,45 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         </CardContent>
       </Card>
 
-      {/* Selection indicator */}
+      {/* Selection indicator and bulk actions */}
       {selectedRows.size > 0 && (
         <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg border">
           <span className="text-sm font-medium">
             {selectedRows.size} inscripción{selectedRows.size !== 1 ? "es" : ""} seleccionada{selectedRows.size !== 1 ? "s" : ""}
           </span>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="default" size="sm" className="gap-2" disabled={bulkActionLoading}>
+                {bulkActionLoading ? "Procesando..." : "Acciones masivas"}
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="bg-popover">
+              <DropdownMenuItem onClick={() => setBulkStatusDialog(true)}>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Cambiar estado
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkPaymentDialog(true)}>
+                <CreditCard className="h-4 w-4 mr-2" />
+                Cambiar estado de pago
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkDistanceDialog(true)}>
+                <Route className="h-4 w-4 mr-2" />
+                Cambiar recorrido
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleBulkAssignBibs}>
+                <Hash className="h-4 w-4 mr-2" />
+                Asignar dorsales automáticamente
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setBulkDeleteDialog(true)} className="text-destructive focus:text-destructive">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar seleccionadas
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button variant="ghost" size="sm" onClick={() => setSelectedRows(new Set())}>
             Deseleccionar
           </Button>
@@ -1020,6 +1222,125 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Status Dialog */}
+      <Dialog open={bulkStatusDialog} onOpenChange={setBulkStatusDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar estado masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el estado de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nuevo estado</Label>
+              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="confirmed">Confirmada</SelectItem>
+                  <SelectItem value="cancelled">Cancelada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkStatusDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkStatus} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Payment Status Dialog */}
+      <Dialog open={bulkPaymentDialog} onOpenChange={setBulkPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar estado de pago masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el estado de pago de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nuevo estado de pago</Label>
+              <Select value={bulkPaymentStatus} onValueChange={setBulkPaymentStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Pendiente</SelectItem>
+                  <SelectItem value="paid">Pagado</SelectItem>
+                  <SelectItem value="refunded">Reembolsado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPaymentDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkPaymentStatus} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Distance Dialog */}
+      <Dialog open={bulkDistanceDialog} onOpenChange={setBulkDistanceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar recorrido masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el recorrido de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nuevo recorrido</Label>
+              <Select value={bulkDistanceId} onValueChange={setBulkDistanceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar recorrido" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distances.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name} ({d.distance_km}km)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDistanceDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkDistance} disabled={bulkActionLoading || !bulkDistanceId}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <AlertDialog open={bulkDeleteDialog} onOpenChange={setBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedRows.size} inscripciones?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente las inscripciones seleccionadas y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
