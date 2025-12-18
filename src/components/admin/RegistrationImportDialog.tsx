@@ -476,6 +476,36 @@ export function RegistrationImportDialog({
     return { valid: errors.length === 0, errors };
   };
 
+  // Convert date from DD/MM/YYYY or D/M/YYYY to YYYY-MM-DD (ISO format for PostgreSQL)
+  const convertDateFormat = (dateStr: string): string | null => {
+    if (!dateStr || !dateStr.trim()) return null;
+    
+    const trimmed = dateStr.trim();
+    
+    // Already in ISO format (YYYY-MM-DD)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+    
+    // Try DD/MM/YYYY or D/M/YYYY format
+    const match = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (match) {
+      const [, day, month, year] = match;
+      const paddedDay = day.padStart(2, '0');
+      const paddedMonth = month.padStart(2, '0');
+      return `${year}-${paddedMonth}-${paddedDay}`;
+    }
+    
+    // Try MM/DD/YYYY format (less common but possible)
+    const matchUS = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (matchUS) {
+      // Already handled above, this is just a fallback
+      return null;
+    }
+    
+    return null; // Invalid format
+  };
+
   const getMappedData = (row: CSVRow): Record<string, string> => {
     const data: Record<string, string> = {};
     columnMappings.forEach((mapping) => {
@@ -524,7 +554,7 @@ export function RegistrationImportDialog({
           guest_email: mappedData.guest_email || null,
           guest_phone: mappedData.guest_phone || null,
           guest_dni_passport: mappedData.guest_dni_passport || null,
-          guest_birth_date: mappedData.guest_birth_date || null,
+          guest_birth_date: convertDateFormat(mappedData.guest_birth_date),
           guest_emergency_contact: mappedData.guest_emergency_contact || null,
           guest_emergency_phone: mappedData.guest_emergency_phone || null,
           status: mappedData.status || "confirmed",
