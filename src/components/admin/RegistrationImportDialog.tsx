@@ -29,7 +29,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Plus } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Plus, Download } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface RegistrationImportDialogProps {
@@ -391,6 +391,56 @@ export function RegistrationImportDialog({
     }
   };
 
+  const downloadTemplate = useCallback(async () => {
+    // Fetch form fields for this race/distance
+    const { data: formFields } = await supabase
+      .from("registration_form_fields")
+      .select("field_label, is_required")
+      .or(`race_id.eq.${raceId}${selectedDistanceId ? `,race_distance_id.eq.${selectedDistanceId}` : ""}`)
+      .eq("is_visible", true)
+      .order("field_order");
+
+    // Base columns for template
+    const baseColumns = [
+      "Nombre",
+      "Apellidos",
+      "Email",
+      "Teléfono",
+      "DNI/Pasaporte",
+      "Fecha de Nacimiento (DD/MM/YYYY)",
+      "Dorsal",
+      "Contacto de Emergencia",
+      "Teléfono de Emergencia",
+    ];
+
+    // Add custom form field columns
+    const customColumns = formFields
+      ?.filter(f => !baseColumns.some(bc => bc.toLowerCase().includes(f.field_label.toLowerCase())))
+      .map(f => f.field_label) || [];
+
+    const allColumns = [...baseColumns, ...customColumns];
+    
+    // Create CSV content with BOM for Excel compatibility
+    const BOM = "\uFEFF";
+    const csvContent = BOM + allColumns.join(";") + "\n";
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "plantilla_inscripciones.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Plantilla descargada",
+      description: "Completa los datos y vuelve a subir el archivo",
+    });
+  }, [raceId, selectedDistanceId, toast]);
+
   const updateMapping = (csvColumn: string, field: string) => {
     setColumnMappings((prev) =>
       prev.map((m) => (m.csvColumn === csvColumn ? { ...m, field } : m))
@@ -574,8 +624,8 @@ export function RegistrationImportDialog({
         <div className="flex-1 overflow-hidden">
           {/* Step 1: Upload */}
           {step === "upload" && (
-            <div className="flex flex-col items-center justify-center py-12 gap-6">
-              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-12 text-center">
+            <div className="flex flex-col items-center justify-center py-8 gap-6">
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-10 text-center">
                 <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">
                   Arrastra un archivo CSV o haz clic para seleccionar
@@ -594,11 +644,22 @@ export function RegistrationImportDialog({
                 </label>
               </div>
 
+              <div className="flex items-center gap-4">
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-sm text-muted-foreground">o</span>
+                <div className="h-px flex-1 bg-border" />
+              </div>
+
+              <Button variant="outline" onClick={downloadTemplate} className="gap-2">
+                <Download className="h-4 w-4" />
+                Descargar plantilla CSV
+              </Button>
+
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  El archivo debe tener encabezados en la primera fila. Se detectarán automáticamente
-                  campos como nombre, email, teléfono, DNI, etc.
+                  Descarga la plantilla con los campos configurados para esta carrera. 
+                  El archivo usa <strong>punto y coma (;)</strong> como separador.
                 </AlertDescription>
               </Alert>
             </div>
