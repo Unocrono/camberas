@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      bib_chips: {
+        Row: {
+          bib_number: number
+          chip_code: string
+          chip_code_2: string | null
+          chip_code_3: string | null
+          chip_code_4: string | null
+          chip_code_5: string | null
+          created_at: string
+          id: string
+          race_distance_id: string
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          bib_number: number
+          chip_code: string
+          chip_code_2?: string | null
+          chip_code_3?: string | null
+          chip_code_4?: string | null
+          chip_code_5?: string | null
+          created_at?: string
+          id?: string
+          race_distance_id: string
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          bib_number?: number
+          chip_code?: string
+          chip_code_2?: string | null
+          chip_code_3?: string | null
+          chip_code_4?: string | null
+          chip_code_5?: string | null
+          created_at?: string
+          id?: string
+          race_distance_id?: string
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bib_chips_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bib_chips_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bib_designs: {
         Row: {
           background_color: string | null
@@ -1020,6 +1077,7 @@ export type Database = {
       registrations: {
         Row: {
           bib_number: number | null
+          chip_code: string | null
           created_at: string
           guest_birth_date: string | null
           guest_dni_passport: string | null
@@ -1039,6 +1097,7 @@ export type Database = {
         }
         Insert: {
           bib_number?: number | null
+          chip_code?: string | null
           created_at?: string
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
@@ -1058,6 +1117,7 @@ export type Database = {
         }
         Update: {
           bib_number?: number | null
+          chip_code?: string | null
           created_at?: string
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
