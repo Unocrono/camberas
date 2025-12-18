@@ -125,6 +125,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [bulkPaymentDialog, setBulkPaymentDialog] = useState(false);
   const [bulkDistanceDialog, setBulkDistanceDialog] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
@@ -558,9 +559,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const { error } = await supabase.from("registrations").delete().eq("id", id);
       if (error) throw error;
       toast({ title: "Inscripción eliminada" });
+      setDeleteDialogId(null);
       fetchData();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      setDeleteDialogId(null);
     }
   };
 
@@ -966,9 +969,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                               <Pencil className="h-4 w-4" />
                             </Button>
 
-                            <AlertDialog>
+                            <AlertDialog open={deleteDialogId === reg.id} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" onClick={() => setDeleteDialogId(reg.id)}>
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -981,12 +984,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction 
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      handleDelete(reg.id);
-                                    }}
-                                  >
+                                  <AlertDialogAction onClick={() => handleDelete(reg.id)}>
                                     Eliminar
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
