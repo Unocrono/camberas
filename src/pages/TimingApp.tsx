@@ -1426,6 +1426,18 @@ const TimingApp = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs hidden sm:flex">
+            {runners.length} dorsales
+          </Badge>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => selectedRace && fetchRunners(selectedRace.id)}
+            className="h-7 px-2"
+            title="Recargar dorsales"
+          >
+            <RefreshCw className="h-3 w-3" />
+          </Button>
           {isOnline ? (
             <Wifi className="h-4 w-4 text-green-500" />
           ) : (
@@ -1626,8 +1638,14 @@ const TimingApp = () => {
                 )}
                 {statusBibInput && !statusRunnerInfo && (
                   <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      Dorsal no encontrado en lista de inscritos
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                      Dorsal #{statusBibInput} no encontrado
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                      {runners.length > 0 
+                        ? `Hay ${runners.length} dorsales cargados (${Math.min(...runners.map(r => r.bib_number))}-${Math.max(...runners.map(r => r.bib_number))})`
+                        : "No hay dorsales cargados. Pulsa el botón ↻ en el header para recargar."
+                      }
                     </p>
                   </div>
                 )}
