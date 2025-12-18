@@ -1335,7 +1335,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkActionLoading}>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkDelete();
+              }} 
+              disabled={bulkActionLoading}
+            >
               {bulkActionLoading ? "Eliminando..." : "Eliminar"}
             </AlertDialogAction>
           </AlertDialogFooter>
