@@ -1,4 +1,4 @@
-import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag, ChevronDown, Satellite, Shirt } from "lucide-react";
+import { Calendar, Users, Home, Trophy, Timer, Zap, Route, HelpCircle, FolderOpen, MessageCircleQuestion, UserCheck, Map, Scale, FileText, MapPin, UserCog, Tag, MessageSquare, Settings, AlarmClock, Radio, Flag, ChevronDown, Satellite, Shirt, Cpu } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings" | "bib-chips";
 
 interface AdminSidebarProps {
   currentView: AdminView;
@@ -68,6 +68,7 @@ const menuGroups: MenuGroup[] = [
     label: "⏱️ Cronometraje",
     items: [
       { title: "Horas de Salida", view: "waves", icon: Flag },
+      { title: "Chips RFID", view: "bib-chips", icon: Cpu },
       { title: "Cronometradores", view: "timer-assignments", icon: AlarmClock },
       { title: "Resultados", view: "results", icon: Trophy },
       { title: "Estados de Resultado", view: "results-status", icon: Tag },

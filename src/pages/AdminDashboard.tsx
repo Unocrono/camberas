@@ -32,10 +32,11 @@ import { RaceResultsStatusManagement } from "@/components/admin/RaceResultsStatu
 import { WavesManagement } from "@/components/admin/WavesManagement";
 import { GPSTrackingViewer } from "@/components/admin/GPSTrackingViewer";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
+import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings";
+type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings" | "bib-chips";
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -237,6 +238,15 @@ const AdminDashboard = () => {
             {currentView === "gps-readings" && <GPSTrackingViewer selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "bib-chips" && (
+              selectedRaceId ? (
+                <BibChipsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar los chips RFID</p>
+                </div>
+              )
+            )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
             {currentView === "organizer-approval" && <OrganizerApprovalManagement />}
