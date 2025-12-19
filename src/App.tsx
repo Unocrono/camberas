@@ -87,7 +87,8 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
           {/* URL amigable con slug de carrera - DEBE estar antes del catch-all */}
-          <Route path="/:slug" element={<LiveResults />} />
+          <Route path="/:slug" element={<RaceDetail />} />
+          <Route path="/:slug/live" element={<LiveResults />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

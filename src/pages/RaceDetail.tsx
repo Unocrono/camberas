@@ -16,7 +16,8 @@ import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RoutePreviewMap } from "@/components/RoutePreviewMap";
 
 const RaceDetail = () => {
-  const { id } = useParams();
+  const { id, slug } = useParams();
+  const [raceId, setRaceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -33,9 +34,46 @@ const RaceDetail = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
 
+  // Resolve race ID from slug or direct ID
   useEffect(() => {
-    fetchRaceDetails();
-  }, [id]);
+    const resolveRaceId = async () => {
+      // Si es un UUID válido, usarlo directamente
+      if (id && id.length === 36 && id.includes('-')) {
+        setRaceId(id);
+        return;
+      }
+
+      // Si no, buscar por slug
+      const searchSlug = slug || id;
+      if (searchSlug) {
+        const { data, error } = await supabase
+          .from("races")
+          .select("id")
+          .eq("slug", searchSlug)
+          .single();
+
+        if (data && !error) {
+          setRaceId(data.id);
+        } else {
+          setRaceId(null);
+          toast({
+            title: "Carrera no encontrada",
+            description: "La carrera que buscas no existe",
+            variant: "destructive",
+          });
+          navigate("/races");
+        }
+      }
+    };
+
+    resolveRaceId();
+  }, [id, slug, navigate, toast]);
+
+  useEffect(() => {
+    if (raceId) {
+      fetchRaceDetails();
+    }
+  }, [raceId]);
 
   useEffect(() => {
     if (user) {
@@ -65,11 +103,13 @@ const RaceDetail = () => {
   }, [race?.date]);
 
   const fetchRaceDetails = async () => {
+    if (!raceId) return;
+    
     try {
       const { data: raceData, error: raceError } = await supabase
         .from("races")
         .select("*")
-        .eq("id", id)
+        .eq("id", raceId)
         .maybeSingle();
 
       if (raceError) throw raceError;
@@ -87,7 +127,7 @@ const RaceDetail = () => {
       const { data: distancesData, error: distancesError } = await supabase
         .from("race_distances")
         .select("*")
-        .eq("race_id", id)
+        .eq("race_id", raceId)
         .order("distance_km", { ascending: true });
 
       if (distancesError) throw distancesError;
@@ -95,7 +135,7 @@ const RaceDetail = () => {
       const { data: registrationsData, error: registrationsError } = await supabase
         .from("registrations")
         .select("race_distance_id")
-        .eq("race_id", id);
+        .eq("race_id", raceId);
 
       if (registrationsError) throw registrationsError;
 
@@ -103,7 +143,7 @@ const RaceDetail = () => {
       const { data: wavesData, error: wavesError } = await supabase
         .from("race_waves")
         .select("race_distance_id, start_time, wave_name")
-        .eq("race_id", id);
+        .eq("race_id", raceId);
 
       if (wavesError) throw wavesError;
 
@@ -131,7 +171,7 @@ const RaceDetail = () => {
       const { data: faqsData, error: faqsError } = await supabase
         .from("race_faqs")
         .select("*")
-        .eq("race_id", id)
+        .eq("race_id", raceId)
         .order("display_order");
 
       if (!faqsError && faqsData) {
@@ -254,7 +294,7 @@ const RaceDetail = () => {
           .from("registrations")
           .select("id")
           .eq("guest_email", email)
-          .eq("race_id", id)
+          .eq("race_id", raceId)
           .maybeSingle();
 
         if (checkError) throw checkError;
@@ -281,7 +321,7 @@ const RaceDetail = () => {
         const { data: newRegistration, error: registrationError } = await supabase
           .from("registrations")
           .insert({
-            race_id: id,
+            race_id: raceId,
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
@@ -347,7 +387,7 @@ const RaceDetail = () => {
           .from("registrations")
           .select("id")
           .eq("user_id", user.id)
-          .eq("race_id", id)
+          .eq("race_id", raceId)
           .maybeSingle();
 
         if (checkError) throw checkError;
@@ -390,7 +430,7 @@ const RaceDetail = () => {
           .from("registrations")
           .insert({
             user_id: user.id,
-            race_id: id,
+            race_id: raceId,
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
