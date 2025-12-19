@@ -34,35 +34,41 @@ const RaceDetail = () => {
   const [faqs, setFaqs] = useState<any[]>([]);
   const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
 
+  // Helper to validate UUID format
+  const isValidUUID = (str: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
   // Resolve race ID from slug or direct ID
   useEffect(() => {
     const resolveRaceId = async () => {
+      const param = slug || id;
+      if (!param) return;
+
       // Si es un UUID válido, usarlo directamente
-      if (id && id.length === 36 && id.includes('-')) {
-        setRaceId(id);
+      if (isValidUUID(param)) {
+        setRaceId(param);
         return;
       }
 
-      // Si no, buscar por slug
-      const searchSlug = slug || id;
-      if (searchSlug) {
-        const { data, error } = await supabase
-          .from("races")
-          .select("id")
-          .eq("slug", searchSlug)
-          .single();
+      // Si no es UUID, buscar por slug
+      const { data, error } = await supabase
+        .from("races")
+        .select("id")
+        .eq("slug", param)
+        .maybeSingle();
 
-        if (data && !error) {
-          setRaceId(data.id);
-        } else {
-          setRaceId(null);
-          toast({
-            title: "Carrera no encontrada",
-            description: "La carrera que buscas no existe",
-            variant: "destructive",
-          });
-          navigate("/races");
-        }
+      if (data && !error) {
+        setRaceId(data.id);
+      } else {
+        setRaceId(null);
+        toast({
+          title: "Carrera no encontrada",
+          description: "La carrera que buscas no existe",
+          variant: "destructive",
+        });
+        navigate("/races");
       }
     };
 
