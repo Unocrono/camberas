@@ -233,8 +233,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .select(`
           *,
           timing_point:timing_points(name),
-          race_distance:race_distances(name),
-          registration:registrations(guest_first_name, guest_last_name, user_id)
+          race_distance:race_distances(name)
         `)
         .eq("race_id", filterRaceId)
         .order("timing_timestamp", { ascending: false });
@@ -250,12 +249,57 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       const { data, error } = await query;
       if (error) throw error;
 
-      let filteredData = data || [];
+      // Get unique bib_numbers to fetch registrations
+      const bibNumbers = [...new Set((data || []).map(r => r.bib_number))];
+      
+      // Fetch registrations by bib_number for this race
+      let registrationMap = new Map<number, { guest_first_name: string | null; guest_last_name: string | null; user_id: string | null }>();
+      
+      if (bibNumbers.length > 0) {
+        const { data: registrations } = await supabase
+          .from("registrations")
+          .select("bib_number, guest_first_name, guest_last_name, user_id")
+          .eq("race_id", filterRaceId)
+          .in("bib_number", bibNumbers);
+        
+        if (registrations) {
+          // Fetch profiles for users
+          const userIds = registrations.filter(r => r.user_id).map(r => r.user_id!);
+          let profilesMap = new Map<string, { first_name: string | null; last_name: string | null }>();
+          
+          if (userIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from("profiles")
+              .select("id, first_name, last_name")
+              .in("id", userIds);
+            
+            profilesMap = new Map(profiles?.map(p => [p.id, { first_name: p.first_name, last_name: p.last_name }]) || []);
+          }
+          
+          // Build registration map with resolved names
+          registrations.forEach(reg => {
+            if (reg.bib_number !== null) {
+              const profile = reg.user_id ? profilesMap.get(reg.user_id) : null;
+              registrationMap.set(reg.bib_number, {
+                guest_first_name: profile?.first_name || reg.guest_first_name,
+                guest_last_name: profile?.last_name || reg.guest_last_name,
+                user_id: reg.user_id
+              });
+            }
+          });
+        }
+      }
+
+      // Enrich readings with registration data
+      let enrichedData = (data || []).map(r => ({
+        ...r,
+        registration: registrationMap.get(r.bib_number) || null
+      }));
 
       // Apply search filter
       if (searchTerm) {
         const search = searchTerm.toLowerCase();
-        filteredData = filteredData.filter((r) => {
+        enrichedData = enrichedData.filter((r) => {
           const bibMatch = r.bib_number.toString().includes(search);
           const nameMatch = r.registration
             ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.toLowerCase().includes(search)
@@ -264,7 +308,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         });
       }
 
-      setReadings(filteredData);
+      setReadings(enrichedData);
     } catch (error: any) {
       console.error("Error fetching readings:", error);
       toast({
