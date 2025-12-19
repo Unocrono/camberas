@@ -35,6 +35,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock } from "lucide-react";
+import { CircuitLapsPreview } from "./CircuitLapsPreview";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -1939,6 +1940,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           )}
         </CardContent>
       </Card>
+
+      {/* Circuit Laps Preview - only shown when there are multiple checkpoints with same timing_point */}
+      <CircuitLapsPreview checkpoints={checkpoints} timingPoints={timingPoints} />
 
       {showMap && mapboxToken && (
         <Card>
