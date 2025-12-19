@@ -135,7 +135,42 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     checkpoint_type: "CONTROL",
     min_time: "",
     max_time: "",
+    lap_number: 1,
+    min_lap_time: "",
   });
+
+  // Detectar si el timing_point seleccionado ya está en uso por otros checkpoints (indica circuito con vueltas)
+  const isLapConfiguration = (() => {
+    if (!formData.timing_point_id) return false;
+    
+    // Contar cuántos checkpoints usan este timing_point (excluyendo el actual si estamos editando)
+    const otherCheckpointsWithSameTP = checkpoints.filter(
+      cp => cp.timing_point_id === formData.timing_point_id && 
+            (!selectedCheckpoint || cp.id !== selectedCheckpoint.id)
+    );
+    
+    return otherCheckpointsWithSameTP.length > 0;
+  })();
+
+  // Calcular el número de vuelta sugerido basado en otros checkpoints con el mismo timing_point
+  const suggestedLapNumber = (() => {
+    if (!formData.timing_point_id) return 1;
+    
+    const checkpointsWithSameTP = checkpoints.filter(
+      cp => cp.timing_point_id === formData.timing_point_id &&
+            (!selectedCheckpoint || cp.id !== selectedCheckpoint.id)
+    );
+    
+    if (checkpointsWithSameTP.length === 0) return 1;
+    
+    // Encontrar el mayor expected_laps o lap implícito
+    const maxLap = checkpointsWithSameTP.reduce((max, cp) => {
+      const lapFromOrder = checkpointsWithSameTP.filter(c => c.checkpoint_order <= cp.checkpoint_order).length;
+      return Math.max(max, lapFromOrder);
+    }, 0);
+    
+    return maxLap + 1;
+  })();
   const [isCreatingTimingPoint, setIsCreatingTimingPoint] = useState(false);
   const [newTimingPointName, setNewTimingPointName] = useState("");
 
@@ -727,6 +762,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       checkpoint_type: "CONTROL",
       min_time: "",
       max_time: "",
+      lap_number: 1,
+      min_lap_time: "",
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -811,6 +848,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         checkpoint_type: checkpoint.checkpoint_type || "CONTROL",
         min_time: intervalToString(checkpoint.min_time),
         max_time: intervalToString(checkpoint.max_time),
+        lap_number: checkpoint.expected_laps || 1,
+        min_lap_time: intervalToString(checkpoint.min_lap_time),
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -834,6 +873,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     // Convertir tiempos a formato interval o null
     const min_time = formData.min_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_time) ? formData.min_time : null;
     const max_time = formData.max_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.max_time) ? formData.max_time : null;
+    const min_lap_time = formData.min_lap_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_lap_time) ? formData.min_lap_time : null;
+    const expected_laps = isLapConfiguration ? formData.lap_number : null;
 
     if (isEditing && selectedCheckpoint) {
       const { error } = await supabase
@@ -850,6 +891,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           checkpoint_type: formData.checkpoint_type,
           min_time,
           max_time,
+          min_lap_time,
+          expected_laps,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -877,6 +920,8 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           checkpoint_type: formData.checkpoint_type,
           min_time,
           max_time,
+          min_lap_time,
+          expected_laps,
         });
 
       if (error) {
@@ -1627,13 +1672,61 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   <div className="border-t pt-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-primary" />
-                      <Label className="text-sm font-medium">Ventana de Tiempo para Validación</Label>
+                      <Label className="text-sm font-medium">
+                        {isLapConfiguration ? `LAP ${formData.lap_number} - Ventana de Tiempo` : 'Ventana de Tiempo para Validación'}
+                      </Label>
+                      {isLapConfiguration && (
+                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          Circuito con vueltas
+                        </Badge>
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground -mt-1">
-                      Define el rango de tiempo válido para este checkpoint. Lecturas fuera del rango se ignoran.
-                      <br />
-                      <strong>Tip:</strong> Para múltiples pasos por el mismo punto, crea varios checkpoints con el mismo Punto de Cronometraje pero rangos de tiempo diferentes.
-                    </p>
+                    
+                    {isLapConfiguration ? (
+                      <>
+                        <p className="text-xs text-muted-foreground -mt-1">
+                          Este punto de cronometraje ya está asignado a otro checkpoint. Configura la vuelta y ventana de tiempo para este paso.
+                        </p>
+                        
+                        {/* Campos específicos de vueltas */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="lap_number" className="text-xs font-medium">Número de Vuelta (LAP)</Label>
+                            <Input
+                              id="lap_number"
+                              type="number"
+                              min="1"
+                              value={formData.lap_number}
+                              onChange={(e) => setFormData({ ...formData, lap_number: parseInt(e.target.value) || 1 })}
+                              className="font-mono"
+                            />
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Sugerido: LAP {suggestedLapNumber}
+                            </p>
+                          </div>
+                          <div>
+                            <Label htmlFor="min_lap_time" className="text-xs font-medium">Tiempo Mínimo Vuelta</Label>
+                            <Input
+                              id="min_lap_time"
+                              type="text"
+                              value={formData.min_lap_time}
+                              onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
+                              placeholder="00:15:00"
+                              pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                              className="font-mono"
+                            />
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Tiempo mínimo entre vueltas
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground -mt-1">
+                        Define el rango de tiempo válido para este checkpoint. Lecturas fuera del rango se ignoran.
+                      </p>
+                    )}
+                    
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="min_time" className="text-xs font-medium">Tiempo Mínimo</Label>
@@ -1666,14 +1759,23 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                         </p>
                       </div>
                     </div>
-                    <div className="p-3 bg-muted/50 rounded-md">
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Ejemplo circuito con 2 vueltas:</strong>
-                        <br />• CP "Paso 1" → min: 00:10:00, max: 00:25:00
-                        <br />• CP "Paso 2" → min: 00:26:00, max: 00:50:00
-                        <br />Ambos usan el mismo Punto de Cronometraje físico.
-                      </p>
-                    </div>
+                    
+                    {isLapConfiguration && (
+                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                        <p className="text-xs text-amber-800 dark:text-amber-200">
+                          <strong>Circuito detectado:</strong> El punto de cronometraje seleccionado ya está en uso.
+                          <br />Este checkpoint representa el <strong>LAP {formData.lap_number}</strong> del circuito.
+                        </p>
+                      </div>
+                    )}
+                    
+                    {!isLapConfiguration && (
+                      <div className="p-3 bg-muted/50 rounded-md">
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Tip:</strong> Para crear un circuito con vueltas, asigna el mismo Punto de Cronometraje a varios checkpoints con diferentes rangos de tiempo.
+                        </p>
+                      </div>
+                    )}
                   </div>
                   
                   {/* Radio GPS para Geofencing */}
@@ -1750,16 +1852,31 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     </TableCell>
                     <TableCell>
                       {checkpoint.timing_point_id ? (
-                        <Badge variant="outline" className="text-xs w-fit">
-                          {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge variant="outline" className="text-xs w-fit">
+                            {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
+                          </Badge>
+                          {/* Mostrar LAP si hay otros checkpoints con el mismo timing_point */}
+                          {(() => {
+                            const sameTPCheckpoints = checkpoints.filter(cp => cp.timing_point_id === checkpoint.timing_point_id);
+                            if (sameTPCheckpoints.length > 1) {
+                              const lapIndex = sameTPCheckpoints.findIndex(cp => cp.id === checkpoint.id) + 1;
+                              return (
+                                <Badge variant="secondary" className="text-xs w-fit bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                  LAP {lapIndex}
+                                </Badge>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground text-xs">-</span>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-0.5 text-xs">
-                        {checkpoint.min_time || checkpoint.max_time ? (
+                        {checkpoint.min_time || checkpoint.max_time || checkpoint.min_lap_time ? (
                           <>
                             {checkpoint.min_time && (
                               <span className="text-muted-foreground">
@@ -1769,6 +1886,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                             {checkpoint.max_time && (
                               <span className="text-muted-foreground">
                                 Max: {intervalToString(checkpoint.max_time)}
+                              </span>
+                            )}
+                            {checkpoint.min_lap_time && (
+                              <span className="text-amber-600 dark:text-amber-400">
+                                MinLap: {intervalToString(checkpoint.min_lap_time)}
                               </span>
                             )}
                           </>
