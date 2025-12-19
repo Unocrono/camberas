@@ -54,27 +54,20 @@ const App = () => (
         <Routes>
           {/* En app nativa, redirigir "/" a "/track" */}
           <Route path="/" element={isNativePlatform ? <Navigate to="/track" replace /> : <Index />} />
+          
+          {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
-          <Route path="/race/:id" element={<RaceDetail />} />
-          <Route path="/race/:id/regulation" element={<RaceRegulation />} />
-          <Route path="/race/:id/results" element={<RaceResults />} />
-          <Route path="/race/:id/live" element={<LiveResults />} />
-          <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
-          <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
-          {/* Friendly URL routes with race slug */}
-          <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
-          <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/support" element={<SupportChat />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
           <Route path="/training-plan" element={<TrainingPlan />} />
           <Route path="/support-chat" element={<AiSupportChat />} />
-          <Route path="/admin/support" element={<SupportChat />} />
           <Route path="/faqs" element={<Faqs />} />
           <Route path="/organizer-profile" element={<OrganizerProfile />} />
           <Route path="/contact" element={<Contact />} />
@@ -87,11 +80,25 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
-          {/* URL amigable con slug de carrera - DEBE estar antes del catch-all */}
+          <Route path="/timing-shop" element={<TimingShop />} />
+          
+          {/* Rutas con /race/:id */}
+          <Route path="/race/:id" element={<RaceDetail />} />
+          <Route path="/race/:id/regulation" element={<RaceRegulation />} />
+          <Route path="/race/:id/results" element={<RaceResults />} />
+          <Route path="/race/:id/live" element={<LiveResults />} />
+          <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
+          <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
+          
+          {/* Otras rutas con parámetros */}
+          <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
+          
+          {/* URL amigable con slug de carrera - DEBE estar al final antes del catch-all */}
           <Route path="/:slug" element={<RaceDetail />} />
           <Route path="/:slug/live" element={<LiveResults />} />
           <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+          
+          {/* Catch-all para 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
