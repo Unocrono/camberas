@@ -1438,34 +1438,46 @@ export type Database = {
       }
       split_times: {
         Row: {
+          category_position: number | null
           checkpoint_name: string
           checkpoint_order: number
           created_at: string
           distance_km: number
+          gender_position: number | null
           id: string
           lap_number: number | null
+          overall_position: number | null
+          pace: string | null
           race_result_id: string
           split_time: unknown
           updated_at: string
         }
         Insert: {
+          category_position?: number | null
           checkpoint_name: string
           checkpoint_order: number
           created_at?: string
           distance_km: number
+          gender_position?: number | null
           id?: string
           lap_number?: number | null
+          overall_position?: number | null
+          pace?: string | null
           race_result_id: string
           split_time: unknown
           updated_at?: string
         }
         Update: {
+          category_position?: number | null
           checkpoint_name?: string
           checkpoint_order?: number
           created_at?: string
           distance_km?: number
+          gender_position?: number | null
           id?: string
           lap_number?: number | null
+          overall_position?: number | null
+          pace?: string | null
           race_result_id?: string
           split_time?: unknown
           updated_at?: string
@@ -1856,6 +1868,12 @@ export type Database = {
           finish_checkpoint_name: string
           finish_time: unknown
           registration_id: string
+        }[]
+      }
+      calculate_split_positions: {
+        Args: { p_race_distance_id: string }
+        Returns: {
+          updated_count: number
         }[]
       }
       calculate_split_times: {

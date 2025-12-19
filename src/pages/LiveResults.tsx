@@ -999,21 +999,38 @@ export default function LiveResults() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Checkpoint selector */}
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {filteredCheckpoints.map(cp => (
-                    <div key={cp.id} className="relative">
-                      <Badge variant="outline" className="px-3 py-2">
-                        <div className="text-center">
-                          <div className="font-medium">{cp.name}</div>
-                          <div className="text-xs text-muted-foreground">{cp.distance_km} km</div>
+                {/* Checkpoint buttons - clickable to see classification */}
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {filteredCheckpoints.map(cp => {
+                    const readingsCount = recentReadings.filter(r => r.checkpoint?.id === cp.id).length;
+                    const raceSlug = slug || id;
+                    return (
+                      <Link 
+                        key={cp.id} 
+                        to={`/${raceSlug}/live/split/${cp.checkpoint_order}`}
+                        className="group"
+                      >
+                        <div className="relative border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer">
+                          <div className="text-center">
+                            <div className="font-semibold group-hover:text-primary transition-colors">
+                              {cp.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {cp.distance_km} km
+                            </div>
+                            <div className="text-xs text-primary mt-1">
+                              Ver clasificación →
+                            </div>
+                          </div>
+                          {readingsCount > 0 && (
+                            <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 font-medium">
+                              {readingsCount}
+                            </span>
+                          )}
                         </div>
-                      </Badge>
-                      <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full px-1.5">
-                        {recentReadings.filter(r => r.checkpoint?.id === cp.id).length}
-                      </span>
-                    </div>
-                  ))}
+                      </Link>
+                    );
+                  })}
                 </div>
 
                 {/* Recent passes by checkpoint */}
