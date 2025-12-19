@@ -877,6 +877,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const min_lap_time = formData.min_lap_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_lap_time) ? formData.min_lap_time : null;
     const expected_laps = isLapConfiguration ? formData.lap_number : null;
 
+    // Validación: Si es configuración de vueltas (timing_point compartido), min_time es obligatorio
+    if (isLapConfiguration && !min_time) {
+      toast.error("El Tiempo Mínimo es obligatorio cuando el Punto de Cronometraje es compartido con otro checkpoint (circuito con vueltas)");
+      return;
+    }
+
     if (isEditing && selectedCheckpoint) {
       const { error } = await supabase
         .from("race_checkpoints")
@@ -1730,7 +1736,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="min_time" className="text-xs font-medium">Tiempo Mínimo</Label>
+                        <Label htmlFor="min_time" className="text-xs font-medium">
+                          Tiempo Mínimo
+                          {isLapConfiguration && <span className="text-destructive ml-1">*</span>}
+                        </Label>
                         <Input
                           id="min_time"
                           type="text"
@@ -1738,10 +1747,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                           onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
                           placeholder="00:00:00"
                           pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                          className="font-mono"
+                          className={`font-mono ${isLapConfiguration && !formData.min_time ? 'border-destructive' : ''}`}
                         />
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Lecturas antes de este tiempo se ignoran
+                          {isLapConfiguration 
+                            ? "Obligatorio: diferencia este paso del anterior en el mismo punto"
+                            : "Lecturas antes de este tiempo se ignoran"
+                          }
                         </p>
                       </div>
                       <div>
@@ -1766,10 +1778,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                         <p className="text-xs text-amber-800 dark:text-amber-200">
                           <strong>Circuito detectado:</strong> El punto de cronometraje seleccionado ya está en uso.
                           <br />Este checkpoint representa el <strong>LAP {formData.lap_number}</strong> del circuito.
+                          <br /><strong className="text-destructive">El Tiempo Mínimo es obligatorio</strong> para diferenciar las lecturas de cada vuelta.
                         </p>
                       </div>
                     )}
-                    
                     {!isLapConfiguration && (
                       <div className="p-3 bg-muted/50 rounded-md">
                         <p className="text-xs text-muted-foreground">
