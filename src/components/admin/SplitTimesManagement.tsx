@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Trash2, Clock, Search, Edit, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, Clock, Search, Edit, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 
 interface SplitTimeWithDetails {
   id: string;
@@ -47,6 +47,10 @@ interface SplitTimeWithDetails {
   split_time: string;
   distance_km: number;
   lap_number: number | null;
+  overall_position: number | null;
+  gender_position: number | null;
+  category_position: number | null;
+  pace: string | null;
   bib_number: number | null;
   participant_name: string;
   event_name: string;
@@ -113,6 +117,9 @@ export function SplitTimesManagement({
   
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'position' | 'bib' | 'time'>('position');
   
   // Form state
   const [formData, setFormData] = useState({
@@ -376,6 +383,10 @@ export function SplitTimesManagement({
         split_time: formatTime(String(split.split_time || '')),
         distance_km: split.distance_km,
         lap_number: split.lap_number,
+        overall_position: split.overall_position,
+        gender_position: split.gender_position,
+        category_position: split.category_position,
+        pace: split.pace,
         bib_number: reg?.bib_number || null,
         participant_name: name || 'Sin nombre',
         event_name: (reg?.race_distances as any)?.name || '',
@@ -410,9 +421,9 @@ export function SplitTimesManagement({
     return { hours: 0, minutes: 0, seconds: 0 };
   };
 
-  // Filter and paginate
+  // Filter, sort and paginate
   const filteredSplits = useMemo(() => {
-    return splitTimes.filter(split => {
+    let result = splitTimes.filter(split => {
       if (!searchTerm) return true;
       const search = searchTerm.toLowerCase();
       return (
@@ -420,7 +431,20 @@ export function SplitTimesManagement({
         split.participant_name.toLowerCase().includes(search)
       );
     });
-  }, [splitTimes, searchTerm]);
+    
+    // Sort
+    result.sort((a, b) => {
+      if (sortBy === 'position') {
+        return (a.overall_position ?? 9999) - (b.overall_position ?? 9999);
+      } else if (sortBy === 'bib') {
+        return (a.bib_number ?? 0) - (b.bib_number ?? 0);
+      } else {
+        return a.split_time.localeCompare(b.split_time);
+      }
+    });
+    
+    return result;
+  }, [splitTimes, searchTerm, sortBy]);
 
   const paginatedSplits = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -748,12 +772,30 @@ export function SplitTimesManagement({
                         onCheckedChange={(checked) => handleSelectAll(!!checked)}
                       />
                     </TableHead>
-                    <TableHead>Dorsal</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => setSortBy('position')}>
+                      <div className="flex items-center gap-1">
+                        Pos
+                        {sortBy === 'position' && <ArrowUpDown className="h-3 w-3" />}
+                      </div>
+                    </TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => setSortBy('bib')}>
+                      <div className="flex items-center gap-1">
+                        Dorsal
+                        {sortBy === 'bib' && <ArrowUpDown className="h-3 w-3" />}
+                      </div>
+                    </TableHead>
                     <TableHead>Participante</TableHead>
                     <TableHead>Evento</TableHead>
                     <TableHead>Checkpoint</TableHead>
-                    <TableHead>KM</TableHead>
-                    <TableHead>Tiempo</TableHead>
+                    <TableHead className="cursor-pointer" onClick={() => setSortBy('time')}>
+                      <div className="flex items-center gap-1">
+                        Tiempo
+                        {sortBy === 'time' && <ArrowUpDown className="h-3 w-3" />}
+                      </div>
+                    </TableHead>
+                    <TableHead>Ritmo</TableHead>
+                    <TableHead>Género</TableHead>
+                    <TableHead>Cat.</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -766,12 +808,17 @@ export function SplitTimesManagement({
                           onCheckedChange={(checked) => handleSelectOne(split.id, !!checked)}
                         />
                       </TableCell>
+                      <TableCell className="font-medium text-center">
+                        {split.overall_position ?? '-'}
+                      </TableCell>
                       <TableCell className="font-medium">#{split.bib_number || '-'}</TableCell>
                       <TableCell>{split.participant_name}</TableCell>
                       <TableCell>{split.event_name}</TableCell>
                       <TableCell>{split.checkpoint_name}</TableCell>
-                      <TableCell>{split.distance_km}</TableCell>
                       <TableCell className="font-mono">{split.split_time}</TableCell>
+                      <TableCell className="font-mono text-muted-foreground">{split.pace || '-'}</TableCell>
+                      <TableCell className="text-center">{split.gender_position ?? '-'}</TableCell>
+                      <TableCell className="text-center">{split.category_position ?? '-'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
