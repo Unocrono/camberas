@@ -127,6 +127,9 @@ export default function LiveResults() {
   const [activeTab, setActiveTab] = useState("clasificacion");
   const [currentPage, setCurrentPage] = useState(1);
   const [speakerCheckpoint, setSpeakerCheckpoint] = useState<string>("all");
+  const [intermediosCheckpoint, setIntermediosCheckpoint] = useState<string>("all");
+  const [intermediosPage, setIntermediosPage] = useState(1);
+  const [speakerPage, setSpeakerPage] = useState(1);
 
   // Resolve race ID from slug or direct ID
   useEffect(() => {
@@ -207,6 +210,72 @@ export default function LiveResults() {
     // For now, return all checkpoints - could filter by race_distance_id if needed
     return checkpoints;
   }, [checkpoints, selectedDistance]);
+
+  // Results filtered by checkpoint for Intermedios tab - classification at that checkpoint
+  const intermediosResults = useMemo(() => {
+    if (intermediosCheckpoint === "all") return [];
+    
+    const checkpoint = checkpoints.find(c => c.id === intermediosCheckpoint);
+    if (!checkpoint) return [];
+    
+    // Get results that have a split time for this checkpoint
+    const resultsWithSplit = sortedResults
+      .map(result => {
+        const split = result.split_times?.find(s => s.checkpoint_order === checkpoint.checkpoint_order);
+        return split ? { ...result, splitTime: split.split_time, splitOrder: split.checkpoint_order } : null;
+      })
+      .filter((r): r is RaceResult & { splitTime: string; splitOrder: number } => r !== null)
+      .sort((a, b) => {
+        // Sort by split time
+        const parseTime = (t: string) => {
+          const match = t.match(/(\d{2}):(\d{2}):(\d{2})/);
+          if (!match) return 0;
+          return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
+        };
+        return parseTime(a.splitTime) - parseTime(b.splitTime);
+      });
+    
+    return resultsWithSplit;
+  }, [sortedResults, intermediosCheckpoint, checkpoints]);
+
+  // Pagination for intermedios
+  const intermediosTotalPages = Math.ceil(intermediosResults.length / ITEMS_PER_PAGE);
+  const paginatedIntermediosResults = useMemo(() => {
+    const start = (intermediosPage - 1) * ITEMS_PER_PAGE;
+    return intermediosResults.slice(start, start + ITEMS_PER_PAGE);
+  }, [intermediosResults, intermediosPage]);
+
+  // Speaker results - last 20 finishers in reverse order (most recent first)
+  const speakerResults = useMemo(() => {
+    // Filter by checkpoint if selected
+    let results = sortedResults;
+    
+    if (speakerCheckpoint !== "all") {
+      const checkpoint = checkpoints.find(c => c.id === speakerCheckpoint);
+      if (!checkpoint) return [];
+      
+      // Get results that have a split time for this checkpoint, sorted by most recent
+      return sortedResults
+        .map(result => {
+          const split = result.split_times?.find(s => s.checkpoint_order === checkpoint.checkpoint_order);
+          return split ? { ...result, splitTime: split.split_time, splitOrder: split.checkpoint_order } : null;
+        })
+        .filter((r): r is RaceResult & { splitTime: string; splitOrder: number } => r !== null)
+        .sort((a, b) => {
+          // Sort by split time descending (most recent first)
+          const parseTime = (t: string) => {
+            const match = t.match(/(\d{2}):(\d{2}):(\d{2})/);
+            if (!match) return 0;
+            return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
+          };
+          return parseTime(b.splitTime) - parseTime(a.splitTime);
+        })
+        .slice(0, 20);
+    }
+    
+    // For "all" - show last 20 finishers in reverse order
+    return [...results].reverse().slice(0, 20);
+  }, [sortedResults, speakerCheckpoint, checkpoints]);
 
   const fetchRaceData = async () => {
     if (!raceId) return;
@@ -408,6 +477,8 @@ export default function LiveResults() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
+    setIntermediosPage(1);
+    setSpeakerPage(1);
   }, [selectedDistance, searchQuery]);
 
   const formatTime = (timeString: string): string => {
@@ -891,13 +962,13 @@ export default function LiveResults() {
             )}
           </TabsContent>
 
-          {/* Speaker Tab - Recent Arrivals */}
+          {/* Speaker Tab - Last 20 finishers in reverse order */}
           <TabsContent value="speaker">
             <Card>
               <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Mic className="h-5 w-5 text-primary" />
-                  Últimas Llegadas
+                  Últimas Llegadas (Speaker)
                   <Badge variant="outline" className="ml-2">
                     <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse mr-1" />
                     En vivo
@@ -908,7 +979,99 @@ export default function LiveResults() {
                     <SelectValue placeholder="Punto de control" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos los puntos</SelectItem>
+                    <SelectItem value="all">Meta (Finalizados)</SelectItem>
+                    {filteredCheckpoints.map(cp => (
+                      <SelectItem key={cp.id} value={cp.id}>
+                        {cp.name} ({cp.distance_km}km)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="w-[60px] text-center">Puesto</TableHead>
+                        <TableHead className="w-[70px] text-center">Dorsal</TableHead>
+                        <TableHead className="min-w-[180px]">Nombre</TableHead>
+                        <TableHead className="min-w-[120px]">Club</TableHead>
+                        <TableHead className="text-center">Categoría</TableHead>
+                        <TableHead className="text-center min-w-[90px] font-bold">Tiempo</TableHead>
+                        <TableHead className="text-center min-w-[70px]">
+                          {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {speakerResults.length > 0 ? speakerResults.map((result, idx) => {
+                        const isSplitResult = 'splitTime' in result;
+                        const displayTime = isSplitResult ? (result as any).splitTime : result.finish_time;
+                        const distanceKm = isSplitResult 
+                          ? (checkpoints.find(c => c.id === speakerCheckpoint)?.distance_km || result.registration.race_distances.distance_km)
+                          : result.registration.race_distances.distance_km;
+                        
+                        return (
+                          <TableRow 
+                            key={result.id}
+                            className={`${newResultIds.has(result.id) ? "bg-primary/10 animate-pulse" : ""} ${idx === 0 ? "bg-green-500/10" : ""}`}
+                          >
+                            <TableCell className="text-center font-bold">
+                              {result.overall_position === 1 && <Trophy className="inline h-4 w-4 text-yellow-500 mr-1" />}
+                              {result.overall_position === 2 && <Medal className="inline h-4 w-4 text-gray-400 mr-1" />}
+                              {result.overall_position === 3 && <Award className="inline h-4 w-4 text-amber-600 mr-1" />}
+                              {result.overall_position}
+                            </TableCell>
+                            <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
+                            <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                            <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
+                            <TableCell className="text-center font-mono font-bold text-primary">
+                              {formatTime(displayTime)}
+                            </TableCell>
+                            <TableCell className="text-center font-mono text-sm">
+                              {race.race_type === 'mtb' 
+                                ? `${calculateSpeed(displayTime, distanceKm)} km/h`
+                                : `${calculatePace(displayTime, distanceKm)}/km`
+                              }
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }) : (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                            <Mic className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                            <p>No hay llegadas recientes</p>
+                            <p className="text-sm">Las nuevas llegadas aparecerán aquí automáticamente</p>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pasos Intermedios Tab - Classification by checkpoint */}
+          <TabsContent value="intermedios">
+            <Card>
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Clasificación por Punto de Control
+                  <Badge variant="outline" className="ml-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse mr-1" />
+                    En vivo
+                  </Badge>
+                </CardTitle>
+                <Select value={intermediosCheckpoint} onValueChange={(v) => { setIntermediosCheckpoint(v); setIntermediosPage(1); }}>
+                  <SelectTrigger className="w-full sm:w-[200px]">
+                    <SelectValue placeholder="Seleccionar checkpoint" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Seleccionar punto...</SelectItem>
                     {filteredCheckpoints.map(cp => (
                       <SelectItem key={cp.id} value={cp.id}>
                         {cp.name} ({cp.distance_km}km)
@@ -918,165 +1081,183 @@ export default function LiveResults() {
                 </Select>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredReadings.length > 0 ? filteredReadings.slice(0, 20).map((reading) => (
-                    <div
-                      key={reading.id}
-                      className={`flex items-center gap-4 p-4 rounded-lg border bg-card transition-all ${
-                        newReadingIds.has(reading.id) ? "ring-2 ring-primary shadow-lg" : ""
-                      }`}
-                    >
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full shrink-0 ${
-                        reading.reading_type === 'gps_auto' 
-                          ? 'bg-blue-500/20 text-blue-500' 
-                          : reading.reading_type === 'automatic'
-                          ? 'bg-green-500/20 text-green-500'
-                          : 'bg-orange-500/20 text-orange-500'
-                      }`}>
-                        {reading.reading_type === 'gps_auto' ? <Satellite className="h-5 w-5" /> : 
-                         reading.reading_type === 'automatic' ? <Radio className="h-5 w-5" /> : 
-                         <Timer className="h-5 w-5" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="font-mono">#{reading.bib_number}</Badge>
-                          {newReadingIds.has(reading.id) && <Badge variant="default" className="bg-green-500 animate-pulse text-xs">NUEVO</Badge>}
-                        </div>
-                        <p className="font-semibold truncate">{getReadingRunnerName(reading) || `Dorsal #${reading.bib_number}`}</p>
-                        <p className="text-sm text-muted-foreground">{reading.checkpoint?.name || 'Checkpoint'}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-mono text-lg font-bold">
-                          {new Date(reading.timing_timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </p>
-                      </div>
-                    </div>
-                  )) : (
-                    <div className="col-span-full text-center py-12 text-muted-foreground">
-                      <Mic className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>No hay llegadas recientes</p>
-                      <p className="text-sm">Las nuevas llegadas aparecerán aquí automáticamente</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Legend */}
-                <div className="flex flex-wrap gap-4 mt-6 pt-4 border-t text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <Satellite className="h-2.5 w-2.5 text-blue-500" />
-                    </div>
-                    <span>GPS</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-green-500/20 flex items-center justify-center">
-                      <Radio className="h-2.5 w-2.5 text-green-500" />
-                    </div>
-                    <span>RFID</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-4 rounded-full bg-orange-500/20 flex items-center justify-center">
-                      <Timer className="h-2.5 w-2.5 text-orange-500" />
-                    </div>
-                    <span>Manual</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Pasos Intermedios Tab */}
-          <TabsContent value="intermedios">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  Pasos Intermedios
-                  <Badge variant="outline" className="ml-2">
-                    <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse mr-1" />
-                    En vivo
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Checkpoint buttons - clickable to see classification */}
-                <div className="flex flex-wrap gap-3 mb-6">
-                  {filteredCheckpoints.map(cp => {
-                    const readingsCount = recentReadings.filter(r => r.checkpoint?.id === cp.id).length;
-                    const raceSlug = slug || id;
-                    return (
-                      <Link 
-                        key={cp.id} 
-                        to={`/${raceSlug}/live/split/${cp.checkpoint_order}`}
-                        className="group"
-                      >
-                        <div className="relative border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer">
-                          <div className="text-center">
-                            <div className="font-semibold group-hover:text-primary transition-colors">
-                              {cp.name}
+                {intermediosCheckpoint === "all" ? (
+                  <>
+                    {/* Checkpoint selector cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                      {filteredCheckpoints.map((cp, idx) => {
+                        const splitCount = sortedResults.filter(r => 
+                          r.split_times?.some(s => s.checkpoint_order === cp.checkpoint_order)
+                        ).length;
+                        
+                        return (
+                          <button 
+                            key={cp.id} 
+                            onClick={() => setIntermediosCheckpoint(cp.id)}
+                            className="group relative border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all text-left"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                                cp.checkpoint_type === 'META' ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground'
+                              }`}>
+                                {idx + 1}
+                              </div>
+                              <span className="font-semibold group-hover:text-primary transition-colors truncate">
+                                {cp.name}
+                              </span>
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {cp.distance_km} km
                             </div>
-                            <div className="text-xs text-primary mt-1">
-                              Ver clasificación →
-                            </div>
-                          </div>
-                          {readingsCount > 0 && (
-                            <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 font-medium">
-                              {readingsCount}
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })}
-                </div>
-
-                {/* Recent passes by checkpoint */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {recentReadings.slice(0, 24).map((reading) => (
-                    <div
-                      key={reading.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border bg-card/50 transition-all ${
-                        newReadingIds.has(reading.id) ? "ring-2 ring-primary shadow-lg" : ""
-                      }`}
-                    >
-                      <div className={`flex items-center justify-center w-9 h-9 rounded-full shrink-0 ${
-                        reading.reading_type === 'gps_auto' 
-                          ? 'bg-blue-500/20 text-blue-500' 
-                          : reading.reading_type === 'automatic'
-                          ? 'bg-green-500/20 text-green-500'
-                          : 'bg-orange-500/20 text-orange-500'
-                      }`}>
-                        {reading.reading_type === 'gps_auto' ? <Satellite className="h-4 w-4" /> : 
-                         reading.reading_type === 'automatic' ? <Radio className="h-4 w-4" /> : 
-                         <Timer className="h-4 w-4" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="font-mono text-xs">#{reading.bib_number}</Badge>
-                          {newReadingIds.has(reading.id) && <Badge variant="default" className="text-xs animate-pulse">NEW</Badge>}
-                        </div>
-                        <p className="text-sm truncate">{getReadingRunnerName(reading) || `Dorsal #${reading.bib_number}`}</p>
-                        <p className="text-xs text-muted-foreground">{reading.checkpoint?.name || 'Checkpoint'}</p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-mono text-sm font-semibold">
-                          {new Date(reading.timing_timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                        </p>
-                      </div>
+                            {splitCount > 0 && (
+                              <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
+                                {splitCount}
+                              </Badge>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
-                  ))}
-                  
-                  {recentReadings.length === 0 && (
-                    <div className="col-span-full text-center py-12 text-muted-foreground">
+                    
+                    <div className="text-center py-8 text-muted-foreground">
                       <MapPin className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>No hay pasos registrados</p>
-                      <p className="text-sm">Los tiempos aparecerán aquí en tiempo real</p>
+                      <p>Selecciona un punto de control para ver la clasificación</p>
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Selected checkpoint info */}
+                    {(() => {
+                      const selectedCp = checkpoints.find(c => c.id === intermediosCheckpoint);
+                      return selectedCp && (
+                        <div className="flex items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                            selectedCp.checkpoint_type === 'META' ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground'
+                          }`}>
+                            {selectedCp.checkpoint_order}
+                          </div>
+                          <div>
+                            <div className="font-semibold">{selectedCp.name}</div>
+                            <div className="text-sm text-muted-foreground">{selectedCp.distance_km} km</div>
+                          </div>
+                          <Badge variant="secondary" className="ml-auto">
+                            {intermediosResults.length} clasificados
+                          </Badge>
+                        </div>
+                      );
+                    })()}
+                    
+                    {/* Classification table */}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-muted/50">
+                            <TableHead className="w-[60px] text-center">Puesto</TableHead>
+                            <TableHead className="w-[70px] text-center">Dorsal</TableHead>
+                            <TableHead className="min-w-[180px]">Nombre</TableHead>
+                            <TableHead className="min-w-[120px]">Club</TableHead>
+                            <TableHead className="text-center">Categoría</TableHead>
+                            <TableHead className="text-center min-w-[90px] font-bold">Tiempo Split</TableHead>
+                            <TableHead className="text-center min-w-[70px]">
+                              {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedIntermediosResults.length > 0 ? paginatedIntermediosResults.map((result, idx) => {
+                            const splitPosition = (intermediosPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                            const checkpoint = checkpoints.find(c => c.id === intermediosCheckpoint);
+                            const distanceKm = checkpoint?.distance_km || 0;
+                            
+                            return (
+                              <TableRow 
+                                key={result.id}
+                                className={newResultIds.has(result.id) ? "bg-primary/10 animate-pulse" : ""}
+                              >
+                                <TableCell className="text-center font-bold">
+                                  {splitPosition === 1 && <Trophy className="inline h-4 w-4 text-yellow-500 mr-1" />}
+                                  {splitPosition === 2 && <Medal className="inline h-4 w-4 text-gray-400 mr-1" />}
+                                  {splitPosition === 3 && <Award className="inline h-4 w-4 text-amber-600 mr-1" />}
+                                  {splitPosition}
+                                </TableCell>
+                                <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
+                                <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
+                                <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                                <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
+                                <TableCell className="text-center font-mono font-bold text-primary">
+                                  {formatTime(result.splitTime)}
+                                </TableCell>
+                                <TableCell className="text-center font-mono text-sm">
+                                  {race.race_type === 'mtb' 
+                                    ? `${calculateSpeed(result.splitTime, distanceKm)} km/h`
+                                    : `${calculatePace(result.splitTime, distanceKm)}/km`
+                                  }
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }) : (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                                <MapPin className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                                <p>No hay tiempos registrados en este punto</p>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    
+                    {/* Pagination for intermedios */}
+                    {intermediosTotalPages > 1 && (
+                      <div className="flex items-center justify-between px-4 py-3 border-t mt-4">
+                        <div className="text-sm text-muted-foreground">
+                          Mostrando {((intermediosPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(intermediosPage * ITEMS_PER_PAGE, intermediosResults.length)} de {intermediosResults.length}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setIntermediosPage(1)}
+                            disabled={intermediosPage === 1}
+                          >
+                            <ChevronsLeft className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setIntermediosPage(p => Math.max(1, p - 1))}
+                            disabled={intermediosPage === 1}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <div className="px-3 text-sm">
+                            {intermediosPage} de {intermediosTotalPages}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setIntermediosPage(p => Math.min(intermediosTotalPages, p + 1))}
+                            disabled={intermediosPage === intermediosTotalPages}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => setIntermediosPage(intermediosTotalPages)}
+                            disabled={intermediosPage === intermediosTotalPages}
+                          >
+                            <ChevronsRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
