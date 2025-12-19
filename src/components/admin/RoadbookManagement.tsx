@@ -72,6 +72,26 @@ const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPi
 
 const ITEMS_PER_PAGE = 50;
 
+// Format time from database (HH:MM:SS) to input format (HH:MM)
+const formatTimeForInput = (time: string | null): string => {
+  if (!time) return "";
+  // time comes as "HH:MM:SS" from database, input needs "HH:MM"
+  const parts = time.split(":");
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return time;
+};
+
+// Format time for display (show only HH:MM)
+const formatTimeForDisplay = (time: string | null): string => {
+  if (!time) return "";
+  const parts = time.split(":");
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return time;
+};
 // Calculate distance between two points using Haversine formula
 const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
   const R = 6371; // Earth's radius in km
@@ -217,7 +237,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         setRoadbookFormData({
           name: data.name,
           description: data.description || "",
-          start_time: data.start_time || "",
+          start_time: formatTimeForInput(data.start_time),
         });
       }
     } catch (error: any) {
@@ -866,7 +886,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           {roadbook && (
             <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
               <span>{totalItems} puntos</span>
-              {roadbook.start_time && <span>Salida: {roadbook.start_time}</span>}
+              {roadbook.start_time && <span>Salida: {formatTimeForDisplay(roadbook.start_time)}</span>}
             </div>
           )}
         </CardHeader>
