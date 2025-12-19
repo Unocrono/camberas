@@ -28,9 +28,12 @@ interface RaceResult {
   race_distance_id: string;
   registration: {
     bib_number: number | null;
-    race: { name: string; organizer_id?: string | null };
+    guest_first_name: string | null;
+    guest_last_name: string | null;
+    guest_birth_date: string | null;
+    race: { name: string; organizer_id?: string | null; date: string };
     race_distance: { name: string };
-    profiles: { first_name: string | null; last_name: string | null; gender: string | null } | null;
+    profiles: { first_name: string | null; last_name: string | null; gender: string | null; birth_date: string | null } | null;
   };
 }
 
@@ -205,9 +208,12 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
         *,
         registration:registrations (
           bib_number,
-          race:races (name, organizer_id),
+          guest_first_name,
+          guest_last_name,
+          guest_birth_date,
+          race:races (name, organizer_id, date),
           race_distance:race_distances (name),
-          profiles (first_name, last_name, gender)
+          profiles (first_name, last_name, gender, birth_date)
         )
       `)
       .eq("race_distance_id", selectedDistance)
@@ -467,15 +473,54 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  // Helper function to get runner name
+  const getRunnerName = (result: RaceResult) => {
+    const firstName = result.registration.profiles?.first_name || result.registration.guest_first_name || '';
+    const lastName = result.registration.profiles?.last_name || result.registration.guest_last_name || '';
+    return `${firstName} ${lastName}`.trim() || '-';
+  };
+
+  // Helper function to get runner gender
+  const getRunnerGender = (result: RaceResult) => {
+    const gender = result.registration.profiles?.gender;
+    if (gender === 'Masculino' || gender === 'M' || gender === 'Male') return 'M';
+    if (gender === 'Femenino' || gender === 'F' || gender === 'Female') return 'F';
+    return '-';
+  };
+
+  // Helper function to calculate category
+  const getRunnerCategory = (result: RaceResult) => {
+    const birthDate = result.registration.profiles?.birth_date || result.registration.guest_birth_date;
+    const raceDate = result.registration.race?.date;
+    const gender = result.registration.profiles?.gender;
+    
+    if (!birthDate || !raceDate) return '-';
+    
+    const birth = new Date(birthDate);
+    const race = new Date(raceDate);
+    const age = Math.floor((race.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    
+    let genderPrefix = 'X';
+    if (gender === 'Masculino' || gender === 'M' || gender === 'Male') genderPrefix = 'M';
+    else if (gender === 'Femenino' || gender === 'F' || gender === 'Female') genderPrefix = 'F';
+    
+    let category = '';
+    if (age < 20) category = 'Junior';
+    else if (age <= 34) category = 'Senior';
+    else if (age <= 44) category = 'VetA';
+    else if (age <= 54) category = 'VetB';
+    else if (age <= 64) category = 'VetC';
+    else category = 'VetD';
+    
+    return `${genderPrefix}-${category}`;
+  };
+
   const filteredResults = results.filter(result => {
     const search = searchTerm.toLowerCase();
     const bibNumber = result.registration.bib_number?.toString() || "";
-    const firstName = result.registration.profiles?.first_name?.toLowerCase() || "";
-    const lastName = result.registration.profiles?.last_name?.toLowerCase() || "";
+    const name = getRunnerName(result).toLowerCase();
     
-    return bibNumber.includes(search) || 
-           firstName.includes(search) || 
-           lastName.includes(search);
+    return bibNumber.includes(search) || name.includes(search);
   });
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1380,6 +1425,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                       <TableHead className="w-16">Dorsal</TableHead>
                       <TableHead>Nombre</TableHead>
                       <TableHead>Género</TableHead>
+                      <TableHead>Categoría</TableHead>
                       <TableHead>Tiempo</TableHead>
                       <TableHead className="w-16">Pos G</TableHead>
                       <TableHead className="w-16">Pos C</TableHead>
@@ -1412,11 +1458,13 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                             <Badge variant="outline">#{result.registration.bib_number}</Badge>
                           </TableCell>
                           <TableCell>
-                            {result.registration.profiles?.first_name} {result.registration.profiles?.last_name}
+                            {getRunnerName(result)}
                           </TableCell>
                           <TableCell>
-                            {result.registration.profiles?.gender === 'Masculino' ? 'M' : 
-                             result.registration.profiles?.gender === 'Femenino' ? 'F' : '-'}
+                            {getRunnerGender(result)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{getRunnerCategory(result)}</Badge>
                           </TableCell>
                           <TableCell className="font-mono">
                             {formatTime(result.finish_time)}
