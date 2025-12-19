@@ -96,6 +96,7 @@ const App = () => (
           {/* URL amigable con slug de carrera - DEBE estar al final antes del catch-all */}
           <Route path="/:slug" element={<RaceDetail />} />
           <Route path="/:slug/live" element={<LiveResults />} />
+          <Route path="/:slug/gps" element={<LiveGPSTracking />} />
           <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
           
           {/* Catch-all para 404 */}
