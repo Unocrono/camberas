@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveGPSMap } from '@/components/LiveGPSMap';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ interface Race {
   name: string;
   date: string;
   location: string;
+  slug: string | null;
 }
 
 interface Distance {
@@ -26,26 +27,73 @@ interface Distance {
   gpx_file_url: string | null;
 }
 
+// Helper to validate UUID format
+const isValidUUID = (str: string) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const LiveGPSTracking = () => {
-  const { id } = useParams();
+  const { id, slug } = useParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [distances, setDistances] = useState<Distance[]>([]);
   const [selectedDistanceId, setSelectedDistanceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [mapboxToken, setMapboxToken] = useState<string>('');
 
+  // Resolve race ID from slug or direct ID
   useEffect(() => {
-    fetchRaceAndToken();
-  }, [id]);
+    const resolveRaceId = async () => {
+      const param = slug || id;
+      if (!param) return;
+
+      // Si es un UUID válido, usarlo directamente
+      if (isValidUUID(param)) {
+        setRaceId(param);
+        return;
+      }
+
+      // Si no es UUID, buscar por slug
+      const { data, error } = await supabase
+        .from("races")
+        .select("id")
+        .eq("slug", param)
+        .maybeSingle();
+
+      if (data && !error) {
+        setRaceId(data.id);
+      } else {
+        setRaceId(null);
+        toast({
+          title: "Carrera no encontrada",
+          description: "La carrera que buscas no existe",
+          variant: "destructive",
+        });
+        navigate("/races");
+      }
+    };
+
+    resolveRaceId();
+  }, [id, slug, navigate, toast]);
+
+  useEffect(() => {
+    if (raceId) {
+      fetchRaceAndToken();
+    }
+  }, [raceId]);
 
   const fetchRaceAndToken = async () => {
+    if (!raceId) return;
+    
     try {
       // Fetch race info
       const { data: raceData, error: raceError } = await supabase
         .from('races')
-        .select('id, name, date, location')
-        .eq('id', id)
+        .select('id, name, date, location, slug')
+        .eq('id', raceId)
         .single();
 
       if (raceError) throw raceError;
@@ -55,7 +103,7 @@ const LiveGPSTracking = () => {
       const { data: distancesData, error: distancesError } = await supabase
         .from('race_distances')
         .select('id, name, distance_km, gps_tracking_enabled, gps_update_frequency, gpx_file_url')
-        .eq('race_id', id)
+        .eq('race_id', raceId)
         .or('gps_tracking_enabled.eq.true,gpx_file_url.neq.null')
         .order('distance_km', { ascending: true });
 
@@ -90,6 +138,9 @@ const LiveGPSTracking = () => {
   };
 
   const selectedDistance = distances.find(d => d.id === selectedDistanceId);
+  
+  // Helper to get the race URL (prefer slug)
+  const getRaceUrl = () => race?.slug ? `/${race.slug}` : `/race/${race?.id}`;
 
   if (loading) {
     return (
@@ -132,7 +183,7 @@ const LiveGPSTracking = () => {
                 No hay recorridos disponibles para mostrar en el mapa
               </p>
               <Button asChild>
-                <Link to={`/race/${race.id}`}>
+                <Link to={getRaceUrl()}>
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Volver a la carrera
                 </Link>
@@ -151,7 +202,7 @@ const LiveGPSTracking = () => {
       
       <div className="container mx-auto px-4 py-8 pt-24">
         <Button asChild variant="outline" className="mb-4">
-          <Link to={`/race/${race.id}`}>
+          <Link to={getRaceUrl()}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Link>
