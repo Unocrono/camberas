@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -14,6 +15,7 @@ const requestSchema = z.object({
   organizerName: z.string().min(1).max(200),
   organizerEmail: z.string().email().max(255),
   clubName: z.string().optional(),
+  userId: z.string().uuid().optional(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -25,9 +27,34 @@ const handler = async (req: Request): Promise<Response> => {
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
     
-    const { organizerName, organizerEmail, clubName } = input;
+    const { organizerName, organizerEmail, clubName, userId } = input;
 
     console.log("Sending organizer request notification for:", organizerEmail);
+
+    // Insert notification in database
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { error: notifError } = await supabase
+      .from("admin_notifications")
+      .insert({
+        type: "new_organizer",
+        title: `Nueva solicitud de organizador: ${organizerName}`,
+        message: `${organizerName} (${organizerEmail}) ha solicitado el rol de organizador${clubName ? ` para el club "${clubName}"` : ""}.`,
+        metadata: {
+          user_id: userId,
+          organizer_name: organizerName,
+          organizer_email: organizerEmail,
+          club_name: clubName,
+        },
+      });
+
+    if (notifError) {
+      console.error("Error inserting notification:", notifError);
+    } else {
+      console.log("Notification inserted successfully");
+    }
 
     // Enviar email de notificación al equipo de soporte
     const emailResponse = await resend.emails.send({

@@ -309,7 +309,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           organizerEmail = user.email || "";
         }
         
-        const { error: insertError } = await supabase
+        const { data: insertedRace, error: insertError } = await supabase
           .from("races")
           .insert([{
             name: validatedData.name,
@@ -324,7 +324,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
             is_visible: formData.is_visible,
-          }]);
+          }])
+          .select('id')
+          .single();
 
         if (insertError) throw insertError;
 
@@ -339,6 +341,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 raceType: formData.race_type,
                 organizerName,
                 organizerEmail,
+                raceId: insertedRace?.id,
               },
             });
           } catch (notificationError) {

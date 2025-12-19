@@ -33,6 +33,7 @@ import { WavesManagement } from "@/components/admin/WavesManagement";
 import { GPSTrackingViewer } from "@/components/admin/GPSTrackingViewer";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
+import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -134,9 +135,12 @@ const AdminDashboard = () => {
         
         <div className="flex-1 flex flex-col">
           <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <div className="flex items-center gap-4 px-4 md:px-6 h-14">
-              <SidebarTrigger />
-              <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Administración</h1>
+            <div className="flex items-center justify-between gap-4 px-4 md:px-6 h-14">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Administración</h1>
+              </div>
+              <AdminNotificationsPanel />
             </div>
             {showRaceSelector && (
               <div className="px-4 md:px-6 pb-3">
