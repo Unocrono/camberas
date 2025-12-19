@@ -48,6 +48,12 @@ interface BibChip {
   race_distance_id: string;
 }
 
+interface Registration {
+  id: string;
+  bib_number: number;
+  race_distance_id: string;
+}
+
 interface ParsedReading {
   reader_id: string;
   chip_code: string;
@@ -56,6 +62,7 @@ interface ParsedReading {
   raw_line: string;
   resolved_bib: number | null;
   resolved_distance_id: string | null;
+  resolved_registration_id: string | null;
   has_error: boolean;
   error_message?: string;
 }
@@ -238,6 +245,7 @@ export function RFIDImportDialog({
   const [detectedFormat, setDetectedFormat] = useState<DetectedFormat | null>(null);
   const [parsedReadings, setParsedReadings] = useState<ParsedReading[]>([]);
   const [bibChips, setBibChips] = useState<BibChip[]>([]);
+  const [registrations, setRegistrations] = useState<Registration[]>([]);
   
   // Import mode
   const [importMode, setImportMode] = useState<ImportMode>('auto');
@@ -274,6 +282,22 @@ export function RFIDImportDialog({
       setBibChips(data || []);
     } catch (error) {
       console.error('Error loading bib_chips:', error);
+    }
+  }, [raceId]);
+
+  // Load registrations for the race to resolve registration_id
+  const loadRegistrations = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('registrations')
+        .select('id, bib_number, race_distance_id')
+        .eq('race_id', raceId)
+        .not('bib_number', 'is', null);
+      
+      if (error) throw error;
+      setRegistrations(data || []);
+    } catch (error) {
+      console.error('Error loading registrations:', error);
     }
   }, [raceId]);
 
@@ -366,8 +390,8 @@ export function RFIDImportDialog({
         }
       }
 
-      // Load bib_chips mapping
-      await loadBibChips();
+      // Load bib_chips mapping and registrations
+      await Promise.all([loadBibChips(), loadRegistrations()]);
 
       setStep('preview');
     } catch (error) {
@@ -420,6 +444,7 @@ export function RFIDImportDialog({
           raw_line: line,
           resolved_bib: null,
           resolved_distance_id: null,
+          resolved_registration_id: null,
           has_error: true,
           error_message: 'Línea no válida',
         });
@@ -449,6 +474,19 @@ export function RFIDImportDialog({
         }
       }
 
+      // Resolve registration_id from bib_number
+      let resolvedRegistrationId: string | null = null;
+      if (resolvedBib) {
+        const regMatch = registrations.find(r => r.bib_number === resolvedBib);
+        if (regMatch) {
+          resolvedRegistrationId = regMatch.id;
+          // Also get distance_id from registration if not already set
+          if (!resolvedDistanceId) {
+            resolvedDistanceId = regMatch.race_distance_id;
+          }
+        }
+      }
+
       readings.push({
         reader_id: parsed.readerId || '',
         chip_code: parsed.chipCode,
@@ -457,13 +495,14 @@ export function RFIDImportDialog({
         raw_line: line,
         resolved_bib: resolvedBib,
         resolved_distance_id: resolvedDistanceId,
+        resolved_registration_id: resolvedRegistrationId,
         has_error: !resolvedBib,
         error_message: !resolvedBib ? 'Chip no resuelto a dorsal' : undefined,
       });
     }
 
     setParsedReadings(readings);
-  }, [fileContent, detectedFormat, defaultDate, bibChips, selectedDistanceId, importMode, simpleConfig, parseSimpleLine]);
+  }, [fileContent, detectedFormat, defaultDate, bibChips, registrations, selectedDistanceId, importMode, simpleConfig, parseSimpleLine]);
 
   // Re-parse when settings change
   const handleSettingsChange = useCallback(() => {
@@ -523,6 +562,7 @@ export function RFIDImportDialog({
           timing_timestamp: reading.timestamp.toISOString(),
           timing_point_id: selectedTimingPointId || null,
           race_distance_id: reading.resolved_distance_id || selectedDistanceId || null,
+          registration_id: reading.resolved_registration_id || null,
           reader_device_id: readerDeviceId || reading.reader_id,
           reading_type: 'automatic',
           operator_user_id: user?.id || null,
