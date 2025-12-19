@@ -288,7 +288,7 @@ const RaceResults = () => {
     return gender;
   };
 
-  // Get unique checkpoints for the selected distance
+  // Get unique checkpoints for the selected distance (excluding Meta/finish checkpoints)
   const distanceCheckpoints = useMemo(() => {
     if (selectedDistance === "all") {
       // Get checkpoints that appear in results
@@ -299,7 +299,9 @@ const RaceResults = () => {
       return Array.from(checkpointNames).map(name => {
         const cp = checkpoints.find(c => c.name === name);
         return { name, order: cp?.checkpoint_order || 0, distance_km: cp?.distance_km || 0 };
-      }).sort((a, b) => a.order - b.order);
+      })
+      .filter(cp => !cp.name.toLowerCase().includes('meta')) // Exclude Meta - shown as finish_time
+      .sort((a, b) => a.order - b.order);
     }
     
     const distanceResults = results.filter(r => r.registration.race_distance_id === selectedDistance);
@@ -310,7 +312,9 @@ const RaceResults = () => {
     return Array.from(checkpointNames).map(name => {
       const cp = checkpoints.find(c => c.name === name);
       return { name, order: cp?.checkpoint_order || 0, distance_km: cp?.distance_km || 0 };
-    }).sort((a, b) => a.order - b.order);
+    })
+    .filter(cp => !cp.name.toLowerCase().includes('meta')) // Exclude Meta - shown as finish_time
+    .sort((a, b) => a.order - b.order);
   }, [results, selectedDistance, checkpoints]);
 
   // Filter and sort results
@@ -610,14 +614,12 @@ const RaceResults = () => {
                   <TableHead className="w-12 text-center font-semibold">Sx</TableHead>
                   <TableHead className="w-20 font-semibold">Cat</TableHead>
                   <TableHead className="w-16 text-center font-semibold">Por Cat.</TableHead>
+                  <TableHead className="w-16 text-center font-semibold">Por Gén.</TableHead>
+                  <TableHead className="font-semibold text-center min-w-[80px]">Tiempo</TableHead>
                   {distanceCheckpoints.slice(0, 6).map((cp, idx) => (
                     <TableHead key={cp.name} className="font-semibold text-center whitespace-nowrap min-w-[80px]">
                       <div className="flex flex-col items-center">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center mb-1 text-[10px] font-bold ${
-                          idx === distanceCheckpoints.slice(0, 6).length - 1 && cp.name.toLowerCase().includes('meta')
-                            ? 'bg-red-500 text-white'
-                            : 'bg-primary text-primary-foreground'
-                        }`}>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center mb-1 text-[10px] font-bold bg-primary text-primary-foreground">
                           {idx + 1}
                         </div>
                         <span className="text-xs">{cp.name}</span>
@@ -625,7 +627,6 @@ const RaceResults = () => {
                       </div>
                     </TableHead>
                   ))}
-                  <TableHead className="font-semibold text-center">Tiempo</TableHead>
                   <TableHead className="font-semibold text-center">Gap</TableHead>
                   <TableHead className="font-semibold text-center">Ritmo</TableHead>
                 </TableRow>
@@ -679,6 +680,12 @@ const RaceResults = () => {
                         <TableCell className="text-center">
                           {result.category_position || "-"}
                         </TableCell>
+                        <TableCell className="text-center">
+                          {result.gender_position || "-"}
+                        </TableCell>
+                        <TableCell className="text-center font-mono font-semibold text-primary">
+                          {formatTime(result.finish_time)}
+                        </TableCell>
                         {distanceCheckpoints.slice(0, 6).map(cp => {
                           const split = result.split_times?.find(s => s.checkpoint_name === cp.name);
                           return (
@@ -687,9 +694,6 @@ const RaceResults = () => {
                             </TableCell>
                           );
                         })}
-                        <TableCell className="text-center font-mono font-semibold text-primary">
-                          {formatTime(result.finish_time)}
-                        </TableCell>
                         <TableCell className="text-center font-mono text-sm text-destructive">
                           {calculateGap(result.finish_time, winnerTime)}
                         </TableCell>
