@@ -930,23 +930,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
           <CardDescription>Calcula, importa y gestiona los resultados de cada evento</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label>Carrera</Label>
-              <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una carrera" />
-                </SelectTrigger>
-                <SelectContent>
-                  {races.map(race => (
-                    <SelectItem key={race.id} value={race.id}>
-                      {race.name} - {new Date(race.date).toLocaleDateString()}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>Evento</Label>
               <Select 
