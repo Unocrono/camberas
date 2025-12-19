@@ -96,7 +96,8 @@ interface RaceStats {
 type ReadingFilter = 'all' | 'gps' | 'manual' | 'automatic';
 
 export default function LiveResults() {
-  const { id } = useParams();
+  const { id, slug } = useParams();
+  const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [selectedDistance, setSelectedDistance] = useState<string>("all");
@@ -119,6 +120,51 @@ export default function LiveResults() {
   const [showMap, setShowMap] = useState(false);
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState("rankings");
+
+  // Helper to create slug from race name
+  const createSlug = (name: string): string => {
+    return name
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+  };
+
+  // Resolve race ID from slug or direct ID
+  useEffect(() => {
+    const resolveRaceId = async () => {
+      // If we have a direct UUID ID, use it
+      if (id) {
+        setRaceId(id);
+        return;
+      }
+
+      // If we have a slug, look up the race by name
+      if (slug) {
+        const { data: races } = await supabase
+          .from("races")
+          .select("id, name")
+          .eq("is_visible", true);
+
+        if (races) {
+          const matchedRace = races.find(r => createSlug(r.name) === slug);
+          if (matchedRace) {
+            setRaceId(matchedRace.id);
+            return;
+          }
+        }
+        // If no match found, clear raceId and stop loading
+        setRaceId(null);
+        setLoading(false);
+      } else if (!id) {
+        // No id or slug provided
+        setLoading(false);
+      }
+    };
+
+    resolveRaceId();
+  }, [id, slug]);
 
   // Filter results based on distance and search
   const filteredResults = useMemo(() => {
@@ -151,44 +197,55 @@ export default function LiveResults() {
   }, [filteredResults]);
 
   const fetchRaceData = async () => {
-    if (!id) return;
+    if (!raceId) return;
 
     try {
       // Fetch race details and distances in parallel
       const [raceResponse, distancesResponse] = await Promise.all([
-        supabase.from("races").select("id, name, date, location, logo_url, cover_image_url").eq("id", id).single(),
-        supabase.from("race_distances").select("id, name, distance_km").eq("race_id", id).eq("is_visible", true).order("distance_km")
+        supabase.from("races").select("id, name, date, location, logo_url, cover_image_url").eq("id", raceId).single(),
+        supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km")
       ]);
 
       if (raceResponse.error) throw raceResponse.error;
       setRace(raceResponse.data);
       setDistances(distancesResponse.data || []);
 
-      // Fetch all results
-      const { data: resultsData, error: resultsError } = await supabase
-        .from("race_results")
-        .select(`
-          id,
-          finish_time,
-          overall_position,
-          gender_position,
-          category_position,
-          status,
-          photo_url,
-          registration:registrations!inner (
-            bib_number,
-            user_id,
-            guest_first_name,
-            guest_last_name,
-            race_distances!inner (
-              id,
-              name,
-              distance_km
+      // Fetch all results using race_distance_id filter instead of nested registration.race_id
+      const distanceIds = distancesResponse.data?.map(d => d.id) || [];
+      
+      let resultsData: any[] = [];
+      let resultsError = null;
+      
+      if (distanceIds.length > 0) {
+        const result = await supabase
+          .from("race_results")
+          .select(`
+            id,
+            finish_time,
+            overall_position,
+            gender_position,
+            category_position,
+            status,
+            photo_url,
+            race_distance_id,
+            registration:registrations!inner (
+              bib_number,
+              user_id,
+              guest_first_name,
+              guest_last_name,
+              race_distances!inner (
+                id,
+                name,
+                distance_km
+              )
             )
-          )
-        `)
-        .eq("registration.race_id", id)
-        .order("created_at", { ascending: false });
+          `)
+          .in("race_distance_id", distanceIds)
+          .order("overall_position", { ascending: true, nullsFirst: false });
+        
+        resultsData = result.data || [];
+        resultsError = result.error;
+      }
 
       if (resultsError) throw resultsError;
       
@@ -230,7 +287,7 @@ export default function LiveResults() {
             guest_last_name
           )
         `)
-        .eq("race_id", id)
+        .eq("race_id", raceId)
         .is("status_code", null)
         .order("timing_timestamp", { ascending: false })
         .limit(50);
@@ -262,22 +319,24 @@ export default function LiveResults() {
         }
       }
 
-      // Fetch stats
-      const [registrationsCount, finishedResults, allReadingsCount] = await Promise.all([
-        supabase.from("registrations").select("id", { count: 'exact', head: true }).eq("race_id", id).eq("status", "confirmed"),
-        supabase.from("race_results").select("finish_time, registration:registrations!inner(race_id)").eq("registration.race_id", id).eq("status", "FIN"),
-        supabase.from("timing_readings").select("reading_type", { count: 'exact' }).eq("race_id", id).is("status_code", null)
+      // Fetch stats using race_distance_id instead of nested race_id filter
+      const [registrationsCount, allReadingsCount] = await Promise.all([
+        supabase.from("registrations").select("id", { count: 'exact', head: true }).eq("race_id", raceId).eq("status", "confirmed"),
+        supabase.from("timing_readings").select("reading_type", { count: 'exact' }).eq("race_id", raceId).is("status_code", null)
       ]);
 
+      // Count finished results from already fetched data
+      const finishedFromResults = resultsData.filter((r: any) => r.status === 'FIN');
+
       const totalRegs = registrationsCount.count || 0;
-      const finishedCount = finishedResults.data?.length || 0;
+      const finishedCount = finishedFromResults.length;
       const runnersOnRoute = totalRegs - finishedCount;
       const gpsPasses = readingsData?.filter((r: any) => r.reading_type === 'gps_auto').length || 0;
       const manualPasses = readingsData?.filter((r: any) => r.reading_type === 'manual').length || 0;
 
       let avgFinishTime: string | null = null;
-      if (finishedResults.data && finishedResults.data.length > 0) {
-        const times = finishedResults.data.map((r: any) => {
+      if (finishedFromResults.length > 0) {
+        const times = finishedFromResults.map((r: any) => {
           const match = r.finish_time?.match(/(\d{2}):(\d{2}):(\d{2})/);
           if (match) {
             return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
@@ -352,7 +411,7 @@ export default function LiveResults() {
       supabase.removeChannel(resultsChannel);
       supabase.removeChannel(readingsChannel);
     };
-  }, [id]);
+  }, [raceId]);
 
   const formatTime = (timeString: string): string => {
     if (!timeString) return "--:--:--";
@@ -430,7 +489,7 @@ export default function LiveResults() {
         
         <div className="relative container mx-auto px-4 py-6 md:py-10 border-b">
           <Button asChild variant="ghost" size="sm" className="mb-4 hover:bg-primary/10">
-            <Link to={`/race/${id}`}><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la carrera</Link>
+            <Link to={`/race/${raceId}`}><ArrowLeft className="mr-2 h-4 w-4" /> Volver a la carrera</Link>
           </Button>
           
           <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
@@ -452,7 +511,7 @@ export default function LiveResults() {
                     {showMap ? "Ocultar mapa" : "Ver mapa"}
                   </Button>
                 )}
-                <ShareResultsButton raceName={race.name} raceId={id!} />
+                <ShareResultsButton raceName={race.name} raceId={raceId!} />
                 <ExportResultsButton 
                   results={allResults} 
                   raceName={race.name} 
@@ -475,7 +534,7 @@ export default function LiveResults() {
           <div className="container mx-auto px-4 py-4">
             <Card className="overflow-hidden shadow-xl">
               <div className="h-[300px] md:h-[400px] w-full">
-                <LiveGPSMap raceId={id!} mapboxToken={mapboxToken} />
+                <LiveGPSMap raceId={raceId!} mapboxToken={mapboxToken} />
               </div>
             </Card>
           </div>
