@@ -10,6 +10,7 @@ import RaceDetail from "./pages/RaceDetail";
 import RaceRegulation from "./pages/RaceRegulation";
 import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
+import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
 import RunnerGPSTracker from "./pages/RunnerGPSTracker";
 import TimingShop from "./pages/TimingShop";
@@ -89,6 +90,7 @@ const App = () => (
           {/* URL amigable con slug de carrera - DEBE estar antes del catch-all */}
           <Route path="/:slug" element={<RaceDetail />} />
           <Route path="/:slug/live" element={<LiveResults />} />
+          <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
