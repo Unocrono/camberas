@@ -65,6 +65,7 @@ const Races = () => {
 
           return {
             id: race.id,
+            slug: race.slug,
             name: race.name,
             date: new Date(race.date).toLocaleDateString("es-ES", {
               day: "numeric",

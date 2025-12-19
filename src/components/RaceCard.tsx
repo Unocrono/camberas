@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 
 interface RaceCardProps {
   id: string;
+  slug?: string | null;
   name: string;
   date: string;
   location: string;
@@ -15,7 +16,8 @@ interface RaceCardProps {
   raceType?: 'trail' | 'mtb';
 }
 
-const RaceCard = ({ id, name, date, location, distances, participants, imageUrl, raceType = 'trail' }: RaceCardProps) => {
+const RaceCard = ({ id, slug, name, date, location, distances, participants, imageUrl, raceType = 'trail' }: RaceCardProps) => {
+  const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
   return (
     <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group">
       <div className="relative h-48 overflow-hidden">
@@ -62,7 +64,7 @@ const RaceCard = ({ id, name, date, location, distances, participants, imageUrl,
       
       <CardFooter>
         <Button asChild className="w-full">
-          <Link to={`/race/${id}`}>Ver detalles</Link>
+          <Link to={raceUrl}>Ver detalles</Link>
         </Button>
       </CardFooter>
     </Card>

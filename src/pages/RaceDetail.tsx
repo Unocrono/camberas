@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -627,11 +627,15 @@ const RaceDetail = () => {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => navigate(`/race/${id}/regulation`)}>
+                <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/regulation`)}>
                   Reglamento
                 </Button>
+                <Button variant="outline" onClick={() => navigate(`/${race.slug || raceId}/live`)}>
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Clasificaciones
+                </Button>
                 {race.distances?.some((d: any) => d.gps_tracking_enabled) && (
-                  <Button variant="outline" onClick={() => navigate(`/race/${id}/gps`)}>
+                  <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/gps`)}>
                     Mapa GPS en Vivo
                   </Button>
                 )}
