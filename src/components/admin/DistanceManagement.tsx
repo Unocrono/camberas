@@ -14,6 +14,12 @@ import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+// Format timestamp to local time HH:MM
+const formatTimeLocal = (isoString: string | null): string => {
+  if (!isoString) return "";
+  const date = new Date(isoString);
+  return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+};
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
   distance_km: z.number().positive("La distancia debe ser positiva"),
@@ -976,7 +982,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       <div>
                         <p className="text-xs text-muted-foreground">Salida</p>
                         <p className="font-semibold">
-                          {distance.wave_start_time.slice(11, 16)}
+                          {formatTimeLocal(distance.wave_start_time)}
                         </p>
                       </div>
                     </div>
