@@ -61,7 +61,6 @@ const App = () => (
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
           {/* Friendly URL routes with race slug */}
-          <Route path="/live/:slug" element={<LiveResults />} />
           <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
@@ -87,6 +86,8 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
+          {/* URL amigable con slug de carrera - DEBE estar antes del catch-all */}
+          <Route path="/:slug" element={<LiveResults />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

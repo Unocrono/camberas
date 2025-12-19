@@ -911,6 +911,7 @@ export type Database = {
           race_type: string
           registration_closes: string | null
           registration_opens: string | null
+          slug: string | null
           updated_at: string
         }
         Insert: {
@@ -935,6 +936,7 @@ export type Database = {
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          slug?: string | null
           updated_at?: string
         }
         Update: {
@@ -959,6 +961,7 @@ export type Database = {
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          slug?: string | null
           updated_at?: string
         }
         Relationships: []
