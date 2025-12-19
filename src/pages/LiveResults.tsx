@@ -72,6 +72,7 @@ interface RaceCheckpoint {
   distance_km: number;
   checkpoint_order: number;
   checkpoint_type: string;
+  race_distance_id: string | null;
 }
 
 interface SplitTime {
@@ -207,8 +208,7 @@ export default function LiveResults() {
   // Checkpoints filtered by selected distance
   const filteredCheckpoints = useMemo(() => {
     if (selectedDistance === "all") return checkpoints;
-    // For now, return all checkpoints - could filter by race_distance_id if needed
-    return checkpoints;
+    return checkpoints.filter(cp => cp.race_distance_id === selectedDistance);
   }, [checkpoints, selectedDistance]);
 
   // Results filtered by checkpoint for Intermedios tab - classification at that checkpoint
@@ -285,7 +285,7 @@ export default function LiveResults() {
       const [raceResponse, distancesResponse, checkpointsResponse] = await Promise.all([
         supabase.from("races").select("id, name, date, location, logo_url, cover_image_url, race_type").eq("id", raceId).single(),
         supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
-        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type").eq("race_id", raceId).order("checkpoint_order")
+        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id").eq("race_id", raceId).order("checkpoint_order")
       ]);
 
       if (raceResponse.error) throw raceResponse.error;
