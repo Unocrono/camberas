@@ -60,6 +60,8 @@ const App = () => (
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
+          {/* Friendly URL routes with race slug */}
+          <Route path="/live/:slug" element={<LiveResults />} />
           <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/auth" element={<Auth />} />
