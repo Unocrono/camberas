@@ -335,13 +335,13 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .eq("bib_number", parseInt(formData.bib_number))
         .maybeSingle();
 
+      // registration_id se resuelve dinámicamente via bib_number + race_id en las funciones de cálculo
       const { error } = await supabase.from("timing_readings").insert({
         race_id: filterRaceId,
         bib_number: parseInt(formData.bib_number),
         timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
         timing_point_id: formData.timing_point_id || null,
         race_distance_id: formData.race_distance_id || registration?.race_distance_id || null,
-        registration_id: registration?.id || null,
         lap_number: parseInt(formData.lap_number) || 1,
         notes: formData.notes || null,
         reading_type: formData.reading_type,
