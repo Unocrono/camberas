@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock, RefreshCw } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { parseGpxFile, calculateHaversineDistance as gpxCalcDistance, calculateTrackDistance } from "@/lib/gpxParser";
@@ -135,8 +135,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     checkpoint_type: "CONTROL",
     min_time: "",
     max_time: "",
-    min_lap_time: "",
-    expected_laps: 1,
   });
   const [isCreatingTimingPoint, setIsCreatingTimingPoint] = useState(false);
   const [newTimingPointName, setNewTimingPointName] = useState("");
@@ -729,8 +727,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       checkpoint_type: "CONTROL",
       min_time: "",
       max_time: "",
-      min_lap_time: "",
-      expected_laps: 1,
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -815,8 +811,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         checkpoint_type: checkpoint.checkpoint_type || "CONTROL",
         min_time: intervalToString(checkpoint.min_time),
         max_time: intervalToString(checkpoint.max_time),
-        min_lap_time: intervalToString(checkpoint.min_lap_time),
-        expected_laps: checkpoint.expected_laps || 1,
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -840,7 +834,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     // Convertir tiempos a formato interval o null
     const min_time = formData.min_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_time) ? formData.min_time : null;
     const max_time = formData.max_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.max_time) ? formData.max_time : null;
-    const min_lap_time = formData.min_lap_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_lap_time) ? formData.min_lap_time : null;
 
     if (isEditing && selectedCheckpoint) {
       const { error } = await supabase
@@ -857,8 +850,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           checkpoint_type: formData.checkpoint_type,
           min_time,
           max_time,
-          min_lap_time,
-          expected_laps: formData.expected_laps,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -886,8 +877,6 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           checkpoint_type: formData.checkpoint_type,
           min_time,
           max_time,
-          min_lap_time,
-          expected_laps: formData.expected_laps,
         });
 
       if (error) {
@@ -1634,28 +1623,35 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                     </p>
                   </div>
                   
-                  {/* Parámetros de Tiempo */}
+                  {/* Parámetros de Tiempo - Ventana de validación */}
                   <div className="border-t pt-4 space-y-3">
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm font-medium">Parámetros de Cronometraje</Label>
+                      <Clock className="h-4 w-4 text-primary" />
+                      <Label className="text-sm font-medium">Ventana de Tiempo para Validación</Label>
                     </div>
+                    <p className="text-xs text-muted-foreground -mt-1">
+                      Define el rango de tiempo válido para este checkpoint. Lecturas fuera del rango se ignoran.
+                      <br />
+                      <strong>Tip:</strong> Para múltiples pasos por el mismo punto, crea varios checkpoints con el mismo Punto de Cronometraje pero rangos de tiempo diferentes.
+                    </p>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="min_time" className="text-xs">Tiempo Mínimo</Label>
+                        <Label htmlFor="min_time" className="text-xs font-medium">Tiempo Mínimo</Label>
                         <Input
                           id="min_time"
                           type="text"
                           value={formData.min_time}
                           onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
-                          placeholder="HH:MM:SS"
+                          placeholder="00:00:00"
                           pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                          className="font-mono"
                         />
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Ignorar lecturas antes de este tiempo
+                          Lecturas antes de este tiempo se ignoran
                         </p>
                       </div>
                       <div>
-                        <Label htmlFor="max_time" className="text-xs">Tiempo Máximo</Label>
+                        <Label htmlFor="max_time" className="text-xs font-medium">Tiempo Máximo (Cutoff)</Label>
                         <Input
                           id="max_time"
                           type="text"
@@ -1663,40 +1659,20 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                           onChange={(e) => setFormData({ ...formData, max_time: e.target.value })}
                           placeholder="HH:MM:SS"
                           pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                          className="font-mono"
                         />
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Ignorar lecturas después (cutoff)
+                          Lecturas después de este tiempo se ignoran
                         </p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="expected_laps" className="text-xs">Vueltas Esperadas</Label>
-                        <Input
-                          id="expected_laps"
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={formData.expected_laps}
-                          onChange={(e) => setFormData({ ...formData, expected_laps: parseInt(e.target.value) || 1 })}
-                        />
-                      </div>
-                      {formData.expected_laps > 1 && (
-                        <div>
-                          <Label htmlFor="min_lap_time" className="text-xs">Tiempo Mín. por Vuelta</Label>
-                          <Input
-                            id="min_lap_time"
-                            type="text"
-                            value={formData.min_lap_time}
-                            onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
-                            placeholder="HH:MM:SS"
-                            pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                          />
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            Tiempo mínimo entre vueltas
-                          </p>
-                        </div>
-                      )}
+                    <div className="p-3 bg-muted/50 rounded-md">
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Ejemplo circuito con 2 vueltas:</strong>
+                        <br />• CP "Paso 1" → min: 00:10:00, max: 00:25:00
+                        <br />• CP "Paso 2" → min: 00:26:00, max: 00:50:00
+                        <br />Ambos usan el mismo Punto de Cronometraje físico.
+                      </p>
                     </div>
                   </div>
                   
@@ -1773,21 +1749,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
-                        {checkpoint.timing_point_id ? (
-                          <Badge variant="outline" className="text-xs w-fit">
-                            {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">-</span>
-                        )}
-                        {(checkpoint.expected_laps || 1) > 1 && (
-                          <Badge variant="secondary" className="text-xs w-fit">
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            {checkpoint.expected_laps} vueltas
-                          </Badge>
-                        )}
-                      </div>
+                      {checkpoint.timing_point_id ? (
+                        <Badge variant="outline" className="text-xs w-fit">
+                          {timingPoints.find(tp => tp.id === checkpoint.timing_point_id)?.name || "Vinculado"}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">-</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex flex-col items-center gap-0.5 text-xs">
