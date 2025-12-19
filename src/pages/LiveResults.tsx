@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, 
   Radio, Clock, Map as MapIcon, MapPinned, Search,
@@ -480,6 +481,13 @@ export default function LiveResults() {
     setIntermediosPage(1);
     setSpeakerPage(1);
   }, [selectedDistance, searchQuery]);
+
+  // Auto-select first checkpoint when switching to intermedios tab
+  useEffect(() => {
+    if (activeTab === "intermedios" && filteredCheckpoints.length > 0 && intermediosCheckpoint === "all") {
+      setIntermediosCheckpoint(filteredCheckpoints[0].id);
+    }
+  }, [activeTab, filteredCheckpoints, intermediosCheckpoint]);
 
   const formatTime = (timeString: string): string => {
     if (!timeString) return "--:--:--";
@@ -1057,7 +1065,7 @@ export default function LiveResults() {
           {/* Pasos Intermedios Tab - Classification by checkpoint */}
           <TabsContent value="intermedios">
             <Card>
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3">
+              <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <MapPin className="h-5 w-5 text-primary" />
                   Clasificación por Punto de Control
@@ -1066,87 +1074,80 @@ export default function LiveResults() {
                     En vivo
                   </Badge>
                 </CardTitle>
-                <Select value={intermediosCheckpoint} onValueChange={(v) => { setIntermediosCheckpoint(v); setIntermediosPage(1); }}>
-                  <SelectTrigger className="w-full sm:w-[200px]">
-                    <SelectValue placeholder="Seleccionar checkpoint" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Seleccionar punto...</SelectItem>
-                    {filteredCheckpoints.map(cp => (
-                      <SelectItem key={cp.id} value={cp.id}>
-                        {cp.name} ({cp.distance_km}km)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </CardHeader>
               <CardContent>
-                {intermediosCheckpoint === "all" ? (
-                  <>
-                    {/* Checkpoint selector cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                {/* Checkpoint Timeline Tabs */}
+                <TooltipProvider delayDuration={100}>
+                  <div className="relative mb-6">
+                    {/* Timeline line */}
+                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 z-0" />
+                    
+                    {/* Checkpoint tabs */}
+                    <div className="relative flex items-center justify-between overflow-x-auto pb-2 gap-1">
                       {filteredCheckpoints.map((cp, idx) => {
-                        const splitCount = sortedResults.filter(r => 
-                          r.split_times?.some(s => s.checkpoint_order === cp.checkpoint_order)
-                        ).length;
+                        const isSelected = intermediosCheckpoint === cp.id;
+                        const isFirst = idx === 0;
+                        const isLast = idx === filteredCheckpoints.length - 1;
+                        const isMeta = cp.checkpoint_type === 'META';
                         
                         return (
-                          <button 
-                            key={cp.id} 
-                            onClick={() => setIntermediosCheckpoint(cp.id)}
-                            className="group relative border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all text-left"
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                cp.checkpoint_type === 'META' ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground'
-                              }`}>
-                                {idx + 1}
-                              </div>
-                              <span className="font-semibold group-hover:text-primary transition-colors truncate">
-                                {cp.name}
-                              </span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {cp.distance_km} km
-                            </div>
-                            {splitCount > 0 && (
-                              <Badge variant="secondary" className="absolute top-2 right-2 text-xs">
-                                {splitCount}
-                              </Badge>
-                            )}
-                          </button>
+                          <Tooltip key={cp.id}>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => { setIntermediosCheckpoint(cp.id); setIntermediosPage(1); }}
+                                className={`
+                                  relative z-10 flex flex-col items-center transition-all duration-200 group min-w-[80px]
+                                  ${isSelected ? '' : 'opacity-70 hover:opacity-100'}
+                                `}
+                              >
+                                {/* Checkpoint name pill */}
+                                <div className={`
+                                  px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all
+                                  ${isSelected 
+                                    ? isMeta 
+                                      ? 'bg-amber-500 text-white shadow-md' 
+                                      : 'bg-primary text-primary-foreground shadow-md'
+                                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                  }
+                                `}>
+                                  {cp.name.toUpperCase()}
+                                </div>
+                                
+                                {/* Distance indicator shown on selection */}
+                                {isSelected && (
+                                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium bg-background border rounded px-1.5 py-0.5 shadow-sm">
+                                    {cp.distance_km}km
+                                  </div>
+                                )}
+                                
+                                {/* Connector dot */}
+                                <div className={`
+                                  absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-all
+                                  ${isSelected 
+                                    ? isMeta ? 'bg-amber-500' : 'bg-primary' 
+                                    : 'bg-border group-hover:bg-muted-foreground'
+                                  }
+                                `} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom" className="font-medium">
+                              <p>{cp.distance_km} km</p>
+                            </TooltipContent>
+                          </Tooltip>
                         );
                       })}
                     </div>
-                    
-                    <div className="text-center py-8 text-muted-foreground">
-                      <MapPin className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                      <p>Selecciona un punto de control para ver la clasificación</p>
-                    </div>
-                  </>
-                ) : (
+                  </div>
+                </TooltipProvider>
+
+                {intermediosCheckpoint !== "all" && filteredCheckpoints.length > 0 && (
                   <>
-                    {/* Selected checkpoint info */}
-                    {(() => {
-                      const selectedCp = checkpoints.find(c => c.id === intermediosCheckpoint);
-                      return selectedCp && (
-                        <div className="flex items-center gap-3 mb-4 p-3 bg-muted/50 rounded-lg">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            selectedCp.checkpoint_type === 'META' ? 'bg-red-500 text-white' : 'bg-primary text-primary-foreground'
-                          }`}>
-                            {selectedCp.checkpoint_order}
-                          </div>
-                          <div>
-                            <div className="font-semibold">{selectedCp.name}</div>
-                            <div className="text-sm text-muted-foreground">{selectedCp.distance_km} km</div>
-                          </div>
-                          <Badge variant="secondary" className="ml-auto">
-                            {intermediosResults.length} clasificados
-                          </Badge>
-                        </div>
-                      );
-                    })()}
-                    
+                    {/* Badge with count */}
+                    <div className="flex items-center justify-end mb-4">
+                      <Badge variant="secondary">
+                        {intermediosResults.length} clasificados
+                      </Badge>
+                    </div>
                     {/* Classification table */}
                     <div className="overflow-x-auto">
                       <Table>
@@ -1257,6 +1258,14 @@ export default function LiveResults() {
                       </div>
                     )}
                   </>
+                )}
+                
+                {/* Empty state when no checkpoints */}
+                {filteredCheckpoints.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <MapPin className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                    <p>No hay puntos de control configurados para esta distancia</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
