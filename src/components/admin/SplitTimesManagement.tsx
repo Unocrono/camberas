@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, Trash2, Clock, Search, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -106,8 +107,12 @@ export function SplitTimesManagement({
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteMultipleDialogOpen, setIsDeleteMultipleDialogOpen] = useState(false);
   const [editingSplit, setEditingSplit] = useState<SplitTimeWithDetails | null>(null);
   const [deletingSplitId, setDeletingSplitId] = useState<string | null>(null);
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
   // Form state
   const [formData, setFormData] = useState({
@@ -577,6 +582,53 @@ export function SplitTimesManagement({
     });
   };
 
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(paginatedSplits.map(s => s.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const handleDeleteMultiple = () => {
+    if (selectedIds.size === 0) {
+      toast.error("Selecciona al menos un tiempo para eliminar");
+      return;
+    }
+    setIsDeleteMultipleDialogOpen(true);
+  };
+
+  const handleConfirmDeleteMultiple = async () => {
+    if (selectedIds.size === 0) return;
+
+    const idsArray = Array.from(selectedIds);
+    const { error } = await supabase
+      .from("split_times")
+      .delete()
+      .in("id", idsArray);
+
+    if (error) {
+      toast.error("Error al eliminar tiempos parciales");
+      return;
+    }
+
+    toast.success(`${idsArray.length} tiempo(s) parcial(es) eliminado(s)`);
+    setIsDeleteMultipleDialogOpen(false);
+    setSelectedIds(new Set());
+    fetchSplitTimes();
+  };
+
   // Filtered registrations for the add dialog (by selected distance)
   const filteredRegistrations = useMemo(() => {
     if (!selectedDistanceId) return registrations;
@@ -593,15 +645,28 @@ export function SplitTimesManagement({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Clock className="h-6 w-6" />
-          Gestión de Tiempos Parciales
-        </h2>
-        <Button onClick={() => setIsAddDialogOpen(true)} disabled={checkpoints.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          Añadir Tiempo
-        </Button>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Clock className="h-6 w-6" />
+            Gestión de Tiempos Parciales
+          </h2>
+          {selectedIds.size > 0 && (
+            <p className="text-sm text-muted-foreground">{selectedIds.size} seleccionado(s)</p>
+          )}
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button onClick={handleDeleteMultiple} variant="destructive">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar ({selectedIds.size})
+            </Button>
+          )}
+          <Button onClick={() => setIsAddDialogOpen(true)} disabled={checkpoints.length === 0}>
+            <Plus className="mr-2 h-4 w-4" />
+            Añadir Tiempo
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -677,6 +742,12 @@ export function SplitTimesManagement({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={paginatedSplits.length > 0 && selectedIds.size === paginatedSplits.length}
+                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                      />
+                    </TableHead>
                     <TableHead>Dorsal</TableHead>
                     <TableHead>Participante</TableHead>
                     <TableHead>Evento</TableHead>
@@ -688,7 +759,13 @@ export function SplitTimesManagement({
                 </TableHeader>
                 <TableBody>
                   {paginatedSplits.map((split) => (
-                    <TableRow key={split.id}>
+                    <TableRow key={split.id} className={selectedIds.has(split.id) ? "bg-muted/50" : ""}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(split.id)}
+                          onCheckedChange={(checked) => handleSelectOne(split.id, !!checked)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">#{split.bib_number || '-'}</TableCell>
                       <TableCell>{split.participant_name}</TableCell>
                       <TableCell>{split.event_name}</TableCell>
@@ -900,6 +977,24 @@ export function SplitTimesManagement({
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteSplit} className="bg-destructive text-destructive-foreground">
               Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Multiple Confirmation */}
+      <AlertDialog open={isDeleteMultipleDialogOpen} onOpenChange={setIsDeleteMultipleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selectedIds.size} tiempo(s) parcial(es)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Los tiempos parciales seleccionados serán eliminados permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeleteMultiple} className="bg-destructive text-destructive-foreground">
+              Eliminar ({selectedIds.size})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
