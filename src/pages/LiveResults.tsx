@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,6 +97,7 @@ type ReadingFilter = 'all' | 'gps' | 'manual' | 'automatic';
 
 export default function LiveResults() {
   const { id, slug } = useParams();
+  const navigate = useNavigate();
   const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
@@ -121,50 +122,39 @@ export default function LiveResults() {
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [activeTab, setActiveTab] = useState("rankings");
 
-  // Helper to create slug from race name
-  const createSlug = (name: string): string => {
-    return name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
-      .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-  };
-
   // Resolve race ID from slug or direct ID
   useEffect(() => {
     const resolveRaceId = async () => {
       // If we have a direct UUID ID, use it
-      if (id) {
+      if (id && id.length === 36 && id.includes('-')) {
         setRaceId(id);
         return;
       }
 
-      // If we have a slug, look up the race by name
-      if (slug) {
-        const { data: races } = await supabase
+      // Si es un slug (desde /:slug o /live/:slug), buscar por el campo slug
+      const searchSlug = slug || id;
+      if (searchSlug) {
+        const { data, error } = await supabase
           .from("races")
-          .select("id, name")
-          .eq("is_visible", true);
+          .select("id, slug")
+          .eq("slug", searchSlug)
+          .single();
 
-        if (races) {
-          const matchedRace = races.find(r => createSlug(r.name) === slug);
-          if (matchedRace) {
-            setRaceId(matchedRace.id);
-            return;
-          }
+        if (data && !error) {
+          setRaceId(data.id);
+        } else {
+          // Slug no encontrado, redirigir a 404
+          setRaceId(null);
+          setLoading(false);
+          navigate("/404", { replace: true });
         }
-        // If no match found, clear raceId and stop loading
-        setRaceId(null);
-        setLoading(false);
-      } else if (!id) {
-        // No id or slug provided
+      } else {
         setLoading(false);
       }
     };
 
     resolveRaceId();
-  }, [id, slug]);
+  }, [id, slug, navigate]);
 
   // Filter results based on distance and search
   const filteredResults = useMemo(() => {
