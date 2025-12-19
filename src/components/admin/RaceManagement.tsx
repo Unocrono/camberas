@@ -293,6 +293,22 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         // Create race first to get ID
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Get organizer profile info for notification
+        let organizerName = "";
+        let organizerEmail = "";
+        if (isOrganizer && user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("first_name, last_name")
+            .eq("id", user.id)
+            .single();
+          
+          if (profile) {
+            organizerName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim();
+          }
+          organizerEmail = user.email || "";
+        }
+        
         const { error: insertError } = await supabase
           .from("races")
           .insert([{
@@ -311,6 +327,25 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           }]);
 
         if (insertError) throw insertError;
+
+        // Send notification email when organizer creates a race
+        if (isOrganizer) {
+          try {
+            await supabase.functions.invoke("send-race-created-notification", {
+              body: {
+                raceName: validatedData.name,
+                raceDate: validatedData.date,
+                raceLocation: validatedData.location,
+                raceType: formData.race_type,
+                organizerName,
+                organizerEmail,
+              },
+            });
+          } catch (notificationError) {
+            console.error("Error sending race notification:", notificationError);
+            // Don't fail the operation if notification fails
+          }
+        }
 
         toast({
           title: "Carrera creada",
