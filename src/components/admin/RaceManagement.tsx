@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
@@ -33,6 +33,7 @@ interface Race {
   created_at: string;
   organizer_id: string | null;
   is_visible: boolean;
+  slug: string | null;
 }
 
 interface RaceManagementProps {
@@ -60,6 +61,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     additional_info: "",
     race_type: "trail" as "trail" | "mtb",
     is_visible: true,
+    slug: "",
   });
   
   // Image cropper states
@@ -118,6 +120,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         additional_info: (race as any).additional_info || "",
         race_type: (race as any).race_type || "trail",
         is_visible: race.is_visible ?? true,
+        slug: race.slug || "",
       });
     } else {
       setEditingRace(null);
@@ -134,6 +137,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         additional_info: "",
         race_type: "trail",
         is_visible: true,
+        slug: "",
       });
     }
     setIsDialogOpen(true);
@@ -255,21 +259,28 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
       });
 
       if (editingRace) {
+        const updateData: any = {
+          name: validatedData.name,
+          description: validatedData.description || null,
+          location: validatedData.location,
+          date: validatedData.date,
+          max_participants: validatedData.max_participants || null,
+          image_url: validatedData.image_url || null,
+          cover_image_url: formData.cover_image_url || null,
+          logo_url: formData.logo_url || null,
+          additional_info: formData.additional_info || null,
+          race_type: formData.race_type,
+          is_visible: formData.is_visible,
+        };
+        
+        // Solo actualizar slug si se ha modificado manualmente
+        if (formData.slug && formData.slug !== editingRace.slug) {
+          updateData.slug = formData.slug.toLowerCase().trim();
+        }
+
         const { error } = await supabase
           .from("races")
-          .update({
-            name: validatedData.name,
-            description: validatedData.description || null,
-            location: validatedData.location,
-            date: validatedData.date,
-            max_participants: validatedData.max_participants || null,
-            image_url: validatedData.image_url || null,
-            cover_image_url: formData.cover_image_url || null,
-            logo_url: formData.logo_url || null,
-            additional_info: formData.additional_info || null,
-            race_type: formData.race_type,
-            is_visible: formData.is_visible,
-          })
+          .update(updateData)
           .eq("id", editingRace.id);
 
         if (error) throw error;
@@ -643,6 +654,33 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 />
               </div>
 
+              {editingRace && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label htmlFor="slug" className="flex items-center gap-2">
+                    <LinkIcon className="h-4 w-4" />
+                    URL Personalizada (Slug)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground whitespace-nowrap">camberas.com/</span>
+                    <Input
+                      id="slug"
+                      value={formData.slug}
+                      onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-') })}
+                      placeholder="mi-carrera-2024"
+                      className="flex-1"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    URL amigable para compartir. Solo letras minúsculas, números y guiones. Se genera automáticamente del nombre si no se especifica.
+                  </p>
+                  {formData.slug && (
+                    <p className="text-xs text-primary">
+                      Vista previa: <span className="font-mono">camberas.com/{formData.slug}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <Button type="submit" className="w-full" disabled={isSubmitting || uploadingImage}>
                 {isSubmitting ? "Guardando..." : editingRace ? "Actualizar Carrera" : "Crear Carrera"}
               </Button>
@@ -742,6 +780,19 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">Capacidad:</span>
                       <span>{race.max_participants} participantes</span>
+                    </div>
+                  )}
+                  {race.slug && (
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                      <a 
+                        href={`/${race.slug}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline font-mono text-xs"
+                      >
+                        camberas.com/{race.slug}
+                      </a>
                     </div>
                   )}
                 </div>
