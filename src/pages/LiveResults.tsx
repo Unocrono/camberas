@@ -752,6 +752,8 @@ export default function LiveResults() {
                         <TableHead className="w-[70px] text-center">Dorsal</TableHead>
                         <TableHead className="min-w-[180px]">Nombre</TableHead>
                         <TableHead className="min-w-[120px]">Club</TableHead>
+                        <TableHead className="text-center min-w-[90px] font-bold">Tiempo</TableHead>
+                        <TableHead className="text-center min-w-[80px]">GAP</TableHead>
                         <TableHead className="text-center">Categoría</TableHead>
                         <TableHead className="text-center w-[50px]">Cat.</TableHead>
                         <TableHead className="text-center">Género</TableHead>
@@ -764,8 +766,6 @@ export default function LiveResults() {
                             </div>
                           </TableHead>
                         ))}
-                        <TableHead className="text-center min-w-[90px] font-bold">Tiempo</TableHead>
-                        <TableHead className="text-center min-w-[80px]">GAP</TableHead>
                         <TableHead className="text-center min-w-[70px]">
                           {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
                         </TableHead>
@@ -786,6 +786,12 @@ export default function LiveResults() {
                           <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
                           <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                          <TableCell className="text-center font-mono font-bold text-primary">
+                            {formatTime(result.finish_time)}
+                          </TableCell>
+                          <TableCell className="text-center font-mono text-sm text-muted-foreground">
+                            {calculateGap(result.finish_time, leaderTime)}
+                          </TableCell>
                           <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
                           <TableCell className="text-center font-mono text-sm text-primary">{result.category_position || '-'}</TableCell>
                           <TableCell className="text-center text-sm">{getGender(result)}</TableCell>
@@ -795,12 +801,6 @@ export default function LiveResults() {
                               {getSplitTime(result, cp.checkpoint_order) || '-'}
                             </TableCell>
                           ))}
-                          <TableCell className="text-center font-mono font-bold text-primary">
-                            {formatTime(result.finish_time)}
-                          </TableCell>
-                          <TableCell className="text-center font-mono text-sm text-muted-foreground">
-                            {calculateGap(result.finish_time, leaderTime)}
-                          </TableCell>
                           <TableCell className="text-center font-mono text-sm">
                             {race.race_type === 'mtb' 
                               ? `${calculateSpeed(result.finish_time, result.registration.race_distances.distance_km)} km/h`
