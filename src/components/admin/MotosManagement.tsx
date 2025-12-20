@@ -126,11 +126,37 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
 
   const fetchUsers = async () => {
     try {
-      // Fetch all profiles - any user can be assigned to a moto
+      // Fetch users who are timers or assigned to this race
+      const { data: timerAssignments, error: taError } = await supabase
+        .from("timer_assignments")
+        .select("user_id")
+        .eq("race_id", selectedRaceId);
+
+      if (taError) throw taError;
+
+      const timerUserIds = timerAssignments?.map(ta => ta.user_id) || [];
+
+      // Also fetch users with timer role
+      const { data: timerRoles, error: trError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "timer");
+
+      if (trError) throw trError;
+
+      const timerRoleUserIds = timerRoles?.map(tr => tr.user_id) || [];
+      const allUserIds = [...new Set([...timerUserIds, ...timerRoleUserIds])];
+
+      if (allUserIds.length === 0) {
+        setUsers([]);
+        return;
+      }
+
+      // Fetch profiles for these users
       const { data: profiles, error: pError } = await supabase
         .from("profiles")
         .select("id, first_name, last_name")
-        .order("first_name", { ascending: true });
+        .in("id", allUserIds);
 
       if (pError) throw pError;
 
