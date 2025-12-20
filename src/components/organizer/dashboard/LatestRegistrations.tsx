@@ -11,6 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface LatestRegistrationsProps {
   raceId: string;
@@ -123,6 +125,7 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
                 <TableHead>Nombre</TableHead>
                 <TableHead className="text-right w-20">Importe</TableHead>
                 <TableHead className="w-16 text-center">Sexo</TableHead>
+                <TableHead className="w-24 text-right">Fecha</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -139,6 +142,9 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
                   </TableCell>
                   <TableCell className="text-center">
                     {getGenderBadge(reg)}
+                  </TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground">
+                    {format(new Date(reg.created_at), "dd MMM", { locale: es })}
                   </TableCell>
                 </TableRow>
               ))}
