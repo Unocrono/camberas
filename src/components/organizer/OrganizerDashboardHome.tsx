@@ -17,7 +17,7 @@ import { RegistrationChart } from "./dashboard/RegistrationChart";
 import { DistributionByDistance } from "./dashboard/DistributionByDistance";
 import { GenderCategoryDistribution } from "./dashboard/GenderCategoryDistribution";
 import { TshirtSummary } from "./dashboard/TshirtSummary";
-import { RunnersWithoutBib } from "./dashboard/RunnersWithoutBib";
+import { LatestRegistrations } from "./dashboard/LatestRegistrations";
 import { CommunityDistribution } from "./dashboard/CommunityDistribution";
 import { EventsSummary } from "./dashboard/EventsSummary";
 import { TimingPointsSummary } from "./dashboard/TimingPointsSummary";
@@ -77,7 +77,7 @@ export function OrganizerDashboardHome({ selectedRaceId, raceName }: OrganizerDa
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <RunnersWithoutBib raceId={selectedRaceId} />
+          <LatestRegistrations raceId={selectedRaceId} />
           <CommunityDistribution raceId={selectedRaceId} />
         </div>
       </section>
