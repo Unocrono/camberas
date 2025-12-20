@@ -17,11 +17,11 @@ interface RunnerData {
 }
 
 const LowerThirdOverlay = () => {
-  const { distanceId } = useParams();
+  const { raceId } = useParams();
   const [searchParams] = useSearchParams();
   const [currentRunner, setCurrentRunner] = useState<RunnerData | null>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [distanceName, setDistanceName] = useState("");
+  const [raceName, setRaceName] = useState("");
   
   // Config from URL params
   const theme = searchParams.get("theme") || "dark";
@@ -39,7 +39,7 @@ const LowerThirdOverlay = () => {
           user_id,
           guest_first_name,
           guest_last_name,
-          race_distance_id,
+          race_id,
           profiles:user_id (
             first_name,
             last_name,
@@ -54,7 +54,7 @@ const LowerThirdOverlay = () => {
             status
           )
         `)
-        .eq("race_distance_id", distanceId)
+        .eq("race_id", raceId)
         .eq("bib_number", parseInt(bib))
         .single();
 
@@ -67,7 +67,7 @@ const LowerThirdOverlay = () => {
         setCurrentRunner({
           bib_number: data.bib_number || 0,
           first_name: profile?.first_name || data.guest_first_name || "",
-          last_name: profile?.last_name || data.guest_last_name || "",
+          last_name: profile?.last_name || data.guest_first_name || "",
           overall_position: result?.overall_position || null,
           gender_position: result?.gender_position || null,
           category_position: result?.category_position || null,
@@ -84,21 +84,21 @@ const LowerThirdOverlay = () => {
     } catch (error) {
       console.error("Error fetching runner:", error);
     }
-  }, [distanceId, autoHide]);
+  }, [raceId, autoHide]);
 
   useEffect(() => {
-    if (distanceId) {
-      // Fetch distance name
+    if (raceId) {
+      // Fetch race name
       supabase
-        .from("race_distances")
+        .from("races")
         .select("name")
-        .eq("id", distanceId)
+        .eq("id", raceId)
         .single()
         .then(({ data }) => {
-          if (data) setDistanceName(data.name);
+          if (data) setRaceName(data.name);
         });
     }
-  }, [distanceId]);
+  }, [raceId]);
 
   useEffect(() => {
     if (bibNumber) {
@@ -109,7 +109,7 @@ const LowerThirdOverlay = () => {
   // Listen for external commands via broadcast channel
   useEffect(() => {
     const channel = supabase
-      .channel(`lower-third-control-${distanceId}`)
+      .channel(`lower-third-control-${raceId}`)
       .on("broadcast", { event: "show-runner" }, ({ payload }) => {
         if (payload?.bib) {
           fetchRunner(payload.bib.toString());
@@ -123,7 +123,7 @@ const LowerThirdOverlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [distanceId, fetchRunner]);
+  }, [raceId, fetchRunner]);
 
   const formatTime = (time: string | null): string => {
     if (!time) return "--:--:--";
@@ -203,7 +203,7 @@ const LowerThirdOverlay = () => {
                     </span>
                   )}
                   <span className={`text-sm ${isDark ? "text-gray-500" : "text-gray-500"}`}>
-                    {distanceName}
+                    {raceName}
                   </span>
                 </div>
               </div>

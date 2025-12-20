@@ -14,7 +14,7 @@ interface RunnerPosition {
 }
 
 const MapOverlay = () => {
-  const { distanceId } = useParams();
+  const { raceId } = useParams();
   const [searchParams] = useSearchParams();
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -28,6 +28,7 @@ const MapOverlay = () => {
   const showRoute = searchParams.get("route") !== "false";
   const showLabels = searchParams.get("labels") !== "false";
   const zoom = parseInt(searchParams.get("zoom") || "12");
+  const distanceFilter = searchParams.get("distance"); // Optional filter
 
   // Fetch Mapbox token
   useEffect(() => {
@@ -45,21 +46,41 @@ const MapOverlay = () => {
     fetchToken();
   }, []);
 
-  // Fetch distance info for GPX
+  // Fetch race or distance info for GPX
   useEffect(() => {
-    if (distanceId) {
-      supabase
-        .from("race_distances")
-        .select("gpx_file_url")
-        .eq("id", distanceId)
-        .single()
-        .then(({ data }) => {
-          if (data?.gpx_file_url) {
-            setGpxUrl(data.gpx_file_url);
-          }
-        });
-    }
-  }, [distanceId]);
+    const fetchGpx = async () => {
+      if (distanceFilter) {
+        // If filtering by distance, get that distance's GPX
+        const { data } = await supabase
+          .from("race_distances")
+          .select("gpx_file_url")
+          .eq("id", distanceFilter)
+          .single();
+        if (data?.gpx_file_url) setGpxUrl(data.gpx_file_url);
+      } else if (raceId) {
+        // Otherwise get first distance with GPX or race GPX
+        const { data: raceData } = await supabase
+          .from("races")
+          .select("gpx_file_url")
+          .eq("id", raceId)
+          .single();
+        if (raceData?.gpx_file_url) {
+          setGpxUrl(raceData.gpx_file_url);
+        } else {
+          // Try first distance
+          const { data: distanceData } = await supabase
+            .from("race_distances")
+            .select("gpx_file_url")
+            .eq("race_id", raceId)
+            .not("gpx_file_url", "is", null)
+            .limit(1)
+            .single();
+          if (distanceData?.gpx_file_url) setGpxUrl(distanceData.gpx_file_url);
+        }
+      }
+    };
+    fetchGpx();
+  }, [raceId, distanceFilter]);
 
   // Initialize map
   useEffect(() => {
@@ -155,12 +176,12 @@ const MapOverlay = () => {
 
   // Fetch initial positions
   useEffect(() => {
-    if (!distanceId) return;
+    if (!raceId) return;
 
     const fetchPositions = async () => {
       const { data, error } = await supabase.rpc("get_live_gps_positions", {
-        p_race_id: null,
-        p_distance_id: distanceId
+        p_race_id: raceId,
+        p_distance_id: distanceFilter || null
       });
 
       if (error) {
@@ -175,16 +196,16 @@ const MapOverlay = () => {
 
     // Setup realtime subscription
     const channel = supabase
-      .channel(`map-overlay-${distanceId}`)
+      .channel(`map-overlay-${raceId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "gps_tracking"
+          table: "gps_tracking",
+          filter: `race_id=eq.${raceId}`
         },
-        (payload) => {
-          // Refetch positions on new GPS data
+        () => {
           fetchPositions();
         }
       )
@@ -193,7 +214,7 @@ const MapOverlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [distanceId]);
+  }, [raceId, distanceFilter]);
 
   // Update markers when positions change
   useEffect(() => {

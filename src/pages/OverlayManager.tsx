@@ -37,7 +37,6 @@ const OverlayManager = () => {
   const navigate = useNavigate();
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
-  const [selectedDistance, setSelectedDistance] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   const baseUrl = window.location.origin;
@@ -80,8 +79,7 @@ const OverlayManager = () => {
       description: "Tabla con posiciones, dorsales, nombres y tiempos actualizados en tiempo real",
       icon: Trophy,
       color: "bg-yellow-500/10 text-yellow-600",
-      path: `/overlay/leaderboard/${selectedDistance}`,
-      requiresDistance: true
+      path: `/overlay/leaderboard/${selectedRace}`
     },
     {
       id: "lower-third",
@@ -89,8 +87,7 @@ const OverlayManager = () => {
       description: "Gráfico de corredor individual con nombre, dorsal, posición y tiempo",
       icon: User,
       color: "bg-blue-500/10 text-blue-600",
-      path: `/overlay/lower-third/${selectedDistance}`,
-      requiresDistance: true
+      path: `/overlay/lower-third/${selectedRace}`
     },
     {
       id: "map",
@@ -98,8 +95,7 @@ const OverlayManager = () => {
       description: "Overlay de mapa con posiciones de corredores en tiempo real",
       icon: Map,
       color: "bg-green-500/10 text-green-600",
-      path: `/overlay/map/${selectedDistance}`,
-      requiresDistance: true
+      path: `/overlay/map/${selectedRace}`
     }
   ];
 
@@ -138,49 +134,29 @@ const OverlayManager = () => {
               Configuración
             </CardTitle>
             <CardDescription>
-              Selecciona la carrera y distancia para generar las URLs de los overlays
+              Selecciona la carrera para generar las URLs de los overlays
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Carrera</Label>
-                <Select value={selectedRace} onValueChange={(value) => {
-                  setSelectedRace(value);
-                  setSelectedDistance("");
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una carrera" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {races.map((race) => (
-                      <SelectItem key={race.id} value={race.id}>
-                        {race.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Distancia / Evento</Label>
-                <Select 
-                  value={selectedDistance} 
-                  onValueChange={setSelectedDistance}
-                  disabled={!selectedRace}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona una distancia" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedRaceData?.race_distances.map((distance) => (
-                      <SelectItem key={distance.id} value={distance.id}>
-                        {distance.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Carrera</Label>
+              <Select value={selectedRace} onValueChange={setSelectedRace}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona una carrera" />
+                </SelectTrigger>
+                <SelectContent>
+                  {races.map((race) => (
+                    <SelectItem key={race.id} value={race.id}>
+                      {race.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedRaceData && selectedRaceData.race_distances.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Eventos disponibles: {selectedRaceData.race_distances.map(d => d.name).join(", ")}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -188,7 +164,7 @@ const OverlayManager = () => {
         {/* Overlays Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {overlays.map((overlay) => {
-            const isDisabled = overlay.requiresDistance && !selectedDistance;
+            const isDisabled = !selectedRace;
             const Icon = overlay.icon;
             
             return (
@@ -207,7 +183,7 @@ const OverlayManager = () => {
                   <CardDescription>{overlay.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {selectedDistance && (
+                  {selectedRace && (
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">URL para OBS</Label>
                       <div className="flex gap-2">
