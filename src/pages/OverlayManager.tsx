@@ -18,7 +18,8 @@ import {
   ExternalLink, 
   Plus,
   Settings,
-  Eye
+  Eye,
+  Clock
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -73,6 +74,14 @@ const OverlayManager = () => {
   const selectedRaceData = races.find(r => r.id === selectedRace);
 
   const overlays = [
+    {
+      id: "clock",
+      name: "Reloj de Carrera",
+      description: "Reloj con tiempo transcurrido desde la salida de cada evento. Configurable con delay.",
+      icon: Clock,
+      color: "bg-orange-500/10 text-orange-600",
+      path: `/overlay/clock/${selectedRace}`
+    },
     {
       id: "leaderboard",
       name: "Clasificación en Vivo",
