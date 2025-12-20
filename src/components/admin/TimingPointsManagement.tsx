@@ -1020,6 +1020,71 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
                 </div>
               </div>
 
+              {/* Timer assignment section - only show when editing */}
+              {isEditing && selectedPoint && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label>Cronometrador asignado</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedTimerUserId}
+                      onValueChange={setSelectedTimerUserId}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Seleccionar cronometrador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timerUsers.length === 0 ? (
+                          <SelectItem value="_none" disabled>
+                            No hay cronometradores disponibles
+                          </SelectItem>
+                        ) : (
+                          timerUsers.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {`${u.first_name || ""} ${u.last_name || ""}`.trim() || "Sin nombre"}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleAssignTimer}
+                      disabled={!selectedTimerUserId || timerUsers.length === 0}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Asignar
+                    </Button>
+                  </div>
+                  
+                  {/* Show current assignments */}
+                  {timerAssignments.filter(a => a.checkpoint_id === selectedPoint.id).length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-muted-foreground mb-1">Asignados actualmente:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {timerAssignments
+                          .filter(a => a.checkpoint_id === selectedPoint.id)
+                          .map(a => (
+                            <Badge key={a.id} variant="secondary" className="flex items-center gap-1">
+                              <User className="h-3 w-3" />
+                              {a.user_name}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4 ml-1 hover:bg-destructive/20"
+                                onClick={() => handleRemoveAssignment(a.id)}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </Badge>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button
                   type="button"
