@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User } from "lucide-react";
+import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User, UserPlus } from "lucide-react";
 
 interface Moto {
   id: string;
@@ -85,6 +85,8 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMoto, setSelectedMoto] = useState<Moto | null>(null);
+  const [newMotoEmail, setNewMotoEmail] = useState("");
+  const [addingRole, setAddingRole] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     name_tv: "",
@@ -93,7 +95,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     user_id: "",
     is_active: true,
   });
-
   useEffect(() => {
     if (selectedRaceId) {
       fetchMotos();
@@ -307,6 +308,85 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     return `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Sin nombre";
   };
 
+  const handleAddMotoRole = async () => {
+    if (!newMotoEmail.trim()) {
+      toast({
+        title: "Error",
+        description: "Ingresa un email válido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAddingRole(true);
+    try {
+      // Find user by email using RPC
+      const { data: usersWithEmails, error: usersError } = await supabase.rpc(
+        "get_users_with_emails"
+      );
+
+      if (usersError) throw usersError;
+
+      const foundUser = usersWithEmails?.find(
+        (u: { user_id: string; email: string }) =>
+          u.email.toLowerCase() === newMotoEmail.toLowerCase().trim()
+      );
+
+      if (!foundUser) {
+        toast({
+          title: "Usuario no encontrado",
+          description: "No existe un usuario con ese email",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if user already has moto role
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", foundUser.user_id)
+        .eq("role", "moto")
+        .maybeSingle();
+
+      if (existingRole) {
+        toast({
+          title: "Ya es motero",
+          description: "Este usuario ya tiene el rol de motero",
+        });
+        setNewMotoEmail("");
+        fetchUsers();
+        return;
+      }
+
+      // Add moto role
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: foundUser.user_id,
+        role: "moto",
+        status: "approved",
+      });
+
+      if (roleError) throw roleError;
+
+      toast({
+        title: "Rol asignado",
+        description: `Se ha asignado el rol de motero a ${newMotoEmail}`,
+      });
+
+      setNewMotoEmail("");
+      fetchUsers();
+    } catch (error: any) {
+      console.error("Error adding moto role:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo asignar el rol",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingRole(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -324,7 +404,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
             Motos GPS
           </h2>
           <p className="text-muted-foreground">
-            Gestiona las motos de seguimiento GPS de la carrera
+            Gestiona las motos de seguimiento GPS y asigna moteros
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
@@ -332,6 +412,34 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
           Nueva Moto
         </Button>
       </div>
+
+      {/* Add new moto user section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            Añadir Motero
+          </CardTitle>
+          <CardDescription>
+            Asigna el rol de motero a un usuario existente para que pueda usar la app GPS
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="Email del usuario"
+              value={newMotoEmail}
+              onChange={(e) => setNewMotoEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={handleAddMotoRole} disabled={addingRole}>
+              {addingRole && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Añadir Rol
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {motos.length === 0 ? (
         <Card>
