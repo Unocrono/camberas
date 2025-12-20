@@ -26,6 +26,7 @@ import { TimingPointsManagement } from "@/components/admin/TimingPointsManagemen
 import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
+import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -242,6 +243,15 @@ const OrganizerDashboard = () => {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera para gestionar sus motos GPS</p>
+                </div>
+              )
+            )}
+            {currentView === "moto-assignments" && (
+              selectedRaceId ? (
+                <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus operadores de moto</p>
                 </div>
               )
             )}
