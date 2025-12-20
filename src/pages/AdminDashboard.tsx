@@ -36,6 +36,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
+import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -279,6 +280,7 @@ const AdminDashboard = () => {
                 </div>
               )
             )}
+            {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
           </main>
         </div>
       </div>
