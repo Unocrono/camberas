@@ -216,11 +216,11 @@ const OverlayManager = () => {
                     </Button>
                     <Button 
                       className="flex-1"
-                      onClick={() => navigate(`${overlay.path}/edit`)}
+                      onClick={() => copyToClipboard(overlay.path)}
                       disabled={isDisabled}
                     >
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configurar
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copiar URL
                     </Button>
                   </div>
                 </CardContent>
