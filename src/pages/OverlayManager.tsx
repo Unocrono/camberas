@@ -20,7 +20,8 @@ import {
   Settings,
   Eye,
   Clock,
-  Palette
+  Palette,
+  Bike
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -196,6 +197,15 @@ const OverlayManager = () => {
       icon: Map,
       color: "bg-green-500/10 text-green-600",
       path: `/overlay/map/${raceIdentifier}`,
+      hasConfig: false
+    },
+    {
+      id: "moto",
+      name: "Motos GPS",
+      description: "Distancia a meta, velocidad y diferencias entre motos de carrera",
+      icon: Bike,
+      color: "bg-purple-500/10 text-purple-600",
+      path: `/overlay/moto/${raceIdentifier}`,
       hasConfig: false
     }
   ];
