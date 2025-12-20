@@ -25,6 +25,7 @@ import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManag
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
+import { MotosManagement } from "@/components/admin/MotosManagement";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -235,6 +236,15 @@ const OrganizerDashboard = () => {
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "gps-readings" && <GPSReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "motos" && (
+              selectedRaceId ? (
+                <MotosManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus motos GPS</p>
+                </div>
+              )
+            )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
