@@ -251,7 +251,7 @@ const OrganizerDashboard = () => {
                 <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus operadores de moto</p>
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus moteros</p>
                 </div>
               )
             )}
