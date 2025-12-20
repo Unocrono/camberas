@@ -160,6 +160,16 @@ const LeaderboardOverlay = () => {
 
   const isDark = theme === "dark";
 
+  // Force transparent background on html/body
+  useEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
+  }, []);
+
   return (
     <div 
       className="w-full h-screen overflow-hidden p-8"

@@ -30,6 +30,16 @@ const MapOverlay = () => {
   const zoom = parseInt(searchParams.get("zoom") || "12");
   const distanceFilter = searchParams.get("distance"); // Optional filter
 
+  // Force transparent background
+  useEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
+  }, []);
+
   // Fetch Mapbox token
   useEffect(() => {
     const fetchToken = async () => {
@@ -263,8 +273,17 @@ const MapOverlay = () => {
 
   if (!mapboxToken) {
     return (
-      <div className="w-full h-screen flex items-center justify-center bg-transparent">
-        <div className="text-white/50">Cargando mapa...</div>
+      <div className="w-full h-screen flex items-center justify-center" style={{ background: "transparent" }}>
+        <div 
+          className="p-6 rounded-xl shadow-2xl"
+          style={{ background: "rgba(0,0,0,0.8)" }}
+        >
+          <div className="text-white/80 text-center">
+            <div className="text-4xl mb-2">🗺️</div>
+            <div className="font-semibold">Mapa GPS Overlay</div>
+            <div className="text-sm text-white/50 mt-1">Cargando token de Mapbox...</div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -272,6 +291,19 @@ const MapOverlay = () => {
   return (
     <div className="w-full h-screen overflow-hidden" style={{ background: "transparent" }}>
       <div ref={mapContainer} className="w-full h-full" />
+      
+      {/* Show overlay info when no positions */}
+      {positions.length === 0 && (
+        <div 
+          className="absolute bottom-4 left-4 p-4 rounded-lg"
+          style={{ background: "rgba(0,0,0,0.8)" }}
+        >
+          <div className="text-white/80 text-sm">
+            <span className="text-2xl mr-2">📍</span>
+            Esperando posiciones GPS...
+          </div>
+        </div>
+      )}
       
       <style>{`
         .runner-marker {

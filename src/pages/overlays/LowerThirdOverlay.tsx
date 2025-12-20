@@ -86,6 +86,16 @@ const LowerThirdOverlay = () => {
     }
   }, [raceId, autoHide]);
 
+  // Force transparent background on html/body
+  useEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
+  }, []);
+
   useEffect(() => {
     if (raceId) {
       // Fetch race name
@@ -103,6 +113,20 @@ const LowerThirdOverlay = () => {
   useEffect(() => {
     if (bibNumber) {
       fetchRunner(bibNumber);
+    } else {
+      // Show demo runner when no bib specified
+      setCurrentRunner({
+        bib_number: 123,
+        first_name: "Demo",
+        last_name: "Runner",
+        overall_position: 1,
+        gender_position: 1,
+        category_position: 1,
+        finish_time: "01:23:45",
+        status: "finished",
+        team: "Equipo Demo"
+      });
+      setIsVisible(true);
     }
   }, [bibNumber, fetchRunner]);
 
@@ -247,12 +271,6 @@ const LowerThirdOverlay = () => {
         )}
       </AnimatePresence>
 
-      {/* Debug info when no runner is shown */}
-      {!isVisible && !bibNumber && (
-        <div className="absolute bottom-4 left-4 text-white/30 text-sm font-mono">
-          Esperando dorsal... (añade ?bib=123 a la URL)
-        </div>
-      )}
     </div>
   );
 };
