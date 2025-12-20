@@ -575,11 +575,11 @@ export default function LiveResults() {
     return `${firstName} ${lastName}`.trim();
   };
 
-  // Get split time for a specific checkpoint - use name for more reliable matching
+  // Get split time for a specific checkpoint - use checkpoint_id for reliable matching
   const getSplitTime = (result: RaceResult, checkpoint: RaceCheckpoint): string | null => {
-    // Try to find by checkpoint name first (more reliable when checkpoints are reimported)
+    // Find by checkpoint_id (most reliable), fallback to checkpoint_order
     const split = result.split_times?.find(s => 
-      s.checkpoint_name === checkpoint.name || s.checkpoint_order === checkpoint.checkpoint_order
+      (s as any).checkpoint_id === checkpoint.id || s.checkpoint_order === checkpoint.checkpoint_order
     );
     return split ? formatTime(split.split_time) : null;
   };
