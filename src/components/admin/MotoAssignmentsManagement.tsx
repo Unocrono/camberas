@@ -199,7 +199,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
     if (!selectedUserId) {
       toast({
         title: "Error",
-        description: "Selecciona un operador de moto",
+        description: "Selecciona un motero",
         variant: "destructive",
       });
       return;
@@ -220,7 +220,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
 
       toast({
         title: "Asignación creada",
-        description: "El operador de moto ha sido asignado correctamente",
+        description: "El motero ha sido asignado correctamente",
       });
 
       setDialogOpen(false);
@@ -346,8 +346,8 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
 
       if (existingRole) {
         toast({
-          title: "Ya es operador de moto",
-          description: "Este usuario ya tiene el rol de operador de moto",
+          title: "Ya es motero",
+          description: "Este usuario ya tiene el rol de motero",
         });
         setNewMotoEmail("");
         fetchMotoUsers();
@@ -365,7 +365,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
 
       toast({
         title: "Rol asignado",
-        description: `Se ha asignado el rol de operador de moto a ${newMotoEmail}`,
+        description: `Se ha asignado el rol de motero a ${newMotoEmail}`,
       });
 
       setNewMotoEmail("");
@@ -391,7 +391,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
   if (!selectedRaceId) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-muted-foreground">Selecciona una carrera para gestionar sus operadores de moto</p>
+        <p className="text-muted-foreground">Selecciona una carrera para gestionar sus moteros</p>
       </div>
     );
   }
@@ -402,7 +402,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bike className="h-5 w-5" />
-            Gestión de Operadores de Moto
+            Gestión de Moteros
           </CardTitle>
           <CardDescription>
             Asigna usuarios con rol "moto" a esta carrera y sus motos GPS
@@ -413,7 +413,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
           <div className="flex flex-col sm:flex-row gap-2 p-4 bg-muted/50 rounded-lg">
             <div className="flex-1">
               <Label htmlFor="moto-email" className="text-sm font-medium mb-1 block">
-                Añadir nuevo operador de moto (por email)
+                Añadir nuevo Motero (por email)
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -430,7 +430,7 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                El usuario debe existir en el sistema. Se le asignará el rol de operador de moto.
+                El usuario debe existir en el sistema. Se le asignará el rol de motero.
               </p>
             </div>
           </div>
@@ -451,20 +451,20 @@ export function MotoAssignmentsManagement({ selectedRaceId }: MotoAssignmentsMan
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
-                    {editingAssignment ? "Modificar Asignación" : "Asignar Operador de Moto"}
+                    {editingAssignment ? "Modificar Asignación" : "Asignar Motero"}
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label>Operador de Moto *</Label>
+                    <Label>Motero *</Label>
                     <Select value={selectedUserId} onValueChange={setSelectedUserId}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un operador" />
+                        <SelectValue placeholder="Selecciona un motero" />
                       </SelectTrigger>
                       <SelectContent>
                         {motoUsers.length === 0 ? (
                           <SelectItem value="none" disabled>
-                            No hay operadores disponibles
+                            No hay moteros disponibles
                           </SelectItem>
                         ) : (
                           motoUsers.map((user) => (
