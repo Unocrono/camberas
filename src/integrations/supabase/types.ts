@@ -1495,6 +1495,7 @@ export type Database = {
       split_times: {
         Row: {
           category_position: number | null
+          checkpoint_id: string | null
           checkpoint_name: string
           checkpoint_order: number
           created_at: string
@@ -1510,6 +1511,7 @@ export type Database = {
         }
         Insert: {
           category_position?: number | null
+          checkpoint_id?: string | null
           checkpoint_name: string
           checkpoint_order: number
           created_at?: string
@@ -1525,6 +1527,7 @@ export type Database = {
         }
         Update: {
           category_position?: number | null
+          checkpoint_id?: string | null
           checkpoint_name?: string
           checkpoint_order?: number
           created_at?: string
@@ -1539,6 +1542,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "split_times_checkpoint_id_fkey"
+            columns: ["checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "race_checkpoints"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "split_times_race_result_id_fkey"
             columns: ["race_result_id"]
