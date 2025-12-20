@@ -193,14 +193,22 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const handleOpenDialog = (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
-      // Parse wave start_time into date and time (keep original values without timezone conversion)
+      // Parse wave start_time into date and time using LOCAL timezone
       let startDate = "";
       let startTimeValue = "";
       if (distance.wave_start_time) {
-        // Extract date and time directly from ISO string to avoid timezone conversion
-        const isoString = distance.wave_start_time;
-        startDate = isoString.slice(0, 10); // YYYY-MM-DD
-        startTimeValue = isoString.slice(11, 19); // HH:MM:SS
+        // Create Date object which will convert from UTC to local
+        const date = new Date(distance.wave_start_time);
+        // Get local date components
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        startDate = `${year}-${month}-${day}`;
+        // Get local time components
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        startTimeValue = `${hours}:${minutes}:${seconds}`;
       }
       setFormData({
         race_id: distance.race_id,
