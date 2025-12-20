@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,8 +30,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical, UserPlus, User, Loader2 } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
@@ -51,6 +58,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Badge } from "@/components/ui/badge";
 
 interface TimingPoint {
   id: string;
@@ -63,17 +71,31 @@ interface TimingPoint {
   created_at: string;
 }
 
+interface TimerAssignment {
+  id: string;
+  user_id: string;
+  checkpoint_id: string | null;
+  user_name: string;
+}
+
+interface UserOption {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+}
+
 interface TimingPointsManagementProps {
   selectedRaceId: string;
 }
 
 interface SortableRowProps {
   point: TimingPoint;
+  assignments: TimerAssignment[];
   onEdit: (point: TimingPoint) => void;
   onDelete: (point: TimingPoint) => void;
 }
 
-function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
+function SortableRow({ point, assignments, onEdit, onDelete }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -88,6 +110,8 @@ function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
+
+  const pointAssignments = assignments.filter(a => a.checkpoint_id === point.id);
 
   return (
     <TableRow ref={setNodeRef} style={style}>
@@ -117,6 +141,19 @@ function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
         )}
       </TableCell>
       <TableCell>
+        {pointAssignments.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {pointAssignments.map(a => (
+              <Badge key={a.id} variant="secondary" className="text-xs">
+                {a.user_name}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-sm">Sin asignar</span>
+        )}
+      </TableCell>
+      <TableCell>
         <div className="flex gap-1">
           <Button
             variant="ghost"
@@ -140,6 +177,8 @@ function SortableRow({ point, onEdit, onDelete }: SortableRowProps) {
 
 export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagementProps) {
   const [timingPoints, setTimingPoints] = useState<TimingPoint[]>([]);
+  const [timerAssignments, setTimerAssignments] = useState<TimerAssignment[]>([]);
+  const [timerUsers, setTimerUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -148,6 +187,9 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [showFormMap, setShowFormMap] = useState(false);
+  const [newTimerEmail, setNewTimerEmail] = useState("");
+  const [addingRole, setAddingRole] = useState(false);
+  const [selectedTimerUserId, setSelectedTimerUserId] = useState("");
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -178,6 +220,8 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
   useEffect(() => {
     if (selectedRaceId) {
       fetchTimingPoints();
+      fetchTimerAssignments();
+      fetchTimerUsers();
     }
   }, [selectedRaceId]);
 
@@ -245,6 +289,179 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       toast.error("Error al cargar los puntos de cronometraje");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTimerAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("timer_assignments")
+        .select("id, user_id, checkpoint_id")
+        .eq("race_id", selectedRaceId);
+
+      if (error) throw error;
+
+      // Get user names for assignments
+      const userIds = [...new Set(data?.map(a => a.user_id) || [])];
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name")
+          .in("id", userIds);
+
+        const assignmentsWithNames = (data || []).map(a => {
+          const profile = profiles?.find(p => p.id === a.user_id);
+          return {
+            ...a,
+            user_name: profile 
+              ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Sin nombre"
+              : "Usuario desconocido"
+          };
+        });
+        setTimerAssignments(assignmentsWithNames);
+      } else {
+        setTimerAssignments([]);
+      }
+    } catch (error) {
+      console.error("Error fetching timer assignments:", error);
+    }
+  };
+
+  const fetchTimerUsers = async () => {
+    try {
+      // Fetch users with TIMER role
+      const { data: timerRoles, error: trError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "timer");
+
+      if (trError) throw trError;
+
+      const timerUserIds = timerRoles?.map(tr => tr.user_id) || [];
+
+      if (timerUserIds.length === 0) {
+        setTimerUsers([]);
+        return;
+      }
+
+      const { data: profiles, error: pError } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name")
+        .in("id", timerUserIds);
+
+      if (pError) throw pError;
+
+      setTimerUsers(profiles || []);
+    } catch (error) {
+      console.error("Error fetching timer users:", error);
+    }
+  };
+
+  const handleAddTimerRole = async () => {
+    if (!newTimerEmail.trim()) {
+      toast.error("Ingresa un email válido");
+      return;
+    }
+
+    setAddingRole(true);
+    try {
+      const { data: usersWithEmails, error: usersError } = await supabase.rpc(
+        "get_users_with_emails"
+      );
+
+      if (usersError) throw usersError;
+
+      const foundUser = usersWithEmails?.find(
+        (u: { user_id: string; email: string }) =>
+          u.email.toLowerCase() === newTimerEmail.toLowerCase().trim()
+      );
+
+      if (!foundUser) {
+        toast.error("No existe un usuario con ese email");
+        return;
+      }
+
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", foundUser.user_id)
+        .eq("role", "timer")
+        .maybeSingle();
+
+      if (existingRole) {
+        toast.info("Este usuario ya tiene el rol de cronometrador");
+        setNewTimerEmail("");
+        fetchTimerUsers();
+        return;
+      }
+
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: foundUser.user_id,
+        role: "timer",
+        status: "approved",
+      });
+
+      if (roleError) throw roleError;
+
+      toast.success(`Se ha asignado el rol de cronometrador a ${newTimerEmail}`);
+      setNewTimerEmail("");
+      fetchTimerUsers();
+    } catch (error: any) {
+      console.error("Error adding timer role:", error);
+      toast.error(error.message || "No se pudo asignar el rol");
+    } finally {
+      setAddingRole(false);
+    }
+  };
+
+  const handleAssignTimer = async () => {
+    if (!selectedTimerUserId || !selectedPoint) {
+      toast.error("Selecciona un cronometrador");
+      return;
+    }
+
+    try {
+      // Check if already assigned
+      const existing = timerAssignments.find(
+        a => a.user_id === selectedTimerUserId && a.checkpoint_id === selectedPoint.id
+      );
+
+      if (existing) {
+        toast.info("Este cronometrador ya está asignado a este punto");
+        return;
+      }
+
+      const { error } = await supabase.from("timer_assignments").insert({
+        user_id: selectedTimerUserId,
+        race_id: selectedRaceId,
+        checkpoint_id: selectedPoint.id,
+      });
+
+      if (error) throw error;
+
+      toast.success("Cronometrador asignado");
+      setSelectedTimerUserId("");
+      fetchTimerAssignments();
+    } catch (error: any) {
+      console.error("Error assigning timer:", error);
+      toast.error(error.message || "No se pudo asignar el cronometrador");
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("timer_assignments")
+        .delete()
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+
+      toast.success("Asignación eliminada");
+      fetchTimerAssignments();
+    } catch (error: any) {
+      console.error("Error removing assignment:", error);
+      toast.error("No se pudo eliminar la asignación");
     }
   };
 
@@ -570,34 +787,77 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
-          <MapPin className="h-5 w-5" />
-          Puntos de Cronometraje
-        </CardTitle>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowMap(!showMap)}
-          >
-            <MapIcon className="h-4 w-4 mr-1" />
-            {showMap ? "Ocultar Mapa" : "Ver Mapa"}
-          </Button>
-          <Button size="sm" onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-1" />
-            Añadir Punto
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {showMap && mapboxToken && (
-          <div
-            ref={mapContainer}
-            className="w-full h-64 rounded-lg mb-4 border"
-          />
-        )}
+    <div className="space-y-6">
+      {/* Add timer role section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            Añadir Cronometrador
+          </CardTitle>
+          <CardDescription>
+            Asigna el rol de cronometrador a un usuario existente para que pueda usar la app de cronometraje
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="Email del usuario"
+              value={newTimerEmail}
+              onChange={(e) => setNewTimerEmail(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={handleAddTimerRole} disabled={addingRole}>
+              {addingRole && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Añadir Rol
+            </Button>
+          </div>
+          {timerUsers.length > 0 && (
+            <div className="mt-3">
+              <p className="text-sm text-muted-foreground mb-2">Cronometradores disponibles:</p>
+              <div className="flex flex-wrap gap-2">
+                {timerUsers.map(u => (
+                  <Badge key={u.id} variant="secondary">
+                    <User className="h-3 w-3 mr-1" />
+                    {`${u.first_name || ""} ${u.last_name || ""}`.trim() || "Sin nombre"}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Timing points card */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" />
+            Puntos de Cronometraje
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMap(!showMap)}
+            >
+              <MapIcon className="h-4 w-4 mr-1" />
+              {showMap ? "Ocultar Mapa" : "Ver Mapa"}
+            </Button>
+            <Button size="sm" onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-1" />
+              Añadir Punto
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {showMap && mapboxToken && (
+            <div
+              ref={mapContainer}
+              className="w-full h-64 rounded-lg mb-4 border"
+            />
+          )}
 
         {loading ? (
           <p className="text-muted-foreground text-center py-4">Cargando...</p>
@@ -619,6 +879,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
                   <TableHead>Nombre</TableHead>
                   <TableHead>Notas</TableHead>
                   <TableHead>Coordenadas</TableHead>
+                  <TableHead>Cronometrador</TableHead>
                   <TableHead className="w-24">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -631,6 +892,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
                     <SortableRow
                       key={point.id}
                       point={point}
+                      assignments={timerAssignments}
                       onEdit={handleOpenDialog}
                       onDelete={handleDeleteClick}
                     />
@@ -797,5 +1059,6 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
         </AlertDialog>
       </CardContent>
     </Card>
+    </div>
   );
 }
