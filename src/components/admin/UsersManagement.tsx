@@ -478,6 +478,9 @@ export function UsersManagement() {
                 <SelectContent>
                   <SelectItem value="user">Usuario</SelectItem>
                   <SelectItem value="organizer">Organizador</SelectItem>
+                  <SelectItem value="timer">Cronometrador</SelectItem>
+                  <SelectItem value="moto">Motero</SelectItem>
+                  <SelectItem value="comisario">Comisario</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
@@ -569,6 +572,9 @@ export function UsersManagement() {
                 <SelectContent>
                   <SelectItem value="user">Usuario</SelectItem>
                   <SelectItem value="organizer">Organizador</SelectItem>
+                  <SelectItem value="timer">Cronometrador</SelectItem>
+                  <SelectItem value="moto">Motero</SelectItem>
+                  <SelectItem value="comisario">Comisario</SelectItem>
                   <SelectItem value="admin">Administrador</SelectItem>
                 </SelectContent>
               </Select>
