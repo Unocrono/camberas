@@ -10,12 +10,19 @@ interface WaveData {
   distance_name: string;
 }
 
+// Helper to check if string is UUID
+const isValidUUID = (str: string) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const RaceClockOverlay = () => {
-  const { raceId } = useParams();
+  const { raceId: raceIdOrSlug } = useParams();
   const [searchParams] = useSearchParams();
   const [waves, setWaves] = useState<WaveData[]>([]);
   const [currentTimes, setCurrentTimes] = useState<Record<string, string>>({});
   const [raceName, setRaceName] = useState("");
+  const [resolvedRaceId, setResolvedRaceId] = useState<string | null>(null);
   
   // Config from URL params
   const theme = searchParams.get("theme") || "dark";
@@ -38,19 +45,45 @@ const RaceClockOverlay = () => {
     };
   }, []);
 
+  // Resolve slug to UUID if needed
   useEffect(() => {
-    if (raceId) {
+    const resolveRaceId = async () => {
+      if (!raceIdOrSlug) return;
+
+      if (isValidUUID(raceIdOrSlug)) {
+        setResolvedRaceId(raceIdOrSlug);
+      } else {
+        // Try to find by slug
+        const { data } = await supabase
+          .from("races")
+          .select("id")
+          .eq("slug", raceIdOrSlug)
+          .single();
+
+        if (data) {
+          setResolvedRaceId(data.id);
+        }
+      }
+    };
+
+    resolveRaceId();
+  }, [raceIdOrSlug]);
+
+  useEffect(() => {
+    if (resolvedRaceId) {
       fetchWaves();
     }
-  }, [raceId]);
+  }, [resolvedRaceId]);
 
   const fetchWaves = async () => {
+    if (!resolvedRaceId) return;
+    
     try {
       // Get race info
       const { data: raceData } = await supabase
         .from("races")
         .select("name")
-        .eq("id", raceId)
+        .eq("id", resolvedRaceId)
         .single();
 
       if (raceData) {
@@ -69,7 +102,7 @@ const RaceClockOverlay = () => {
             name
           )
         `)
-        .eq("race_id", raceId)
+        .eq("race_id", resolvedRaceId)
         .order("start_time", { ascending: true, nullsFirst: false });
 
       if (error) throw error;
