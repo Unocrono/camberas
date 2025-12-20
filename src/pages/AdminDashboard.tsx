@@ -35,6 +35,7 @@ import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { MenuManagement } from "@/components/admin/MenuManagement";
+import { MotosManagement } from "@/components/admin/MotosManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -269,6 +270,15 @@ const AdminDashboard = () => {
             {currentView === "roadbook-item-types" && <RoadbookItemTypesManagement />}
             {currentView === "contact-settings" && <ContactSettingsManagement />}
             {currentView === "menu-management" && <MenuManagement />}
+            {currentView === "motos" && (
+              selectedRaceId ? (
+                <MotosManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus motos GPS</p>
+                </div>
+              )
+            )}
           </main>
         </div>
       </div>
