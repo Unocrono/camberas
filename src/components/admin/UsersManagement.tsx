@@ -56,7 +56,7 @@ interface UserFormData {
   firstName: string;
   lastName: string;
   phone: string;
-  role: string;
+  roles: string[];
 }
 
 const initialFormData: UserFormData = {
@@ -65,7 +65,7 @@ const initialFormData: UserFormData = {
   firstName: "",
   lastName: "",
   phone: "",
-  role: "user",
+  roles: ["user"],
 };
 
 export function UsersManagement() {
@@ -173,7 +173,7 @@ export function UsersManagement() {
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
-          role: formData.role,
+          roles: formData.roles,
         },
       });
 
@@ -213,7 +213,7 @@ export function UsersManagement() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone,
-          role: formData.role,
+          roles: formData.roles,
         },
       });
 
@@ -274,15 +274,15 @@ export function UsersManagement() {
 
   const openEditDialog = (user: UserWithProfile) => {
     setUserToEdit(user);
-    // Extract primary role (without status)
-    const primaryRole = user.roles[0]?.split(" ")[0] || "user";
+    // Extract roles without status
+    const userRoles = user.roles.map(r => r.split(" ")[0]);
     setFormData({
       email: user.email !== "—" ? user.email : "",
       password: "",
       firstName: user.first_name || "",
       lastName: user.last_name || "",
       phone: user.phone || "",
-      role: primaryRole,
+      roles: userRoles.length > 0 ? userRoles : ["user"],
     });
     setShowEditDialog(true);
   };
@@ -467,23 +467,33 @@ export function UsersManagement() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Rol</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Usuario</SelectItem>
-                  <SelectItem value="organizer">Organizador</SelectItem>
-                  <SelectItem value="timer">Cronometrador</SelectItem>
-                  <SelectItem value="moto">Motero</SelectItem>
-                  <SelectItem value="comisario">Comisario</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Roles</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "user", label: "Usuario" },
+                  { value: "organizer", label: "Organizador" },
+                  { value: "timer", label: "Cronometrador" },
+                  { value: "moto", label: "Motero" },
+                  { value: "comisario", label: "Comisario" },
+                  { value: "admin", label: "Administrador" },
+                ].map((role) => (
+                  <label key={role.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.roles.includes(role.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({ ...formData, roles: [...formData.roles, role.value] });
+                        } else {
+                          setFormData({ ...formData, roles: formData.roles.filter(r => r !== role.value) });
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -561,23 +571,33 @@ export function UsersManagement() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-role">Rol</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value) => setFormData({ ...formData, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Usuario</SelectItem>
-                  <SelectItem value="organizer">Organizador</SelectItem>
-                  <SelectItem value="timer">Cronometrador</SelectItem>
-                  <SelectItem value="moto">Motero</SelectItem>
-                  <SelectItem value="comisario">Comisario</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Roles</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: "user", label: "Usuario" },
+                  { value: "organizer", label: "Organizador" },
+                  { value: "timer", label: "Cronometrador" },
+                  { value: "moto", label: "Motero" },
+                  { value: "comisario", label: "Comisario" },
+                  { value: "admin", label: "Administrador" },
+                ].map((role) => (
+                  <label key={role.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.roles.includes(role.value)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({ ...formData, roles: [...formData.roles, role.value] });
+                        } else {
+                          setFormData({ ...formData, roles: formData.roles.filter(r => r !== role.value) });
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>

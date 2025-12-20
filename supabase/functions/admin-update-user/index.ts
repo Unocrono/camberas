@@ -49,7 +49,10 @@ serve(async (req) => {
       );
     }
 
-    const { userId, email, password, firstName, lastName, phone, role } = await req.json();
+    const { userId, email, password, firstName, lastName, phone, role, roles } = await req.json();
+    
+    // Support both single role (legacy) and multiple roles
+    const userRoles: string[] | null = roles || (role ? [role] : null);
     
     if (!userId) {
       return new Response(
@@ -109,17 +112,19 @@ serve(async (req) => {
       }
     }
 
-    // Update role if provided
-    if (role) {
+    // Update roles if provided
+    if (userRoles && userRoles.length > 0) {
       // Delete existing roles
       await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
       
-      // Insert new role
-      await supabaseAdmin.from("user_roles").insert({
-        user_id: userId,
-        role: role,
-        status: role === "organizer" ? "approved" : null,
-      });
+      // Insert all roles
+      for (const r of userRoles) {
+        await supabaseAdmin.from("user_roles").insert({
+          user_id: userId,
+          role: r,
+          status: r === "organizer" ? "approved" : null,
+        });
+      }
     }
 
     return new Response(
