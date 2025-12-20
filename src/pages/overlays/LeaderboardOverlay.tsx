@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-
+import "mapbox-gl/dist/mapbox-gl.css";
 interface ResultRow {
   id: string;
   bib_number: number;
@@ -16,10 +16,9 @@ interface ResultRow {
 }
 
 const LeaderboardOverlay = () => {
-  const { distanceId } = useParams();
+  const { raceId } = useParams();
   const [searchParams] = useSearchParams();
   const [results, setResults] = useState<ResultRow[]>([]);
-  const [distanceName, setDistanceName] = useState("");
   const [raceName, setRaceName] = useState("");
   
   // Config from URL params
@@ -27,29 +26,26 @@ const LeaderboardOverlay = () => {
   const theme = searchParams.get("theme") || "dark";
   const showHeader = searchParams.get("header") !== "false";
   const animate = searchParams.get("animate") !== "false";
+  const distanceFilter = searchParams.get("distance"); // Optional filter
 
   useEffect(() => {
-    if (distanceId) {
+    if (raceId) {
       fetchInitialData();
       setupRealtimeSubscription();
     }
-  }, [distanceId]);
+  }, [raceId, distanceFilter]);
 
   const fetchInitialData = async () => {
     try {
-      // Get distance and race info
-      const { data: distanceData } = await supabase
-        .from("race_distances")
-        .select(`
-          name,
-          races (name)
-        `)
-        .eq("id", distanceId)
+      // Get race info
+      const { data: raceData } = await supabase
+        .from("races")
+        .select("name")
+        .eq("id", raceId)
         .single();
 
-      if (distanceData) {
-        setDistanceName(distanceData.name);
-        setRaceName((distanceData.races as any)?.name || "");
+      if (raceData) {
+        setRaceName(raceData.name);
       }
 
       // Get results
@@ -60,16 +56,18 @@ const LeaderboardOverlay = () => {
   };
 
   const fetchResults = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("race_results")
       .select(`
         id,
         overall_position,
         finish_time,
         status,
+        race_distance_id,
         registrations!inner (
           bib_number,
           user_id,
+          race_id,
           guest_first_name,
           guest_last_name,
           profiles:user_id (
@@ -79,10 +77,17 @@ const LeaderboardOverlay = () => {
           )
         )
       `)
-      .eq("race_distance_id", distanceId)
+      .eq("registrations.race_id", raceId)
       .eq("status", "finished")
       .order("overall_position", { ascending: true })
       .limit(rows);
+
+    // Apply distance filter if provided
+    if (distanceFilter) {
+      query = query.eq("race_distance_id", distanceFilter);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("Error fetching results:", error);
@@ -110,14 +115,13 @@ const LeaderboardOverlay = () => {
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
-      .channel(`leaderboard-${distanceId}`)
+      .channel(`leaderboard-${raceId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "race_results",
-          filter: `race_distance_id=eq.${distanceId}`
+          table: "race_results"
         },
         () => {
           fetchResults();
@@ -181,8 +185,8 @@ const LeaderboardOverlay = () => {
             <div className="flex items-center gap-3">
               <span className="text-3xl">🏆</span>
               <div>
-                <h2 className="text-xl font-bold text-white">{distanceName}</h2>
-                <p className="text-white/80 text-sm">{raceName}</p>
+                <h2 className="text-xl font-bold text-white">{raceName}</h2>
+                <p className="text-white/80 text-sm">Clasificación en vivo</p>
               </div>
             </div>
           </div>

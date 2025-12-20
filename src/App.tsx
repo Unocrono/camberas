@@ -88,9 +88,9 @@ const App = () => (
           
           {/* Overlay Manager y Overlays para OBS */}
           <Route path="/overlays" element={<OverlayManager />} />
-          <Route path="/overlay/leaderboard/:distanceId" element={<LeaderboardOverlay />} />
-          <Route path="/overlay/lower-third/:distanceId" element={<LowerThirdOverlay />} />
-          <Route path="/overlay/map/:distanceId" element={<MapOverlay />} />
+          <Route path="/overlay/leaderboard/:raceId" element={<LeaderboardOverlay />} />
+          <Route path="/overlay/lower-third/:raceId" element={<LowerThirdOverlay />} />
+          <Route path="/overlay/map/:raceId" element={<MapOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
