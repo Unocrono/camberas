@@ -39,6 +39,10 @@ import Legal from "./pages/Legal";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import Cookies from "./pages/Cookies";
+import OverlayManager from "./pages/OverlayManager";
+import LeaderboardOverlay from "./pages/overlays/LeaderboardOverlay";
+import LowerThirdOverlay from "./pages/overlays/LowerThirdOverlay";
+import MapOverlay from "./pages/overlays/MapOverlay";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +85,12 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/timing-shop" element={<TimingShop />} />
+          
+          {/* Overlay Manager y Overlays para OBS */}
+          <Route path="/overlays" element={<OverlayManager />} />
+          <Route path="/overlay/leaderboard/:distanceId" element={<LeaderboardOverlay />} />
+          <Route path="/overlay/lower-third/:distanceId" element={<LowerThirdOverlay />} />
+          <Route path="/overlay/map/:distanceId" element={<MapOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
