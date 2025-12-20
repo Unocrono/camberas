@@ -46,8 +46,8 @@ const MapOverlay = () => {
       try {
         const { data, error } = await supabase.functions.invoke("get-mapbox-token");
         if (error) throw error;
-        if (data?.token) {
-          setMapboxToken(data.token);
+        if (data?.MAPBOX_PUBLIC_TOKEN) {
+          setMapboxToken(data.MAPBOX_PUBLIC_TOKEN);
         }
       } catch (error) {
         console.error("Error fetching Mapbox token:", error);
