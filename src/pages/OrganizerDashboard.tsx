@@ -25,6 +25,7 @@ import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManag
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
 import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
+import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -36,7 +37,7 @@ const OrganizerDashboard = () => {
   const { toast } = useToast();
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
-  const [currentView, setCurrentView] = useState<OrganizerView>("races");
+  const [currentView, setCurrentView] = useState<OrganizerView>("dashboard");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const {
@@ -125,7 +126,7 @@ const OrganizerDashboard = () => {
           <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
             <div className="flex items-center gap-4 px-4 md:px-6 h-14">
               <SidebarTrigger className="mr-2" />
-              <h1 className="text-xl md:text-2xl font-bold truncate">Panel de Organizador</h1>
+              <h1 className="text-xl md:text-2xl font-bold truncate">PANEL ORGANIZADOR</h1>
             </div>
             <div className="px-4 md:px-6 pb-3">
               <RaceSelectorHeader
@@ -175,6 +176,7 @@ const OrganizerDashboard = () => {
           </header>
 
           <main className="flex-1 p-4 md:p-6 w-full overflow-auto">
+            {currentView === "dashboard" && <OrganizerDashboardHome selectedRaceId={selectedRaceId} raceName={selectedRace?.name} />}
             {currentView === "races" && <RaceManagement isOrganizer={true} />}
             {currentView === "distances" && <DistanceManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "waves" && <WavesManagement selectedRaceId={selectedRaceId} />}
