@@ -398,6 +398,65 @@ export type Database = {
           },
         ]
       }
+      moto_assignments: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          moto_id: string | null
+          notes: string | null
+          race_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          moto_id?: string | null
+          notes?: string | null
+          race_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          moto_id?: string | null
+          notes?: string | null
+          race_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moto_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moto_assignments_moto_id_fkey"
+            columns: ["moto_id"]
+            isOneToOne: false
+            referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moto_assignments_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moto_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       moto_gps_tracking: {
         Row: {
           accuracy: number | null
@@ -2123,6 +2182,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_moto_for_race: {
+        Args: { _race_id: string; _user_id: string }
         Returns: boolean
       }
       is_timer_for_race: {
