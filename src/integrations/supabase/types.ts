@@ -398,6 +398,66 @@ export type Database = {
           },
         ]
       }
+      moto_gps_tracking: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          created_at: string
+          distance_from_start: number | null
+          heading: number | null
+          id: string
+          latitude: number
+          longitude: number
+          moto_id: string
+          race_id: string
+          speed: number | null
+          timestamp: string
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          created_at?: string
+          distance_from_start?: number | null
+          heading?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          moto_id: string
+          race_id: string
+          speed?: number | null
+          timestamp?: string
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          created_at?: string
+          distance_from_start?: number | null
+          heading?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          moto_id?: string
+          race_id?: string
+          speed?: number | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moto_gps_tracking_moto_id_fkey"
+            columns: ["moto_id"]
+            isOneToOne: false
+            referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moto_gps_tracking_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_faqs: {
         Row: {
           answer: string
