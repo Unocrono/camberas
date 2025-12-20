@@ -43,6 +43,7 @@ import OverlayManager from "./pages/OverlayManager";
 import LeaderboardOverlay from "./pages/overlays/LeaderboardOverlay";
 import LowerThirdOverlay from "./pages/overlays/LowerThirdOverlay";
 import MapOverlay from "./pages/overlays/MapOverlay";
+import RaceClockOverlay from "./pages/overlays/RaceClockOverlay";
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
           <Route path="/overlay/leaderboard/:raceId" element={<LeaderboardOverlay />} />
           <Route path="/overlay/lower-third/:raceId" element={<LowerThirdOverlay />} />
           <Route path="/overlay/map/:raceId" element={<MapOverlay />} />
+          <Route path="/overlay/clock/:raceId" element={<RaceClockOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
