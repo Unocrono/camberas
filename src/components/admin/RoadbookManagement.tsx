@@ -803,7 +803,17 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                   </a>
                 </Button>
               )}
-              <Dialog open={roadbookDialogOpen} onOpenChange={setRoadbookDialogOpen}>
+              <Dialog open={roadbookDialogOpen} onOpenChange={(open) => {
+                if (open && roadbook) {
+                  // Refresh form data when opening dialog to ensure it reflects current roadbook state
+                  setRoadbookFormData({
+                    name: roadbook.name,
+                    description: roadbook.description || "",
+                    start_time: formatTimeForInput(roadbook.start_time),
+                  });
+                }
+                setRoadbookDialogOpen(open);
+              }}>
                 <DialogTrigger asChild>
                   <Button size="sm" variant={roadbook ? "outline" : "default"}>
                     <Edit className="mr-2 h-4 w-4" />

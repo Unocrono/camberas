@@ -575,9 +575,12 @@ export default function LiveResults() {
     return `${firstName} ${lastName}`.trim();
   };
 
-  // Get split time for a specific checkpoint
-  const getSplitTime = (result: RaceResult, checkpointOrder: number): string | null => {
-    const split = result.split_times?.find(s => s.checkpoint_order === checkpointOrder);
+  // Get split time for a specific checkpoint - use name for more reliable matching
+  const getSplitTime = (result: RaceResult, checkpoint: RaceCheckpoint): string | null => {
+    // Try to find by checkpoint name first (more reliable when checkpoints are reimported)
+    const split = result.split_times?.find(s => 
+      s.checkpoint_name === checkpoint.name || s.checkpoint_order === checkpoint.checkpoint_order
+    );
     return split ? formatTime(split.split_time) : null;
   };
 
@@ -806,7 +809,7 @@ export default function LiveResults() {
                           <TableCell className="text-center font-mono text-sm text-primary">{result.gender_position || '-'}</TableCell>
                           {filteredCheckpoints.filter(c => c.checkpoint_type !== 'META').map(cp => (
                             <TableCell key={cp.id} className="text-center font-mono text-sm">
-                              {getSplitTime(result, cp.checkpoint_order) || '-'}
+                              {getSplitTime(result, cp) || '-'}
                             </TableCell>
                           ))}
                           <TableCell className="text-center font-mono text-sm">
