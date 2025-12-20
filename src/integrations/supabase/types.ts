@@ -342,6 +342,62 @@ export type Database = {
           },
         ]
       }
+      menu_items: {
+        Row: {
+          created_at: string
+          display_order: number
+          group_label: string | null
+          icon: string
+          id: string
+          is_visible: boolean
+          menu_type: string
+          parent_id: string | null
+          requires_auth: boolean
+          route: string | null
+          title: string
+          updated_at: string
+          view_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          group_label?: string | null
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          menu_type: string
+          parent_id?: string | null
+          requires_auth?: boolean
+          route?: string | null
+          title: string
+          updated_at?: string
+          view_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          group_label?: string | null
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          menu_type?: string
+          parent_id?: string | null
+          requires_auth?: boolean
+          route?: string | null
+          title?: string
+          updated_at?: string
+          view_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "menu_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_faqs: {
         Row: {
           answer: string

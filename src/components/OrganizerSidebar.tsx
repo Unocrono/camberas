@@ -1,4 +1,5 @@
-import { Calendar, Users, Home, Trophy, Timer, Route, FolderOpen, HelpCircle, UserCircle, Map, Scale, RectangleHorizontal, FileText, Shirt, MapPin, UserCog, Radio, Clock, ChevronDown, Flag, Satellite, Cpu } from "lucide-react";
+import { Home, ChevronDown, UserCircle, RectangleHorizontal } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   Sidebar,
@@ -16,85 +17,53 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { useMenuItems } from "@/hooks/useMenuItems";
+import { Skeleton } from "@/components/ui/skeleton";
 
-type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "gps-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments" | "bib-chips";
+type OrganizerView = string;
 
 interface OrganizerSidebarProps {
   currentView: OrganizerView;
   onViewChange: (view: OrganizerView) => void;
 }
 
-interface MenuItem {
-  title: string;
-  view: OrganizerView;
-  icon: typeof Calendar;
-}
-
-interface MenuGroup {
-  label: string;
-  items: MenuItem[];
-  defaultOpen?: boolean;
-}
-
-const menuGroups: MenuGroup[] = [
-  {
-    label: "🏃 Carreras",
-    defaultOpen: true,
-    items: [
-      { title: "Gestión de Carreras", view: "races", icon: Calendar },
-      { title: "Recorridos", view: "distances", icon: Route },
-      { title: "Reglamento", view: "regulations", icon: Scale },
-    ],
-  },
-  {
-    label: "🗺️ Recorrido",
-    items: [
-      { title: "Puntos de Cronometraje", view: "timing-points", icon: Clock },
-      { title: "Puntos de Control", view: "checkpoints", icon: MapPin },
-      { title: "Rutómetros", view: "roadbooks", icon: Map },
-    ],
-  },
-  {
-    label: "📝 Inscripciones",
-    items: [
-      { title: "Inscripciones", view: "registrations", icon: Users },
-      { title: "Campos de Formulario", view: "form-fields", icon: FileText },
-      { title: "Resumen de Tallas", view: "tshirt-sizes", icon: Shirt },
-    ],
-  },
-  {
-    label: "⏱️ Cronometraje",
-    items: [
-      { title: "Horas de Salida", view: "waves", icon: Flag },
-      { title: "Chips RFID", view: "bib-chips", icon: Cpu },
-      { title: "Cronometradores", view: "timer-assignments", icon: UserCog },
-      { title: "Resultados", view: "results", icon: Trophy },
-      { title: "Tiempos Parciales", view: "splits", icon: Timer },
-      { title: "Lecturas Crono", view: "timing-readings", icon: Radio },
-      { title: "Lecturas GPS", view: "gps-readings", icon: Satellite },
-    ],
-  },
-  {
-    label: "📁 Contenido",
-    items: [
-      { title: "Archivos Multimedia", view: "storage", icon: FolderOpen },
-      { title: "FAQs de Carreras", view: "race-faqs", icon: HelpCircle },
-    ],
-  },
-];
-
 export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebarProps) {
   const { setOpenMobile, state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { groupedItems, loading } = useMenuItems({ menuType: "organizer" });
+
+  const getIconComponent = (iconName: string) => {
+    const IconComponent = (LucideIcons as any)[iconName];
+    return IconComponent || LucideIcons.Circle;
+  };
 
   const handleItemClick = (view: OrganizerView) => {
     onViewChange(view);
     setOpenMobile(false);
   };
 
-  const isGroupActive = (group: MenuGroup) => {
-    return group.items.some(item => item.view === currentView);
+  const isGroupActive = (items: any[]) => {
+    return items.some(item => item.view_name === currentView);
   };
+
+  if (loading) {
+    return (
+      <Sidebar collapsible="icon" className="border-r">
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Organizador</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="space-y-2 p-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-8 w-full" />
+                ))}
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -102,10 +71,10 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
         <SidebarGroup>
           <SidebarGroupLabel>Organizador</SidebarGroupLabel>
           <SidebarGroupContent>
-            {menuGroups.map((group) => (
+            {groupedItems.map((group, groupIndex) => (
               <Collapsible
                 key={group.label}
-                defaultOpen={group.defaultOpen || isGroupActive(group)}
+                defaultOpen={groupIndex === 0 || isGroupActive(group.items)}
                 className="group/collapsible"
               >
                 <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
@@ -116,18 +85,30 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <SidebarMenu className="ml-2 border-l border-border pl-2">
-                    {group.items.map((item) => (
-                      <SidebarMenuItem key={item.view}>
-                        <SidebarMenuButton
-                          onClick={() => handleItemClick(item.view)}
-                          isActive={currentView === item.view}
-                          tooltip={item.title}
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
+                    {group.items.map((item) => {
+                      const Icon = getIconComponent(item.icon);
+                      return (
+                        <SidebarMenuItem key={item.id}>
+                          {item.route ? (
+                            <SidebarMenuButton asChild tooltip={item.title}>
+                              <Link to={item.route} onClick={() => setOpenMobile(false)}>
+                                <Icon className="h-4 w-4" />
+                                <span>{item.title}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          ) : (
+                            <SidebarMenuButton
+                              onClick={() => item.view_name && handleItemClick(item.view_name)}
+                              isActive={currentView === item.view_name}
+                              tooltip={item.title}
+                            >
+                              <Icon className="h-4 w-4" />
+                              <span>{item.title}</span>
+                            </SidebarMenuButton>
+                          )}
+                        </SidebarMenuItem>
+                      );
+                    })}
                   </SidebarMenu>
                 </CollapsibleContent>
               </Collapsible>

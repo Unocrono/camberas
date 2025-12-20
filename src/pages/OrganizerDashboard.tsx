@@ -28,7 +28,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type OrganizerView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "splits" | "timing-readings" | "gps-readings" | "storage" | "race-faqs" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "timer-assignments" | "bib-chips";
+type OrganizerView = string;
 
 const OrganizerDashboard = () => {
   const { user, loading: authLoading } = useAuth();
