@@ -34,10 +34,11 @@ import { GPSTrackingViewer } from "@/components/admin/GPSTrackingViewer";
 import { TshirtSizesSummary } from "@/components/admin/TshirtSizesSummary";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
+import { MenuManagement } from "@/components/admin/MenuManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type AdminView = "races" | "distances" | "waves" | "checkpoints" | "timing-points" | "registrations" | "results" | "results-status" | "splits" | "timing-readings" | "gps-readings" | "timer-assignments" | "edge-functions" | "organizer-faqs" | "storage" | "race-faqs" | "organizer-approval" | "roadbooks" | "regulations" | "form-fields" | "tshirt-sizes" | "users" | "roadbook-item-types" | "contact-settings" | "bib-chips";
+type AdminView = string;
 
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
@@ -121,7 +122,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -267,6 +268,7 @@ const AdminDashboard = () => {
             {currentView === "users" && <UsersManagement />}
             {currentView === "roadbook-item-types" && <RoadbookItemTypesManagement />}
             {currentView === "contact-settings" && <ContactSettingsManagement />}
+            {currentView === "menu-management" && <MenuManagement />}
           </main>
         </div>
       </div>
