@@ -513,14 +513,14 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
             <div className="space-y-2">
               <Label htmlFor="user_id">Usuario GPS</Label>
               <Select
-                value={formData.user_id}
-                onValueChange={(value) => setFormData({ ...formData, user_id: value })}
+                value={formData.user_id || "none"}
+                onValueChange={(value) => setFormData({ ...formData, user_id: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un usuario" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin asignar</SelectItem>
+                  <SelectItem value="none">Sin asignar</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {`${user.first_name || ""} ${user.last_name || ""}`.trim() || "Sin nombre"}
