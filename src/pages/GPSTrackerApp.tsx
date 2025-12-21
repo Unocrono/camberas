@@ -80,6 +80,7 @@ interface MotoAssignment {
   id: string;
   moto_id: string;
   race_id: string;
+  race_distance_id?: string | null;
   wave_start_time?: string | null;
   moto: {
     id: string;
@@ -184,7 +185,10 @@ const GPSTrackerApp = () => {
         
         if (motoRole) {
           setAppMode('moto');
-          const today = new Date().toISOString().split('T')[0];
+          // Use yesterday to include races from today that may have started earlier
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const minDate = yesterday.toISOString().split('T')[0];
           const allAssignments: MotoAssignment[] = [];
           
           // 1. Fetch motos directly assigned via user_id in race_motos
@@ -195,6 +199,7 @@ const GPSTrackerApp = () => {
               name,
               color,
               race_id,
+              race_distance_id,
               races!race_motos_race_id_fkey (
                 id,
                 name,
@@ -202,15 +207,19 @@ const GPSTrackerApp = () => {
                 gps_update_frequency
               )
             `)
-            .eq('user_id', user.id);
+            .eq('user_id', user.id)
+            .gte('races.date', minDate);
+          
+          console.log('Direct motos query result:', directMotos, directError);
           
           if (!directError && directMotos) {
             const validDirectMotos = directMotos
-              .filter((m: any) => m.races?.date >= today)
+              .filter((m: any) => m.races !== null)
               .map((m: any) => ({
                 id: m.id, // Use moto id as assignment id
                 moto_id: m.id,
                 race_id: m.race_id,
+                race_distance_id: m.race_distance_id,
                 moto: {
                   id: m.id,
                   name: m.name,
@@ -232,6 +241,7 @@ const GPSTrackerApp = () => {
                 id,
                 name,
                 color,
+                race_distance_id,
                 races!race_motos_race_id_fkey (
                   id,
                   name,
@@ -242,13 +252,16 @@ const GPSTrackerApp = () => {
             `)
             .eq('user_id', user.id);
           
+          console.log('Moto assignments query result:', assignments, assignError);
+          
           if (!assignError && assignments) {
             const validAssignments = assignments
-              .filter((a: any) => a.race_motos?.races?.date >= today)
+              .filter((a: any) => a.race_motos?.races?.date >= minDate)
               .map((a: any) => ({
                 id: a.id,
                 moto_id: a.moto_id,
                 race_id: a.race_id,
+                race_distance_id: a.race_motos.race_distance_id,
                 moto: {
                   id: a.race_motos.id,
                   name: a.race_motos.name,
