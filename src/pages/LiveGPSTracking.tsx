@@ -123,8 +123,9 @@ const LiveGPSTracking = () => {
         setSelectedDistanceId(gpsEnabled?.id || distancesData[0].id);
       }
 
-      const { data: { MAPBOX_PUBLIC_TOKEN } } = await supabase.functions.invoke('get-mapbox-token');
-      setMapboxToken(MAPBOX_PUBLIC_TOKEN || '');
+      // The edge function returns { token: ... }
+      const { data } = await supabase.functions.invoke('get-mapbox-token');
+      setMapboxToken(data?.token || '');
     } catch (error: any) {
       console.error('Error:', error);
       toast({
