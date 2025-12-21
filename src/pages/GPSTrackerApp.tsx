@@ -80,6 +80,7 @@ interface MotoAssignment {
   id: string;
   moto_id: string;
   race_id: string;
+  wave_start_time?: string | null;
   moto: {
     id: string;
     name: string;
@@ -262,6 +263,32 @@ const GPSTrackerApp = () => {
                 allAssignments.push(a);
               }
             });
+          }
+          
+          // Fetch wave start times for moto races
+          const raceIds = [...new Set(allAssignments.map(a => a.race_id))];
+          if (raceIds.length > 0) {
+            const { data: waves } = await supabase
+              .from('race_waves')
+              .select('race_id, start_time')
+              .in('race_id', raceIds)
+              .not('start_time', 'is', null)
+              .order('start_time', { ascending: true });
+            
+            if (waves && waves.length > 0) {
+              // Create a map of race_id to earliest wave start_time
+              const waveMap = new Map<string, string>();
+              waves.forEach(w => {
+                if (!waveMap.has(w.race_id) && w.start_time) {
+                  waveMap.set(w.race_id, w.start_time);
+                }
+              });
+              
+              // Add wave_start_time to assignments
+              allAssignments.forEach(a => {
+                a.wave_start_time = waveMap.get(a.race_id) || null;
+              });
+            }
           }
           
           setMotoAssignments(allAssignments);
@@ -581,19 +608,27 @@ const GPSTrackerApp = () => {
     setDistanceToFinish(distance);
   }, [currentPosition, trackPoints]);
 
-  // Elapsed time counter
+  // Elapsed time counter - uses wave start time for both runner and moto
   useEffect(() => {
     if (!isTracking) return;
     
     const calculateElapsed = () => {
+      // Get wave start time depending on mode
+      let eventStartTime: string | null | undefined = null;
+      
       if (appMode === 'runner') {
-        const eventStartTime = selectedRegistration?.wave_start_time;
-        if (eventStartTime) {
-          const startDate = new Date(eventStartTime);
-          const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
-          return Math.max(0, elapsedSeconds);
-        }
+        eventStartTime = selectedRegistration?.wave_start_time;
+      } else if (appMode === 'moto') {
+        eventStartTime = selectedMotoAssignment?.wave_start_time;
       }
+      
+      if (eventStartTime) {
+        const startDate = new Date(eventStartTime);
+        const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
+        return Math.max(0, elapsedSeconds);
+      }
+      
+      // Fallback to tracking start time
       if (startTimeRef.current) {
         return Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
       }
@@ -607,7 +642,7 @@ const GPSTrackerApp = () => {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [isTracking, selectedRegistration?.wave_start_time, appMode]);
+  }, [isTracking, selectedRegistration?.wave_start_time, selectedMotoAssignment?.wave_start_time, appMode]);
 
   // Sync pending points
   const syncPendingPoints = useCallback(async () => {
