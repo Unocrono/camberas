@@ -45,6 +45,7 @@ import LowerThirdOverlay from "./pages/overlays/LowerThirdOverlay";
 import MapOverlay from "./pages/overlays/MapOverlay";
 import RaceClockOverlay from "./pages/overlays/RaceClockOverlay";
 import MotoOverlay from "./pages/overlays/MotoOverlay";
+import LoteriaNavidad from "./pages/LoteriaNavidad";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/timing-shop" element={<TimingShop />} />
+          <Route path="/loteria" element={<LoteriaNavidad />} />
           
           {/* Overlay Manager y Overlays para OBS */}
           <Route path="/overlays" element={<OverlayManager />} />
