@@ -183,8 +183,45 @@ const GPSTrackerApp = () => {
         
         if (motoRole) {
           setAppMode('moto');
-          // Fetch moto assignments
-          const { data: assignments, error } = await supabase
+          const today = new Date().toISOString().split('T')[0];
+          const allAssignments: MotoAssignment[] = [];
+          
+          // 1. Fetch motos directly assigned via user_id in race_motos
+          const { data: directMotos, error: directError } = await supabase
+            .from('race_motos')
+            .select(`
+              id,
+              name,
+              color,
+              race_id,
+              races!race_motos_race_id_fkey (
+                id,
+                name,
+                date,
+                gps_update_frequency
+              )
+            `)
+            .eq('user_id', user.id);
+          
+          if (!directError && directMotos) {
+            const validDirectMotos = directMotos
+              .filter((m: any) => m.races?.date >= today)
+              .map((m: any) => ({
+                id: m.id, // Use moto id as assignment id
+                moto_id: m.id,
+                race_id: m.race_id,
+                moto: {
+                  id: m.id,
+                  name: m.name,
+                  color: m.color,
+                  race: m.races
+                }
+              }));
+            allAssignments.push(...validDirectMotos);
+          }
+          
+          // 2. Fetch moto assignments from moto_assignments table
+          const { data: assignments, error: assignError } = await supabase
             .from('moto_assignments')
             .select(`
               id,
@@ -204,8 +241,7 @@ const GPSTrackerApp = () => {
             `)
             .eq('user_id', user.id);
           
-          if (!error && assignments) {
-            const today = new Date().toISOString().split('T')[0];
+          if (!assignError && assignments) {
             const validAssignments = assignments
               .filter((a: any) => a.race_motos?.races?.date >= today)
               .map((a: any) => ({
@@ -218,12 +254,19 @@ const GPSTrackerApp = () => {
                   color: a.race_motos.color,
                   race: a.race_motos.races
                 }
-              })) as MotoAssignment[];
+              }));
             
-            setMotoAssignments(validAssignments);
-            if (validAssignments.length === 1) {
-              setSelectedMotoAssignment(validAssignments[0]);
-            }
+            // Add only if not already added from direct assignment
+            validAssignments.forEach((a: MotoAssignment) => {
+              if (!allAssignments.find(existing => existing.moto_id === a.moto_id)) {
+                allAssignments.push(a);
+              }
+            });
+          }
+          
+          setMotoAssignments(allAssignments);
+          if (allAssignments.length === 1) {
+            setSelectedMotoAssignment(allAssignments[0]);
           }
           setLoading(false);
         } else {
