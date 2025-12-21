@@ -18,6 +18,7 @@ import {
   Timer,
   RefreshCw,
   LogOut,
+  LogIn,
   CheckCircle,
   Clock,
   MapPin,
@@ -40,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Pencil, Trash2 } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
 
 interface Race {
   id: string;
@@ -107,6 +109,7 @@ const TimingApp = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isOrganizerOrAdmin, setIsOrganizerOrAdmin] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // App state
   const [currentView, setCurrentView] = useState<"login" | "select" | "timing">("login");
@@ -1296,14 +1299,21 @@ const TimingApp = () => {
                   Entrar
                 </Button>
                 <div className="text-center pt-2">
-                  <Link 
-                    to="/auth?returnTo=/timing" 
+                  <button 
+                    type="button"
+                    onClick={() => setShowAuthModal(true)}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ¿No tienes cuenta? Regístrate
-                  </Link>
+                  </button>
                 </div>
               </form>
+              
+              <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                appName="Camberas Timing"
+              />
             </CardContent>
           </Card>
         </main>

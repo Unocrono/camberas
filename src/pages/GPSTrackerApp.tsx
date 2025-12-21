@@ -12,12 +12,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GPSMiniMap } from '@/components/GPSMiniMap';
 import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { GPSSplashScreen } from '@/components/GPSSplashScreen';
+import { AuthModal } from '@/components/AuthModal';
 import gpsLogo from '@/assets/gps-icon.png';
 import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints, findClosestTrackPoint, calculateDistanceFromStartToPoint } from '@/lib/gpxParser';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
   Gauge, Play, Square, RefreshCw, AlertTriangle,
-  Smartphone, Download, Volume2, VolumeX, Target, Bike
+  Smartphone, Download, Volume2, VolumeX, Target, Bike, LogIn, LogOut, User
 } from 'lucide-react';
 
 // Camberas brand color
@@ -109,10 +110,13 @@ interface Checkpoint {
 type AppMode = 'runner' | 'moto';
 
 const GPSTrackerApp = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, watchPosition, getCurrentPosition, clearWatch, requestPermissions } = useNativeGeolocation();
+  
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
   
   // App mode detection
   const [appMode, setAppMode] = useState<AppMode>('runner');
@@ -984,11 +988,18 @@ const GPSTrackerApp = () => {
             <MapPin className="h-16 w-16 mx-auto text-primary" />
             <h1 className="text-2xl font-bold">Camberas GPS</h1>
             <p className="text-muted-foreground">Inicia sesión para compartir tu ubicación durante la carrera</p>
-            <Button onClick={() => navigate('/auth?returnTo=/track')} className="w-full">
+            <Button onClick={() => setShowAuthModal(true)} className="w-full">
+              <LogIn className="h-4 w-4 mr-2" />
               Iniciar Sesión
             </Button>
           </CardContent>
         </Card>
+        
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          appName="Camberas GPS"
+        />
       </div>
     );
   }
@@ -1122,6 +1133,29 @@ const GPSTrackerApp = () => {
           >
             <Battery className="h-3 w-3 mr-1" /> {battery}%
           </Badge>
+          
+          {/* User/Logout button */}
+          <button
+            onClick={() => {
+              if (isTracking) {
+                toast({
+                  title: 'Tracking activo',
+                  description: 'Detén el tracking antes de cerrar sesión',
+                  variant: 'destructive',
+                });
+                return;
+              }
+              signOut();
+              toast({
+                title: 'Sesión cerrada',
+                description: 'Has cerrado sesión correctamente',
+              });
+            }}
+            className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+            title="Cerrar sesión"
+          >
+            <LogOut className="h-4 w-4 text-white/70 hover:text-white" />
+          </button>
         </div>
       </header>
 
@@ -1395,6 +1429,13 @@ const GPSTrackerApp = () => {
 
       {/* Bottom padding for safe area */}
       <div className="p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} />
+      
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        appName="Camberas GPS"
+      />
     </div>
   );
 };
