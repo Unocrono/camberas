@@ -30,8 +30,8 @@ export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) 
     try {
       const { data, error } = await supabase.functions.invoke('get-mapbox-token');
       if (error) throw error;
-      if (data?.MAPBOX_PUBLIC_TOKEN) {
-        setMapboxToken(data.MAPBOX_PUBLIC_TOKEN);
+      if (data?.token) {
+        setMapboxToken(data.token);
       } else {
         setError('Token de mapa no disponible');
       }
