@@ -237,7 +237,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
   // Load GPX when distance changes
   useEffect(() => {
-    if (!map.current || !mapReady || !selectedRaceId) return;
+    if (!map.current || !mapReady || !selectedRaceId || distances.length === 0) return;
     
     // Clear existing route
     if (map.current.getLayer('route')) {
@@ -250,7 +250,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     setHasRoute(false);
 
     fetchGpx();
-  }, [selectedDistanceId, selectedRaceId, mapReady]);
+  }, [selectedDistanceId, selectedRaceId, mapReady, distances]);
 
   const fetchGpx = async () => {
     if (!selectedRaceId) return;
@@ -421,7 +421,13 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
   useEffect(() => {
     if (!selectedRaceId) return;
 
-    // Fetch positions even if map is not ready (for the list)
+    // Wait until distances are loaded to calculate remaining distance
+    if (distances.length === 0) {
+      // Still fetch positions, but without distance remaining calculation
+      fetchMotoPositions();
+      return;
+    }
+
     fetchMotoPositions();
 
     // Setup realtime subscription
@@ -444,7 +450,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedRaceId, fetchMotoPositions]);
+  }, [selectedRaceId, distances, fetchMotoPositions]);
 
   const updateMarkers = (positions: MotoPosition[]) => {
     if (!map.current) return;
