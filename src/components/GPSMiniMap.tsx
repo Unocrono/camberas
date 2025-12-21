@@ -84,8 +84,9 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
       try {
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         if (error) throw error;
-        if (data?.MAPBOX_PUBLIC_TOKEN) {
-          setMapboxToken(data.MAPBOX_PUBLIC_TOKEN);
+        // The edge function returns { token: ... }
+        if (data?.token) {
+          setMapboxToken(data.token);
         } else {
           setError('Token no disponible');
         }
