@@ -415,12 +415,13 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedRaceId]);
+  }, [selectedRaceId, distances]);
 
   // Initial fetch and realtime subscription
   useEffect(() => {
-    if (!mapReady || !selectedRaceId) return;
+    if (!selectedRaceId) return;
 
+    // Fetch positions even if map is not ready (for the list)
     fetchMotoPositions();
 
     // Setup realtime subscription
@@ -443,7 +444,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedRaceId, mapReady, fetchMotoPositions]);
+  }, [selectedRaceId, fetchMotoPositions]);
 
   const updateMarkers = (positions: MotoPosition[]) => {
     if (!map.current) return;
