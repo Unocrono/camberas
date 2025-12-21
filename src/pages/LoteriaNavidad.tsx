@@ -163,7 +163,7 @@ const LoteriaNavidad = () => {
             <div className="text-center space-y-4">
               <div className="flex items-center justify-center gap-2 text-yellow-300">
                 <Gift className="h-6 w-6" />
-                <span className="text-sm font-medium uppercase tracking-wider">Última Hora</span>
+                <span className="text-sm font-medium uppercase tracking-wider">LOTERIA DE NAVIDAD</span>
               </div>
 
               {lastPrize ? (
