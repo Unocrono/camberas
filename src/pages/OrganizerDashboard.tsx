@@ -27,6 +27,7 @@ import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement"
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
+import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -255,6 +256,7 @@ const OrganizerDashboard = () => {
                 </div>
               )
             )}
+            {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
