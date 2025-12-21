@@ -29,7 +29,9 @@ interface MotoPosition {
     color: string;
     moto_order: number;
     is_active: boolean;
+    race_distance_id: string | null;
   };
+  distance_remaining: number | null;
 }
 
 interface RaceDistance {
@@ -353,12 +355,16 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
       // Get active motos for this race
       const { data: motos, error: motosError } = await supabase
         .from('race_motos')
-        .select('id, name, name_tv, color, moto_order, is_active')
+        .select('id, name, name_tv, color, moto_order, is_active, race_distance_id')
         .eq('race_id', selectedRaceId)
         .eq('is_active', true)
         .order('moto_order');
 
       if (motosError) throw motosError;
+
+      // Build a map of distance_id -> distance_km for remaining calculation
+      const distanceMap = new Map<string, number>();
+      distances.forEach(d => distanceMap.set(d.id, d.distance_km));
 
       if (!motos || motos.length === 0) {
         setMotoPositions([]);
@@ -380,6 +386,12 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           .maybeSingle();
 
         if (!gpsError && gpsData) {
+          const distanceFromStart = gpsData.distance_from_start ? parseFloat(String(gpsData.distance_from_start)) : null;
+          const totalDistance = moto.race_distance_id ? distanceMap.get(moto.race_distance_id) : null;
+          const distanceRemaining = distanceFromStart !== null && totalDistance 
+            ? Math.max(0, totalDistance - distanceFromStart) 
+            : null;
+
           positions.push({
             id: gpsData.id,
             moto_id: moto.id,
@@ -388,8 +400,9 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
             timestamp: gpsData.timestamp,
             speed: gpsData.speed ? parseFloat(String(gpsData.speed)) : null,
             heading: gpsData.heading ? parseFloat(String(gpsData.heading)) : null,
-            distance_from_start: gpsData.distance_from_start ? parseFloat(String(gpsData.distance_from_start)) : null,
+            distance_from_start: distanceFromStart,
             moto: moto,
+            distance_remaining: distanceRemaining,
           });
         }
       }
@@ -466,6 +479,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           <div class="mt-2 space-y-1 text-sm">
             ${pos.speed !== null ? `<div>🚀 Velocidad: ${pos.speed.toFixed(1)} km/h</div>` : ''}
             ${pos.distance_from_start !== null ? `<div>📏 Km recorrido: ${pos.distance_from_start.toFixed(2)} km</div>` : ''}
+            ${pos.distance_remaining !== null ? `<div>🏁 Km hasta meta: ${pos.distance_remaining.toFixed(2)} km</div>` : ''}
             <div>🕐 Última actualización: ${new Date(pos.timestamp).toLocaleTimeString('es-ES')}</div>
           </div>
         </div>
@@ -605,11 +619,18 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
                                 {pos.speed !== null ? `${pos.speed.toFixed(1)} km/h` : 'Sin velocidad'}
                               </div>
                             </div>
-                            {pos.distance_from_start !== null && (
-                              <Badge variant="secondary" className="text-xs">
-                                {pos.distance_from_start.toFixed(1)} km
-                              </Badge>
-                            )}
+                            <div className="flex flex-col items-end gap-0.5">
+                              {pos.distance_from_start !== null && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {pos.distance_from_start.toFixed(1)} km
+                                </Badge>
+                              )}
+                              {pos.distance_remaining !== null && (
+                                <Badge variant="outline" className="text-xs text-green-600">
+                                  🏁 {pos.distance_remaining.toFixed(1)} km
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

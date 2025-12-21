@@ -47,6 +47,7 @@ import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User, UserPlus } fro
 interface Moto {
   id: string;
   race_id: string;
+  race_distance_id: string | null;
   name: string;
   name_tv: string | null;
   color: string;
@@ -56,6 +57,12 @@ interface Moto {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+}
+
+interface RaceDistance {
+  id: string;
+  name: string;
+  distance_km: number;
 }
 
 interface UserOption {
@@ -80,6 +87,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
   const { toast } = useToast();
   const [motos, setMotos] = useState<Moto[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,12 +101,14 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     color: "#FF5722",
     description: "",
     user_id: "",
+    race_distance_id: "",
     is_active: true,
   });
   useEffect(() => {
     if (selectedRaceId) {
       fetchMotos();
       fetchUsers();
+      fetchDistances();
     }
   }, [selectedRaceId]);
 
@@ -156,6 +166,21 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     }
   };
 
+  const fetchDistances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km")
+        .eq("race_id", selectedRaceId)
+        .order("distance_km", { ascending: true });
+
+      if (error) throw error;
+      setDistances(data || []);
+    } catch (error: any) {
+      console.error("Error fetching distances:", error);
+    }
+  };
+
   const handleOpenDialog = (moto?: Moto) => {
     if (moto) {
       setSelectedMoto(moto);
@@ -165,6 +190,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         color: moto.color,
         description: moto.description || "",
         user_id: moto.user_id || "",
+        race_distance_id: moto.race_distance_id || "",
         is_active: moto.is_active,
       });
     } else {
@@ -175,6 +201,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         color: PRESET_COLORS[motos.length % PRESET_COLORS.length],
         description: "",
         user_id: "",
+        race_distance_id: distances.length > 0 ? distances[0].id : "",
         is_active: true,
       });
     }
@@ -195,6 +222,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     try {
       const motoData = {
         race_id: selectedRaceId,
+        race_distance_id: formData.race_distance_id || null,
         name: formData.name.trim(),
         name_tv: formData.name_tv.trim() || null,
         color: formData.color,
@@ -306,6 +334,13 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     const user = users.find(u => u.id === userId);
     if (!user) return "Usuario desconocido";
     return `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Sin nombre";
+  };
+
+  const getDistanceName = (distanceId: string | null) => {
+    if (!distanceId) return "Sin asignar";
+    const distance = distances.find(d => d.id === distanceId);
+    if (!distance) return "Desconocido";
+    return `${distance.name} (${distance.distance_km}km)`;
   };
 
   const handleAddMotoRole = async () => {
@@ -467,6 +502,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Nombre</TableHead>
                   <TableHead>Nombre TV</TableHead>
+                  <TableHead>Recorrido</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead>Usuario GPS</TableHead>
                   <TableHead>Estado</TableHead>
@@ -485,6 +521,11 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                     <TableCell className="font-medium">{moto.name}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {moto.name_tv || "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {getDistanceName(moto.race_distance_id)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -627,6 +668,29 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
               </Select>
               <p className="text-xs text-muted-foreground">
                 Usuario que llevará el GPS en esta moto
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="race_distance_id">Recorrido *</Label>
+              <Select
+                value={formData.race_distance_id || "none"}
+                onValueChange={(value) => setFormData({ ...formData, race_distance_id: value === "none" ? "" : value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un recorrido" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin asignar</SelectItem>
+                  {distances.map((distance) => (
+                    <SelectItem key={distance.id} value={distance.id}>
+                      {distance.name} ({distance.distance_km}km)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Recorrido que sigue esta moto para calcular distancia restante
               </p>
             </div>
 

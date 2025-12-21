@@ -804,6 +804,7 @@ export type Database = {
           moto_order: number
           name: string
           name_tv: string | null
+          race_distance_id: string | null
           race_id: string
           updated_at: string
           user_id: string | null
@@ -817,6 +818,7 @@ export type Database = {
           moto_order?: number
           name: string
           name_tv?: string | null
+          race_distance_id?: string | null
           race_id: string
           updated_at?: string
           user_id?: string | null
@@ -830,11 +832,19 @@ export type Database = {
           moto_order?: number
           name?: string
           name_tv?: string | null
+          race_distance_id?: string | null
           race_id?: string
           updated_at?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "race_motos_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "race_motos_race_id_fkey"
             columns: ["race_id"]
