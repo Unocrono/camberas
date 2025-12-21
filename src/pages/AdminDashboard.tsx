@@ -37,6 +37,7 @@ import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPa
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
+import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -281,6 +282,7 @@ const AdminDashboard = () => {
               )
             )}
             {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
           </main>
         </div>
       </div>
