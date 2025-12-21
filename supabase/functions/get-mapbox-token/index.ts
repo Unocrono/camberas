@@ -11,14 +11,14 @@ serve(async (req) => {
   }
 
   try {
-    const MAPBOX_PUBLIC_TOKEN = Deno.env.get("MAPBOX_PUBLIC_TOKEN");
+    const token = Deno.env.get("MAPBOX_PUBLIC_TOKEN");
 
-    if (!MAPBOX_PUBLIC_TOKEN) {
+    if (!token) {
       throw new Error("MAPBOX_PUBLIC_TOKEN not configured");
     }
 
     return new Response(
-      JSON.stringify({ MAPBOX_PUBLIC_TOKEN }),
+      JSON.stringify({ token }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }

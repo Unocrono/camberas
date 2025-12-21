@@ -92,12 +92,11 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
       try {
         const { data, error } = await supabase.functions.invoke('get-mapbox-token');
         if (error) throw error;
-        const token = data?.token || data?.MAPBOX_PUBLIC_TOKEN;
-        if (!token) {
+        if (!data?.token) {
           console.error('No mapbox token found in response:', data);
           return;
         }
-        setMapboxToken(token);
+        setMapboxToken(data.token);
       } catch (error) {
         console.error('Error fetching mapbox token:', error);
       }
