@@ -1097,7 +1097,7 @@ const GPSTrackerApp = () => {
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
           {/* Sound toggle */}
           <button
             onClick={() => {
@@ -1118,23 +1118,26 @@ const GPSTrackerApp = () => {
             )}
           </button>
           
-          {isOnline ? (
-            <Badge variant="outline" className="border-emerald-500 text-emerald-400 bg-emerald-500/10">
-              <Wifi className="h-3 w-3 mr-1" /> Online
+          {/* Status indicators - stacked vertically */}
+          <div className="flex flex-col gap-0.5">
+            {isOnline ? (
+              <Badge variant="outline" className="border-emerald-500 text-emerald-400 bg-emerald-500/10 text-xs px-1.5 py-0">
+                <Wifi className="h-3 w-3 mr-1" /> Online
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="border-orange-500 text-orange-400 bg-orange-500/10 text-xs px-1.5 py-0">
+                <WifiOff className="h-3 w-3 mr-1" /> Offline
+              </Badge>
+            )}
+            <Badge 
+              variant="outline" 
+              className={`text-xs px-1.5 py-0 ${battery < 20 ? "border-red-500 text-red-400 bg-red-500/10" : "border-white/30 text-white/70"}`}
+            >
+              <Battery className="h-3 w-3 mr-1" /> {battery}%
             </Badge>
-          ) : (
-            <Badge variant="outline" className="border-orange-500 text-orange-400 bg-orange-500/10">
-              <WifiOff className="h-3 w-3 mr-1" /> Offline
-            </Badge>
-          )}
-          <Badge 
-            variant="outline" 
-            className={battery < 20 ? "border-red-500 text-red-400 bg-red-500/10" : "border-white/30 text-white/70"}
-          >
-            <Battery className="h-3 w-3 mr-1" /> {battery}%
-          </Badge>
+          </div>
           
-          {/* User/Logout button */}
+          {/* Logout button - emphasized */}
           <button
             onClick={() => {
               if (isTracking) {
@@ -1151,10 +1154,10 @@ const GPSTrackerApp = () => {
                 description: 'Has cerrado sesión correctamente',
               });
             }}
-            className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+            className="p-2 rounded-md bg-red-500/20 hover:bg-red-500/30 transition-colors border border-red-500/40 ml-1"
             title="Cerrar sesión"
           >
-            <LogOut className="h-4 w-4 text-white/70 hover:text-white" />
+            <LogOut className="h-4 w-4 text-red-400" />
           </button>
         </div>
       </header>
