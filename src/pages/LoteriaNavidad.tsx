@@ -184,7 +184,7 @@ const LoteriaNavidad = () => {
               ) : (
                 <div className="text-white/80">
                   <p className="text-xl">Esperando números premiados...</p>
-                  <p className="text-sm mt-2">La página se actualiza automáticamente cada 30 segundos</p>
+                  <p className="text-sm mt-2">La página se actualiza automáticamente cada minuto</p>
                 </div>
               )}
             </div>
