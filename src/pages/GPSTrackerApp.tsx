@@ -481,9 +481,49 @@ const GPSTrackerApp = () => {
     fetchCheckpoints();
   }, [selectedRegistration, appMode]);
 
-  // Load GPX track points (runner mode)
+  // Load GPX track points (runner mode AND moto mode)
   useEffect(() => {
-    if (!selectedRegistration || appMode === 'moto') {
+    // For moto mode, we need to fetch GPX from the race
+    if (appMode === 'moto') {
+      if (!selectedMotoAssignment) {
+        setTrackPoints([]);
+        setDistanceToFinish(null);
+        return;
+      }
+      
+      const loadMotoGpxTrack = async () => {
+        try {
+          // Fetch GPX from first distance with GPX
+          const { data, error } = await supabase
+            .from('race_distances')
+            .select('gpx_file_url')
+            .eq('race_id', selectedMotoAssignment.race_id)
+            .not('gpx_file_url', 'is', null)
+            .limit(1)
+            .maybeSingle();
+
+          if (error || !data?.gpx_file_url) {
+            setTrackPoints([]);
+            return;
+          }
+
+          const response = await fetch(data.gpx_file_url);
+          const gpxText = await response.text();
+          const parsedGpx = parseGpxFile(gpxText);
+          const points = getAllTrackPoints(parsedGpx);
+          setTrackPoints(points);
+        } catch (error) {
+          console.error('Error loading moto GPX track:', error);
+          setTrackPoints([]);
+        }
+      };
+      
+      loadMotoGpxTrack();
+      return;
+    }
+    
+    // Runner mode
+    if (!selectedRegistration) {
       setTrackPoints([]);
       setDistanceToFinish(null);
       return;
@@ -514,11 +554,11 @@ const GPSTrackerApp = () => {
     };
 
     loadGpxTrack();
-  }, [selectedRegistration, appMode]);
+  }, [selectedRegistration, selectedMotoAssignment, appMode]);
 
-  // Recalculate distance to finish when position changes (runner mode)
+  // Recalculate distance to finish when position changes (runner and moto mode)
   useEffect(() => {
-    if (!currentPosition || trackPoints.length === 0 || appMode === 'moto') {
+    if (!currentPosition || trackPoints.length === 0) {
       setDistanceToFinish(null);
       setProjectedDistanceKm(null);
       return;
@@ -539,7 +579,7 @@ const GPSTrackerApp = () => {
       currentPosition.lng
     );
     setDistanceToFinish(distance);
-  }, [currentPosition, trackPoints, appMode]);
+  }, [currentPosition, trackPoints]);
 
   // Elapsed time counter
   useEffect(() => {
@@ -961,27 +1001,40 @@ const GPSTrackerApp = () => {
   const currentRaceId = appMode === 'moto' ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
   const currentDistanceId = appMode === 'runner' ? selectedRegistration?.race_distance_id : undefined;
 
+  // Moto color for theming
+  const motoColor = selectedMotoAssignment?.moto.color || CAMBERAS_PINK;
+  const themeColor = appMode === 'moto' ? motoColor : CAMBERAS_PINK;
+
   return (
     <div className="min-h-screen bg-background flex flex-col safe-area-inset-top"
          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {/* Header - Camberas branded */}
+      {/* Header - Camberas branded with moto color */}
       <header 
         className="border-b p-4 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)' }}
+        style={{ 
+          background: appMode === 'moto' 
+            ? `linear-gradient(135deg, #0a0a0a 0%, ${motoColor}20 100%)` 
+            : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
+          borderBottomColor: appMode === 'moto' ? `${motoColor}40` : undefined
+        }}
       >
         <div className="flex items-center gap-2">
           <img src={gpsLogo} alt="Camberas GPS" className="h-8 w-8 rounded-full" />
-          <span className="font-bold text-white" style={{ color: CAMBERAS_PINK }}>
+          <span className="font-bold text-white" style={{ color: themeColor }}>
             {appMode === 'moto' ? 'Camberas Moto GPS' : 'Camberas GPS'}
           </span>
-          {appMode === 'moto' && (
+          {appMode === 'moto' && selectedMotoAssignment && (
             <Badge 
               variant="outline" 
               className="ml-2"
-              style={{ borderColor: selectedMotoAssignment?.moto.color, color: selectedMotoAssignment?.moto.color }}
+              style={{ 
+                borderColor: motoColor, 
+                color: motoColor,
+                backgroundColor: `${motoColor}15`
+              }}
             >
               <Bike className="h-3 w-3 mr-1" />
-              Moto
+              {selectedMotoAssignment.moto.name}
             </Badge>
           )}
         </div>
@@ -1149,7 +1202,7 @@ const GPSTrackerApp = () => {
                     onClick={startTracking} 
                     size="sm"
                     className="text-white px-3 py-1 h-8 text-xs"
-                    style={{ backgroundColor: CAMBERAS_PINK }}
+                    style={{ backgroundColor: themeColor }}
                     disabled={appMode === 'moto' ? !selectedMotoAssignment : !selectedRegistration}
                   >
                     <Play className="h-3 w-3 mr-1" />
@@ -1178,7 +1231,7 @@ const GPSTrackerApp = () => {
         )}
 
         {/* Stats Grid */}
-        <div className={`grid ${appMode === 'moto' ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+        <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="pt-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
@@ -1217,23 +1270,22 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          {appMode === 'runner' && (
-            <Card>
-              <CardContent className="pt-4 text-center">
-                <Target className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-                <div className="text-2xl font-mono font-bold">
-                  {distanceToFinish !== null 
-                    ? formatDistance(distanceToFinish * 1000)
-                    : selectedRegistration?.race_distances?.distance_km 
-                      ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
-                      : '--'}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {distanceToFinish !== null ? 'Distancia a meta (GPX)' : 'Distancia a meta'}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* Distance to finish - for both runner and moto */}
+          <Card style={appMode === 'moto' ? { borderColor: `${motoColor}30` } : undefined}>
+            <CardContent className="pt-4 text-center">
+              <Target className="h-5 w-5 mx-auto mb-1" style={appMode === 'moto' ? { color: motoColor } : undefined} />
+              <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
+                {distanceToFinish !== null 
+                  ? formatDistance(distanceToFinish * 1000)
+                  : appMode === 'runner' && selectedRegistration?.race_distances?.distance_km 
+                    ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
+                    : '--'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {distanceToFinish !== null ? 'A meta (recorrido)' : 'A meta'}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Mini Map */}
