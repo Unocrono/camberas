@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { parseGpxFile, calculateDistanceToFinish, getAllTrackPoints, GpxTrackPoint } from '@/lib/gpxParser';
 
 interface Moto {
   id: string;
@@ -8,6 +9,7 @@ interface Moto {
   name_tv: string | null;
   color: string;
   is_active: boolean;
+  race_distance_id: string | null;
 }
 
 interface MotoPosition {
@@ -16,6 +18,7 @@ interface MotoPosition {
   longitude: number;
   speed: number | null;
   distance_from_start: number | null;
+  distance_to_finish: number | null;
   timestamp: string;
 }
 
@@ -23,6 +26,7 @@ interface RaceDistance {
   id: string;
   name: string;
   distance_km: number;
+  gpx_file_url: string | null;
 }
 
 const MotoOverlay: React.FC = () => {
@@ -33,6 +37,7 @@ const MotoOverlay: React.FC = () => {
   const [positions, setPositions] = useState<Map<string, MotoPosition>>(new Map());
   const [raceDistance, setRaceDistance] = useState<RaceDistance | null>(null);
   const [loading, setLoading] = useState(true);
+  const gpxTrackPoints = useRef<GpxTrackPoint[]>([]);
 
   // URL parameters
   const mode = searchParams.get('mode') || 'single'; // single, compare, leader
@@ -61,7 +66,7 @@ const MotoOverlay: React.FC = () => {
 
       const { data, error } = await supabase
         .from('race_motos')
-        .select('id, name, name_tv, color, is_active')
+        .select('id, name, name_tv, color, is_active, race_distance_id')
         .eq('race_id', raceId)
         .eq('is_active', true)
         .order('moto_order');
@@ -74,14 +79,14 @@ const MotoOverlay: React.FC = () => {
     fetchMotos();
   }, [raceId]);
 
-  // Fetch race distance for total distance
+  // Fetch race distance and load GPX for distance calculation
   useEffect(() => {
-    const fetchDistance = async () => {
+    const fetchDistanceAndGpx = async () => {
       if (!raceId) return;
 
       let query = supabase
         .from('race_distances')
-        .select('id, name, distance_km')
+        .select('id, name, distance_km, gpx_file_url')
         .eq('race_id', raceId);
 
       if (distanceId) {
@@ -92,11 +97,23 @@ const MotoOverlay: React.FC = () => {
 
       if (!error && data) {
         setRaceDistance(data);
+        
+        // Load GPX for distance calculation
+        if (data.gpx_file_url) {
+          try {
+            const response = await fetch(data.gpx_file_url);
+            const gpxText = await response.text();
+            const parsedGpx = parseGpxFile(gpxText);
+            gpxTrackPoints.current = getAllTrackPoints(parsedGpx);
+          } catch (err) {
+            console.error('Error loading GPX:', err);
+          }
+        }
       }
       setLoading(false);
     };
 
-    fetchDistance();
+    fetchDistanceAndGpx();
   }, [raceId, distanceId]);
 
   // Fetch initial positions and subscribe to updates
@@ -115,7 +132,21 @@ const MotoOverlay: React.FC = () => {
         const posMap = new Map<string, MotoPosition>();
         data.forEach(pos => {
           if (!posMap.has(pos.moto_id)) {
-            posMap.set(pos.moto_id, pos);
+            const lat = Number(pos.latitude);
+            const lon = Number(pos.longitude);
+            
+            // Calculate distance to finish using GPX track (Haversine)
+            let distanceToFinish: number | null = null;
+            if (gpxTrackPoints.current.length > 0) {
+              distanceToFinish = calculateDistanceToFinish(gpxTrackPoints.current, lat, lon);
+            }
+            
+            posMap.set(pos.moto_id, {
+              ...pos,
+              latitude: lat,
+              longitude: lon,
+              distance_to_finish: distanceToFinish,
+            });
           }
         });
         setPositions(posMap);
@@ -136,10 +167,24 @@ const MotoOverlay: React.FC = () => {
           filter: `race_id=eq.${raceId}`
         },
         (payload) => {
-          const newPos = payload.new as MotoPosition;
+          const newPos = payload.new as any;
+          const lat = Number(newPos.latitude);
+          const lon = Number(newPos.longitude);
+          
+          // Calculate distance to finish using GPX track
+          let distanceToFinish: number | null = null;
+          if (gpxTrackPoints.current.length > 0) {
+            distanceToFinish = calculateDistanceToFinish(gpxTrackPoints.current, lat, lon);
+          }
+          
           setPositions(prev => {
             const updated = new Map(prev);
-            updated.set(newPos.moto_id, newPos);
+            updated.set(newPos.moto_id, {
+              ...newPos,
+              latitude: lat,
+              longitude: lon,
+              distance_to_finish: distanceToFinish,
+            });
             return updated;
           });
         }
@@ -154,8 +199,9 @@ const MotoOverlay: React.FC = () => {
   const getMotoDisplayName = (moto: Moto) => moto.name_tv || moto.name;
 
   const getDistanceToFinish = (pos: MotoPosition | undefined) => {
-    if (!pos?.distance_from_start || !raceDistance) return null;
-    return Math.max(0, raceDistance.distance_km - Number(pos.distance_from_start));
+    if (!pos) return null;
+    // Use pre-calculated distance from GPX track
+    return pos.distance_to_finish;
   };
 
   const formatDistance = (km: number | null) => {
