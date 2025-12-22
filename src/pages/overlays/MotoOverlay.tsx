@@ -615,52 +615,8 @@ const MotoOverlay = () => {
   };
 
   if (!config || !raceIdResolved) {
-    return <div className="w-full h-full" />;
+    return <div className="w-full h-full" style={{ background: "transparent" }} />;
   }
-
-  // Get entry/exit animation based on layout
-  const getSlideAnimation = () => {
-    switch (config.layout) {
-      case "horizontal":
-        return { x: -100, opacity: 0 };
-      case "vertical":
-        return { x: 100, opacity: 0 };
-      case "square":
-        return { y: 100, opacity: 0 };
-      default:
-        return { x: -100, opacity: 0 };
-    }
-  };
-
-  const getLayoutStyles = () => {
-    switch (config.layout) {
-      case "horizontal":
-        return "fixed bottom-8 left-1/2 -translate-x-1/2 flex flex-row gap-4";
-      case "vertical":
-        return "fixed right-8 top-1/2 -translate-y-1/2 flex flex-col gap-4";
-      case "square":
-        return "fixed bottom-8 right-8 flex flex-col gap-2";
-      default:
-        return "";
-    }
-  };
-
-  // Off-route blink animation
-  const offRouteAnimation = isOffRoute ? {
-    animate: {
-      backgroundColor: [config.speed_bg_color, "#FF4500", config.speed_bg_color],
-      boxShadow: [
-        "0 0 0 rgba(255, 69, 0, 0)",
-        "0 0 20px rgba(255, 69, 0, 0.6)",
-        "0 0 0 rgba(255, 69, 0, 0)"
-      ]
-    },
-    transition: {
-      duration: 1.5,
-      repeat: Infinity,
-      ease: "easeInOut"
-    }
-  } : {};
 
   const parseNumericValue = (value: string): number => {
     const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
@@ -668,130 +624,132 @@ const MotoOverlay = () => {
   };
 
   return (
-    <div className="w-screen h-screen overflow-hidden" style={{ background: "transparent" }}>
+    <div 
+      className="w-screen h-screen overflow-hidden"
+      style={{ 
+        background: "transparent",
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+      }}
+    >
+      {/* Speed - Circular Speedometer - Positioned independently */}
       <AnimatePresence mode="wait">
-        {isVisible && (
-          <motion.div 
-            className={getLayoutStyles()}
-            initial={getSlideAnimation()}
-            animate={{ x: 0, y: 0, opacity: 1 }}
-            exit={getSlideAnimation()}
+        {isVisible && config.speed_visible && (
+          <motion.div
+            key="speed"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
             transition={springConfig}
+            style={{
+              position: "absolute",
+              left: `${config.speed_pos_x ?? 50}%`,
+              top: `${config.speed_pos_y ?? 90}%`,
+              transform: "translate(-50%, -50%)",
+            }}
           >
-            {/* Speed - Circular Speedometer */}
-            <AnimatePresence mode="wait">
-              {config.speed_visible && (
-                <motion.div
-                  key="speed"
-                  initial={getSlideAnimation()}
-                  animate={{ 
-                    x: 0, 
-                    y: 0, 
-                    opacity: 1,
-                    scale: 1,
-                  }}
-                  exit={getSlideAnimation()}
-                  transition={springConfig}
-                  layout
-                >
-                  <SpeedometerGauge
-                    speed={parseNumericValue(displayData.speed)}
-                    maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
-                    size={config.speed_size * 3}
-                    color={config.speed_color}
-                    bgColor={config.speed_bg_color}
-                    bgOpacity={config.speed_bg_opacity || 0.7}
-                    isManual={displayData.isManualSpeed}
-                    showBadge={false}
-                    displayType={config.speed_display_type || "speed"}
-                    rawValue={displayData.speed}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <SpeedometerGauge
+              speed={parseNumericValue(displayData.speed)}
+              maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
+              size={config.speed_size * 3}
+              color={config.speed_color}
+              bgColor={config.speed_bg_color}
+              bgOpacity={config.speed_bg_opacity ?? 0.7}
+              isManual={displayData.isManualSpeed}
+              showBadge={false}
+              displayType={config.speed_display_type || "speed"}
+              rawValue={displayData.speed}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Distance */}
-            <AnimatePresence mode="wait">
-              {config.distance_visible && (
-                <motion.div
-                  key="distance"
-                  initial={getSlideAnimation()}
-                  animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                  exit={getSlideAnimation()}
-                  transition={springConfig}
-                  style={{
-                    position: "relative",
-                    fontFamily: getFontFamily(config.distance_font),
-                    fontSize: `${config.distance_size}px`,
-                    color: config.distance_color,
-                    backgroundColor: `${config.distance_bg_color}${Math.round((config.distance_bg_opacity || 0.7) * 255).toString(16).padStart(2, '0')}`,
-                    padding: "12px 24px",
-                    borderRadius: "8px",
-                  }}
-                  layout
-                >
-                  
-                  {displayData.isManualDistance ? (
-                    <AnimatedText 
-                      value={displayData.distance} 
-                      suffix=" "
-                      style={{}} 
-                      showGlow={manualModeChanged.distance}
-                    />
-                  ) : (
-                    <AnimatedNumber 
-                      value={parseNumericValue(displayData.distance)} 
-                      decimals={1}
-                      suffix=" "
-                      style={{}}
-                      isManual={false}
-                      showGlow={manualModeChanged.distance}
-                    />
-                  )}
-                  <motion.span 
-                    style={{ fontSize: "0.6em" }}
-                    layout
-                  >
-                    km
-                  </motion.span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+      {/* Distance - Positioned independently */}
+      <AnimatePresence mode="wait">
+        {isVisible && config.distance_visible && (
+          <motion.div
+            key="distance"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={springConfig}
+            style={{
+              position: "absolute",
+              left: `${config.distance_pos_x ?? 30}%`,
+              top: `${config.distance_pos_y ?? 90}%`,
+              transform: "translate(-50%, -50%)",
+              fontFamily: getFontFamily(config.distance_font),
+              fontSize: `${config.distance_size}px`,
+              color: config.distance_color,
+              backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
+              padding: "12px 24px",
+              borderRadius: "8px",
+            }}
+          >
+            {displayData.isManualDistance ? (
+              <AnimatedText 
+                value={displayData.distance} 
+                suffix=" "
+                style={{}} 
+                showGlow={manualModeChanged.distance}
+              />
+            ) : (
+              <AnimatedNumber 
+                value={parseNumericValue(displayData.distance)} 
+                decimals={1}
+                suffix=" "
+                style={{}}
+                isManual={false}
+                showGlow={manualModeChanged.distance}
+              />
+            )}
+            <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-            {/* Gap */}
-            <AnimatePresence mode="wait">
-              {config.gaps_visible && displayData.gap && (
-                <motion.div
-                  key="gap"
-                  initial={getSlideAnimation()}
-                  animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-                  exit={getSlideAnimation()}
-                  transition={springConfig}
-                  style={{
-                    position: "relative",
-                    fontFamily: getFontFamily(config.gaps_font),
-                    fontSize: `${config.gaps_size}px`,
-                    color: config.gaps_color,
-                    backgroundColor: `${config.gaps_bg_color}${Math.round((config.gaps_bg_opacity || 0.7) * 255).toString(16).padStart(2, '0')}`,
-                    padding: "8px 16px",
-                    borderRadius: "8px",
-                  }}
-                  layout
-                >
-                  
-                  <AnimatedText 
-                    value={displayData.gap} 
-                    style={{}} 
-                    showGlow={manualModeChanged.gap}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+      {/* Gap - Positioned independently */}
+      <AnimatePresence mode="wait">
+        {isVisible && config.gaps_visible && displayData.gap && (
+          <motion.div
+            key="gap"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={springConfig}
+            style={{
+              position: "absolute",
+              left: `${config.gaps_pos_x ?? 70}%`,
+              top: `${config.gaps_pos_y ?? 90}%`,
+              transform: "translate(-50%, -50%)",
+              fontFamily: getFontFamily(config.gaps_font),
+              fontSize: `${config.gaps_size}px`,
+              color: config.gaps_color,
+              backgroundColor: hexToRgba(config.gaps_bg_color, config.gaps_bg_opacity ?? 0.7),
+              padding: "8px 16px",
+              borderRadius: "8px",
+            }}
+          >
+            <AnimatedText 
+              value={displayData.gap} 
+              style={{}} 
+              showGlow={manualModeChanged.gap}
+            />
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 };
+
+// Helper function to convert hex to rgba
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#')) return `rgba(0, 0, 0, ${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default MotoOverlay;
