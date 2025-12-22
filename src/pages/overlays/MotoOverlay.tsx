@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
-
+import { Hand, Radio } from "lucide-react";
 interface OverlayConfig {
   delay_seconds: number;
   layout: "horizontal" | "vertical" | "square";
@@ -139,6 +139,82 @@ const AnimatedText = ({
     >
       {value}{suffix}
     </motion.span>
+  );
+};
+
+// Mode badge component - shows AUTO/MANUAL status
+const ModeBadge = ({ isManual }: { isManual: boolean }) => {
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={isManual ? "manual" : "auto"}
+        initial={{ scale: 0, opacity: 0, rotate: -10 }}
+        animate={{ 
+          scale: 1, 
+          opacity: 1, 
+          rotate: 0,
+        }}
+        exit={{ scale: 0, opacity: 0, rotate: 10 }}
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 20
+        }}
+        style={{
+          position: "absolute",
+          top: "-8px",
+          right: "-8px",
+          display: "flex",
+          alignItems: "center",
+          gap: "3px",
+          padding: "2px 6px",
+          borderRadius: "4px",
+          fontSize: "10px",
+          fontWeight: "bold",
+          fontFamily: "system-ui, sans-serif",
+          letterSpacing: "0.5px",
+          backgroundColor: isManual ? "#FF9800" : "#4CAF50",
+          color: "#FFFFFF",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+          zIndex: 10,
+        }}
+      >
+        {isManual ? (
+          <>
+            <motion.div
+              animate={{ 
+                rotate: [0, -15, 15, -15, 0],
+              }}
+              transition={{ 
+                duration: 1.5, 
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <Hand size={10} strokeWidth={2.5} />
+            </motion.div>
+            <span>MAN</span>
+          </>
+        ) : (
+          <>
+            <motion.div
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [1, 0.7, 1]
+              }}
+              transition={{ 
+                duration: 1.5, 
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            >
+              <Radio size={10} strokeWidth={2.5} />
+            </motion.div>
+            <span>AUTO</span>
+          </>
+        )}
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
@@ -546,6 +622,7 @@ const MotoOverlay = () => {
                   exit={getSlideAnimation()}
                   transition={isOffRoute ? { ...springConfig, ...offRouteAnimation.transition } : springConfig}
                   style={{
+                    position: "relative",
                     fontFamily: getFontFamily(config.speed_font),
                     fontSize: `${config.speed_size}px`,
                     color: config.speed_color,
@@ -555,6 +632,7 @@ const MotoOverlay = () => {
                   }}
                   layout
                 >
+                  <ModeBadge isManual={displayData.isManualSpeed} />
                   {displayData.isManualSpeed ? (
                     <AnimatedText 
                       value={displayData.speed} 
@@ -592,6 +670,7 @@ const MotoOverlay = () => {
                   exit={getSlideAnimation()}
                   transition={springConfig}
                   style={{
+                    position: "relative",
                     fontFamily: getFontFamily(config.distance_font),
                     fontSize: `${config.distance_size}px`,
                     color: config.distance_color,
@@ -601,6 +680,7 @@ const MotoOverlay = () => {
                   }}
                   layout
                 >
+                  <ModeBadge isManual={displayData.isManualDistance} />
                   {displayData.isManualDistance ? (
                     <AnimatedText 
                       value={displayData.distance} 
@@ -638,6 +718,7 @@ const MotoOverlay = () => {
                   exit={getSlideAnimation()}
                   transition={springConfig}
                   style={{
+                    position: "relative",
                     fontFamily: getFontFamily(config.gaps_font),
                     fontSize: `${config.gaps_size}px`,
                     color: config.gaps_color,
@@ -647,6 +728,7 @@ const MotoOverlay = () => {
                   }}
                   layout
                 >
+                  <ModeBadge isManual={displayData.isManualGap} />
                   <AnimatedText 
                     value={displayData.gap} 
                     style={{}} 
