@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Search, Trophy, RefreshCw, Gift } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Trophy, RefreshCw, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import camberasLogo from "@/assets/camberas-logo-transparent.png";
 
 // Datos de la peña (hardcoded del CSV)
@@ -67,10 +65,6 @@ interface GloberoResult {
 
 const LoteriaNavidad = () => {
   const [lastPrize, setLastPrize] = useState<PrizeResult | null>(null);
-  const [searchNumber, setSearchNumber] = useState("");
-  const [searchResult, setSearchResult] = useState<{ number: string; prize: number } | null>(null);
-  const [showSearchDialog, setShowSearchDialog] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [globeroResults, setGloberoResults] = useState<GloberoResult[]>([]);
   const [totalPena, setTotalPena] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
@@ -129,16 +123,6 @@ const LoteriaNavidad = () => {
     return () => clearInterval(interval);
   }, [refreshPrizes]);
 
-  // Buscar un número específico
-  const handleSearch = async () => {
-    if (searchNumber.length !== 5) return;
-    setIsSearching(true);
-    const prize = await checkLotteryPrize(searchNumber);
-    setSearchResult({ number: searchNumber, prize });
-    setShowSearchDialog(true);
-    setIsSearching(false);
-  };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(amount);
   };
@@ -156,6 +140,11 @@ const LoteriaNavidad = () => {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* Título Principal */}
+        <h1 className="text-5xl md:text-6xl font-bold text-center text-[#D42F2F] drop-shadow-sm">
+          ¡FELIZ NAVIDAD!
+        </h1>
+
         {/* Hero Section - Último Premio */}
         <Card className="bg-gradient-to-r from-[#D42F2F] to-[#B52828] text-white overflow-hidden relative">
           <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iNCIvPjwvZz48L2c+PC9zdmc+')] opacity-30"></div>
@@ -187,36 +176,6 @@ const LoteriaNavidad = () => {
                   <p className="text-sm mt-2">La página se actualiza automáticamente cada minuto</p>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Buscador Universal */}
-        <Card className="border-2 border-[#D42F2F]/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-gray-700">
-              <Search className="h-5 w-5 text-[#D42F2F]" />
-              Buscador de Números
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              <Input
-                type="text"
-                placeholder="Introduce un número de 5 cifras..."
-                value={searchNumber}
-                onChange={(e) => setSearchNumber(e.target.value.replace(/\D/g, "").slice(0, 5))}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="text-lg font-mono tracking-widest text-center"
-                maxLength={5}
-              />
-              <Button
-                onClick={handleSearch}
-                disabled={searchNumber.length !== 5 || isSearching}
-                className="bg-[#D42F2F] hover:bg-[#B52828] px-6"
-              >
-                {isSearching ? <RefreshCw className="h-4 w-4 animate-spin" /> : "Buscar"}
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -256,16 +215,29 @@ const LoteriaNavidad = () => {
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="font-semibold">Globero</TableHead>
-                    <TableHead className="text-center font-semibold">Número 1</TableHead>
-                    <TableHead className="text-center font-semibold">Premio 1</TableHead>
-                    <TableHead className="text-center font-semibold">Número 2</TableHead>
-                    <TableHead className="text-center font-semibold">Premio 2</TableHead>
-                    <TableHead className="text-right font-semibold">Total</TableHead>
+                    <TableHead className="text-center font-semibold">Núm 1</TableHead>
+                    <TableHead className="text-center font-semibold">Núm 2</TableHead>
+                    <TableHead className="text-center font-semibold">Total</TableHead>
+                    <TableHead className="font-semibold">Detalles del Premio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {globeroResults.map((result, index) => {
                     const hasPrize = result.total > 0;
+                    
+                    // Generar descripción de premios
+                    let prizeDetails = "";
+                    if (result.prize1 > 0) {
+                      prizeDetails += `${result.num1}: ${getPrizeType(result.prize1)} (${formatCurrency(result.prize1)})`;
+                    }
+                    if (result.prize2 > 0) {
+                      if (prizeDetails) prizeDetails += ". ";
+                      prizeDetails += `${result.num2}: ${getPrizeType(result.prize2)} (${formatCurrency(result.prize2)})`;
+                    }
+                    if (!prizeDetails) {
+                      prizeDetails = "Sin coincidencia con premios mayores ni pedrea.";
+                    }
+                    
                     return (
                       <TableRow
                         key={index}
@@ -282,11 +254,6 @@ const LoteriaNavidad = () => {
                             {result.num1}
                           </span>
                         </TableCell>
-                        <TableCell
-                          className={`text-center font-semibold ${result.prize1 > 0 ? "text-green-600" : "text-gray-400"}`}
-                        >
-                          {result.prize1 > 0 ? formatCurrency(result.prize1) : "-"}
-                        </TableCell>
                         <TableCell className="text-center">
                           {result.num2 ? (
                             <span
@@ -299,14 +266,12 @@ const LoteriaNavidad = () => {
                           )}
                         </TableCell>
                         <TableCell
-                          className={`text-center font-semibold ${result.prize2 > 0 ? "text-green-600" : "text-gray-400"}`}
+                          className={`text-center font-bold ${hasPrize ? "text-green-600 text-lg" : "text-gray-400"}`}
                         >
-                          {result.num2 && result.prize2 > 0 ? formatCurrency(result.prize2) : "-"}
+                          {hasPrize ? formatCurrency(result.total) : "0 €"}
                         </TableCell>
-                        <TableCell
-                          className={`text-right font-bold ${hasPrize ? "text-green-600 text-lg" : "text-gray-400"}`}
-                        >
-                          {hasPrize ? formatCurrency(result.total) : "-"}
+                        <TableCell className="text-sm text-gray-600 max-w-xs">
+                          {prizeDetails}
                         </TableCell>
                       </TableRow>
                     );
@@ -323,36 +288,6 @@ const LoteriaNavidad = () => {
           <p className="mt-1">© {new Date().getFullYear()} Camberas</p>
         </div>
       </main>
-
-      {/* Dialog de resultado de búsqueda */}
-      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">Resultado de la búsqueda</DialogTitle>
-          </DialogHeader>
-          {searchResult && (
-            <div className="text-center py-6 space-y-4">
-              <div
-                className={`inline-flex items-center justify-center w-24 h-24 rounded-full text-2xl font-bold ${searchResult.prize > 0 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-black shadow-lg animate-pulse" : "bg-gray-200 text-gray-600"}`}
-              >
-                {searchResult.number}
-              </div>
-              {searchResult.prize > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-3xl font-bold text-green-600">{formatCurrency(searchResult.prize)}</p>
-                  <p className="text-lg text-yellow-600 font-medium">{getPrizeType(searchResult.prize)}</p>
-                  <p className="text-sm text-gray-500">Premio por décimo (20€)</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xl text-gray-600">Sin premio</p>
-                  <p className="text-sm text-gray-400">Este número no ha sido premiado</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <style>{`
         .bola-premiada {
