@@ -53,6 +53,10 @@ interface OverlayConfig {
   speed_visible: boolean;
   speed_manual_mode: boolean;
   speed_manual_value: string | null;
+  speed_bg_opacity: number;
+  speed_pos_x: number;
+  speed_pos_y: number;
+  speed_display_type: "speed" | "pace";
   distance_font: string;
   distance_size: number;
   distance_color: string;
@@ -60,6 +64,9 @@ interface OverlayConfig {
   distance_visible: boolean;
   distance_manual_mode: boolean;
   distance_manual_value: string | null;
+  distance_bg_opacity: number;
+  distance_pos_x: number;
+  distance_pos_y: number;
   gaps_font: string;
   gaps_size: number;
   gaps_color: string;
@@ -67,6 +74,9 @@ interface OverlayConfig {
   gaps_visible: boolean;
   gaps_manual_mode: boolean;
   gaps_manual_value: string | null;
+  gaps_bg_opacity: number;
+  gaps_pos_x: number;
+  gaps_pos_y: number;
   selected_moto_id: string | null;
   compare_moto_id: string | null;
 }
@@ -94,6 +104,10 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   speed_visible: true,
   speed_manual_mode: false,
   speed_manual_value: null,
+  speed_bg_opacity: 0.7,
+  speed_pos_x: 50,
+  speed_pos_y: 90,
+  speed_display_type: "speed",
   distance_font: "Roboto Condensed",
   distance_size: 48,
   distance_color: "#FFFFFF",
@@ -101,6 +115,9 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   distance_visible: true,
   distance_manual_mode: false,
   distance_manual_value: null,
+  distance_bg_opacity: 0.7,
+  distance_pos_x: 50,
+  distance_pos_y: 90,
   gaps_font: "Barlow Semi Condensed",
   gaps_size: 36,
   gaps_color: "#00FF00",
@@ -108,6 +125,9 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   gaps_visible: true,
   gaps_manual_mode: false,
   gaps_manual_value: null,
+  gaps_bg_opacity: 0.7,
+  gaps_pos_x: 50,
+  gaps_pos_y: 90,
   selected_moto_id: null,
   compare_moto_id: null,
 };
@@ -271,6 +291,9 @@ const OverlayManager = () => {
     const visibleKey = `${prefix}_visible` as keyof OverlayConfig;
     const manualModeKey = `${prefix}_manual_mode` as keyof OverlayConfig;
     const manualValueKey = `${prefix}_manual_value` as keyof OverlayConfig;
+    const bgOpacityKey = `${prefix}_bg_opacity` as keyof OverlayConfig;
+    const posXKey = `${prefix}_pos_x` as keyof OverlayConfig;
+    const posYKey = `${prefix}_pos_y` as keyof OverlayConfig;
 
     return (
       <Card>
@@ -287,6 +310,25 @@ const OverlayManager = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Speed Display Type Selector */}
+          {prefix === "speed" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Mostrar como</Label>
+              <Select 
+                value={cfg.speed_display_type || "speed"} 
+                onValueChange={(v) => updateConfig("speed_display_type", v as "speed" | "pace")}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="speed">Velocidad (km/h)</SelectItem>
+                  <SelectItem value="pace">Ritmo (min/km)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Font Selection */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -356,6 +398,42 @@ const OverlayManager = () => {
             </div>
           </div>
 
+          {/* Background Opacity */}
+          <div className="space-y-1.5">
+            <Label className="text-xs">Transparencia fondo: {Math.round((cfg[bgOpacityKey] as number || 0.7) * 100)}%</Label>
+            <Slider
+              value={[(cfg[bgOpacityKey] as number || 0.7) * 100]}
+              onValueChange={([v]) => updateConfig(bgOpacityKey, v / 100)}
+              min={0}
+              max={100}
+              step={5}
+            />
+          </div>
+
+          {/* Position Controls */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Posición X: {cfg[posXKey] as number || 50}%</Label>
+              <Slider
+                value={[cfg[posXKey] as number || 50]}
+                onValueChange={([v]) => updateConfig(posXKey, v)}
+                min={0}
+                max={100}
+                step={1}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Posición Y: {cfg[posYKey] as number || 90}%</Label>
+              <Slider
+                value={[cfg[posYKey] as number || 90]}
+                onValueChange={([v]) => updateConfig(posYKey, v)}
+                min={0}
+                max={100}
+                step={1}
+              />
+            </div>
+          </div>
+
           {/* Manual Mode */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -383,7 +461,7 @@ const OverlayManager = () => {
               size={cfg[sizeKey] as number}
               color={cfg[colorKey] as string}
               bgColor={cfg[bgColorKey] as string}
-              label={prefix === "speed" ? "145 km/h" : prefix === "distance" ? "32.5 km" : "+0:15"}
+              label={prefix === "speed" ? (cfg.speed_display_type === "pace" ? "5:30 min/km" : "145 km/h") : prefix === "distance" ? "32.5 km" : "+0:15"}
             />
           </div>
         </CardContent>

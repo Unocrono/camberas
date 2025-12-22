@@ -14,6 +14,10 @@ interface OverlayConfig {
   speed_visible: boolean;
   speed_manual_mode: boolean;
   speed_manual_value: string | null;
+  speed_bg_opacity: number;
+  speed_pos_x: number;
+  speed_pos_y: number;
+  speed_display_type: "speed" | "pace";
   distance_font: string;
   distance_size: number;
   distance_color: string;
@@ -21,6 +25,9 @@ interface OverlayConfig {
   distance_visible: boolean;
   distance_manual_mode: boolean;
   distance_manual_value: string | null;
+  distance_bg_opacity: number;
+  distance_pos_x: number;
+  distance_pos_y: number;
   gaps_font: string;
   gaps_size: number;
   gaps_color: string;
@@ -28,6 +35,9 @@ interface OverlayConfig {
   gaps_visible: boolean;
   gaps_manual_mode: boolean;
   gaps_manual_value: string | null;
+  gaps_bg_opacity: number;
+  gaps_pos_x: number;
+  gaps_pos_y: number;
   selected_moto_id: string | null;
   compare_moto_id: string | null;
 }
@@ -286,6 +296,10 @@ const MotoOverlay = () => {
     speed_visible: true,
     speed_manual_mode: false,
     speed_manual_value: null,
+    speed_bg_opacity: 0.7,
+    speed_pos_x: 50,
+    speed_pos_y: 90,
+    speed_display_type: "speed",
     distance_font: "Roboto Condensed",
     distance_size: 48,
     distance_color: "#FFFFFF",
@@ -293,6 +307,9 @@ const MotoOverlay = () => {
     distance_visible: true,
     distance_manual_mode: false,
     distance_manual_value: null,
+    distance_bg_opacity: 0.7,
+    distance_pos_x: 50,
+    distance_pos_y: 90,
     gaps_font: "Barlow Semi Condensed",
     gaps_size: 36,
     gaps_color: "#00FF00",
@@ -300,6 +317,9 @@ const MotoOverlay = () => {
     gaps_visible: true,
     gaps_manual_mode: false,
     gaps_manual_value: null,
+    gaps_bg_opacity: 0.7,
+    gaps_pos_x: 50,
+    gaps_pos_y: 90,
     selected_moto_id: null,
     compare_moto_id: null,
   };
@@ -512,27 +532,43 @@ const MotoOverlay = () => {
 
   // Process real data and add to buffer
   useEffect(() => {
-    if (!motoData || !config) return;
-
+    if (!config) return;
+    
+    // Always process - even without motoData, we need to handle manual mode
     const isManualSpeed = config.speed_manual_mode;
     const isManualDistance = config.distance_manual_mode;
     const isManualGap = config.gaps_manual_mode;
 
-    const speed = isManualSpeed
-      ? config.speed_manual_value!
-      : `${Math.round(motoData.speed)}`;
+    let speed = "0";
+    if (isManualSpeed && config.speed_manual_value) {
+      speed = config.speed_manual_value;
+    } else if (motoData) {
+      const speedKmh = Math.round(motoData.speed);
+      if (config.speed_display_type === "pace" && speedKmh > 0) {
+        // Convert km/h to min/km
+        const paceMinutes = 60 / speedKmh;
+        const mins = Math.floor(paceMinutes);
+        const secs = Math.round((paceMinutes - mins) * 60);
+        speed = `${mins}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        speed = `${speedKmh}`;
+      }
+    }
 
-    const distance = isManualDistance
-      ? config.distance_manual_value!
-      : `${(motoData.distance_from_start / 1000).toFixed(1)}`;
+    let distance = "0.0";
+    if (isManualDistance && config.distance_manual_value) {
+      distance = config.distance_manual_value;
+    } else if (motoData) {
+      distance = `${(motoData.distance_from_start / 1000).toFixed(1)}`;
+    }
 
     let gap = "";
-    if (compareMotoData && motoData.distance_from_start && compareMotoData.distance_from_start) {
+    if (isManualGap && config.gaps_manual_value) {
+      gap = config.gaps_manual_value;
+    } else if (compareMotoData && motoData && motoData.distance_from_start && compareMotoData.distance_from_start) {
       const diff = motoData.distance_from_start - compareMotoData.distance_from_start;
       const diffKm = diff / 1000;
-      gap = isManualGap
-        ? config.gaps_manual_value!
-        : (diff >= 0 ? "+" : "") + diffKm.toFixed(2) + " km";
+      gap = (diff >= 0 ? "+" : "") + diffKm.toFixed(2) + " km";
     }
 
     addToBuffer({
@@ -660,13 +696,15 @@ const MotoOverlay = () => {
                 >
                   <SpeedometerGauge
                     speed={parseNumericValue(displayData.speed)}
-                    maxSpeed={120}
+                    maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
                     size={config.speed_size * 3}
                     color={config.speed_color}
                     bgColor={config.speed_bg_color}
-                    bgOpacity={0.7}
+                    bgOpacity={config.speed_bg_opacity || 0.7}
                     isManual={displayData.isManualSpeed}
                     showBadge={false}
+                    displayType={config.speed_display_type || "speed"}
+                    rawValue={displayData.speed}
                   />
                 </motion.div>
               )}
@@ -686,7 +724,7 @@ const MotoOverlay = () => {
                     fontFamily: getFontFamily(config.distance_font),
                     fontSize: `${config.distance_size}px`,
                     color: config.distance_color,
-                    backgroundColor: config.distance_bg_color,
+                    backgroundColor: `${config.distance_bg_color}${Math.round((config.distance_bg_opacity || 0.7) * 255).toString(16).padStart(2, '0')}`,
                     padding: "12px 24px",
                     borderRadius: "8px",
                   }}
@@ -734,7 +772,7 @@ const MotoOverlay = () => {
                     fontFamily: getFontFamily(config.gaps_font),
                     fontSize: `${config.gaps_size}px`,
                     color: config.gaps_color,
-                    backgroundColor: config.gaps_bg_color,
+                    backgroundColor: `${config.gaps_bg_color}${Math.round((config.gaps_bg_opacity || 0.7) * 255).toString(16).padStart(2, '0')}`,
                     padding: "8px 16px",
                     borderRadius: "8px",
                   }}
