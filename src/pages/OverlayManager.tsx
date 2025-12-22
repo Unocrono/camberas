@@ -498,14 +498,14 @@ const OverlayManager = () => {
                   </CardHeader>
                   <CardContent>
                     <Select 
-                      value={config.compare_moto_id || ""} 
-                      onValueChange={(v) => updateConfig("compare_moto_id", v || null)}
+                      value={config.compare_moto_id || "none"} 
+                      onValueChange={(v) => updateConfig("compare_moto_id", v === "none" ? null : v)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Sin comparación" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Sin comparación</SelectItem>
+                        <SelectItem value="none">Sin comparación</SelectItem>
                         {motos.filter(m => m.id !== config.selected_moto_id).map((moto) => (
                           <SelectItem key={moto.id} value={moto.id}>
                             <div className="flex items-center gap-2">
