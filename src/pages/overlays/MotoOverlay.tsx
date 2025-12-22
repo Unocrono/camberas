@@ -274,6 +274,35 @@ const MotoOverlay = () => {
     resolveRaceId();
   }, [raceId]);
 
+  // Default config when none exists in database
+  const defaultConfig: OverlayConfig = {
+    delay_seconds: 0,
+    layout: "horizontal",
+    speed_font: "Bebas Neue",
+    speed_size: 72,
+    speed_color: "#FFFFFF",
+    speed_bg_color: "#000000",
+    speed_visible: true,
+    speed_manual_mode: false,
+    speed_manual_value: null,
+    distance_font: "Roboto Condensed",
+    distance_size: 48,
+    distance_color: "#FFFFFF",
+    distance_bg_color: "#1a1a1a",
+    distance_visible: true,
+    distance_manual_mode: false,
+    distance_manual_value: null,
+    gaps_font: "Barlow Semi Condensed",
+    gaps_size: 36,
+    gaps_color: "#00FF00",
+    gaps_bg_color: "#000000",
+    gaps_visible: true,
+    gaps_manual_mode: false,
+    gaps_manual_value: null,
+    selected_moto_id: null,
+    compare_moto_id: null,
+  };
+
   // Fetch config
   useEffect(() => {
     if (!raceIdResolved) return;
@@ -283,13 +312,19 @@ const MotoOverlay = () => {
         .from("overlay_config")
         .select("*")
         .eq("race_id", raceIdResolved)
-        .single();
+        .maybeSingle();
 
-      if (!error && data) {
+      if (error) {
+        console.error("Error fetching overlay config:", error);
+        setConfig(defaultConfig);
+      } else if (data) {
         setConfig(data as unknown as OverlayConfig);
-        // Trigger visibility after config loads
-        setTimeout(() => setIsVisible(true), 100);
+      } else {
+        // No config exists, use defaults
+        setConfig(defaultConfig);
       }
+      // Trigger visibility after config loads
+      setTimeout(() => setIsVisible(true), 100);
     };
 
     fetchConfig();
