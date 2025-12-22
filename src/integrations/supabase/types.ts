@@ -724,7 +724,7 @@ export type Database = {
           {
             foreignKeyName: "overlay_config_race_id_fkey"
             columns: ["race_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "races"
             referencedColumns: ["id"]
           },
