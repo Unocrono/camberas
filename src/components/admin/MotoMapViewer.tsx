@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
-import { parseGpxFile } from '@/lib/gpxParser';
+import { parseGpxFile, calculateDistanceToFinish, getAllTrackPoints, GpxTrackPoint } from '@/lib/gpxParser';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +52,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const routeCoordinates = useRef<[number, number][]>([]);
+  const gpxTrackPoints = useRef<GpxTrackPoint[]>([]);
   
   const [motoPositions, setMotoPositions] = useState<MotoPosition[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
@@ -294,6 +295,9 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
       if (coordinates.length === 0) return;
 
+      // Store track points for distance calculation
+      gpxTrackPoints.current = getAllTrackPoints(parsedGpx);
+
       routeCoordinates.current = coordinates;
       setHasRoute(true);
       addRouteToMap(coordinates);
@@ -366,10 +370,6 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
       if (motosError) throw motosError;
 
-      // Build a map of distance_id -> distance_km for remaining calculation
-      const distanceMap = new Map<string, number>();
-      distances.forEach(d => distanceMap.set(d.id, d.distance_km));
-
       if (!motos || motos.length === 0) {
         setMotoPositions([]);
         setLoading(false);
@@ -390,17 +390,21 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           .maybeSingle();
 
         if (!gpsError && gpsData) {
+          const lat = parseFloat(String(gpsData.latitude));
+          const lon = parseFloat(String(gpsData.longitude));
           const distanceFromStart = gpsData.distance_from_start ? parseFloat(String(gpsData.distance_from_start)) : null;
-          const totalDistance = moto.race_distance_id ? distanceMap.get(moto.race_distance_id) : null;
-          const distanceRemaining = distanceFromStart !== null && totalDistance 
-            ? Math.max(0, totalDistance - distanceFromStart) 
-            : null;
+          
+          // Calculate distance to finish using GPX track points (Haversine)
+          let distanceRemaining: number | null = null;
+          if (gpxTrackPoints.current.length > 0) {
+            distanceRemaining = calculateDistanceToFinish(gpxTrackPoints.current, lat, lon);
+          }
 
           positions.push({
             id: gpsData.id,
             moto_id: moto.id,
-            latitude: parseFloat(String(gpsData.latitude)),
-            longitude: parseFloat(String(gpsData.longitude)),
+            latitude: lat,
+            longitude: lon,
             timestamp: gpsData.timestamp,
             speed: gpsData.speed ? parseFloat(String(gpsData.speed)) : null,
             heading: gpsData.heading ? parseFloat(String(gpsData.heading)) : null,
@@ -419,7 +423,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedRaceId, distances]);
+  }, [selectedRaceId]);
 
   // Initial fetch and realtime subscription
   useEffect(() => {
