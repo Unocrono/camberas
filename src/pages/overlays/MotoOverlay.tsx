@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 
 interface OverlayConfig {
   delay_seconds: number;
@@ -43,7 +43,104 @@ interface BufferedData {
   distance: string;
   gap: string;
   timestamp: number;
+  isManualSpeed: boolean;
+  isManualDistance: boolean;
+  isManualGap: boolean;
 }
+
+// Animated number component with count-up effect
+const AnimatedNumber = ({ 
+  value, 
+  decimals = 0,
+  suffix = "",
+  style,
+  isManual = false,
+  showGlow = false
+}: { 
+  value: number; 
+  decimals?: number;
+  suffix?: string;
+  style: React.CSSProperties;
+  isManual?: boolean;
+  showGlow?: boolean;
+}) => {
+  const spring = useSpring(value, {
+    stiffness: 100,
+    damping: 30,
+    mass: 1
+  });
+
+  const display = useTransform(spring, (val) => val.toFixed(decimals));
+  const [displayValue, setDisplayValue] = useState(value.toFixed(decimals));
+
+  useEffect(() => {
+    spring.set(value);
+  }, [value, spring]);
+
+  useEffect(() => {
+    const unsubscribe = display.on("change", (v) => {
+      setDisplayValue(v);
+    });
+    return unsubscribe;
+  }, [display]);
+
+  return (
+    <motion.span 
+      style={style}
+      animate={{
+        textShadow: showGlow 
+          ? [
+              "2px 2px 4px rgba(0,0,0,0.5)",
+              "0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.6)",
+              "2px 2px 4px rgba(0,0,0,0.5)"
+            ]
+          : "2px 2px 4px rgba(0,0,0,0.5)"
+      }}
+      transition={{ duration: 0.5, times: [0, 0.5, 1] }}
+    >
+      {displayValue}{suffix}
+    </motion.span>
+  );
+};
+
+// Animated text for manual values
+const AnimatedText = ({ 
+  value, 
+  suffix = "",
+  style,
+  showGlow = false
+}: { 
+  value: string; 
+  suffix?: string;
+  style: React.CSSProperties;
+  showGlow?: boolean;
+}) => {
+  return (
+    <motion.span 
+      key={value}
+      style={style}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        textShadow: showGlow 
+          ? [
+              "2px 2px 4px rgba(0,0,0,0.5)",
+              "0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.6)",
+              "2px 2px 4px rgba(0,0,0,0.5)"
+            ]
+          : "2px 2px 4px rgba(0,0,0,0.5)"
+      }}
+      transition={{ 
+        opacity: { duration: 0.2 },
+        y: { type: "spring", stiffness: 300, damping: 30 },
+        textShadow: { duration: 0.5, times: [0, 0.5, 1] }
+      }}
+    >
+      {value}{suffix}
+    </motion.span>
+  );
+};
 
 const MotoOverlay = () => {
   const { raceId } = useParams();
@@ -55,23 +152,38 @@ const MotoOverlay = () => {
     speed: "0",
     distance: "0.0",
     gap: "",
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    isManualSpeed: false,
+    isManualDistance: false,
+    isManualGap: false
   });
+  const [isOffRoute, setIsOffRoute] = useState(false);
+  const [manualModeChanged, setManualModeChanged] = useState<{speed: boolean; distance: boolean; gap: boolean}>({
+    speed: false, distance: false, gap: false
+  });
+  const prevManualMode = useRef({ speed: false, distance: false, gap: false });
   const dataBuffer = useRef<BufferedData[]>([]);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Spring configuration for TV-like animations
+  const springConfig = {
+    type: "spring" as const,
+    stiffness: 200,
+    damping: 25,
+    mass: 1.2
+  };
 
   // Resolve race ID from slug
   useEffect(() => {
     const resolveRaceId = async () => {
       if (!raceId) return;
       
-      // Check if it's a UUID
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (uuidRegex.test(raceId)) {
         setRaceIdResolved(raceId);
         return;
       }
 
-      // It's a slug, resolve to ID
       const { data, error } = await supabase
         .from("races")
         .select("id")
@@ -99,12 +211,13 @@ const MotoOverlay = () => {
 
       if (!error && data) {
         setConfig(data as unknown as OverlayConfig);
+        // Trigger visibility after config loads
+        setTimeout(() => setIsVisible(true), 100);
       }
     };
 
     fetchConfig();
 
-    // Subscribe to config changes
     const channel = supabase
       .channel("overlay-config-changes")
       .on(
@@ -117,7 +230,25 @@ const MotoOverlay = () => {
         },
         (payload) => {
           if (payload.new) {
-            setConfig(payload.new as unknown as OverlayConfig);
+            const newConfig = payload.new as unknown as OverlayConfig;
+            
+            // Detect manual mode changes for glow effect
+            if (config) {
+              if (newConfig.speed_manual_mode !== config.speed_manual_mode) {
+                setManualModeChanged(prev => ({ ...prev, speed: true }));
+                setTimeout(() => setManualModeChanged(prev => ({ ...prev, speed: false })), 1000);
+              }
+              if (newConfig.distance_manual_mode !== config.distance_manual_mode) {
+                setManualModeChanged(prev => ({ ...prev, distance: true }));
+                setTimeout(() => setManualModeChanged(prev => ({ ...prev, distance: false })), 1000);
+              }
+              if (newConfig.gaps_manual_mode !== config.gaps_manual_mode) {
+                setManualModeChanged(prev => ({ ...prev, gap: true }));
+                setTimeout(() => setManualModeChanged(prev => ({ ...prev, gap: false })), 1000);
+              }
+            }
+            
+            setConfig(newConfig);
           }
         }
       )
@@ -126,7 +257,7 @@ const MotoOverlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [raceIdResolved]);
+  }, [raceIdResolved, config]);
 
   // Fetch moto GPS data
   useEffect(() => {
@@ -157,12 +288,14 @@ const MotoOverlay = () => {
           moto_name: motoInfo?.name_tv || motoInfo?.name || "",
           color: motoInfo?.color || "#FF5722"
         });
+        
+        // Check if off-route (distance_from_start is null or negative)
+        setIsOffRoute(data.distance_from_start === null || data.distance_from_start < 0);
       }
     };
 
     fetchMotoData();
 
-    // Subscribe to GPS updates
     const channel = supabase
       .channel("moto-gps-overlay")
       .on(
@@ -181,6 +314,8 @@ const MotoOverlay = () => {
               speed: newData.speed || 0,
               distance_from_start: newData.distance_from_start || 0
             } : null);
+            
+            setIsOffRoute(newData.distance_from_start === null || newData.distance_from_start < 0);
           }
         }
       )
@@ -259,7 +394,6 @@ const MotoOverlay = () => {
   // Buffer management for delay
   const addToBuffer = useCallback((data: BufferedData) => {
     dataBuffer.current.push(data);
-    // Keep only last 60 seconds of data
     const cutoff = Date.now() - 60000;
     dataBuffer.current = dataBuffer.current.filter(d => d.timestamp > cutoff);
   }, []);
@@ -268,20 +402,24 @@ const MotoOverlay = () => {
   useEffect(() => {
     if (!motoData || !config) return;
 
-    const speed = config.speed_manual_mode && config.speed_manual_value
-      ? config.speed_manual_value
+    const isManualSpeed = config.speed_manual_mode && !!config.speed_manual_value;
+    const isManualDistance = config.distance_manual_mode && !!config.distance_manual_value;
+    const isManualGap = config.gaps_manual_mode && !!config.gaps_manual_value;
+
+    const speed = isManualSpeed
+      ? config.speed_manual_value!
       : `${Math.round(motoData.speed)}`;
 
-    const distance = config.distance_manual_mode && config.distance_manual_value
-      ? config.distance_manual_value
+    const distance = isManualDistance
+      ? config.distance_manual_value!
       : `${(motoData.distance_from_start / 1000).toFixed(1)}`;
 
     let gap = "";
     if (compareMotoData && motoData.distance_from_start && compareMotoData.distance_from_start) {
       const diff = motoData.distance_from_start - compareMotoData.distance_from_start;
       const diffKm = diff / 1000;
-      gap = config.gaps_manual_mode && config.gaps_manual_value
-        ? config.gaps_manual_value
+      gap = isManualGap
+        ? config.gaps_manual_value!
         : (diff >= 0 ? "+" : "") + diffKm.toFixed(2) + " km";
     }
 
@@ -289,7 +427,10 @@ const MotoOverlay = () => {
       speed,
       distance,
       gap,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isManualSpeed,
+      isManualDistance,
+      isManualGap
     });
   }, [motoData, compareMotoData, config, addToBuffer]);
 
@@ -302,7 +443,6 @@ const MotoOverlay = () => {
     const interval = setInterval(() => {
       const targetTime = Date.now() - delayMs;
       
-      // Find the closest data point to the target time
       const closest = dataBuffer.current.reduce((prev, curr) => {
         if (!prev) return curr;
         return Math.abs(curr.timestamp - targetTime) < Math.abs(prev.timestamp - targetTime) ? curr : prev;
@@ -330,6 +470,20 @@ const MotoOverlay = () => {
     return <div className="w-full h-full" />;
   }
 
+  // Get entry/exit animation based on layout
+  const getSlideAnimation = () => {
+    switch (config.layout) {
+      case "horizontal":
+        return { x: -100, opacity: 0 };
+      case "vertical":
+        return { x: 100, opacity: 0 };
+      case "square":
+        return { y: 100, opacity: 0 };
+      default:
+        return { x: -100, opacity: 0 };
+    }
+  };
+
   const getLayoutStyles = () => {
     switch (config.layout) {
       case "horizontal":
@@ -343,78 +497,166 @@ const MotoOverlay = () => {
     }
   };
 
+  // Off-route blink animation
+  const offRouteAnimation = isOffRoute ? {
+    animate: {
+      backgroundColor: [config.speed_bg_color, "#FF4500", config.speed_bg_color],
+      boxShadow: [
+        "0 0 0 rgba(255, 69, 0, 0)",
+        "0 0 20px rgba(255, 69, 0, 0.6)",
+        "0 0 0 rgba(255, 69, 0, 0)"
+      ]
+    },
+    transition: {
+      duration: 1.5,
+      repeat: Infinity,
+      ease: "easeInOut"
+    }
+  } : {};
+
+  const parseNumericValue = (value: string): number => {
+    const num = parseFloat(value.replace(/[^0-9.-]/g, ''));
+    return isNaN(num) ? 0 : num;
+  };
+
   return (
     <div className="w-screen h-screen overflow-hidden" style={{ background: "transparent" }}>
-      <AnimatePresence>
-        <motion.div 
-          className={getLayoutStyles()}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          {/* Speed */}
-          {config.speed_visible && (
-            <motion.div
-              key="speed"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              style={{
-                fontFamily: getFontFamily(config.speed_font),
-                fontSize: `${config.speed_size}px`,
-                color: config.speed_color,
-                backgroundColor: config.speed_bg_color,
-                padding: "12px 24px",
-                borderRadius: "8px",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.5)"
-              }}
-            >
-              {displayData.speed} <span style={{ fontSize: "0.5em" }}>km/h</span>
-            </motion.div>
-          )}
+      <AnimatePresence mode="wait">
+        {isVisible && (
+          <motion.div 
+            className={getLayoutStyles()}
+            initial={getSlideAnimation()}
+            animate={{ x: 0, y: 0, opacity: 1 }}
+            exit={getSlideAnimation()}
+            transition={springConfig}
+          >
+            {/* Speed */}
+            <AnimatePresence mode="wait">
+              {config.speed_visible && (
+                <motion.div
+                  key="speed"
+                  initial={getSlideAnimation()}
+                  animate={{ 
+                    x: 0, 
+                    y: 0, 
+                    opacity: 1,
+                    scale: 1,
+                    ...(isOffRoute ? offRouteAnimation.animate : {})
+                  }}
+                  exit={getSlideAnimation()}
+                  transition={isOffRoute ? { ...springConfig, ...offRouteAnimation.transition } : springConfig}
+                  style={{
+                    fontFamily: getFontFamily(config.speed_font),
+                    fontSize: `${config.speed_size}px`,
+                    color: config.speed_color,
+                    backgroundColor: config.speed_bg_color,
+                    padding: "12px 24px",
+                    borderRadius: "8px",
+                  }}
+                  layout
+                >
+                  {displayData.isManualSpeed ? (
+                    <AnimatedText 
+                      value={displayData.speed} 
+                      suffix=" "
+                      style={{}} 
+                      showGlow={manualModeChanged.speed}
+                    />
+                  ) : (
+                    <AnimatedNumber 
+                      value={parseNumericValue(displayData.speed)} 
+                      decimals={0}
+                      suffix=" "
+                      style={{}}
+                      isManual={false}
+                      showGlow={manualModeChanged.speed}
+                    />
+                  )}
+                  <motion.span 
+                    style={{ fontSize: "0.5em" }}
+                    layout
+                  >
+                    km/h
+                  </motion.span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Distance */}
-          {config.distance_visible && (
-            <motion.div
-              key="distance"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              style={{
-                fontFamily: getFontFamily(config.distance_font),
-                fontSize: `${config.distance_size}px`,
-                color: config.distance_color,
-                backgroundColor: config.distance_bg_color,
-                padding: "12px 24px",
-                borderRadius: "8px",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.5)"
-              }}
-            >
-              {displayData.distance} <span style={{ fontSize: "0.6em" }}>km</span>
-            </motion.div>
-          )}
+            {/* Distance */}
+            <AnimatePresence mode="wait">
+              {config.distance_visible && (
+                <motion.div
+                  key="distance"
+                  initial={getSlideAnimation()}
+                  animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  exit={getSlideAnimation()}
+                  transition={springConfig}
+                  style={{
+                    fontFamily: getFontFamily(config.distance_font),
+                    fontSize: `${config.distance_size}px`,
+                    color: config.distance_color,
+                    backgroundColor: config.distance_bg_color,
+                    padding: "12px 24px",
+                    borderRadius: "8px",
+                  }}
+                  layout
+                >
+                  {displayData.isManualDistance ? (
+                    <AnimatedText 
+                      value={displayData.distance} 
+                      suffix=" "
+                      style={{}} 
+                      showGlow={manualModeChanged.distance}
+                    />
+                  ) : (
+                    <AnimatedNumber 
+                      value={parseNumericValue(displayData.distance)} 
+                      decimals={1}
+                      suffix=" "
+                      style={{}}
+                      isManual={false}
+                      showGlow={manualModeChanged.distance}
+                    />
+                  )}
+                  <motion.span 
+                    style={{ fontSize: "0.6em" }}
+                    layout
+                  >
+                    km
+                  </motion.span>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Gap */}
-          {config.gaps_visible && displayData.gap && (
-            <motion.div
-              key="gap"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              style={{
-                fontFamily: getFontFamily(config.gaps_font),
-                fontSize: `${config.gaps_size}px`,
-                color: config.gaps_color,
-                backgroundColor: config.gaps_bg_color,
-                padding: "8px 16px",
-                borderRadius: "8px",
-                textShadow: "2px 2px 4px rgba(0,0,0,0.5)"
-              }}
-            >
-              {displayData.gap}
-            </motion.div>
-          )}
-        </motion.div>
+            {/* Gap */}
+            <AnimatePresence mode="wait">
+              {config.gaps_visible && displayData.gap && (
+                <motion.div
+                  key="gap"
+                  initial={getSlideAnimation()}
+                  animate={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  exit={getSlideAnimation()}
+                  transition={springConfig}
+                  style={{
+                    fontFamily: getFontFamily(config.gaps_font),
+                    fontSize: `${config.gaps_size}px`,
+                    color: config.gaps_color,
+                    backgroundColor: config.gaps_bg_color,
+                    padding: "8px 16px",
+                    borderRadius: "8px",
+                  }}
+                  layout
+                >
+                  <AnimatedText 
+                    value={displayData.gap} 
+                    style={{}} 
+                    showGlow={manualModeChanged.gap}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
