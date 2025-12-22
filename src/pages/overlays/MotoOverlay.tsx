@@ -298,7 +298,7 @@ const MotoOverlay = () => {
     speed_manual_value: null,
     speed_bg_opacity: 0.7,
     speed_pos_x: 50,
-    speed_pos_y: 90,
+    speed_pos_y: 85,
     speed_display_type: "speed",
     distance_font: "Roboto Condensed",
     distance_size: 48,
@@ -308,8 +308,8 @@ const MotoOverlay = () => {
     distance_manual_mode: false,
     distance_manual_value: null,
     distance_bg_opacity: 0.7,
-    distance_pos_x: 50,
-    distance_pos_y: 90,
+    distance_pos_x: 25,
+    distance_pos_y: 85,
     gaps_font: "Barlow Semi Condensed",
     gaps_size: 36,
     gaps_color: "#00FF00",
@@ -318,8 +318,8 @@ const MotoOverlay = () => {
     gaps_manual_mode: false,
     gaps_manual_value: null,
     gaps_bg_opacity: 0.7,
-    gaps_pos_x: 50,
-    gaps_pos_y: 90,
+    gaps_pos_x: 75,
+    gaps_pos_y: 85,
     selected_moto_id: null,
     compare_moto_id: null,
   };
@@ -623,123 +623,144 @@ const MotoOverlay = () => {
     return isNaN(num) ? 0 : num;
   };
 
+  // Calculate positions with proper defaults
+  const speedX = config.speed_pos_x ?? 50;
+  const speedY = config.speed_pos_y ?? 85;
+  const distanceX = config.distance_pos_x ?? 25;
+  const distanceY = config.distance_pos_y ?? 85;
+  const gapsX = config.gaps_pos_x ?? 75;
+  const gapsY = config.gaps_pos_y ?? 85;
+
   return (
-    <div 
-      className="w-screen h-screen overflow-hidden"
-      style={{ 
-        background: "transparent",
-        position: "fixed",
-        inset: 0,
-        pointerEvents: "none",
-      }}
-    >
-      {/* Speed - Circular Speedometer - Positioned independently */}
-      <AnimatePresence mode="wait">
-        {isVisible && config.speed_visible && (
-          <motion.div
-            key="speed"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={springConfig}
-            style={{
-              position: "absolute",
-              left: `${config.speed_pos_x ?? 50}%`,
-              top: `${config.speed_pos_y ?? 90}%`,
-              transform: "translate(-50%, -50%)",
-            }}
-          >
-            <SpeedometerGauge
-              speed={parseNumericValue(displayData.speed)}
-              maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
-              size={config.speed_size * 3}
-              color={config.speed_color}
-              bgColor={config.speed_bg_color}
-              bgOpacity={config.speed_bg_opacity ?? 0.7}
-              isManual={displayData.isManualSpeed}
-              showBadge={false}
-              displayType={config.speed_display_type || "speed"}
-              rawValue={displayData.speed}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <>
+      {/* Force transparent background on body for this route */}
+      <style>{`
+        html, body, #root {
+          background: transparent !important;
+          background-color: transparent !important;
+        }
+      `}</style>
+      
+      <div 
+        style={{ 
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: "transparent",
+          backgroundColor: "transparent",
+          pointerEvents: "none",
+        }}
+      >
+        {/* Speed - Circular Speedometer */}
+        <AnimatePresence mode="wait">
+          {isVisible && config.speed_visible && (
+            <motion.div
+              key="speed"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springConfig}
+              style={{
+                position: "absolute",
+                left: `${speedX}%`,
+                top: `${speedY}%`,
+                transform: "translate(-50%, -50%)",
+              }}
+            >
+              <SpeedometerGauge
+                speed={parseNumericValue(displayData.speed)}
+                maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
+                size={config.speed_size * 3}
+                color={config.speed_color}
+                bgColor={config.speed_bg_color}
+                bgOpacity={config.speed_bg_opacity ?? 0.7}
+                isManual={displayData.isManualSpeed}
+                showBadge={false}
+                displayType={config.speed_display_type || "speed"}
+                rawValue={displayData.speed}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Distance - Positioned independently */}
-      <AnimatePresence mode="wait">
-        {isVisible && config.distance_visible && (
-          <motion.div
-            key="distance"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={springConfig}
-            style={{
-              position: "absolute",
-              left: `${config.distance_pos_x ?? 30}%`,
-              top: `${config.distance_pos_y ?? 90}%`,
-              transform: "translate(-50%, -50%)",
-              fontFamily: getFontFamily(config.distance_font),
-              fontSize: `${config.distance_size}px`,
-              color: config.distance_color,
-              backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
-              padding: "12px 24px",
-              borderRadius: "8px",
-            }}
-          >
-            {displayData.isManualDistance ? (
+        {/* Distance */}
+        <AnimatePresence mode="wait">
+          {isVisible && config.distance_visible && (
+            <motion.div
+              key="distance"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springConfig}
+              style={{
+                position: "absolute",
+                left: `${distanceX}%`,
+                top: `${distanceY}%`,
+                transform: "translate(-50%, -50%)",
+                fontFamily: getFontFamily(config.distance_font),
+                fontSize: `${config.distance_size}px`,
+                color: config.distance_color,
+                backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
+                padding: "12px 24px",
+                borderRadius: "8px",
+              }}
+            >
+              {displayData.isManualDistance ? (
+                <AnimatedText 
+                  value={displayData.distance} 
+                  suffix=" "
+                  style={{}} 
+                  showGlow={manualModeChanged.distance}
+                />
+              ) : (
+                <AnimatedNumber 
+                  value={parseNumericValue(displayData.distance)} 
+                  decimals={1}
+                  suffix=" "
+                  style={{}}
+                  isManual={false}
+                  showGlow={manualModeChanged.distance}
+                />
+              )}
+              <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Gap - Show even if empty in manual mode or when gap exists */}
+        <AnimatePresence mode="wait">
+          {isVisible && config.gaps_visible && (displayData.gap || config.gaps_manual_mode) && (
+            <motion.div
+              key="gap"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springConfig}
+              style={{
+                position: "absolute",
+                left: `${gapsX}%`,
+                top: `${gapsY}%`,
+                transform: "translate(-50%, -50%)",
+                fontFamily: getFontFamily(config.gaps_font),
+                fontSize: `${config.gaps_size}px`,
+                color: config.gaps_color,
+                backgroundColor: hexToRgba(config.gaps_bg_color, config.gaps_bg_opacity ?? 0.7),
+                padding: "8px 16px",
+                borderRadius: "8px",
+              }}
+            >
               <AnimatedText 
-                value={displayData.distance} 
-                suffix=" "
+                value={displayData.gap || config.gaps_manual_value || "---"} 
                 style={{}} 
-                showGlow={manualModeChanged.distance}
+                showGlow={manualModeChanged.gap}
               />
-            ) : (
-              <AnimatedNumber 
-                value={parseNumericValue(displayData.distance)} 
-                decimals={1}
-                suffix=" "
-                style={{}}
-                isManual={false}
-                showGlow={manualModeChanged.distance}
-              />
-            )}
-            <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Gap - Positioned independently */}
-      <AnimatePresence mode="wait">
-        {isVisible && config.gaps_visible && displayData.gap && (
-          <motion.div
-            key="gap"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={springConfig}
-            style={{
-              position: "absolute",
-              left: `${config.gaps_pos_x ?? 70}%`,
-              top: `${config.gaps_pos_y ?? 90}%`,
-              transform: "translate(-50%, -50%)",
-              fontFamily: getFontFamily(config.gaps_font),
-              fontSize: `${config.gaps_size}px`,
-              color: config.gaps_color,
-              backgroundColor: hexToRgba(config.gaps_bg_color, config.gaps_bg_opacity ?? 0.7),
-              padding: "8px 16px",
-              borderRadius: "8px",
-            }}
-          >
-            <AnimatedText 
-              value={displayData.gap} 
-              style={{}} 
-              showGlow={manualModeChanged.gap}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </>
   );
 };
 
