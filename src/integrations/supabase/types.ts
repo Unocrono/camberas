@@ -291,6 +291,7 @@ export type Database = {
           altitude: number | null
           battery_level: number | null
           created_at: string
+          heading: number | null
           id: string
           latitude: number
           longitude: number
@@ -304,6 +305,7 @@ export type Database = {
           altitude?: number | null
           battery_level?: number | null
           created_at?: string
+          heading?: number | null
           id?: string
           latitude: number
           longitude: number
@@ -317,6 +319,7 @@ export type Database = {
           altitude?: number | null
           battery_level?: number | null
           created_at?: string
+          heading?: number | null
           id?: string
           latitude?: number
           longitude?: number
@@ -461,6 +464,7 @@ export type Database = {
         Row: {
           accuracy: number | null
           altitude: number | null
+          battery_level: number | null
           created_at: string
           distance_from_start: number | null
           heading: number | null
@@ -475,6 +479,7 @@ export type Database = {
         Insert: {
           accuracy?: number | null
           altitude?: number | null
+          battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
           heading?: number | null
@@ -489,6 +494,7 @@ export type Database = {
         Update: {
           accuracy?: number | null
           altitude?: number | null
+          battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
           heading?: number | null
