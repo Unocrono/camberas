@@ -17,6 +17,7 @@ interface OverlayConfig {
   speed_bg_opacity: number;
   speed_pos_x: number;
   speed_pos_y: number;
+  speed_scale: number;
   speed_display_type: "speed" | "pace";
   distance_font: string;
   distance_size: number;
@@ -28,6 +29,7 @@ interface OverlayConfig {
   distance_bg_opacity: number;
   distance_pos_x: number;
   distance_pos_y: number;
+  distance_scale: number;
   gaps_font: string;
   gaps_size: number;
   gaps_color: string;
@@ -38,6 +40,16 @@ interface OverlayConfig {
   gaps_bg_opacity: number;
   gaps_pos_x: number;
   gaps_pos_y: number;
+  gaps_scale: number;
+  clock_font: string;
+  clock_size: number;
+  clock_color: string;
+  clock_bg_color: string;
+  clock_visible: boolean;
+  clock_bg_opacity: number;
+  clock_pos_x: number;
+  clock_pos_y: number;
+  clock_scale: number;
   selected_moto_id: string | null;
   compare_moto_id: string | null;
 }
@@ -299,6 +311,7 @@ const MotoOverlay = () => {
     speed_bg_opacity: 0.7,
     speed_pos_x: 50,
     speed_pos_y: 85,
+    speed_scale: 1,
     speed_display_type: "speed",
     distance_font: "Roboto Condensed",
     distance_size: 48,
@@ -310,6 +323,7 @@ const MotoOverlay = () => {
     distance_bg_opacity: 0.7,
     distance_pos_x: 25,
     distance_pos_y: 85,
+    distance_scale: 1,
     gaps_font: "Barlow Semi Condensed",
     gaps_size: 36,
     gaps_color: "#00FF00",
@@ -320,6 +334,16 @@ const MotoOverlay = () => {
     gaps_bg_opacity: 0.7,
     gaps_pos_x: 75,
     gaps_pos_y: 85,
+    gaps_scale: 1,
+    clock_font: "Bebas Neue",
+    clock_size: 48,
+    clock_color: "#FFFFFF",
+    clock_bg_color: "#000000",
+    clock_visible: false,
+    clock_bg_opacity: 0.7,
+    clock_pos_x: 50,
+    clock_pos_y: 10,
+    clock_scale: 1,
     selected_moto_id: null,
     compare_moto_id: null,
   };
@@ -623,13 +647,19 @@ const MotoOverlay = () => {
     return isNaN(num) ? 0 : num;
   };
 
-  // Calculate positions with proper defaults
+  // Calculate positions and scales with proper defaults
   const speedX = config.speed_pos_x ?? 50;
   const speedY = config.speed_pos_y ?? 85;
+  const speedScale = config.speed_scale ?? 1;
   const distanceX = config.distance_pos_x ?? 25;
   const distanceY = config.distance_pos_y ?? 85;
+  const distanceScale = config.distance_scale ?? 1;
   const gapsX = config.gaps_pos_x ?? 75;
   const gapsY = config.gaps_pos_y ?? 85;
+  const gapsScale = config.gaps_scale ?? 1;
+  const clockX = config.clock_pos_x ?? 50;
+  const clockY = config.clock_pos_y ?? 10;
+  const clockScale = config.clock_scale ?? 1;
 
   return (
     <>
@@ -666,7 +696,7 @@ const MotoOverlay = () => {
                 position: "absolute",
                 left: `${speedX}%`,
                 top: `${speedY}%`,
-                transform: "translate(-50%, -50%)",
+                transform: `translate(-50%, -50%) scale(${speedScale})`,
               }}
             >
               <SpeedometerGauge
@@ -698,7 +728,7 @@ const MotoOverlay = () => {
                 position: "absolute",
                 left: `${distanceX}%`,
                 top: `${distanceY}%`,
-                transform: "translate(-50%, -50%)",
+                transform: `translate(-50%, -50%) scale(${distanceScale})`,
                 fontFamily: getFontFamily(config.distance_font),
                 fontSize: `${config.distance_size}px`,
                 color: config.distance_color,
@@ -742,7 +772,7 @@ const MotoOverlay = () => {
                 position: "absolute",
                 left: `${gapsX}%`,
                 top: `${gapsY}%`,
-                transform: "translate(-50%, -50%)",
+                transform: `translate(-50%, -50%) scale(${gapsScale})`,
                 fontFamily: getFontFamily(config.gaps_font),
                 fontSize: `${config.gaps_size}px`,
                 color: config.gaps_color,
