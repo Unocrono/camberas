@@ -37,6 +37,7 @@ interface GPSPoint {
   altitude: number | null;
   accuracy: number | null;
   speed: number | null;
+  heading: number | null;
   battery_level: number;
   timestamp: string;
 }
@@ -51,6 +52,7 @@ interface MotoGPSPoint {
   accuracy: number | null;
   speed: number | null;
   heading: number | null;
+  battery_level: number;
   timestamp: string;
 }
 
@@ -750,6 +752,7 @@ const GPSTrackerApp = () => {
         accuracy: accuracy,
         speed: speed,
         heading: heading,
+        battery_level: battery,
         timestamp: timestampUtc,
       };
 
@@ -782,6 +785,7 @@ const GPSTrackerApp = () => {
         altitude: altitude,
         accuracy: accuracy,
         speed: speed,
+        heading: heading,
         battery_level: battery,
         timestamp: timestampUtc,
       };
