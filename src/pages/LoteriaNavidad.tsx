@@ -5,19 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import camberasLogo from "@/assets/camberas-logo-transparent.png";
 
-// Datos de la peña (hardcoded del CSV)
+// Datos de la peña con premios fijos
 const PENA_DATA = [
-  { globero: "Carlos", num1: "05288", num2: "05288" },
-  { globero: "Ana", num1: "18852", num2: "41143" },
-  { globero: "Corada", num1: "92951", num2: "39313" },
-  { globero: "Morán", num1: "47667", num2: "99705" },
-  { globero: "Pajarín", num1: "08439", num2: "08439" },
-  { globero: "Enrique", num1: "54307", num2: "54307" },
-  { globero: "Manolín", num1: "22459", num2: "95718" },
-  { globero: "Joel", num1: "87982", num2: "06906" },
-  { globero: "Mazón", num1: "76931", num2: "76931" },
-  { globero: "Cena", num1: "94614", num2: "" },
+  { globero: "Carlos", num1: "05288", num2: "", premio: 0 },
+  { globero: "Ana", num1: "18852", num2: "41143", premio: 20 },
+  { globero: "Corada", num1: "92951", num2: "39313", premio: 0 },
+  { globero: "Morán", num1: "47667", num2: "99705", premio: 0 },
+  { globero: "Pajarín", num1: "08439", num2: "", premio: 0 },
+  { globero: "Enrique", num1: "54307", num2: "", premio: 0 },
+  { globero: "Manolín", num1: "22459", num2: "95718", premio: 0 },
+  { globero: "Joel", num1: "87982", num2: "06906", premio: 20 },
+  { globero: "Mazón", num1: "76931", num2: "", premio: 0 },
+  { globero: "Cena", num1: "94614", num2: "", premio: 0 },
 ];
+
+const TOTAL_PENA = 40;
 
 // Tipos de premios según la cuantía
 const getPrizeType = (prize: number): string => {
@@ -188,7 +190,7 @@ const LoteriaNavidad = () => {
                 <Trophy className="h-8 w-8 text-yellow-600" />
                 <div>
                   <p className="text-sm text-gray-600">Total Acumulado de la Peña</p>
-                  <p className="text-3xl font-bold text-gray-900">60 €</p>
+                  <p className="text-3xl font-bold text-gray-900">{TOTAL_PENA} €</p>
                 </div>
               </div>
               <Button
@@ -215,28 +217,14 @@ const LoteriaNavidad = () => {
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="font-semibold">Globero</TableHead>
-                    <TableHead className="text-center font-semibold">Núm 1</TableHead>
-                    <TableHead className="text-center font-semibold">Núm 2</TableHead>
-                    <TableHead className="text-center font-semibold">Total</TableHead>
-                    <TableHead className="font-semibold">Detalles del Premio</TableHead>
+                    <TableHead className="text-center font-semibold">Números</TableHead>
+                    <TableHead className="text-center font-semibold">Premio</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {globeroResults.map((result, index) => {
-                    const hasPrize = result.total > 0;
-                    
-                    // Generar descripción de premios
-                    let prizeDetails = "";
-                    if (result.prize1 > 0) {
-                      prizeDetails += `${result.num1}: ${getPrizeType(result.prize1)} (${formatCurrency(result.prize1)})`;
-                    }
-                    if (result.prize2 > 0) {
-                      if (prizeDetails) prizeDetails += ". ";
-                      prizeDetails += `${result.num2}: ${getPrizeType(result.prize2)} (${formatCurrency(result.prize2)})`;
-                    }
-                    if (!prizeDetails) {
-                      prizeDetails = "Sin coincidencia con premios mayores ni pedrea.";
-                    }
+                  {PENA_DATA.map((person, index) => {
+                    const hasPrize = person.premio > 0;
+                    const numeros = person.num2 ? `${person.num1} / ${person.num2}` : person.num1;
                     
                     return (
                       <TableRow
@@ -245,37 +233,24 @@ const LoteriaNavidad = () => {
                       >
                         <TableCell className="font-medium">
                           {hasPrize && <Trophy className="inline h-4 w-4 text-yellow-500 mr-2" />}
-                          {result.globero}
+                          {person.globero}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <span
-                            className={`font-mono px-3 py-1 rounded-full ${result.prize1 > 0 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-black font-bold shadow-md" : "bg-gray-100"}`}
-                          >
-                            {result.num1}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {result.num2 ? (
-                            <span
-                              className={`font-mono px-3 py-1 rounded-full ${result.prize2 > 0 ? "bg-gradient-to-br from-yellow-400 to-yellow-600 text-black font-bold shadow-md" : "bg-gray-100"}`}
-                            >
-                              {result.num2}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
+                        <TableCell className="text-center font-mono">
+                          {numeros}
                         </TableCell>
                         <TableCell
                           className={`text-center font-bold ${hasPrize ? "text-green-600 text-lg" : "text-gray-400"}`}
                         >
-                          {hasPrize ? formatCurrency(result.total) : "0 €"}
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600 max-w-xs">
-                          {prizeDetails}
+                          {person.premio} €
                         </TableCell>
                       </TableRow>
                     );
                   })}
+                  <TableRow className="bg-yellow-50 font-bold">
+                    <TableCell className="font-bold">TOTAL PEÑA</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="text-center text-green-600 text-lg">{TOTAL_PENA} €</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
