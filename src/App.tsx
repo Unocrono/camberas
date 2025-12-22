@@ -40,6 +40,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import Terms from "./pages/Terms";
 import Cookies from "./pages/Cookies";
 import OverlayManager from "./pages/OverlayManager";
+import MotoOverlay from "./pages/overlays/MotoOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
 
 const queryClient = new QueryClient();
@@ -85,8 +86,9 @@ const App = () => (
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />
           
-          {/* Overlay Manager */}
+          {/* Overlay Manager y Overlays PRO */}
           <Route path="/overlays" element={<OverlayManager />} />
+          <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />

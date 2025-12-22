@@ -550,6 +550,124 @@ export type Database = {
         }
         Relationships: []
       }
+      overlay_config: {
+        Row: {
+          compare_moto_id: string | null
+          created_at: string
+          delay_seconds: number
+          distance_bg_color: string
+          distance_color: string
+          distance_font: string
+          distance_manual_mode: boolean
+          distance_manual_value: string | null
+          distance_size: number
+          distance_visible: boolean
+          gaps_bg_color: string
+          gaps_color: string
+          gaps_font: string
+          gaps_manual_mode: boolean
+          gaps_manual_value: string | null
+          gaps_size: number
+          gaps_visible: boolean
+          id: string
+          layout: string
+          race_id: string | null
+          selected_moto_id: string | null
+          speed_bg_color: string
+          speed_color: string
+          speed_font: string
+          speed_manual_mode: boolean
+          speed_manual_value: string | null
+          speed_size: number
+          speed_visible: boolean
+          updated_at: string
+        }
+        Insert: {
+          compare_moto_id?: string | null
+          created_at?: string
+          delay_seconds?: number
+          distance_bg_color?: string
+          distance_color?: string
+          distance_font?: string
+          distance_manual_mode?: boolean
+          distance_manual_value?: string | null
+          distance_size?: number
+          distance_visible?: boolean
+          gaps_bg_color?: string
+          gaps_color?: string
+          gaps_font?: string
+          gaps_manual_mode?: boolean
+          gaps_manual_value?: string | null
+          gaps_size?: number
+          gaps_visible?: boolean
+          id?: string
+          layout?: string
+          race_id?: string | null
+          selected_moto_id?: string | null
+          speed_bg_color?: string
+          speed_color?: string
+          speed_font?: string
+          speed_manual_mode?: boolean
+          speed_manual_value?: string | null
+          speed_size?: number
+          speed_visible?: boolean
+          updated_at?: string
+        }
+        Update: {
+          compare_moto_id?: string | null
+          created_at?: string
+          delay_seconds?: number
+          distance_bg_color?: string
+          distance_color?: string
+          distance_font?: string
+          distance_manual_mode?: boolean
+          distance_manual_value?: string | null
+          distance_size?: number
+          distance_visible?: boolean
+          gaps_bg_color?: string
+          gaps_color?: string
+          gaps_font?: string
+          gaps_manual_mode?: boolean
+          gaps_manual_value?: string | null
+          gaps_size?: number
+          gaps_visible?: boolean
+          id?: string
+          layout?: string
+          race_id?: string | null
+          selected_moto_id?: string | null
+          speed_bg_color?: string
+          speed_color?: string
+          speed_font?: string
+          speed_manual_mode?: boolean
+          speed_manual_value?: string | null
+          speed_size?: number
+          speed_visible?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overlay_config_compare_moto_id_fkey"
+            columns: ["compare_moto_id"]
+            isOneToOne: false
+            referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overlay_config_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overlay_config_selected_moto_id_fkey"
+            columns: ["selected_moto_id"]
+            isOneToOne: false
+            referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
