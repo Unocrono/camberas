@@ -471,13 +471,16 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
     positions.forEach((pos) => {
       const el = document.createElement('div');
       el.className = 'moto-marker';
+      const hasHeading = pos.heading !== null && pos.heading !== undefined;
+      const rotation = hasHeading ? pos.heading : 0;
       el.innerHTML = `
-        <div class="flex flex-col items-center cursor-pointer">
-          <div style="background-color: ${pos.moto.color}; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" 
+        <div class="flex flex-col items-center cursor-pointer" style="transform: rotate(${rotation}deg);">
+          <div style="background-color: ${pos.moto.color}; border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4); position: relative;" 
                class="rounded-full w-12 h-12 flex items-center justify-center text-white font-bold text-lg">
             🏍️
+            ${hasHeading ? `<div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid ${pos.moto.color};"></div>` : ''}
           </div>
-          <div style="background-color: ${pos.moto.color};" class="text-white text-xs px-2 py-1 rounded mt-1 whitespace-nowrap shadow-lg font-semibold">
+          <div style="background-color: ${pos.moto.color}; transform: rotate(-${rotation}deg);" class="text-white text-xs px-2 py-1 rounded mt-1 whitespace-nowrap shadow-lg font-semibold">
             ${pos.moto.name_tv || pos.moto.name}
           </div>
         </div>

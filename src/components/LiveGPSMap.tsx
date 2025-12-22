@@ -27,6 +27,7 @@ interface RunnerPosition {
   timestamp: string;
   bib_number: number | null;
   runner_name: string;
+  heading: number | null;
 }
 
 interface RunnerTrackPoint {
@@ -735,6 +736,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       timestamp: item.gps_timestamp,
       bib_number: item.bib_number,
       runner_name: item.runner_name || 'Corredor',
+      heading: item.heading ? parseFloat(String(item.heading)) : null,
     }));
 
     setRunnerPositions(positions);
@@ -833,10 +835,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       if (!marker) {
         const el = document.createElement('div');
         el.className = 'runner-marker';
+        const hasHeading = position.heading !== null && position.heading !== undefined;
+        const rotation = hasHeading ? position.heading : 0;
         el.innerHTML = `
-          <div class="flex flex-col items-center">
-            <div class="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg">
+          <div class="flex flex-col items-center" style="transform: rotate(${rotation}deg);">
+            <div class="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg relative">
               ${position.bib_number || '?'}
+              ${hasHeading ? '<div style="position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(0deg); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid hsl(var(--primary));"></div>' : ''}
             </div>
           </div>
         `;
