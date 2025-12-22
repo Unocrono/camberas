@@ -11,6 +11,8 @@ interface SpeedometerGaugeProps {
   bgOpacity?: number;
   isManual?: boolean;
   showBadge?: boolean;
+  displayType?: "speed" | "pace";
+  rawValue?: string;
 }
 
 const SpeedometerGauge = ({
@@ -22,6 +24,8 @@ const SpeedometerGauge = ({
   bgOpacity = 0.7,
   isManual = false,
   showBadge = false,
+  displayType = "speed",
+  rawValue,
 }: SpeedometerGaugeProps) => {
   const spring = useSpring(speed, {
     stiffness: 60,
@@ -330,9 +334,9 @@ const SpeedometerGauge = ({
             duration: 0.3,
             ease: "easeOut",
           }}
-          key={displaySpeed}
+          key={displayType === "pace" ? rawValue : displaySpeed}
         >
-          {displaySpeed}
+          {displayType === "pace" && rawValue ? rawValue : displaySpeed}
         </motion.div>
         <div
           style={{
@@ -344,7 +348,7 @@ const SpeedometerGauge = ({
             fontWeight: "bold",
           }}
         >
-          km/h
+          {displayType === "pace" ? "min/km" : "km/h"}
         </div>
       </div>
 

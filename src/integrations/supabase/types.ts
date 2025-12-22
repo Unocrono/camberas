@@ -556,17 +556,23 @@ export type Database = {
           created_at: string
           delay_seconds: number
           distance_bg_color: string
+          distance_bg_opacity: number | null
           distance_color: string
           distance_font: string
           distance_manual_mode: boolean
           distance_manual_value: string | null
+          distance_pos_x: number | null
+          distance_pos_y: number | null
           distance_size: number
           distance_visible: boolean
           gaps_bg_color: string
+          gaps_bg_opacity: number | null
           gaps_color: string
           gaps_font: string
           gaps_manual_mode: boolean
           gaps_manual_value: string | null
+          gaps_pos_x: number | null
+          gaps_pos_y: number | null
           gaps_size: number
           gaps_visible: boolean
           id: string
@@ -574,10 +580,14 @@ export type Database = {
           race_id: string | null
           selected_moto_id: string | null
           speed_bg_color: string
+          speed_bg_opacity: number | null
           speed_color: string
+          speed_display_type: string | null
           speed_font: string
           speed_manual_mode: boolean
           speed_manual_value: string | null
+          speed_pos_x: number | null
+          speed_pos_y: number | null
           speed_size: number
           speed_visible: boolean
           updated_at: string
@@ -587,17 +597,23 @@ export type Database = {
           created_at?: string
           delay_seconds?: number
           distance_bg_color?: string
+          distance_bg_opacity?: number | null
           distance_color?: string
           distance_font?: string
           distance_manual_mode?: boolean
           distance_manual_value?: string | null
+          distance_pos_x?: number | null
+          distance_pos_y?: number | null
           distance_size?: number
           distance_visible?: boolean
           gaps_bg_color?: string
+          gaps_bg_opacity?: number | null
           gaps_color?: string
           gaps_font?: string
           gaps_manual_mode?: boolean
           gaps_manual_value?: string | null
+          gaps_pos_x?: number | null
+          gaps_pos_y?: number | null
           gaps_size?: number
           gaps_visible?: boolean
           id?: string
@@ -605,10 +621,14 @@ export type Database = {
           race_id?: string | null
           selected_moto_id?: string | null
           speed_bg_color?: string
+          speed_bg_opacity?: number | null
           speed_color?: string
+          speed_display_type?: string | null
           speed_font?: string
           speed_manual_mode?: boolean
           speed_manual_value?: string | null
+          speed_pos_x?: number | null
+          speed_pos_y?: number | null
           speed_size?: number
           speed_visible?: boolean
           updated_at?: string
@@ -618,17 +638,23 @@ export type Database = {
           created_at?: string
           delay_seconds?: number
           distance_bg_color?: string
+          distance_bg_opacity?: number | null
           distance_color?: string
           distance_font?: string
           distance_manual_mode?: boolean
           distance_manual_value?: string | null
+          distance_pos_x?: number | null
+          distance_pos_y?: number | null
           distance_size?: number
           distance_visible?: boolean
           gaps_bg_color?: string
+          gaps_bg_opacity?: number | null
           gaps_color?: string
           gaps_font?: string
           gaps_manual_mode?: boolean
           gaps_manual_value?: string | null
+          gaps_pos_x?: number | null
+          gaps_pos_y?: number | null
           gaps_size?: number
           gaps_visible?: boolean
           id?: string
@@ -636,10 +662,14 @@ export type Database = {
           race_id?: string | null
           selected_moto_id?: string | null
           speed_bg_color?: string
+          speed_bg_opacity?: number | null
           speed_color?: string
+          speed_display_type?: string | null
           speed_font?: string
           speed_manual_mode?: boolean
           speed_manual_value?: string | null
+          speed_pos_x?: number | null
+          speed_pos_y?: number | null
           speed_size?: number
           speed_visible?: boolean
           updated_at?: string
