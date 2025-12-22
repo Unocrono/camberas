@@ -1,3 +1,4 @@
+// SpeedometerGauge - Circular car-style speedometer
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useEffect, useState } from "react";
 
