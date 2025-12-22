@@ -153,7 +153,7 @@ const GPSTrackerApp = () => {
     elapsed: 0,
     lastUpdate: null as Date | null,
   });
-  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number; heading: number | null } | null>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -727,7 +727,7 @@ const GPSTrackerApp = () => {
     
     const timestampUtc = new Date().toISOString();
     
-    setCurrentPosition({ lat, lng });
+    setCurrentPosition({ lat, lng, heading });
 
     // Update distance
     if (lastPositionRef.current) {
@@ -1383,6 +1383,7 @@ const GPSTrackerApp = () => {
             <GPSMiniMap 
               latitude={currentPosition?.lat || null}
               longitude={currentPosition?.lng || null}
+              heading={currentPosition?.heading}
               distanceId={currentDistanceId}
               raceId={currentRaceId}
               distanceTraveled={stats.distance}

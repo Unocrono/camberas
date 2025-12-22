@@ -2164,6 +2164,7 @@ export type Database = {
           bib_number: number
           gps_id: string
           gps_timestamp: string
+          heading: number
           latitude: number
           longitude: number
           race_distance_id: string

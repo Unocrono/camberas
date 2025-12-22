@@ -27,6 +27,7 @@ interface RoadbookItem {
 interface GPSMiniMapProps {
   latitude: number | null;
   longitude: number | null;
+  heading?: number | null;
   distanceId?: string;
   raceId?: string;
   distanceTraveled?: number;
@@ -34,7 +35,7 @@ interface GPSMiniMapProps {
   className?: string;
 }
 
-export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTraveled, totalDistance, className = '' }: GPSMiniMapProps) {
+export function GPSMiniMap({ latitude, longitude, heading, distanceId, raceId, distanceTraveled, totalDistance, className = '' }: GPSMiniMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -134,6 +135,7 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
     el.innerHTML = `
       <div style="position: absolute; inset: -6px; background: rgba(59, 130, 246, 0.35); border-radius: 50%; animation: pulse 2s ease-in-out infinite;"></div>
       <div style="position: absolute; inset: 0; width: 24px; height: 24px; background: #3b82f6; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.4);"></div>
+      <div id="heading-arrow" style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid #3b82f6; display: none;"></div>
     `;
 
     // Add pulse animation style
@@ -370,11 +372,24 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
     loadMarkers();
   }, [distanceId, raceId, mapReady]);
 
-  // Update marker position
+  // Update marker position and heading
   useEffect(() => {
     if (!map.current || !marker.current || !latitude || !longitude) return;
 
     marker.current.setLngLat([longitude, latitude]);
+    
+    // Update heading rotation
+    const el = marker.current.getElement();
+    const arrowEl = el.querySelector('#heading-arrow') as HTMLElement;
+    if (arrowEl) {
+      if (heading !== null && heading !== undefined) {
+        arrowEl.style.display = 'block';
+        el.style.transform = `rotate(${heading}deg)`;
+      } else {
+        arrowEl.style.display = 'none';
+        el.style.transform = 'rotate(0deg)';
+      }
+    }
     
     if (!marker.current.getElement().parentElement) {
       marker.current.addTo(map.current);
@@ -388,7 +403,7 @@ export function GPSMiniMap({ latitude, longitude, distanceId, raceId, distanceTr
         duration: 1000,
       });
     }
-  }, [latitude, longitude]);
+  }, [latitude, longitude, heading]);
 
   if (error) {
     return (
