@@ -143,9 +143,7 @@ const LoteriaNavidad = () => {
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Título Principal */}
-        <h1 className="text-5xl md:text-6xl font-bold text-center text-[#D42F2F] drop-shadow-sm">
-          ¡FELIZ NAVIDAD!
-        </h1>
+        <h1 className="text-5xl md:text-6xl font-bold text-center text-[#D42F2F] drop-shadow-sm">¡FELIZ NAVIDAD!</h1>
 
         {/* Hero Section - Último Premio */}
         <Card className="bg-gradient-to-r from-[#D42F2F] to-[#B52828] text-white overflow-hidden relative">
@@ -174,8 +172,8 @@ const LoteriaNavidad = () => {
                 </div>
               ) : (
                 <div className="text-white/80">
-                  <p className="text-xl">Esperando números premiados...</p>
-                  <p className="text-sm mt-2">La página se actualiza automáticamente cada minuto</p>
+                  <p className="text-xl"></p>
+                  <p className="text-sm mt-2"></p>
                 </div>
               )}
             </div>
@@ -225,7 +223,7 @@ const LoteriaNavidad = () => {
                   {PENA_DATA.map((person, index) => {
                     const hasPrize = person.premio > 0;
                     const numeros = person.num2 ? `${person.num1} / ${person.num2}` : person.num1;
-                    
+
                     return (
                       <TableRow
                         key={index}
@@ -235,9 +233,7 @@ const LoteriaNavidad = () => {
                           {hasPrize && <Trophy className="inline h-4 w-4 text-yellow-500 mr-2" />}
                           {person.globero}
                         </TableCell>
-                        <TableCell className="text-center font-mono">
-                          {numeros}
-                        </TableCell>
+                        <TableCell className="text-center font-mono">{numeros}</TableCell>
                         <TableCell
                           className={`text-center font-bold ${hasPrize ? "text-green-600 text-lg" : "text-gray-400"}`}
                         >
