@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import { Hand, Radio } from "lucide-react";
+import SpeedometerGauge from "@/components/overlays/SpeedometerGauge";
 interface OverlayConfig {
   delay_seconds: number;
   layout: "horizontal" | "vertical" | "square";
@@ -641,7 +642,7 @@ const MotoOverlay = () => {
             exit={getSlideAnimation()}
             transition={springConfig}
           >
-            {/* Speed */}
+            {/* Speed - Circular Speedometer */}
             <AnimatePresence mode="wait">
               {config.speed_visible && (
                 <motion.div
@@ -652,45 +653,19 @@ const MotoOverlay = () => {
                     y: 0, 
                     opacity: 1,
                     scale: 1,
-                    ...(isOffRoute ? offRouteAnimation.animate : {})
                   }}
                   exit={getSlideAnimation()}
-                  transition={isOffRoute ? { ...springConfig, ...offRouteAnimation.transition } : springConfig}
-                  style={{
-                    position: "relative",
-                    fontFamily: getFontFamily(config.speed_font),
-                    fontSize: `${config.speed_size}px`,
-                    color: config.speed_color,
-                    backgroundColor: config.speed_bg_color,
-                    padding: "12px 24px",
-                    borderRadius: "8px",
-                  }}
+                  transition={springConfig}
                   layout
                 >
-                  <ModeBadge isManual={displayData.isManualSpeed} />
-                  {displayData.isManualSpeed ? (
-                    <AnimatedText 
-                      value={displayData.speed} 
-                      suffix=" "
-                      style={{}} 
-                      showGlow={manualModeChanged.speed}
-                    />
-                  ) : (
-                    <AnimatedNumber 
-                      value={parseNumericValue(displayData.speed)} 
-                      decimals={0}
-                      suffix=" "
-                      style={{}}
-                      isManual={false}
-                      showGlow={manualModeChanged.speed}
-                    />
-                  )}
-                  <motion.span 
-                    style={{ fontSize: "0.5em" }}
-                    layout
-                  >
-                    km/h
-                  </motion.span>
+                  <SpeedometerGauge
+                    speed={parseNumericValue(displayData.speed)}
+                    maxSpeed={60}
+                    size={config.speed_size * 3}
+                    color={config.speed_color}
+                    bgColor={config.speed_bg_color}
+                    isManual={displayData.isManualSpeed}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
