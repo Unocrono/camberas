@@ -514,9 +514,9 @@ const MotoOverlay = () => {
   useEffect(() => {
     if (!motoData || !config) return;
 
-    const isManualSpeed = config.speed_manual_mode && !!config.speed_manual_value;
-    const isManualDistance = config.distance_manual_mode && !!config.distance_manual_value;
-    const isManualGap = config.gaps_manual_mode && !!config.gaps_manual_value;
+    const isManualSpeed = config.speed_manual_mode;
+    const isManualDistance = config.distance_manual_mode;
+    const isManualGap = config.gaps_manual_mode;
 
     const speed = isManualSpeed
       ? config.speed_manual_value!
@@ -660,11 +660,13 @@ const MotoOverlay = () => {
                 >
                   <SpeedometerGauge
                     speed={parseNumericValue(displayData.speed)}
-                    maxSpeed={60}
+                    maxSpeed={120}
                     size={config.speed_size * 3}
                     color={config.speed_color}
                     bgColor={config.speed_bg_color}
+                    bgOpacity={0.7}
                     isManual={displayData.isManualSpeed}
+                    showBadge={false}
                   />
                 </motion.div>
               )}
@@ -690,7 +692,7 @@ const MotoOverlay = () => {
                   }}
                   layout
                 >
-                  <ModeBadge isManual={displayData.isManualDistance} />
+                  
                   {displayData.isManualDistance ? (
                     <AnimatedText 
                       value={displayData.distance} 
@@ -738,7 +740,7 @@ const MotoOverlay = () => {
                   }}
                   layout
                 >
-                  <ModeBadge isManual={displayData.isManualGap} />
+                  
                   <AnimatedText 
                     value={displayData.gap} 
                     style={{}} 

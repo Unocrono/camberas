@@ -1,4 +1,4 @@
-// SpeedometerGauge - Circular car-style speedometer
+// SpeedometerGauge - Circular clock-style speedometer for vMix overlays
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useEffect, useState } from "react";
 
@@ -8,21 +8,25 @@ interface SpeedometerGaugeProps {
   size?: number;
   color?: string;
   bgColor?: string;
+  bgOpacity?: number;
   isManual?: boolean;
+  showBadge?: boolean;
 }
 
 const SpeedometerGauge = ({
   speed,
-  maxSpeed = 60,
+  maxSpeed = 120,
   size = 200,
   color = "#FFFFFF",
-  bgColor = "rgba(0,0,0,0.7)",
+  bgColor = "#000000",
+  bgOpacity = 0.7,
   isManual = false,
+  showBadge = false,
 }: SpeedometerGaugeProps) => {
   const spring = useSpring(speed, {
-    stiffness: 80,
-    damping: 20,
-    mass: 0.5,
+    stiffness: 60,
+    damping: 15,
+    mass: 0.8,
   });
 
   const [displaySpeed, setDisplaySpeed] = useState(Math.round(speed));
@@ -38,7 +42,8 @@ const SpeedometerGauge = ({
     return unsubscribe;
   }, [spring]);
 
-  // Angle calculation: -135° to +135° (270° arc)
+  // Full circle: 0° at top, clockwise like a clock
+  // Speed 0 at -135°, max at +135° (270° arc)
   const startAngle = -135;
   const endAngle = 135;
   const totalAngle = endAngle - startAngle; // 270°
@@ -49,64 +54,107 @@ const SpeedometerGauge = ({
     [startAngle, endAngle]
   );
 
-  // Generate tick marks - major every 10 km/h, minor every 5
-  const ticks = [];
-  const majorInterval = 10;
-  const minorInterval = 5;
+  // Calculate center position
+  const cx = size / 2;
+  const cy = size / 2;
+  const outerRadius = size * 0.45;
+  const dotRadius = size * 0.42;
+  const labelRadius = size * 0.32;
+  const progressRadius = size * 0.38;
 
-  for (let i = 0; i <= maxSpeed; i += minorInterval) {
-    const isMajor = i % majorInterval === 0;
-    const angle = startAngle + (i / maxSpeed) * totalAngle;
-    const angleRad = (angle * Math.PI) / 180;
+  // Generate dots around the circle (like clock markers)
+  const dots = [];
+  const totalDots = 60; // Like a clock with 60 second marks
+  const majorInterval = 15; // Major marks at 0, 15, 30, 45 (quarters)
+  const mediumInterval = 5; // Medium marks every 5
+
+  for (let i = 0; i <= totalDots; i++) {
+    // Map dots to our arc (not full 360)
+    const dotAngle = startAngle + (i / totalDots) * totalAngle;
+    const angleRad = (dotAngle * Math.PI) / 180;
     
-    const outerRadius = size * 0.42;
-    const innerRadius = isMajor ? size * 0.32 : size * 0.36;
-    const textRadius = size * 0.26;
+    const isMajor = i % majorInterval === 0;
+    const isMedium = i % mediumInterval === 0 && !isMajor;
+    
+    const dotSize = isMajor ? size * 0.025 : isMedium ? size * 0.015 : size * 0.008;
+    const dotOpacity = isMajor ? 1 : isMedium ? 0.8 : 0.4;
+    
+    const x = cx + Math.cos(angleRad) * dotRadius;
+    const y = cy + Math.sin(angleRad) * dotRadius;
 
-    const x1 = size / 2 + Math.cos(angleRad) * outerRadius;
-    const y1 = size / 2 + Math.sin(angleRad) * outerRadius;
-    const x2 = size / 2 + Math.cos(angleRad) * innerRadius;
-    const y2 = size / 2 + Math.sin(angleRad) * innerRadius;
-    const textX = size / 2 + Math.cos(angleRad) * textRadius;
-    const textY = size / 2 + Math.sin(angleRad) * textRadius;
-
-    ticks.push(
-      <g key={`tick-${i}`}>
-        <line
-          x1={x1}
-          y1={y1}
-          x2={x2}
-          y2={y2}
-          stroke={color}
-          strokeWidth={isMajor ? 3 : 1.5}
-          strokeLinecap="round"
-          opacity={isMajor ? 1 : 0.6}
-        />
-        {isMajor && (
-          <text
-            x={textX}
-            y={textY}
-            fill={color}
-            fontSize={size * 0.08}
-            fontFamily="'Bebas Neue', sans-serif"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            opacity={0.9}
-          >
-            {i}
-          </text>
-        )}
-      </g>
+    dots.push(
+      <circle
+        key={`dot-${i}`}
+        cx={x}
+        cy={y}
+        r={dotSize}
+        fill={isMajor ? color : isMedium ? color : "rgba(255,255,255,0.5)"}
+        opacity={dotOpacity}
+      />
     );
   }
 
-  // Arc path for background
-  const arcRadius = size * 0.39;
-  const arcPath = describeArc(size / 2, size / 2, arcRadius, startAngle, endAngle);
+  // Generate speed labels at quarters (0, 30, 60, 90, 120 for maxSpeed=120)
+  const labels = [];
+  const labelCount = 5;
+  for (let i = 0; i < labelCount; i++) {
+    const speedValue = Math.round((i / (labelCount - 1)) * maxSpeed);
+    const labelAngle = startAngle + (i / (labelCount - 1)) * totalAngle;
+    const angleRad = (labelAngle * Math.PI) / 180;
+    
+    const x = cx + Math.cos(angleRad) * labelRadius;
+    const y = cy + Math.sin(angleRad) * labelRadius;
 
-  // Progress arc based on current speed
-  const progressAngle = startAngle + (Math.min(speed, maxSpeed) / maxSpeed) * totalAngle;
-  const progressArcPath = describeArc(size / 2, size / 2, arcRadius, startAngle, progressAngle);
+    labels.push(
+      <text
+        key={`label-${i}`}
+        x={x}
+        y={y}
+        fill={color}
+        fontSize={size * 0.08}
+        fontFamily="'Bebas Neue', 'Arial Black', sans-serif"
+        textAnchor="middle"
+        dominantBaseline="middle"
+        opacity={0.9}
+        fontWeight="bold"
+      >
+        {speedValue}
+      </text>
+    );
+  }
+
+  // Progress arc - animated
+  const progressAngle = useTransform(
+    spring,
+    [0, maxSpeed],
+    [startAngle, endAngle]
+  );
+
+  // Create arc path helper
+  const createArcPath = (startDeg: number, endDeg: number, radius: number) => {
+    const startRad = (startDeg * Math.PI) / 180;
+    const endRad = (endDeg * Math.PI) / 180;
+    
+    const x1 = cx + Math.cos(startRad) * radius;
+    const y1 = cy + Math.sin(startRad) * radius;
+    const x2 = cx + Math.cos(endRad) * radius;
+    const y2 = cy + Math.sin(endRad) * radius;
+    
+    const largeArc = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
+    const sweep = endDeg > startDeg ? 1 : 0;
+    
+    return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} ${sweep} ${x2} ${y2}`;
+  };
+
+  // Background arc path
+  const bgArcPath = createArcPath(startAngle, endAngle, progressRadius);
+
+  // Parse background color and apply opacity
+  const parsedBgColor = bgColor.startsWith('#') 
+    ? hexToRgba(bgColor, bgOpacity)
+    : bgColor.includes('rgba') 
+      ? bgColor.replace(/[\d.]+\)$/, `${bgOpacity})`)
+      : `rgba(0,0,0,${bgOpacity})`;
 
   return (
     <div
@@ -114,15 +162,39 @@ const SpeedometerGauge = ({
         width: size,
         height: size,
         position: "relative",
-        background: bgColor,
         borderRadius: "50%",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.5), inset 0 0 40px rgba(0,0,0,0.3)",
       }}
     >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Background arc */}
+      {/* Background circle with transparency */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: "50%",
+          background: parsedBgColor,
+          boxShadow: `0 4px 30px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.3)`,
+        }}
+      />
+
+      <svg 
+        width={size} 
+        height={size} 
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ position: "relative", zIndex: 1 }}
+      >
+        {/* Outer glow ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={outerRadius}
+          fill="none"
+          stroke="rgba(255,255,255,0.1)"
+          strokeWidth={2}
+        />
+
+        {/* Background arc track */}
         <path
-          d={arcPath}
+          d={bgArcPath}
           fill="none"
           stroke="rgba(255,255,255,0.15)"
           strokeWidth={size * 0.04}
@@ -131,86 +203,111 @@ const SpeedometerGauge = ({
 
         {/* Progress arc with gradient */}
         <defs>
-          <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#00FF00" />
-            <stop offset="50%" stopColor="#FFFF00" />
-            <stop offset="100%" stopColor="#FF4500" />
+          <linearGradient id={`speedGradient-${size}`} x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00FF88" />
+            <stop offset="40%" stopColor="#FFFF00" />
+            <stop offset="70%" stopColor="#FF8800" />
+            <stop offset="100%" stopColor="#FF2200" />
           </linearGradient>
         </defs>
-        <motion.path
-          d={progressArcPath}
+        
+        <motion.circle
+          cx={cx}
+          cy={cy}
+          r={progressRadius}
           fill="none"
-          stroke="url(#speedGradient)"
-          strokeWidth={size * 0.04}
+          stroke={`url(#speedGradient-${size})`}
+          strokeWidth={size * 0.045}
           strokeLinecap="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: speed / maxSpeed }}
+          strokeDasharray={2 * Math.PI * progressRadius}
+          strokeDashoffset={useTransform(
+            spring,
+            [0, maxSpeed],
+            [2 * Math.PI * progressRadius * (270 / 360), 2 * Math.PI * progressRadius * (270 / 360) * (1 - 1)]
+          )}
+          style={{
+            rotate: startAngle - 90,
+            transformOrigin: `${cx}px ${cy}px`,
+          }}
+          initial={{ strokeDashoffset: 2 * Math.PI * progressRadius * (270 / 360) }}
+          animate={{ 
+            strokeDashoffset: 2 * Math.PI * progressRadius * (270 / 360) * (1 - Math.min(speed / maxSpeed, 1))
+          }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         />
 
-        {/* Tick marks */}
-        {ticks}
+        {/* Clock-style dots */}
+        {dots}
+
+        {/* Speed labels at quarters */}
+        {labels}
 
         {/* Needle */}
         <motion.g
           style={{
-            originX: `${size / 2}px`,
-            originY: `${size / 2}px`,
+            originX: `${cx}px`,
+            originY: `${cy}px`,
             rotate: rotation,
           }}
         >
           {/* Needle shadow */}
           <polygon
             points={`
-              ${size / 2},${size * 0.15}
-              ${size / 2 - size * 0.02},${size / 2}
-              ${size / 2 + size * 0.02},${size / 2}
+              ${cx},${cy - size * 0.32}
+              ${cx - size * 0.018},${cy}
+              ${cx + size * 0.018},${cy}
             `}
-            fill="rgba(0,0,0,0.3)"
-            transform={`translate(2, 2)`}
+            fill="rgba(0,0,0,0.4)"
+            transform="translate(2, 2)"
           />
           {/* Main needle */}
           <polygon
             points={`
-              ${size / 2},${size * 0.15}
-              ${size / 2 - size * 0.015},${size / 2}
-              ${size / 2 + size * 0.015},${size / 2}
+              ${cx},${cy - size * 0.32}
+              ${cx - size * 0.012},${cy}
+              ${cx + size * 0.012},${cy}
             `}
-            fill="#FF4500"
+            fill="#FF3333"
           />
           {/* Needle highlight */}
           <polygon
             points={`
-              ${size / 2},${size * 0.16}
-              ${size / 2 - size * 0.008},${size / 2 - size * 0.05}
-              ${size / 2 + size * 0.008},${size / 2 - size * 0.05}
+              ${cx},${cy - size * 0.30}
+              ${cx - size * 0.006},${cy - size * 0.08}
+              ${cx + size * 0.006},${cy - size * 0.08}
             `}
-            fill="#FF6B3D"
+            fill="#FF6666"
           />
         </motion.g>
 
-        {/* Center cap */}
+        {/* Center cap with glow */}
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.08}
-          fill="#333"
-          stroke="#555"
-          strokeWidth={2}
+          cx={cx}
+          cy={cy}
+          r={size * 0.07}
+          fill="url(#centerGradient)"
         />
+        <defs>
+          <radialGradient id="centerGradient" cx="40%" cy="40%">
+            <stop offset="0%" stopColor="#666" />
+            <stop offset="100%" stopColor="#222" />
+          </radialGradient>
+        </defs>
         <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size * 0.05}
-          fill="#222"
+          cx={cx}
+          cy={cy}
+          r={size * 0.045}
+          fill="#111"
+          stroke="#333"
+          strokeWidth={1}
         />
       </svg>
 
-      {/* Digital speed display */}
+      {/* Digital speed display - large number in center bottom */}
       <div
         style={{
           position: "absolute",
-          bottom: size * 0.2,
+          bottom: size * 0.15,
           left: "50%",
           transform: "translateX(-50%)",
           textAlign: "center",
@@ -219,11 +316,12 @@ const SpeedometerGauge = ({
         <motion.div
           style={{
             fontFamily: "'Bebas Neue', 'Arial Black', sans-serif",
-            fontSize: size * 0.22,
+            fontSize: size * 0.28,
             fontWeight: "bold",
             color: color,
-            lineHeight: 1,
-            textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+            lineHeight: 0.9,
+            textShadow: "3px 3px 6px rgba(0,0,0,0.9)",
+            letterSpacing: "-2px",
           }}
           animate={{
             scale: [1, 1.02, 1],
@@ -238,32 +336,34 @@ const SpeedometerGauge = ({
         </motion.div>
         <div
           style={{
-            fontFamily: "'Roboto Condensed', sans-serif",
-            fontSize: size * 0.08,
+            fontFamily: "'Roboto Condensed', 'Arial', sans-serif",
+            fontSize: size * 0.07,
             color: "rgba(255,255,255,0.7)",
-            marginTop: size * 0.01,
-            letterSpacing: "1px",
+            marginTop: size * -0.01,
+            letterSpacing: "2px",
+            fontWeight: "bold",
           }}
         >
           km/h
         </div>
       </div>
 
-      {/* Manual mode indicator */}
-      {isManual && (
+      {/* Manual mode badge - only shown if showBadge is true */}
+      {showBadge && isManual && (
         <div
           style={{
             position: "absolute",
-            top: size * 0.15,
+            top: size * 0.12,
             left: "50%",
             transform: "translateX(-50%)",
-            background: "rgba(255, 165, 0, 0.9)",
+            background: "rgba(255, 165, 0, 0.95)",
             color: "#000",
-            fontSize: size * 0.05,
+            fontSize: size * 0.045,
             fontWeight: "bold",
             padding: `${size * 0.01}px ${size * 0.03}px`,
             borderRadius: size * 0.02,
-            fontFamily: "monospace",
+            fontFamily: "system-ui, monospace",
+            letterSpacing: "1px",
           }}
         >
           MANUAL
@@ -273,24 +373,12 @@ const SpeedometerGauge = ({
   );
 };
 
-// Helper function to create arc path
-function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number): string {
-  const start = polarToCartesian(x, y, radius, endAngle);
-  const end = polarToCartesian(x, y, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-  return [
-    "M", start.x, start.y,
-    "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
-  ].join(" ");
-}
-
-function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
-  const angleInRadians = (angleInDegrees * Math.PI) / 180.0;
-  return {
-    x: centerX + radius * Math.cos(angleInRadians),
-    y: centerY + radius * Math.sin(angleInRadians),
-  };
+// Helper function to convert hex to rgba
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export default SpeedometerGauge;
