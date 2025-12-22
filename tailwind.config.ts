@@ -13,6 +13,12 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        'archivo': ['"Archivo Black"', 'sans-serif'],
+        'roboto-condensed': ['"Roboto Condensed"', 'sans-serif'],
+        'bebas': ['"Bebas Neue"', 'cursive'],
+        'barlow': ['"Barlow Semi Condensed"', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

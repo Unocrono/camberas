@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,20 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { 
   Tv2, 
-  Trophy, 
-  User, 
-  Map, 
-  Copy, 
-  ExternalLink, 
   Settings,
   Eye,
-  Clock,
   Palette,
   Bike,
-  Sliders
+  Sliders,
+  Save,
+  RotateCcw,
+  Play,
+  Copy,
+  ExternalLink
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -33,49 +32,93 @@ interface Race {
   name: string;
   slug: string | null;
   date: string;
-  race_distances: {
-    id: string;
-    name: string;
-  }[];
 }
 
-interface Wave {
+interface Moto {
   id: string;
-  wave_name: string;
-  distance_name: string;
+  name: string;
+  name_tv: string | null;
+  color: string;
 }
 
 interface OverlayConfig {
-  theme: "dark" | "light";
-  bgColor: string;
-  textColor: string;
-  accentColor: string;
-  delay: number;
-  layout: "vertical" | "horizontal" | "grid";
-  size: "sm" | "md" | "lg" | "xl" | "2xl";
-  showHeader: boolean;
-  selectedWaves: string[];
+  id?: string;
+  race_id: string;
+  delay_seconds: number;
+  layout: "horizontal" | "vertical" | "square";
+  speed_font: string;
+  speed_size: number;
+  speed_color: string;
+  speed_bg_color: string;
+  speed_visible: boolean;
+  speed_manual_mode: boolean;
+  speed_manual_value: string | null;
+  distance_font: string;
+  distance_size: number;
+  distance_color: string;
+  distance_bg_color: string;
+  distance_visible: boolean;
+  distance_manual_mode: boolean;
+  distance_manual_value: string | null;
+  gaps_font: string;
+  gaps_size: number;
+  gaps_color: string;
+  gaps_bg_color: string;
+  gaps_visible: boolean;
+  gaps_manual_mode: boolean;
+  gaps_manual_value: string | null;
+  selected_moto_id: string | null;
+  compare_moto_id: string | null;
 }
 
+const FONTS = [
+  { value: "Bebas Neue", label: "Bebas Neue", class: "font-bebas" },
+  { value: "Archivo Black", label: "Archivo Black", class: "font-archivo" },
+  { value: "Roboto Condensed", label: "Roboto Condensed", class: "font-roboto-condensed" },
+  { value: "Barlow Semi Condensed", label: "Barlow Semi Condensed", class: "font-barlow" },
+];
+
+const LAYOUTS = [
+  { value: "horizontal", label: "Horizontal (inferior)" },
+  { value: "vertical", label: "Vertical (lateral)" },
+  { value: "square", label: "Cuadrado (esquina)" },
+];
+
+const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
+  delay_seconds: 0,
+  layout: "horizontal",
+  speed_font: "Bebas Neue",
+  speed_size: 72,
+  speed_color: "#FFFFFF",
+  speed_bg_color: "#000000",
+  speed_visible: true,
+  speed_manual_mode: false,
+  speed_manual_value: null,
+  distance_font: "Roboto Condensed",
+  distance_size: 48,
+  distance_color: "#FFFFFF",
+  distance_bg_color: "#1a1a1a",
+  distance_visible: true,
+  distance_manual_mode: false,
+  distance_manual_value: null,
+  gaps_font: "Barlow Semi Condensed",
+  gaps_size: 36,
+  gaps_color: "#00FF00",
+  gaps_bg_color: "#000000",
+  gaps_visible: true,
+  gaps_manual_mode: false,
+  gaps_manual_value: null,
+  selected_moto_id: null,
+  compare_moto_id: null,
+};
+
 const OverlayManager = () => {
-  const navigate = useNavigate();
   const [races, setRaces] = useState<Race[]>([]);
+  const [motos, setMotos] = useState<Moto[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [waves, setWaves] = useState<Wave[]>([]);
-  
-  // Shared overlay config (applied to all overlays)
-  const [overlayConfig, setOverlayConfig] = useState<OverlayConfig>({
-    theme: "dark",
-    bgColor: "#000000",
-    textColor: "#ffffff",
-    accentColor: "#f59e0b",
-    delay: 0,
-    layout: "vertical",
-    size: "xl",
-    showHeader: true,
-    selectedWaves: []
-  });
+  const [saving, setSaving] = useState(false);
+  const [config, setConfig] = useState<OverlayConfig | null>(null);
 
   const baseUrl = window.location.origin;
 
@@ -85,7 +128,8 @@ const OverlayManager = () => {
 
   useEffect(() => {
     if (selectedRace) {
-      fetchWaves();
+      fetchMotos();
+      fetchConfig();
     }
   }, [selectedRace]);
 
@@ -93,16 +137,7 @@ const OverlayManager = () => {
     try {
       const { data, error } = await supabase
         .from("races")
-        .select(`
-          id,
-          name,
-          slug,
-          date,
-          race_distances (
-            id,
-            name
-          )
-        `)
+        .select("id, name, slug, date")
         .order("date", { ascending: false });
 
       if (error) throw error;
@@ -115,115 +150,245 @@ const OverlayManager = () => {
     }
   };
 
-  const fetchWaves = async () => {
+  const fetchMotos = async () => {
     try {
       const { data, error } = await supabase
-        .from("race_waves")
-        .select(`
-          id,
-          wave_name,
-          race_distances!inner (
-            name
-          )
-        `)
+        .from("race_motos")
+        .select("id, name, name_tv, color")
         .eq("race_id", selectedRace)
-        .order("start_time", { ascending: true });
+        .eq("is_active", true)
+        .order("moto_order");
 
       if (error) throw error;
-      
-      setWaves((data || []).map((w: any) => ({
-        id: w.id,
-        wave_name: w.wave_name,
-        distance_name: w.race_distances?.name || ""
-      })));
+      setMotos(data || []);
     } catch (error) {
-      console.error("Error fetching waves:", error);
+      console.error("Error fetching motos:", error);
     }
+  };
+
+  const fetchConfig = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("overlay_config")
+        .select("*")
+        .eq("race_id", selectedRace)
+        .single();
+
+      if (error && error.code !== "PGRST116") throw error;
+
+      if (data) {
+        setConfig(data as unknown as OverlayConfig);
+      } else {
+        setConfig({ ...defaultConfig, race_id: selectedRace });
+      }
+    } catch (error) {
+      console.error("Error fetching config:", error);
+      setConfig({ ...defaultConfig, race_id: selectedRace });
+    }
+  };
+
+  const saveConfig = async () => {
+    if (!config) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("overlay_config")
+        .upsert({
+          ...config,
+          race_id: selectedRace,
+        }, { onConflict: "race_id" });
+
+      if (error) throw error;
+      toast.success("Configuración guardada");
+      fetchConfig();
+    } catch (error) {
+      console.error("Error saving config:", error);
+      toast.error("Error al guardar la configuración");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetConfig = () => {
+    setConfig({ ...defaultConfig, race_id: selectedRace });
+  };
+
+  const updateConfig = <K extends keyof OverlayConfig>(key: K, value: OverlayConfig[K]) => {
+    setConfig(prev => prev ? { ...prev, [key]: value } : null);
   };
 
   const selectedRaceData = races.find(r => r.id === selectedRace);
-  const raceIdentifier = selectedRaceData?.slug || selectedRace;
+  const overlayUrl = selectedRace ? `${baseUrl}/overlay/moto/${selectedRaceData?.slug || selectedRace}` : "";
 
-  // Build URL with shared config params
-  const buildOverlayUrl = (basePath: string) => {
-    if (!selectedRace) return "";
-    
-    const params = new URLSearchParams();
-    params.set("theme", overlayConfig.theme);
-    params.set("bg", overlayConfig.bgColor);
-    params.set("text", overlayConfig.textColor);
-    params.set("accent", overlayConfig.accentColor);
-    if (overlayConfig.delay !== 0) params.set("delay", overlayConfig.delay.toString());
-    params.set("layout", overlayConfig.layout);
-    params.set("size", overlayConfig.size);
-    if (!overlayConfig.showHeader) params.set("header", "false");
-    if (overlayConfig.selectedWaves.length > 0) {
-      params.set("waves", overlayConfig.selectedWaves.join(","));
-    }
-    
-    return `${basePath}?${params.toString()}`;
-  };
-
-  const overlays = [
-    {
-      id: "clock",
-      name: "Reloj de Carrera",
-      description: "Reloj con tiempo transcurrido desde la salida de cada evento",
-      icon: Clock,
-      color: "bg-orange-500/10 text-orange-600",
-      basePath: `/overlay/clock/${raceIdentifier}`
-    },
-    {
-      id: "leaderboard",
-      name: "Clasificación en Vivo",
-      description: "Tabla con posiciones, dorsales, nombres y tiempos actualizados en tiempo real",
-      icon: Trophy,
-      color: "bg-yellow-500/10 text-yellow-600",
-      basePath: `/overlay/leaderboard/${raceIdentifier}`
-    },
-    {
-      id: "lower-third",
-      name: "Lower Third",
-      description: "Gráfico de corredor individual con nombre, dorsal, posición y tiempo",
-      icon: User,
-      color: "bg-blue-500/10 text-blue-600",
-      basePath: `/overlay/lower-third/${raceIdentifier}`
-    },
-    {
-      id: "map",
-      name: "Mapa GPS",
-      description: "Overlay de mapa con posiciones de corredores en tiempo real",
-      icon: Map,
-      color: "bg-green-500/10 text-green-600",
-      basePath: `/overlay/map/${raceIdentifier}`
-    },
-    {
-      id: "moto",
-      name: "Motos GPS",
-      description: "Distancia a meta, velocidad y diferencias entre motos de carrera",
-      icon: Bike,
-      color: "bg-purple-500/10 text-purple-600",
-      basePath: `/overlay/moto/${raceIdentifier}`
-    }
-  ];
-
-  const copyToClipboard = (path: string) => {
-    const fullUrl = `${baseUrl}${path}`;
-    navigator.clipboard.writeText(fullUrl);
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(overlayUrl);
     toast.success("URL copiada al portapapeles");
   };
 
-  const openPreview = (path: string) => {
-    window.open(path, "_blank", "width=1920,height=1080");
+  const openPreview = () => {
+    window.open(`/overlay/moto/${selectedRaceData?.slug || selectedRace}`, "_blank", "width=1920,height=1080");
   };
 
-  const toggleWaveSelection = (waveId: string) => {
-    setOverlayConfig(prev => ({
-      ...prev,
-      selectedWaves: prev.selectedWaves.includes(waveId)
-        ? prev.selectedWaves.filter(id => id !== waveId)
-        : [...prev.selectedWaves, waveId]
-    }));
+  const FontPreview = ({ fontName, size, color, bgColor, label }: { fontName: string; size: number; color: string; bgColor: string; label: string }) => {
+    const getFontClass = () => {
+      switch (fontName) {
+        case "Bebas Neue": return "font-bebas";
+        case "Archivo Black": return "font-archivo";
+        case "Roboto Condensed": return "font-roboto-condensed";
+        case "Barlow Semi Condensed": return "font-barlow";
+        default: return "";
+      }
+    };
+
+    return (
+      <div 
+        className={`px-4 py-2 rounded ${getFontClass()}`}
+        style={{ 
+          backgroundColor: bgColor, 
+          color: color,
+          fontSize: `${Math.min(size, 48)}px`
+        }}
+      >
+        {label}
+      </div>
+    );
+  };
+
+  const ElementStyleEditor = ({ 
+    prefix, 
+    label, 
+    config: cfg 
+  }: { 
+    prefix: "speed" | "distance" | "gaps"; 
+    label: string;
+    config: OverlayConfig;
+  }) => {
+    const fontKey = `${prefix}_font` as keyof OverlayConfig;
+    const sizeKey = `${prefix}_size` as keyof OverlayConfig;
+    const colorKey = `${prefix}_color` as keyof OverlayConfig;
+    const bgColorKey = `${prefix}_bg_color` as keyof OverlayConfig;
+    const visibleKey = `${prefix}_visible` as keyof OverlayConfig;
+    const manualModeKey = `${prefix}_manual_mode` as keyof OverlayConfig;
+    const manualValueKey = `${prefix}_manual_value` as keyof OverlayConfig;
+
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">{label}</CardTitle>
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={cfg[visibleKey] as boolean}
+                onCheckedChange={(v) => updateConfig(visibleKey, v)}
+              />
+              <Label className="text-xs text-muted-foreground">Visible</Label>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Font Selection */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Fuente</Label>
+              <Select 
+                value={cfg[fontKey] as string} 
+                onValueChange={(v) => updateConfig(fontKey, v)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONTS.map(font => (
+                    <SelectItem key={font.value} value={font.value} className={font.class}>
+                      {font.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tamaño: {cfg[sizeKey]}px</Label>
+              <Slider
+                value={[cfg[sizeKey] as number]}
+                onValueChange={([v]) => updateConfig(sizeKey, v)}
+                min={24}
+                max={120}
+                step={2}
+                className="mt-2"
+              />
+            </div>
+          </div>
+
+          {/* Colors */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Color texto</Label>
+              <div className="flex gap-2">
+                <Input 
+                  type="color" 
+                  value={cfg[colorKey] as string}
+                  onChange={(e) => updateConfig(colorKey, e.target.value)}
+                  className="w-10 h-9 p-1 cursor-pointer"
+                />
+                <Input 
+                  value={cfg[colorKey] as string}
+                  onChange={(e) => updateConfig(colorKey, e.target.value)}
+                  className="flex-1 font-mono text-xs h-9"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Color fondo</Label>
+              <div className="flex gap-2">
+                <Input 
+                  type="color" 
+                  value={cfg[bgColorKey] as string}
+                  onChange={(e) => updateConfig(bgColorKey, e.target.value)}
+                  className="w-10 h-9 p-1 cursor-pointer"
+                />
+                <Input 
+                  value={cfg[bgColorKey] as string}
+                  onChange={(e) => updateConfig(bgColorKey, e.target.value)}
+                  className="flex-1 font-mono text-xs h-9"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Manual Mode */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Switch
+                checked={cfg[manualModeKey] as boolean}
+                onCheckedChange={(v) => updateConfig(manualModeKey, v)}
+              />
+              <Label className="text-xs">Modo Manual</Label>
+            </div>
+            {cfg[manualModeKey] && (
+              <Input
+                placeholder="Valor manual..."
+                value={(cfg[manualValueKey] as string) || ""}
+                onChange={(e) => updateConfig(manualValueKey, e.target.value)}
+                className="h-9"
+              />
+            )}
+          </div>
+
+          {/* Preview */}
+          <div className="pt-2">
+            <Label className="text-xs text-muted-foreground mb-2 block">Vista previa</Label>
+            <FontPreview 
+              fontName={cfg[fontKey] as string}
+              size={cfg[sizeKey] as number}
+              color={cfg[colorKey] as string}
+              bgColor={cfg[bgColorKey] as string}
+              label={prefix === "speed" ? "145 km/h" : prefix === "distance" ? "32.5 km" : "+0:15"}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -236,374 +401,243 @@ const OverlayManager = () => {
             <Tv2 className="h-8 w-8 text-primary" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Overlay Manager</h1>
+            <h1 className="text-3xl font-bold">Sistema de Gráficos PRO</h1>
             <p className="text-muted-foreground">
-              Crea y gestiona gráficos en tiempo real para transmisiones en vivo
+              Overlays profesionales para vMix/OBS con estilos personalizables
             </p>
           </div>
         </div>
 
         {/* Race Selection */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <Settings className="h-5 w-5" />
               Selección de Carrera
             </CardTitle>
-            <CardDescription>
-              Selecciona la carrera para generar las URLs de los overlays
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label>Carrera</Label>
-              <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una carrera" />
-                </SelectTrigger>
-                <SelectContent>
-                  {races.map((race) => (
-                    <SelectItem key={race.id} value={race.id}>
-                      {race.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedRaceData && selectedRaceData.race_distances.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Eventos disponibles: {selectedRaceData.race_distances.map(d => d.name).join(", ")}
-                </p>
-              )}
-            </div>
+            <Select value={selectedRace} onValueChange={setSelectedRace}>
+              <SelectTrigger className="max-w-md">
+                <SelectValue placeholder="Selecciona una carrera" />
+              </SelectTrigger>
+              <SelectContent>
+                {races.map((race) => (
+                  <SelectItem key={race.id} value={race.id}>
+                    {race.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
-        {selectedRace && (
-          <Tabs defaultValue="overlays" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
-              <TabsTrigger value="overlays" className="flex items-center gap-2">
-                <Tv2 className="h-4 w-4" />
-                Overlays
+        {selectedRace && config && (
+          <Tabs defaultValue="control" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 max-w-lg">
+              <TabsTrigger value="control" className="flex items-center gap-2">
+                <Play className="h-4 w-4" />
+                Control Vivo
               </TabsTrigger>
-              <TabsTrigger value="config" className="flex items-center gap-2">
-                <Sliders className="h-4 w-4" />
-                Configuración Visual
+              <TabsTrigger value="styles" className="flex items-center gap-2">
+                <Palette className="h-4 w-4" />
+                Diseño
+              </TabsTrigger>
+              <TabsTrigger value="output" className="flex items-center gap-2">
+                <Tv2 className="h-4 w-4" />
+                Salida
               </TabsTrigger>
             </TabsList>
 
-            {/* Overlays Tab */}
-            <TabsContent value="overlays" className="space-y-6">
-              {/* Overlays Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {overlays.map((overlay) => {
-                  const Icon = overlay.icon;
-                  const overlayUrl = buildOverlayUrl(overlay.basePath);
-                  
-                  return (
-                    <Card 
-                      key={overlay.id} 
-                      className="transition-all hover:shadow-lg"
+            {/* Control Tab */}
+            <TabsContent value="control" className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Moto Selection */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bike className="h-5 w-5" />
+                      Moto Principal
+                    </CardTitle>
+                    <CardDescription>
+                      Selecciona la moto a mostrar en el overlay
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Select 
+                      value={config.selected_moto_id || ""} 
+                      onValueChange={(v) => updateConfig("selected_moto_id", v || null)}
                     >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className={`p-3 rounded-xl ${overlay.color}`}>
-                            <Icon className="h-5 w-5" />
-                          </div>
-                          <Badge variant="outline" className="text-xs">Browser</Badge>
-                        </div>
-                        <CardTitle className="text-lg mt-3">{overlay.name}</CardTitle>
-                        <CardDescription className="text-xs">{overlay.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {/* URL Preview */}
-                        <div className="text-xs font-mono text-muted-foreground truncate bg-muted/50 px-2 py-1 rounded">
-                          {overlayUrl}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            className="flex-1" 
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openPreview(overlayUrl)}
-                          >
-                            <Eye className="h-3 w-3 mr-1" />
-                            Ver
-                          </Button>
-                          <Button 
-                            className="flex-1"
-                            size="sm"
-                            onClick={() => copyToClipboard(overlayUrl)}
-                          >
-                            <Copy className="h-3 w-3 mr-1" />
-                            Copiar
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                      <SelectTrigger>
+                        <SelectValue placeholder="Ninguna moto seleccionada" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {motos.map((moto) => (
+                          <SelectItem key={moto.id} value={moto.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: moto.color }}
+                              />
+                              {moto.name_tv || moto.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+
+                {/* Compare Moto */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Moto de Comparación</CardTitle>
+                    <CardDescription>
+                      Para mostrar gaps entre motos
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Select 
+                      value={config.compare_moto_id || ""} 
+                      onValueChange={(v) => updateConfig("compare_moto_id", v || null)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sin comparación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Sin comparación</SelectItem>
+                        {motos.filter(m => m.id !== config.selected_moto_id).map((moto) => (
+                          <SelectItem key={moto.id} value={moto.id}>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-full" 
+                                style={{ backgroundColor: moto.color }}
+                              />
+                              {moto.name_tv || moto.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* Instructions */}
+              {/* Delay Control */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Cómo usar en OBS Studio</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                    <li>Configura la apariencia visual en la pestaña <strong>"Configuración Visual"</strong></li>
-                    <li>Copia la URL del overlay que necesites</li>
-                    <li>En OBS, añade una fuente <strong>"Navegador" (Browser)</strong></li>
-                    <li>Pega la URL y configura <strong>1920x1080</strong></li>
-                    <li>Activa <strong>"Actualizar navegador cuando la escena se active"</strong></li>
-                  </ol>
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-medium">💡 Consejo</p>
-                    <p className="text-sm text-muted-foreground">
-                      Los overlays tienen fondo transparente. Colócalos sobre tu fuente de vídeo principal.
-                      La configuración visual se aplica a todos los overlays automáticamente.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Configuration Tab */}
-            <TabsContent value="config" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Palette className="h-5 w-5" />
-                    Configuración Visual de Overlays
-                  </CardTitle>
+                  <CardTitle>Control de Delay</CardTitle>
                   <CardDescription>
-                    Estos ajustes se aplican a todos los overlays generados
+                    Retrasa los datos para sincronizar con el retardo del vídeo en vMix
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Theme & Colors */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Palette className="h-4 w-4 text-muted-foreground" />
-                      <Label className="font-medium">Colores</Label>
+                <CardContent>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Label className="text-sm mb-2 block">
+                        Delay: {config.delay_seconds} segundos
+                      </Label>
+                      <Slider
+                        value={[config.delay_seconds]}
+                        onValueChange={([v]) => updateConfig("delay_seconds", v)}
+                        min={0}
+                        max={30}
+                        step={1}
+                      />
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Tema</Label>
-                        <Select 
-                          value={overlayConfig.theme} 
-                          onValueChange={(v: "dark" | "light") => {
-                            setOverlayConfig(prev => ({
-                              ...prev,
-                              theme: v,
-                              bgColor: v === "dark" ? "#000000" : "#ffffff",
-                              textColor: v === "dark" ? "#ffffff" : "#000000"
-                            }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="dark">Oscuro</SelectItem>
-                            <SelectItem value="light">Claro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Fondo</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={overlayConfig.bgColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, bgColor: e.target.value }))}
-                            className="w-12 h-9 p-1 cursor-pointer"
-                          />
-                          <Input 
-                            value={overlayConfig.bgColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, bgColor: e.target.value }))}
-                            className="flex-1 font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Texto</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={overlayConfig.textColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, textColor: e.target.value }))}
-                            className="w-12 h-9 p-1 cursor-pointer"
-                          />
-                          <Input 
-                            value={overlayConfig.textColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, textColor: e.target.value }))}
-                            className="flex-1 font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Acento</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={overlayConfig.accentColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, accentColor: e.target.value }))}
-                            className="w-12 h-9 p-1 cursor-pointer"
-                          />
-                          <Input 
-                            value={overlayConfig.accentColor}
-                            onChange={(e) => setOverlayConfig(prev => ({ ...prev, accentColor: e.target.value }))}
-                            className="flex-1 font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    <Input
+                      type="number"
+                      value={config.delay_seconds}
+                      onChange={(e) => updateConfig("delay_seconds", parseInt(e.target.value) || 0)}
+                      className="w-20"
+                      min={0}
+                      max={30}
+                    />
                   </div>
+                </CardContent>
+              </Card>
 
-                  <Separator />
-
-                  {/* Layout & Size */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Sliders className="h-4 w-4 text-muted-foreground" />
-                      <Label className="font-medium">Disposición y Tamaño</Label>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Layout</Label>
-                        <Select 
-                          value={overlayConfig.layout} 
-                          onValueChange={(v: "vertical" | "horizontal" | "grid") => 
-                            setOverlayConfig(prev => ({ ...prev, layout: v }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="vertical">Vertical</SelectItem>
-                            <SelectItem value="horizontal">Horizontal</SelectItem>
-                            <SelectItem value="grid">Cuadrícula</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Tamaño fuente</Label>
-                        <Select 
-                          value={overlayConfig.size} 
-                          onValueChange={(v: "sm" | "md" | "lg" | "xl" | "2xl") => 
-                            setOverlayConfig(prev => ({ ...prev, size: v }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="sm">Pequeño</SelectItem>
-                            <SelectItem value="md">Mediano</SelectItem>
-                            <SelectItem value="lg">Grande</SelectItem>
-                            <SelectItem value="xl">Extra Grande</SelectItem>
-                            <SelectItem value="2xl">Máximo</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Delay (seg)</Label>
-                        <Input 
-                          type="number"
-                          value={overlayConfig.delay}
-                          onChange={(e) => setOverlayConfig(prev => ({ ...prev, delay: parseInt(e.target.value) || 0 }))}
-                          placeholder="0"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-xs">Mostrar cabecera</Label>
-                        <div className="flex items-center h-9">
-                          <Switch
-                            checked={overlayConfig.showHeader}
-                            onCheckedChange={(checked) => 
-                              setOverlayConfig(prev => ({ ...prev, showHeader: checked }))
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Wave Selection */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                      <Label className="font-medium">Eventos a mostrar</Label>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Selecciona los eventos específicos o deja vacío para mostrar todos
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {waves.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No hay eventos con hora de salida configurada</p>
-                      ) : (
-                        waves.map((wave) => (
-                          <Badge
-                            key={wave.id}
-                            variant={overlayConfig.selectedWaves.includes(wave.id) ? "default" : "outline"}
-                            className="cursor-pointer transition-colors"
-                            onClick={() => toggleWaveSelection(wave.id)}
-                          >
-                            {wave.distance_name || wave.wave_name}
-                          </Badge>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  {/* Preview Box */}
-                  <div>
-                    <Label className="font-medium mb-3 block">Vista previa de colores</Label>
-                    <div 
-                      className="p-6 rounded-lg border transition-colors"
-                      style={{ backgroundColor: overlayConfig.bgColor }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div 
-                          className="w-16 h-16 rounded-lg flex items-center justify-center text-2xl font-bold"
-                          style={{ backgroundColor: overlayConfig.accentColor, color: overlayConfig.bgColor }}
-                        >
-                          01
-                        </div>
-                        <div>
-                          <p 
-                            className="font-bold text-lg"
-                            style={{ color: overlayConfig.textColor }}
-                          >
-                            Ejemplo de Texto
-                          </p>
-                          <p 
-                            className="text-sm opacity-70"
-                            style={{ color: overlayConfig.textColor }}
-                          >
-                            Tiempo: 01:23:45
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+              {/* Layout Selection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Layout del Overlay</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-3">
+                    {LAYOUTS.map(layout => (
+                      <Button
+                        key={layout.value}
+                        variant={config.layout === layout.value ? "default" : "outline"}
+                        onClick={() => updateConfig("layout", layout.value as OverlayConfig["layout"])}
+                        className="flex-1"
+                      >
+                        {layout.label}
+                      </Button>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
-        )}
 
-        {!selectedRace && (
-          <div className="text-center py-12 text-muted-foreground">
-            <Tv2 className="h-16 w-16 mx-auto mb-4 opacity-50" />
-            <p>Selecciona una carrera para ver los overlays disponibles</p>
-          </div>
+            {/* Styles Tab */}
+            <TabsContent value="styles" className="space-y-6">
+              <div className="grid md:grid-cols-3 gap-6">
+                <ElementStyleEditor prefix="speed" label="Velocidad" config={config} />
+                <ElementStyleEditor prefix="distance" label="Distancia" config={config} />
+                <ElementStyleEditor prefix="gaps" label="Gaps" config={config} />
+              </div>
+            </TabsContent>
+
+            {/* Output Tab */}
+            <TabsContent value="output" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>URL del Overlay para vMix</CardTitle>
+                  <CardDescription>
+                    Usa esta URL como fuente Browser en vMix/OBS con resolución 1920x1080
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input 
+                      value={overlayUrl} 
+                      readOnly 
+                      className="font-mono text-sm"
+                    />
+                    <Button variant="outline" onClick={copyToClipboard}>
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button onClick={openPreview}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Abrir
+                    </Button>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg space-y-2">
+                    <p className="text-sm font-medium">💡 Configuración en vMix</p>
+                    <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                      <li>Añade un input <strong>Web Browser</strong></li>
+                      <li>Pega la URL y configura <strong>1920x1080</strong></li>
+                      <li>El fondo es transparente (canal Alpha)</li>
+                      <li>Ajusta el delay según el retardo de tu vídeo</li>
+                    </ol>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Save Actions */}
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={resetConfig}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Restaurar
+              </Button>
+              <Button onClick={saveConfig} disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? "Guardando..." : "Guardar Configuración"}
+              </Button>
+            </div>
+          </Tabs>
         )}
       </main>
 
