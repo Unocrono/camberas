@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import OverlayVisualEditor from "@/components/admin/OverlayVisualEditor";
 
 interface Race {
   id: string;
@@ -65,6 +66,7 @@ interface OverlayConfig {
   speed_bg_opacity: number;
   speed_pos_x: number;
   speed_pos_y: number;
+  speed_scale: number;
   speed_display_type: "speed" | "pace";
   distance_font: string;
   distance_size: number;
@@ -76,6 +78,7 @@ interface OverlayConfig {
   distance_bg_opacity: number;
   distance_pos_x: number;
   distance_pos_y: number;
+  distance_scale: number;
   gaps_font: string;
   gaps_size: number;
   gaps_color: string;
@@ -86,6 +89,7 @@ interface OverlayConfig {
   gaps_bg_opacity: number;
   gaps_pos_x: number;
   gaps_pos_y: number;
+  gaps_scale: number;
   clock_font: string;
   clock_size: number;
   clock_color: string;
@@ -94,6 +98,7 @@ interface OverlayConfig {
   clock_bg_opacity: number;
   clock_pos_x: number;
   clock_pos_y: number;
+  clock_scale: number;
   active_wave_ids: string[];
   selected_moto_id: string | null;
   compare_moto_id: string | null;
@@ -125,6 +130,7 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   speed_bg_opacity: 0.7,
   speed_pos_x: 50,
   speed_pos_y: 85,
+  speed_scale: 1.0,
   speed_display_type: "speed",
   distance_font: "Roboto Condensed",
   distance_size: 48,
@@ -136,6 +142,7 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   distance_bg_opacity: 0.7,
   distance_pos_x: 25,
   distance_pos_y: 85,
+  distance_scale: 1.0,
   gaps_font: "Barlow Semi Condensed",
   gaps_size: 36,
   gaps_color: "#00FF00",
@@ -146,6 +153,7 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   gaps_bg_opacity: 0.7,
   gaps_pos_x: 75,
   gaps_pos_y: 85,
+  gaps_scale: 1.0,
   clock_font: "Bebas Neue",
   clock_size: 72,
   clock_color: "#FFFFFF",
@@ -154,6 +162,7 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   clock_bg_opacity: 0.7,
   clock_pos_x: 50,
   clock_pos_y: 10,
+  clock_scale: 1.0,
   active_wave_ids: [],
   selected_moto_id: null,
   compare_moto_id: null,
@@ -775,150 +784,96 @@ const OverlayManager = () => {
               </Card>
             </TabsContent>
 
-            {/* Styles Tab */}
+            {/* Styles Tab - Visual Editor */}
             <TabsContent value="styles" className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <ElementStyleEditor prefix="speed" label="Velocidad" config={config} />
-                <ElementStyleEditor prefix="distance" label="Distancia" config={config} />
-                <ElementStyleEditor prefix="gaps" label="Gaps" config={config} />
-                
-                {/* Clock Style Editor */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        Reloj de Carrera
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={config.clock_visible}
-                          onCheckedChange={(v) => updateConfig("clock_visible", v)}
-                        />
-                        <Label className="text-xs text-muted-foreground">Visible</Label>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Font Selection */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Fuente</Label>
-                        <Select 
-                          value={config.clock_font} 
-                          onValueChange={(v) => updateConfig("clock_font", v)}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {FONTS.map(font => (
-                              <SelectItem key={font.value} value={font.value} className={font.class}>
-                                {font.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Tamaño: {config.clock_size}px</Label>
-                        <Slider
-                          value={[config.clock_size]}
-                          onValueChange={([v]) => updateConfig("clock_size", v)}
-                          min={24}
-                          max={120}
-                          step={2}
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Colors */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Color texto</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={config.clock_color}
-                            onChange={(e) => updateConfig("clock_color", e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input 
-                            value={config.clock_color}
-                            onChange={(e) => updateConfig("clock_color", e.target.value)}
-                            className="flex-1 font-mono text-xs h-9"
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Color fondo</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="color" 
-                            value={config.clock_bg_color}
-                            onChange={(e) => updateConfig("clock_bg_color", e.target.value)}
-                            className="w-10 h-9 p-1 cursor-pointer"
-                          />
-                          <Input 
-                            value={config.clock_bg_color}
-                            onChange={(e) => updateConfig("clock_bg_color", e.target.value)}
-                            className="flex-1 font-mono text-xs h-9"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Background Opacity */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Transparencia fondo: {Math.round((config.clock_bg_opacity || 0.7) * 100)}%</Label>
-                      <Slider
-                        value={[(config.clock_bg_opacity || 0.7) * 100]}
-                        onValueChange={([v]) => updateConfig("clock_bg_opacity", v / 100)}
-                        min={0}
-                        max={100}
-                        step={5}
-                      />
-                    </div>
-
-                    {/* Position Controls */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Posición X: {config.clock_pos_x || 50}%</Label>
-                        <Slider
-                          value={[config.clock_pos_x || 50]}
-                          onValueChange={([v]) => updateConfig("clock_pos_x", v)}
-                          min={0}
-                          max={100}
-                          step={1}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Posición Y: {config.clock_pos_y || 10}%</Label>
-                        <Slider
-                          value={[config.clock_pos_y || 10]}
-                          onValueChange={([v]) => updateConfig("clock_pos_y", v)}
-                          min={0}
-                          max={100}
-                          step={1}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Preview */}
-                    <div className="pt-2">
-                      <Label className="text-xs text-muted-foreground mb-2 block">Vista previa</Label>
-                      <FontPreview 
-                        fontName={config.clock_font}
-                        size={config.clock_size}
-                        color={config.clock_color}
-                        bgColor={config.clock_bg_color}
-                        label="01:23:45"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <OverlayVisualEditor
+                speedConfig={{
+                  visible: config.speed_visible,
+                  font: config.speed_font,
+                  size: config.speed_size,
+                  color: config.speed_color,
+                  bgColor: config.speed_bg_color,
+                  bgOpacity: config.speed_bg_opacity,
+                  posX: config.speed_pos_x,
+                  posY: config.speed_pos_y,
+                  scale: config.speed_scale || 1,
+                }}
+                distanceConfig={{
+                  visible: config.distance_visible,
+                  font: config.distance_font,
+                  size: config.distance_size,
+                  color: config.distance_color,
+                  bgColor: config.distance_bg_color,
+                  bgOpacity: config.distance_bg_opacity,
+                  posX: config.distance_pos_x,
+                  posY: config.distance_pos_y,
+                  scale: config.distance_scale || 1,
+                }}
+                gapsConfig={{
+                  visible: config.gaps_visible,
+                  font: config.gaps_font,
+                  size: config.gaps_size,
+                  color: config.gaps_color,
+                  bgColor: config.gaps_bg_color,
+                  bgOpacity: config.gaps_bg_opacity,
+                  posX: config.gaps_pos_x,
+                  posY: config.gaps_pos_y,
+                  scale: config.gaps_scale || 1,
+                }}
+                clockConfig={{
+                  visible: config.clock_visible,
+                  font: config.clock_font,
+                  size: config.clock_size,
+                  color: config.clock_color,
+                  bgColor: config.clock_bg_color,
+                  bgOpacity: config.clock_bg_opacity,
+                  posX: config.clock_pos_x,
+                  posY: config.clock_pos_y,
+                  scale: config.clock_scale || 1,
+                }}
+                onSpeedChange={(updates) => {
+                  if (updates.visible !== undefined) updateConfig("speed_visible", updates.visible);
+                  if (updates.font !== undefined) updateConfig("speed_font", updates.font);
+                  if (updates.color !== undefined) updateConfig("speed_color", updates.color);
+                  if (updates.bgColor !== undefined) updateConfig("speed_bg_color", updates.bgColor);
+                  if (updates.bgOpacity !== undefined) updateConfig("speed_bg_opacity", updates.bgOpacity);
+                  if (updates.posX !== undefined) updateConfig("speed_pos_x", updates.posX);
+                  if (updates.posY !== undefined) updateConfig("speed_pos_y", updates.posY);
+                  if (updates.scale !== undefined) updateConfig("speed_scale", updates.scale);
+                }}
+                onDistanceChange={(updates) => {
+                  if (updates.visible !== undefined) updateConfig("distance_visible", updates.visible);
+                  if (updates.font !== undefined) updateConfig("distance_font", updates.font);
+                  if (updates.color !== undefined) updateConfig("distance_color", updates.color);
+                  if (updates.bgColor !== undefined) updateConfig("distance_bg_color", updates.bgColor);
+                  if (updates.bgOpacity !== undefined) updateConfig("distance_bg_opacity", updates.bgOpacity);
+                  if (updates.posX !== undefined) updateConfig("distance_pos_x", updates.posX);
+                  if (updates.posY !== undefined) updateConfig("distance_pos_y", updates.posY);
+                  if (updates.scale !== undefined) updateConfig("distance_scale", updates.scale);
+                }}
+                onGapsChange={(updates) => {
+                  if (updates.visible !== undefined) updateConfig("gaps_visible", updates.visible);
+                  if (updates.font !== undefined) updateConfig("gaps_font", updates.font);
+                  if (updates.color !== undefined) updateConfig("gaps_color", updates.color);
+                  if (updates.bgColor !== undefined) updateConfig("gaps_bg_color", updates.bgColor);
+                  if (updates.bgOpacity !== undefined) updateConfig("gaps_bg_opacity", updates.bgOpacity);
+                  if (updates.posX !== undefined) updateConfig("gaps_pos_x", updates.posX);
+                  if (updates.posY !== undefined) updateConfig("gaps_pos_y", updates.posY);
+                  if (updates.scale !== undefined) updateConfig("gaps_scale", updates.scale);
+                }}
+                onClockChange={(updates) => {
+                  if (updates.visible !== undefined) updateConfig("clock_visible", updates.visible);
+                  if (updates.font !== undefined) updateConfig("clock_font", updates.font);
+                  if (updates.color !== undefined) updateConfig("clock_color", updates.color);
+                  if (updates.bgColor !== undefined) updateConfig("clock_bg_color", updates.bgColor);
+                  if (updates.bgOpacity !== undefined) updateConfig("clock_bg_opacity", updates.bgOpacity);
+                  if (updates.posX !== undefined) updateConfig("clock_pos_x", updates.posX);
+                  if (updates.posY !== undefined) updateConfig("clock_pos_y", updates.posY);
+                  if (updates.scale !== undefined) updateConfig("clock_scale", updates.scale);
+                }}
+                onSave={saveConfig}
+                saving={saving}
+              />
             </TabsContent>
 
             {/* Output Tab */}

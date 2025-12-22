@@ -559,6 +559,7 @@ export type Database = {
           clock_font: string | null
           clock_pos_x: number | null
           clock_pos_y: number | null
+          clock_scale: number | null
           clock_size: number | null
           clock_visible: boolean | null
           compare_moto_id: string | null
@@ -572,6 +573,7 @@ export type Database = {
           distance_manual_value: string | null
           distance_pos_x: number | null
           distance_pos_y: number | null
+          distance_scale: number | null
           distance_size: number
           distance_visible: boolean
           gaps_bg_color: string
@@ -582,6 +584,7 @@ export type Database = {
           gaps_manual_value: string | null
           gaps_pos_x: number | null
           gaps_pos_y: number | null
+          gaps_scale: number | null
           gaps_size: number
           gaps_visible: boolean
           id: string
@@ -597,6 +600,7 @@ export type Database = {
           speed_manual_value: string | null
           speed_pos_x: number | null
           speed_pos_y: number | null
+          speed_scale: number | null
           speed_size: number
           speed_visible: boolean
           updated_at: string
@@ -609,6 +613,7 @@ export type Database = {
           clock_font?: string | null
           clock_pos_x?: number | null
           clock_pos_y?: number | null
+          clock_scale?: number | null
           clock_size?: number | null
           clock_visible?: boolean | null
           compare_moto_id?: string | null
@@ -622,6 +627,7 @@ export type Database = {
           distance_manual_value?: string | null
           distance_pos_x?: number | null
           distance_pos_y?: number | null
+          distance_scale?: number | null
           distance_size?: number
           distance_visible?: boolean
           gaps_bg_color?: string
@@ -632,6 +638,7 @@ export type Database = {
           gaps_manual_value?: string | null
           gaps_pos_x?: number | null
           gaps_pos_y?: number | null
+          gaps_scale?: number | null
           gaps_size?: number
           gaps_visible?: boolean
           id?: string
@@ -647,6 +654,7 @@ export type Database = {
           speed_manual_value?: string | null
           speed_pos_x?: number | null
           speed_pos_y?: number | null
+          speed_scale?: number | null
           speed_size?: number
           speed_visible?: boolean
           updated_at?: string
@@ -659,6 +667,7 @@ export type Database = {
           clock_font?: string | null
           clock_pos_x?: number | null
           clock_pos_y?: number | null
+          clock_scale?: number | null
           clock_size?: number | null
           clock_visible?: boolean | null
           compare_moto_id?: string | null
@@ -672,6 +681,7 @@ export type Database = {
           distance_manual_value?: string | null
           distance_pos_x?: number | null
           distance_pos_y?: number | null
+          distance_scale?: number | null
           distance_size?: number
           distance_visible?: boolean
           gaps_bg_color?: string
@@ -682,6 +692,7 @@ export type Database = {
           gaps_manual_value?: string | null
           gaps_pos_x?: number | null
           gaps_pos_y?: number | null
+          gaps_scale?: number | null
           gaps_size?: number
           gaps_visible?: boolean
           id?: string
@@ -697,6 +708,7 @@ export type Database = {
           speed_manual_value?: string | null
           speed_pos_x?: number | null
           speed_pos_y?: number | null
+          speed_scale?: number | null
           speed_size?: number
           speed_visible?: boolean
           updated_at?: string
