@@ -22,7 +22,9 @@ import {
   RotateCcw,
   Play,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Clock,
+  Timer
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -39,6 +41,13 @@ interface Moto {
   name: string;
   name_tv: string | null;
   color: string;
+}
+
+interface Wave {
+  id: string;
+  wave_name: string;
+  start_time: string | null;
+  race_distance_id: string;
 }
 
 interface OverlayConfig {
@@ -77,6 +86,15 @@ interface OverlayConfig {
   gaps_bg_opacity: number;
   gaps_pos_x: number;
   gaps_pos_y: number;
+  clock_font: string;
+  clock_size: number;
+  clock_color: string;
+  clock_bg_color: string;
+  clock_visible: boolean;
+  clock_bg_opacity: number;
+  clock_pos_x: number;
+  clock_pos_y: number;
+  active_wave_ids: string[];
   selected_moto_id: string | null;
   compare_moto_id: string | null;
 }
@@ -128,6 +146,15 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   gaps_bg_opacity: 0.7,
   gaps_pos_x: 75,
   gaps_pos_y: 85,
+  clock_font: "Bebas Neue",
+  clock_size: 72,
+  clock_color: "#FFFFFF",
+  clock_bg_color: "#000000",
+  clock_visible: true,
+  clock_bg_opacity: 0.7,
+  clock_pos_x: 50,
+  clock_pos_y: 10,
+  active_wave_ids: [],
   selected_moto_id: null,
   compare_moto_id: null,
 };
@@ -135,6 +162,7 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
 const OverlayManager = () => {
   const [races, setRaces] = useState<Race[]>([]);
   const [motos, setMotos] = useState<Moto[]>([]);
+  const [waves, setWaves] = useState<Wave[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -149,6 +177,7 @@ const OverlayManager = () => {
   useEffect(() => {
     if (selectedRace) {
       fetchMotos();
+      fetchWaves();
       fetchConfig();
     }
   }, [selectedRace]);
@@ -184,6 +213,46 @@ const OverlayManager = () => {
     } catch (error) {
       console.error("Error fetching motos:", error);
     }
+  };
+
+  const fetchWaves = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_waves")
+        .select("id, wave_name, start_time, race_distance_id")
+        .eq("race_id", selectedRace)
+        .order("start_time", { ascending: true, nullsFirst: false });
+
+      if (error) throw error;
+      setWaves(data || []);
+    } catch (error) {
+      console.error("Error fetching waves:", error);
+    }
+  };
+
+  const handleGiveStart = async (waveId: string) => {
+    try {
+      const { error } = await supabase
+        .from("race_waves")
+        .update({ start_time: new Date().toISOString() })
+        .eq("id", waveId);
+
+      if (error) throw error;
+      toast.success("¡Salida dada! El cronómetro está en marcha.");
+      fetchWaves();
+    } catch (error) {
+      console.error("Error giving start:", error);
+      toast.error("Error al dar la salida");
+    }
+  };
+
+  const toggleWaveActive = (waveId: string) => {
+    if (!config) return;
+    const currentIds = config.active_wave_ids || [];
+    const newIds = currentIds.includes(waveId)
+      ? currentIds.filter(id => id !== waveId)
+      : [...currentIds, waveId];
+    updateConfig("active_wave_ids", newIds);
   };
 
   const fetchConfig = async () => {
@@ -655,14 +724,200 @@ const OverlayManager = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Race Clocks - Waves */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Timer className="h-5 w-5" />
+                    Cronómetros de Carrera
+                  </CardTitle>
+                  <CardDescription>
+                    Gestiona las horas de salida de cada oleada
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {waves.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No hay oleadas configuradas para esta carrera.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {waves.map(wave => (
+                        <div key={wave.id} className="flex items-center justify-between gap-4 p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Switch
+                              checked={(config.active_wave_ids || []).includes(wave.id)}
+                              onCheckedChange={() => toggleWaveActive(wave.id)}
+                            />
+                            <div>
+                              <p className="font-medium">{wave.wave_name}</p>
+                              {wave.start_time ? (
+                                <p className="text-xs text-green-600">
+                                  Salida: {new Date(wave.start_time).toLocaleTimeString()}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">Sin hora de salida</p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={wave.start_time ? "outline" : "default"}
+                            onClick={() => handleGiveStart(wave.id)}
+                          >
+                            <Play className="h-4 w-4 mr-1" />
+                            {wave.start_time ? "Reiniciar" : "DAR SALIDA"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Styles Tab */}
             <TabsContent value="styles" className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 gap-6">
                 <ElementStyleEditor prefix="speed" label="Velocidad" config={config} />
                 <ElementStyleEditor prefix="distance" label="Distancia" config={config} />
                 <ElementStyleEditor prefix="gaps" label="Gaps" config={config} />
+                
+                {/* Clock Style Editor */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Reloj de Carrera
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={config.clock_visible}
+                          onCheckedChange={(v) => updateConfig("clock_visible", v)}
+                        />
+                        <Label className="text-xs text-muted-foreground">Visible</Label>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Font Selection */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Fuente</Label>
+                        <Select 
+                          value={config.clock_font} 
+                          onValueChange={(v) => updateConfig("clock_font", v)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {FONTS.map(font => (
+                              <SelectItem key={font.value} value={font.value} className={font.class}>
+                                {font.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Tamaño: {config.clock_size}px</Label>
+                        <Slider
+                          value={[config.clock_size]}
+                          onValueChange={([v]) => updateConfig("clock_size", v)}
+                          min={24}
+                          max={120}
+                          step={2}
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Colors */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Color texto</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="color" 
+                            value={config.clock_color}
+                            onChange={(e) => updateConfig("clock_color", e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input 
+                            value={config.clock_color}
+                            onChange={(e) => updateConfig("clock_color", e.target.value)}
+                            className="flex-1 font-mono text-xs h-9"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Color fondo</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="color" 
+                            value={config.clock_bg_color}
+                            onChange={(e) => updateConfig("clock_bg_color", e.target.value)}
+                            className="w-10 h-9 p-1 cursor-pointer"
+                          />
+                          <Input 
+                            value={config.clock_bg_color}
+                            onChange={(e) => updateConfig("clock_bg_color", e.target.value)}
+                            className="flex-1 font-mono text-xs h-9"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Background Opacity */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Transparencia fondo: {Math.round((config.clock_bg_opacity || 0.7) * 100)}%</Label>
+                      <Slider
+                        value={[(config.clock_bg_opacity || 0.7) * 100]}
+                        onValueChange={([v]) => updateConfig("clock_bg_opacity", v / 100)}
+                        min={0}
+                        max={100}
+                        step={5}
+                      />
+                    </div>
+
+                    {/* Position Controls */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Posición X: {config.clock_pos_x || 50}%</Label>
+                        <Slider
+                          value={[config.clock_pos_x || 50]}
+                          onValueChange={([v]) => updateConfig("clock_pos_x", v)}
+                          min={0}
+                          max={100}
+                          step={1}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Posición Y: {config.clock_pos_y || 10}%</Label>
+                        <Slider
+                          value={[config.clock_pos_y || 10]}
+                          onValueChange={([v]) => updateConfig("clock_pos_y", v)}
+                          min={0}
+                          max={100}
+                          step={1}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Preview */}
+                    <div className="pt-2">
+                      <Label className="text-xs text-muted-foreground mb-2 block">Vista previa</Label>
+                      <FontPreview 
+                        fontName={config.clock_font}
+                        size={config.clock_size}
+                        color={config.clock_color}
+                        bgColor={config.clock_bg_color}
+                        label="01:23:45"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 

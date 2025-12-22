@@ -552,6 +552,15 @@ export type Database = {
       }
       overlay_config: {
         Row: {
+          active_wave_ids: Json | null
+          clock_bg_color: string | null
+          clock_bg_opacity: number | null
+          clock_color: string | null
+          clock_font: string | null
+          clock_pos_x: number | null
+          clock_pos_y: number | null
+          clock_size: number | null
+          clock_visible: boolean | null
           compare_moto_id: string | null
           created_at: string
           delay_seconds: number
@@ -593,6 +602,15 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_wave_ids?: Json | null
+          clock_bg_color?: string | null
+          clock_bg_opacity?: number | null
+          clock_color?: string | null
+          clock_font?: string | null
+          clock_pos_x?: number | null
+          clock_pos_y?: number | null
+          clock_size?: number | null
+          clock_visible?: boolean | null
           compare_moto_id?: string | null
           created_at?: string
           delay_seconds?: number
@@ -634,6 +652,15 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_wave_ids?: Json | null
+          clock_bg_color?: string | null
+          clock_bg_opacity?: number | null
+          clock_color?: string | null
+          clock_font?: string | null
+          clock_pos_x?: number | null
+          clock_pos_y?: number | null
+          clock_size?: number | null
+          clock_visible?: boolean | null
           compare_moto_id?: string | null
           created_at?: string
           delay_seconds?: number
