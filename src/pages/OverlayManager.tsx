@@ -172,9 +172,9 @@ const OverlayManager = () => {
         .from("overlay_config")
         .select("*")
         .eq("race_id", selectedRace)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      if (error) throw error;
 
       if (data) {
         setConfig(data as unknown as OverlayConfig);
