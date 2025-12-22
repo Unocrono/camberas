@@ -188,7 +188,7 @@ const LoteriaNavidad = () => {
                 <Trophy className="h-8 w-8 text-yellow-600" />
                 <div>
                   <p className="text-sm text-gray-600">Total Acumulado de la Peña</p>
-                  <p className="text-3xl font-bold text-gray-900">{60€}</p>
+                  <p className="text-3xl font-bold text-gray-900">60 €</p>
                 </div>
               </div>
               <Button
