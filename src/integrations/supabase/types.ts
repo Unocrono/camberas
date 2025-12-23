@@ -854,6 +854,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "race_checkpoints_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "race_checkpoints_race_id_fkey"
             columns: ["race_id"]
             isOneToOne: false
