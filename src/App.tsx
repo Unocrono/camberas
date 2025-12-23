@@ -85,6 +85,7 @@ const App = () => (
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/timing-shop" element={<TimingShop />} />
+          <Route path="/start" element={<StartControl />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />
           
           {/* Overlay Manager y Overlays PRO */}
