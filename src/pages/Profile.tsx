@@ -123,10 +123,11 @@ const Profile = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
+    // Only redirect if not loading and explicitly no user (not during logout transition)
+    if (!authLoading && !user && !loading) {
+      navigate("/auth", { replace: true });
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, loading]);
 
   useEffect(() => {
     if (user) {
@@ -228,8 +229,18 @@ const Profile = () => {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate("/");
+    try {
+      await signOut();
+      // Navigate first to avoid state updates on unmounted component
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        title: "Error al cerrar sesión",
+        description: "Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (authLoading || loading) {
