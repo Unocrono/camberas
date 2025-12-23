@@ -23,13 +23,13 @@ interface Registration {
     date: string;
     location: string;
     image_url: string | null;
-  };
+  } | null;
   distance: {
     name: string;
     distance_km: number;
     price: number;
     gps_tracking_enabled: boolean | null;
-  };
+  } | null;
 }
 
 const Dashboard = () => {
@@ -215,6 +215,11 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 gap-6">
             {registrations.map((registration) => {
+              // Guard against null race or distance data
+              if (!registration.race || !registration.distance) {
+                return null;
+              }
+              
               const raceDate = new Date(registration.race.date);
               const canCancel = canCancelRegistration(registration.race.date) && 
                                registration.status !== "cancelled";
