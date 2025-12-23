@@ -157,21 +157,27 @@ export function useStartControlSync() {
       }));
 
       // Para cada distanceId, actualizar o crear wave
-      for (const distanceId of start.distanceIds) {
-        if (start.isEdit && start.waveIds) {
-          // Es una edición: actualizar wave existente
-          const waveId = start.waveIds.find((_, idx) => start.distanceIds[idx] === distanceId);
-          if (waveId) {
-            const { error } = await supabase
-              .from('race_waves')
-              .update({ 
-                start_time: start.startTimeISO,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', waveId);
-            
-            if (error) throw error;
+      for (let i = 0; i < start.distanceIds.length; i++) {
+        const distanceId = start.distanceIds[i];
+        
+        if (start.isEdit && start.waveIds && start.waveIds[i]) {
+          // Es una edición: actualizar wave existente usando el índice correspondiente
+          const waveId = start.waveIds[i];
+          console.log('[Sync] Actualizando wave:', waveId, 'con tiempo:', start.startTimeISO);
+          
+          const { error } = await supabase
+            .from('race_waves')
+            .update({ 
+              start_time: start.startTimeISO,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', waveId);
+          
+          if (error) {
+            console.error('[Sync] Error actualizando wave:', error);
+            throw error;
           }
+          console.log('[Sync] Wave actualizada correctamente');
         } else {
           // Es nueva salida: verificar si existe wave para esta distance
           const { data: existingWave } = await supabase
