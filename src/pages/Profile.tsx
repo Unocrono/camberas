@@ -91,11 +91,11 @@ interface Registration {
     name: string;
     date: string;
     location: string;
-  };
+  } | null;
   race_distance: {
     name: string;
     distance_km: number;
-  };
+  } | null;
   bib_number: number | null;
   status: string;
 }
