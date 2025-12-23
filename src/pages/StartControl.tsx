@@ -185,25 +185,33 @@ export default function StartControl() {
   };
 
   // Cargar distancias y waves cuando cambia la carrera
-  useEffect(() => {
+  const fetchWavesAndDistances = async () => {
     if (!selectedRaceId) {
       setDistances([]);
       setWaves([]);
       return;
     }
 
-    const fetchData = async () => {
-      const [distancesRes, wavesRes] = await Promise.all([
-        supabase.from('race_distances').select('id, name, distance_km').eq('race_id', selectedRaceId).order('distance_km'),
-        supabase.from('race_waves').select('id, race_distance_id, wave_name, start_time').eq('race_id', selectedRaceId)
-      ]);
-      
-      setDistances(distancesRes.data || []);
-      setWaves(wavesRes.data || []);
-    };
+    const [distancesRes, wavesRes] = await Promise.all([
+      supabase.from('race_distances').select('id, name, distance_km').eq('race_id', selectedRaceId).order('distance_km'),
+      supabase.from('race_waves').select('id, race_distance_id, wave_name, start_time').eq('race_id', selectedRaceId)
+    ]);
+    
+    setDistances(distancesRes.data || []);
+    setWaves(wavesRes.data || []);
+  };
 
-    fetchData();
+  useEffect(() => {
+    fetchWavesAndDistances();
   }, [selectedRaceId]);
+  
+  // Recargar waves después de sincronizar
+  useEffect(() => {
+    if (!isSyncing && pendingCount === 0 && selectedRaceId) {
+      // Refrescar datos del servidor cuando termina la sincronización
+      fetchWavesAndDistances();
+    }
+  }, [isSyncing, pendingCount, selectedRaceId]);
 
   const handleStart = (rawTimestamp: number) => {
     if (selectedDistanceIds.length === 0) {
