@@ -123,18 +123,18 @@ const Profile = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Only redirect if not loading and explicitly no user (not during logout transition)
-    if (!authLoading && !user && !loading) {
+    // If auth is done loading and there's no user, redirect to auth
+    if (!authLoading && !user) {
       navigate("/auth", { replace: true });
+      return;
     }
-  }, [user, authLoading, navigate, loading]);
-
-  useEffect(() => {
-    if (user) {
+    
+    // If auth is done loading and we have a user, load the profile
+    if (!authLoading && user) {
       loadProfile();
       loadRegistrations();
     }
-  }, [user]);
+  }, [user, authLoading, navigate]);
 
   const loadProfile = async () => {
     try {
