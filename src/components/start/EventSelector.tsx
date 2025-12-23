@@ -51,22 +51,30 @@ export function EventSelector({
   const [editTimeValue, setEditTimeValue] = useState('');
 
   const handleToggle = (distanceId: string) => {
-    if (disabled) return;
+    console.log('[EventSelector] handleToggle called:', { distanceId, disabled, selectedIds, waves });
+    
+    if (disabled) {
+      console.log('[EventSelector] disabled, returning');
+      return;
+    }
     
     // Verificar si ya tiene salida registrada
     const wave = waves.find(w => w.race_distance_id === distanceId);
     const hasStarted = wave?.start_time != null;
     
+    console.log('[EventSelector] wave found:', wave, 'hasStarted:', hasStarted);
+    
     if (hasStarted) {
-      // Ya tiene salida, no se puede seleccionar para nueva salida
+      console.log('[EventSelector] hasStarted, returning');
       return;
     }
     
-    if (selectedIds.includes(distanceId)) {
-      onSelectionChange(selectedIds.filter(id => id !== distanceId));
-    } else {
-      onSelectionChange([...selectedIds, distanceId]);
-    }
+    const newSelection = selectedIds.includes(distanceId)
+      ? selectedIds.filter(id => id !== distanceId)
+      : [...selectedIds, distanceId];
+    
+    console.log('[EventSelector] calling onSelectionChange with:', newSelection);
+    onSelectionChange(newSelection);
   };
 
   const handleEditClick = (distanceId: string, wave: RaceWave) => {
@@ -164,19 +172,32 @@ export function EventSelector({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ delay: index * 0.05 }}
                 className={cn(
-                  "relative flex items-center gap-3 p-4 rounded-xl border transition-all",
+                  "relative flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer",
                   "bg-card hover:bg-muted/50",
                   isSelected && !hasStarted && "ring-2 ring-primary border-primary",
                   hasStarted && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
-                  disabled && "opacity-50"
+                  disabled && "opacity-50 cursor-not-allowed",
+                  hasStarted && "cursor-default"
                 )}
-                onClick={() => handleToggle(distance.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleToggle(distance.id);
+                }}
               >
                 {/* Checkbox */}
-                <div className="flex-shrink-0">
+                <div 
+                  className="flex-shrink-0"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggle(distance.id);
+                  }}
+                >
                   <Checkbox
                     checked={isSelected}
                     disabled={disabled || hasStarted}
+                    onCheckedChange={() => handleToggle(distance.id)}
                     className={cn(
                       "h-5 w-5",
                       hasStarted && "opacity-50"
