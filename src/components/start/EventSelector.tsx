@@ -53,8 +53,11 @@ export function EventSelector({
   const handleToggle = (distanceId: string) => {
     if (disabled) return;
     
+    // Verificar si ya tiene salida registrada
     const wave = waves.find(w => w.race_distance_id === distanceId);
-    if (wave?.start_time) {
+    const hasStarted = wave?.start_time != null;
+    
+    if (hasStarted) {
       // Ya tiene salida, no se puede seleccionar para nueva salida
       return;
     }

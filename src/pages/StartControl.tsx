@@ -228,30 +228,7 @@ export default function StartControl() {
     toast({ title: 'Corrección registrada' });
   };
 
-  // Pantalla de calibración NTP (prioridad máxima)
-  if (isCalculating) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
-        <motion.img 
-          src={startLogo} 
-          alt="Start Control" 
-          className="h-24 w-24 mb-6"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-        />
-        <h2 className="text-xl font-bold mb-2">Calibrando sincronización</h2>
-        <p className="text-muted-foreground text-center mb-6">
-          Ajustando la hora del dispositivo con el servidor...
-        </p>
-        <div className="w-64 space-y-2">
-          <Progress value={calibrationProgress} className="h-2" />
-          <p className="text-sm text-center text-muted-foreground">
-            {calibrationProgress}%
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Ya no bloqueamos la pantalla durante la calibración - ahora se muestra en el badge
 
   // Usuario no autenticado
   if (!authLoading && !user) {
@@ -352,6 +329,7 @@ export default function StartControl() {
               offset={offset}
               lastSync={lastSync}
               isCalculating={isCalculating}
+              calibrationProgress={calibrationProgress}
               error={ntpError}
               onRecalculate={calculateOffset}
               className="justify-center mt-3"
