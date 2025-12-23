@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNtpOffset } from '@/hooks/useNtpOffset';
 import { useStartControlSync } from '@/hooks/useStartControlSync';
-import { SlideToStart } from '@/components/start/SlideToStart';
+import { HoldToStart } from '@/components/start/HoldToStart';
 import { EventSelector } from '@/components/start/EventSelector';
 import { SyncStatusBadge } from '@/components/start/SyncStatusBadge';
 import { NtpStatusBadge } from '@/components/start/NtpStatusBadge';
@@ -376,14 +376,10 @@ export default function StartControl() {
             </Card>
 
             {/* Botón de salida */}
-            <div className="flex justify-center pt-4">
-              <SlideToStart
+            <div className="flex justify-center pt-8 pb-4">
+              <HoldToStart
                 onStart={handleStart}
                 disabled={selectedDistanceIds.length === 0}
-                label={selectedDistanceIds.length > 0 
-                  ? `Dar salida a ${selectedDistanceIds.length} evento(s)` 
-                  : 'Selecciona eventos'
-                }
               />
             </div>
           </>
