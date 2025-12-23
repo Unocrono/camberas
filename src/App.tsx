@@ -32,6 +32,7 @@ import BibDesignerPage from "./pages/BibDesignerPage";
 import Contact from "./pages/Contact";
 import Support from "./pages/Support";
 import TimingApp from "./pages/TimingApp";
+import StartControl from "./pages/StartControl";
 import GPSTrackerApp from "./pages/GPSTrackerApp";
 import Help from "./pages/Help";
 import OrganizerGuide from "./pages/OrganizerGuide";
