@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Clock, Cloud, CloudOff, AlertCircle, Pencil, X } from 'lucide-react';
+import { Check, Clock, Cloud, CloudOff, AlertCircle, Pencil } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,30 +51,31 @@ export function EventSelector({
   const [editTimeValue, setEditTimeValue] = useState('');
 
   const handleToggle = (distanceId: string) => {
-    console.log('[EventSelector] handleToggle called:', { distanceId, disabled, selectedIds });
+    console.log('[EventSelector] handleToggle:', { distanceId, disabled, selectedIds });
     
     if (disabled) {
       console.log('[EventSelector] disabled, returning');
       return;
     }
     
-    // Permitir seleccionar cualquier evento (incluso los que ya tienen salida para poder re-darla)
     const newSelection = selectedIds.includes(distanceId)
       ? selectedIds.filter(id => id !== distanceId)
       : [...selectedIds, distanceId];
     
-    console.log('[EventSelector] calling onSelectionChange with:', newSelection);
+    console.log('[EventSelector] new selection:', newSelection);
     onSelectionChange(newSelection);
   };
 
-  const handleEditClick = (distanceId: string, wave: RaceWave) => {
+  const handleEditClick = (e: React.MouseEvent, distanceId: string, wave: RaceWave) => {
+    e.stopPropagation();
     if (!wave.start_time) return;
+    
     setEditingEvent({
       distanceId,
       waveId: wave.id,
       currentTime: wave.start_time
     });
-    // Formatear tiempo para el input
+    
     const date = new Date(wave.start_time);
     const formatted = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}.${date.getMilliseconds().toString().padStart(3, '0')}`;
     setEditTimeValue(formatted);
@@ -84,11 +85,9 @@ export function EventSelector({
   const handleConfirmEdit = () => {
     if (!editingEvent) return;
     
-    // Parsear el tiempo editado
     const [time, ms] = editTimeValue.split('.');
     const [hours, minutes, seconds] = time.split(':').map(Number);
     
-    // Crear timestamp basado en la fecha de la salida original
     const originalDate = new Date(editingEvent.currentTime);
     originalDate.setHours(hours, minutes, seconds, parseInt(ms) || 0);
     
@@ -133,9 +132,11 @@ export function EventSelector({
       case 'pending':
         return <CloudOff className="h-4 w-4 text-yellow-500" />;
       case 'syncing':
-        return <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
-          <Cloud className="h-4 w-4 text-blue-500" />
-        </motion.div>;
+        return (
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}>
+            <Cloud className="h-4 w-4 text-blue-500" />
+          </motion.div>
+        );
       case 'synced':
         return <Cloud className="h-4 w-4 text-green-500" />;
       case 'error':
@@ -162,36 +163,20 @@ export function EventSelector({
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ delay: index * 0.05 }}
                 className={cn(
-                  "relative flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer",
-                  "bg-card hover:bg-muted/50",
-                  isSelected && !hasStarted && "ring-2 ring-primary border-primary",
-                  hasStarted && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
-                  disabled && "opacity-50 cursor-not-allowed",
-                  hasStarted && "cursor-default"
+                  "relative flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
+                  "bg-card hover:bg-muted/50 active:scale-[0.98]",
+                  isSelected && "ring-2 ring-primary border-primary",
+                  hasStarted && !isSelected && "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
+                  disabled && "opacity-50 cursor-not-allowed"
                 )}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleToggle(distance.id);
-                }}
+                onClick={() => handleToggle(distance.id)}
               >
-                {/* Checkbox */}
-                <div 
-                  className="flex-shrink-0"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleToggle(distance.id);
-                  }}
-                >
+                {/* Checkbox visual */}
+                <div className="flex-shrink-0 pointer-events-none">
                   <Checkbox
                     checked={isSelected}
-                    disabled={disabled || hasStarted}
-                    onCheckedChange={() => handleToggle(distance.id)}
-                    className={cn(
-                      "h-5 w-5",
-                      hasStarted && "opacity-50"
-                    )}
+                    className="h-5 w-5"
+                    tabIndex={-1}
                   />
                 </div>
 
@@ -228,17 +213,14 @@ export function EventSelector({
                     variant="ghost"
                     size="icon"
                     className="flex-shrink-0 h-8 w-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditClick(distance.id, status.wave!);
-                    }}
+                    onClick={(e) => handleEditClick(e, distance.id, status.wave!)}
                   >
                     <Pencil className="h-4 w-4 text-muted-foreground" />
                   </Button>
                 )}
 
                 {/* Indicador de selección */}
-                {isSelected && !hasStarted && (
+                {isSelected && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
