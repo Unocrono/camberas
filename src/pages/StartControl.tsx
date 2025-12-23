@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Timer, Flag } from 'lucide-react';
+import { ArrowLeft, Timer, Flag, Download, LogOut, LogIn, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useNtpOffset } from '@/hooks/useNtpOffset';
 import { useStartControlSync } from '@/hooks/useStartControlSync';
@@ -10,10 +11,13 @@ import { SlideToStart } from '@/components/start/SlideToStart';
 import { EventSelector } from '@/components/start/EventSelector';
 import { SyncStatusBadge } from '@/components/start/SyncStatusBadge';
 import { NtpStatusBadge } from '@/components/start/NtpStatusBadge';
+import { AuthModal } from '@/components/AuthModal';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
+import startLogo from '@/assets/timing-icon.png';
 
 interface Race {
   id: string;
@@ -37,6 +41,9 @@ interface RaceWave {
 export default function StartControl() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading, signOut } = useAuth();
+  
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [races, setRaces] = useState<Race[]>([]);
@@ -45,8 +52,12 @@ export default function StartControl() {
   const [waves, setWaves] = useState<RaceWave[]>([]);
   const [selectedDistanceIds, setSelectedDistanceIds] = useState<string[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // PWA Install
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
-  const { offset, lastSync, isCalculating, error: ntpError, calculateOffset, correctTimestamp } = useNtpOffset();
+  const { offset, lastSync, isCalculating, calibrationProgress, error: ntpError, calculateOffset, correctTimestamp } = useNtpOffset();
   const { isOnline, pendingCount, isSyncing, lastSyncAttempt, registerStart, forcSync, getStartStatus } = useStartControlSync();
 
   // Reloj en tiempo real
@@ -55,47 +66,122 @@ export default function StartControl() {
     return () => clearInterval(interval);
   }, []);
 
+  // PWA install prompt
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setShowInstallPrompt(false);
+      toast({ title: 'App instalada', description: 'Acceso rápido desde tu pantalla de inicio' });
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   // Verificar autorización
   useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
+    
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
+    const checkAuth = async () => {
       const { data: roles } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id);
 
+      const userRoles = roles?.map(r => r.role) || [];
       const allowedRoles = ['admin', 'organizer', 'timer'];
-      const hasAccess = roles?.some(r => allowedRoles.includes(r.role));
+      const hasAccess = userRoles.some(r => allowedRoles.includes(r));
       
       if (!hasAccess) {
-        toast({ title: 'Acceso denegado', variant: 'destructive' });
-        navigate('/');
+        toast({ title: 'Acceso denegado', description: 'No tienes permisos para esta aplicación', variant: 'destructive' });
+        setIsLoading(false);
         return;
       }
 
       setIsAuthorized(true);
-      fetchRaces(user.id, roles?.map(r => r.role) || []);
+      fetchRaces(user.id, userRoles);
     };
 
     checkAuth();
-  }, [navigate, toast]);
+  }, [user, authLoading, toast]);
 
   const fetchRaces = async (userId: string, userRoles: string[]) => {
     setIsLoading(true);
-    let query = supabase.from('races').select('id, name, date').order('date', { ascending: false });
     
-    if (!userRoles.includes('admin')) {
-      query = query.eq('organizer_id', userId);
+    try {
+      let raceIds: string[] = [];
+      
+      if (userRoles.includes('admin')) {
+        // Admin ve todas las carreras
+        const { data } = await supabase
+          .from('races')
+          .select('id, name, date')
+          .order('date', { ascending: false });
+        setRaces(data || []);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Organizador: carreras donde es organizer_id
+      if (userRoles.includes('organizer')) {
+        const { data: orgRaces } = await supabase
+          .from('races')
+          .select('id')
+          .eq('organizer_id', userId);
+        raceIds.push(...(orgRaces?.map(r => r.id) || []));
+      }
+      
+      // Timer: carreras asignadas en timer_assignments
+      if (userRoles.includes('timer')) {
+        const { data: timerAssignments } = await supabase
+          .from('timer_assignments')
+          .select('race_id')
+          .eq('user_id', userId);
+        raceIds.push(...(timerAssignments?.map(a => a.race_id) || []));
+      }
+      
+      // Obtener carreras únicas
+      const uniqueRaceIds = [...new Set(raceIds)];
+      
+      if (uniqueRaceIds.length === 0) {
+        setRaces([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('races')
+        .select('id, name, date')
+        .in('id', uniqueRaceIds)
+        .order('date', { ascending: false });
+      
+      setRaces(data || []);
+    } catch (error) {
+      console.error('Error fetching races:', error);
+    } finally {
+      setIsLoading(false);
     }
-    
-    const { data } = await query;
-    setRaces(data || []);
-    setIsLoading(false);
   };
 
   // Cargar distancias y waves cuando cambia la carrera
@@ -142,10 +228,71 @@ export default function StartControl() {
     toast({ title: 'Corrección registrada' });
   };
 
-  if (!isAuthorized || isLoading) {
+  // Pantalla de calibración NTP
+  if (isCalculating && calibrationProgress < 100) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
+        <motion.img 
+          src={startLogo} 
+          alt="Start Control" 
+          className="h-24 w-24 mb-6"
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ repeat: Infinity, duration: 2 }}
+        />
+        <h2 className="text-xl font-bold mb-2">Calibrando sincronización</h2>
+        <p className="text-muted-foreground text-center mb-6">
+          Ajustando la hora del dispositivo con el servidor...
+        </p>
+        <div className="w-64 space-y-2">
+          <Progress value={calibrationProgress} className="h-2" />
+          <p className="text-sm text-center text-muted-foreground">
+            {calibrationProgress}%
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Usuario no autenticado
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
+        <motion.img 
+          src={startLogo} 
+          alt="Start Control" 
+          className="h-24 w-24 mb-6"
+        />
+        <h2 className="text-xl font-bold mb-2">Control de Salidas</h2>
+        <p className="text-muted-foreground text-center mb-6">
+          Inicia sesión para acceder al control de salidas
+        </p>
+        <Button onClick={() => setShowAuthModal(true)} className="gap-2">
+          <LogIn className="h-4 w-4" />
+          Iniciar Sesión
+        </Button>
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      </div>
+    );
+  }
+
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Timer className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
+        <h2 className="text-xl font-bold mb-2">Acceso denegado</h2>
+        <p className="text-muted-foreground text-center mb-6">
+          No tienes permisos para acceder a esta aplicación
+        </p>
+        <Button variant="outline" onClick={() => navigate('/')}>
+          Volver al inicio
+        </Button>
       </div>
     );
   }
@@ -166,13 +313,25 @@ export default function StartControl() {
               <h1 className="font-bold text-lg">Control de Salidas</h1>
             </div>
           </div>
-          <SyncStatusBadge
-            isOnline={isOnline}
-            pendingCount={pendingCount}
-            isSyncing={isSyncing}
-            lastSyncAttempt={lastSyncAttempt}
-            onForceSync={forcSync}
-          />
+          
+          <div className="flex items-center gap-2">
+            {showInstallPrompt && (
+              <Button variant="outline" size="sm" onClick={handleInstall} className="gap-1.5">
+                <Download className="h-4 w-4" />
+                <span className="hidden sm:inline">Instalar</span>
+              </Button>
+            )}
+            <SyncStatusBadge
+              isOnline={isOnline}
+              pendingCount={pendingCount}
+              isSyncing={isSyncing}
+              lastSyncAttempt={lastSyncAttempt}
+              onForceSync={forcSync}
+            />
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -252,6 +411,8 @@ export default function StartControl() {
           </>
         )}
       </main>
+      
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </div>
   );
 }
