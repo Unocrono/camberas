@@ -17,7 +17,7 @@ export function useNtpOffset() {
   const [state, setState] = useState<NtpState>({
     offset: 0,
     lastSync: null,
-    isCalculating: false,
+    isCalculating: true, // Iniciar como true para mostrar la pantalla de calibración
     calibrationProgress: 0,
     error: null
   });
@@ -25,17 +25,22 @@ export function useNtpOffset() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const calibrationRef = useRef<boolean>(false);
   const hasInitialCalibrationRef = useRef<boolean>(false);
+  const initialLoadedRef = useRef<boolean>(false);
 
-  // Cargar offset guardado al iniciar
+  // Cargar offset guardado al iniciar (pero no cancela la calibración inicial)
   useEffect(() => {
+    if (initialLoadedRef.current) return;
+    initialLoadedRef.current = true;
+    
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         const data = JSON.parse(stored);
+        // Solo cargar offset guardado, mantener isCalculating=true
         setState(prev => ({
           ...prev,
           offset: data.offset || 0,
-          lastSync: data.lastSync ? new Date(data.lastSync) : null
+          // No modificar lastSync aquí para forzar calibración
         }));
       } catch (e) {
         console.warn('Error loading NTP offset from storage:', e);
