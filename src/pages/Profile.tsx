@@ -104,6 +104,7 @@ const Profile = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [profile, setProfile] = useState<Profile>({
     first_name: "",
     last_name: "",
@@ -122,25 +123,21 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Handle redirect when no user
   useEffect(() => {
-    // Wait for auth to finish loading
-    if (authLoading) {
-      return;
-    }
-    
-    // If no user after auth loaded, redirect to auth
-    if (!user) {
+    if (!authLoading && !user) {
       navigate("/auth", { replace: true });
-      return;
     }
-    
-    // User exists, load profile data
-    const loadData = async () => {
-      await loadProfile();
-      await loadRegistrations();
-    };
-    loadData();
-  }, [user, authLoading]);
+  }, [authLoading, user, navigate]);
+
+  // Load profile data - only once when user is available
+  useEffect(() => {
+    if (!authLoading && user && !dataLoaded) {
+      setDataLoaded(true);
+      loadProfile();
+      loadRegistrations();
+    }
+  }, [authLoading, user, dataLoaded]);
 
   const loadProfile = async () => {
     if (!user?.id) {
