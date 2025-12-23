@@ -228,8 +228,8 @@ export default function StartControl() {
     toast({ title: 'Corrección registrada' });
   };
 
-  // Pantalla de calibración NTP
-  if (isCalculating && calibrationProgress < 100) {
+  // Pantalla de calibración NTP (prioridad máxima)
+  if (isCalculating) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
         <motion.img 
