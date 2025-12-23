@@ -51,24 +51,14 @@ export function EventSelector({
   const [editTimeValue, setEditTimeValue] = useState('');
 
   const handleToggle = (distanceId: string) => {
-    console.log('[EventSelector] handleToggle called:', { distanceId, disabled, selectedIds, waves });
+    console.log('[EventSelector] handleToggle called:', { distanceId, disabled, selectedIds });
     
     if (disabled) {
       console.log('[EventSelector] disabled, returning');
       return;
     }
     
-    // Verificar si ya tiene salida registrada
-    const wave = waves.find(w => w.race_distance_id === distanceId);
-    const hasStarted = wave?.start_time != null;
-    
-    console.log('[EventSelector] wave found:', wave, 'hasStarted:', hasStarted);
-    
-    if (hasStarted) {
-      console.log('[EventSelector] hasStarted, returning');
-      return;
-    }
-    
+    // Permitir seleccionar cualquier evento (incluso los que ya tienen salida para poder re-darla)
     const newSelection = selectedIds.includes(distanceId)
       ? selectedIds.filter(id => id !== distanceId)
       : [...selectedIds, distanceId];
