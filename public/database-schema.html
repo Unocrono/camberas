@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camberas - Esquema de Base de Datos</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: system-ui, -apple-system, sans-serif; 
+      background: #1a1a2e; 
+      color: #eee;
+      min-height: 100vh;
+    }
+    .header {
+      background: #16213e;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #0f3460;
+    }
+    h1 { font-size: 1.5rem; }
+    .date { color: #888; font-size: 0.9rem; }
+    .actions { display: flex; gap: 10px; }
+    button {
+      background: #e94560;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    button:hover { background: #ff6b6b; }
+    button.secondary {
+      background: #0f3460;
+    }
+    button.secondary:hover { background: #1a4a7a; }
+    .container {
+      padding: 20px;
+      overflow: auto;
+    }
+    #diagram {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      min-width: fit-content;
+    }
+    .legend {
+      margin-top: 20px;
+      padding: 15px;
+      background: #16213e;
+      border-radius: 8px;
+    }
+    .legend h3 { margin-bottom: 10px; }
+    .legend-item { 
+      display: inline-flex; 
+      align-items: center; 
+      margin-right: 20px;
+      margin-bottom: 5px;
+    }
+    .legend-color {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>🗄️ Camberas - Esquema de Base de Datos</h1>
+      <div class="date">Generado: 23 de Diciembre de 2025</div>
+    </div>
+    <div class="actions">
+      <button class="secondary" onclick="downloadSVG()">📥 Descargar SVG</button>
+      <button onclick="downloadPNG()">📥 Descargar PNG</button>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div id="diagram">
+      <pre class="mermaid">
+erDiagram
+    races {
+        uuid id PK
+        string name
+        date date
+        string location
+        string race_type
+        uuid organizer_id
+        string slug
+        boolean is_visible
+    }
+    
+    race_distances {
+        uuid id PK
+        uuid race_id FK
+        string name
+        numeric distance_km
+        numeric price
+        int max_participants
+        int bib_start
+        int bib_end
+        boolean gps_tracking_enabled
+    }
+    
+    registrations {
+        uuid id PK
+        uuid user_id FK
+        uuid race_id FK
+        uuid race_distance_id FK
+        int bib_number
+        string status
+        string payment_status
+    }
+    
+    race_results {
+        uuid id PK
+        uuid registration_id FK
+        uuid race_distance_id FK
+        interval finish_time
+        int overall_position
+        int gender_position
+        int category_position
+        string status
+    }
+    
+    split_times {
+        uuid id PK
+        uuid race_result_id FK
+        uuid checkpoint_id FK
+        string checkpoint_name
+        int checkpoint_order
+        interval split_time
+        int lap_number
+    }
+    
+    race_checkpoints {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        uuid timing_point_id FK
+        string name
+        numeric distance_km
+        int checkpoint_order
+        string checkpoint_type
+    }
+    
+    timing_points {
+        uuid id PK
+        uuid race_id FK
+        string name
+        numeric latitude
+        numeric longitude
+    }
+    
+    timing_readings {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        uuid registration_id FK
+        uuid timing_point_id FK
+        int bib_number
+        timestamptz timing_timestamp
+        string reading_type
+    }
+    
+    race_waves {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        string wave_name
+        timestamptz start_time
+    }
+    
+    bib_chips {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        int bib_number
+        string chip_code
+    }
+    
+    roadbooks {
+        uuid id PK
+        uuid race_distance_id FK
+        string name
+        time start_time
+    }
+    
+    roadbook_items {
+        uuid id PK
+        uuid roadbook_id FK
+        string description
+        numeric km_total
+        int item_order
+    }
+    
+    roadbook_paces {
+        uuid id PK
+        uuid roadbook_id FK
+        string pace_name
+        numeric pace_minutes_per_km
+    }
+    
+    roadbook_schedules {
+        uuid id PK
+        uuid roadbook_item_id FK
+        uuid roadbook_pace_id FK
+        interval estimated_time
+    }
+    
+    gps_tracking {
+        uuid id PK
+        uuid registration_id FK
+        uuid race_id FK
+        numeric latitude
+        numeric longitude
+        timestamptz timestamp
+    }
+    
+    race_motos {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        uuid user_id FK
+        string name
+        string color
+    }
+    
+    moto_gps_tracking {
+        uuid id PK
+        uuid moto_id FK
+        uuid race_id FK
+        numeric latitude
+        numeric longitude
+    }
+    
+    moto_assignments {
+        uuid id PK
+        uuid user_id FK
+        uuid race_id FK
+        uuid moto_id FK
+    }
+    
+    timer_assignments {
+        uuid id PK
+        uuid user_id FK
+        uuid race_id FK
+        uuid checkpoint_id FK
+    }
+    
+    profiles {
+        uuid id PK
+        string first_name
+        string last_name
+        string gender
+        date birth_date
+        string club
+        string phone
+        string dni_passport
+    }
+    
+    user_roles {
+        uuid id PK
+        uuid user_id FK
+        enum role
+        string status
+    }
+    
+    race_results_abandons {
+        uuid id PK
+        uuid registration_id FK
+        uuid race_id FK
+        uuid race_distance_id FK
+        int bib_number
+        string abandon_type
+        string reason
+    }
+    
+    race_results_status {
+        uuid id PK
+        string code
+        string name
+        int sort_order
+    }
+    
+    race_faqs {
+        uuid id PK
+        uuid race_id FK
+        string question
+        string answer
+    }
+    
+    race_regulations {
+        uuid id PK
+        uuid race_id FK
+        boolean published
+    }
+    
+    race_regulation_sections {
+        uuid id PK
+        uuid regulation_id FK
+        string title
+        string content
+    }
+    
+    registration_form_fields {
+        uuid id PK
+        uuid race_id FK
+        uuid race_distance_id FK
+        string field_name
+        string field_type
+    }
+    
+    registration_responses {
+        uuid id PK
+        uuid registration_id FK
+        uuid field_id FK
+        string field_value
+    }
+    
+    bib_designs {
+        uuid id PK
+        uuid race_id FK
+        string name
+        jsonb canvas_json
+    }
+    
+    overlay_config {
+        uuid id PK
+        uuid race_id FK
+        uuid selected_moto_id FK
+    }
+    
+    roadbook_item_types {
+        uuid id PK
+        string name
+        string icon
+        string race_type
+    }
+    
+    organizer_faqs {
+        uuid id PK
+        string question
+        string answer
+    }
+    
+    admin_notifications {
+        uuid id PK
+        string type
+        string title
+        string message
+    }
+    
+    contact_settings {
+        uuid id PK
+        string support_email
+        boolean form_enabled
+    }
+    
+    edge_function_flags {
+        uuid id PK
+        string function_name
+        boolean is_enabled
+    }
+    
+    menu_items {
+        uuid id PK
+        string title
+        string route
+        string menu_type
+    }
+    
+    chat_conversations {
+        uuid id PK
+        uuid user_id FK
+        string title
+    }
+    
+    chat_messages {
+        uuid id PK
+        uuid conversation_id FK
+        string role
+        string content
+    }
+    
+    support_conversations {
+        uuid id PK
+        uuid user_id FK
+        string subject
+        string status
+    }
+    
+    support_messages {
+        uuid id PK
+        uuid conversation_id FK
+        string sender_type
+        string content
+    }
+    
+    training_plans {
+        uuid id PK
+        uuid user_id FK
+        uuid race_id FK
+        string goal
+        string plan_content
+    }
+
+    races ||--o{ race_distances : "has"
+    races ||--o{ registrations : "has"
+    races ||--o{ race_checkpoints : "has"
+    races ||--o{ timing_points : "has"
+    races ||--o{ timing_readings : "has"
+    races ||--o{ race_waves : "has"
+    races ||--o{ bib_chips : "has"
+    races ||--o{ gps_tracking : "has"
+    races ||--o{ race_motos : "has"
+    races ||--o{ moto_gps_tracking : "has"
+    races ||--o{ moto_assignments : "has"
+    races ||--o{ timer_assignments : "has"
+    races ||--o{ race_results_abandons : "has"
+    races ||--o{ race_faqs : "has"
+    races ||--o{ race_regulations : "has"
+    races ||--o{ bib_designs : "has"
+    races ||--o{ training_plans : "has"
+    races ||--|| overlay_config : "has"
+    
+    race_distances ||--o{ registrations : "CASCADE"
+    race_distances ||--o{ race_results : "CASCADE"
+    race_distances ||--o{ race_checkpoints : "CASCADE"
+    race_distances ||--o{ timing_readings : "CASCADE"
+    race_distances ||--o{ race_waves : "CASCADE"
+    race_distances ||--o{ bib_chips : "CASCADE"
+    race_distances ||--o{ roadbooks : "CASCADE"
+    race_distances ||--o{ race_motos : "SET NULL"
+    race_distances ||--o{ race_results_abandons : "SET NULL"
+    race_distances ||--o{ registration_form_fields : "has"
+    
+    registrations ||--|| race_results : "CASCADE"
+    registrations ||--o{ gps_tracking : "has"
+    registrations ||--o{ timing_readings : "has"
+    registrations ||--o{ registration_responses : "has"
+    registrations ||--o{ race_results_abandons : "has"
+    
+    race_results ||--o{ split_times : "CASCADE"
+    race_results }o--|| race_results_status : "has"
+    
+    race_checkpoints ||--o{ split_times : "has"
+    
+    timing_points ||--o{ race_checkpoints : "linked"
+    timing_points ||--o{ timing_readings : "has"
+    timing_points ||--o{ timer_assignments : "has"
+    timing_points ||--o{ race_results_abandons : "has"
+    
+    roadbooks ||--o{ roadbook_items : "CASCADE"
+    roadbooks ||--o{ roadbook_paces : "CASCADE"
+    
+    roadbook_items ||--o{ roadbook_schedules : "has"
+    roadbook_items }o--|| roadbook_item_types : "has"
+    
+    roadbook_paces ||--o{ roadbook_schedules : "has"
+    
+    race_motos ||--o{ moto_gps_tracking : "CASCADE"
+    race_motos ||--o{ moto_assignments : "has"
+    race_motos ||--|| overlay_config : "selected"
+    
+    profiles ||--o{ registrations : "has"
+    profiles ||--o{ user_roles : "has"
+    profiles ||--o{ timer_assignments : "has"
+    profiles ||--o{ moto_assignments : "has"
+    profiles ||--o{ race_motos : "assigned"
+    profiles ||--o{ timing_readings : "operator"
+    profiles ||--o{ race_results_abandons : "operator"
+    profiles ||--o{ chat_conversations : "has"
+    profiles ||--o{ support_conversations : "has"
+    profiles ||--o{ training_plans : "has"
+    
+    race_regulations ||--o{ race_regulation_sections : "CASCADE"
+    
+    registration_form_fields ||--o{ registration_responses : "has"
+    
+    chat_conversations ||--o{ chat_messages : "has"
+    
+    support_conversations ||--o{ support_messages : "has"
+      </pre>
+    </div>
+    
+    <div class="legend">
+      <h3>📋 Leyenda de Relaciones</h3>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #e94560;"></div>
+        <span><strong>CASCADE</strong> - Eliminación en cascada automática</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #0f3460;"></div>
+        <span><strong>SET NULL</strong> - Se establece NULL al eliminar padre</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color" style="background: #888;"></div>
+        <span><strong>has/linked</strong> - Relación estándar (RESTRICT)</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({ 
+      startOnLoad: true,
+      theme: 'default',
+      er: {
+        diagramPadding: 20,
+        layoutDirection: 'TB',
+        minEntityWidth: 100,
+        minEntityHeight: 75,
+        entityPadding: 15,
+        useMaxWidth: false
+      }
+    });
+
+    async function downloadPNG() {
+      const svg = document.querySelector('#diagram svg');
+      if (!svg) {
+        alert('Espera a que cargue el diagrama');
+        return;
+      }
+      
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      img.onload = function() {
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.scale(2, 2);
+        ctx.drawImage(img, 0, 0);
+        
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = 'camberas-database-schema.png';
+        downloadLink.click();
+        
+        URL.revokeObjectURL(url);
+      };
+      
+      img.src = url;
+    }
+
+    function downloadSVG() {
+      const svg = document.querySelector('#diagram svg');
+      if (!svg) {
+        alert('Espera a que cargue el diagrama');
+        return;
+      }
+      
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = 'camberas-database-schema.svg';
+      downloadLink.click();
+      
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
