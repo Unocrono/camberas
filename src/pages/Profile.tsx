@@ -123,21 +123,21 @@ const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Handle redirect when no user
+  // Handle auth and data loading
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return;
+    
+    if (!user) {
       navigate("/auth", { replace: true });
+      return;
     }
-  }, [authLoading, user, navigate]);
-
-  // Load profile data - only once when user is available
-  useEffect(() => {
-    if (!authLoading && user && !dataLoaded) {
+    
+    if (!dataLoaded) {
       setDataLoaded(true);
       loadProfile();
       loadRegistrations();
     }
-  }, [authLoading, user, dataLoaded]);
+  }, [authLoading, user]);
 
   const loadProfile = async () => {
     if (!user?.id) {
