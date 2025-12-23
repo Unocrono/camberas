@@ -123,26 +123,37 @@ const Profile = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // If auth is done loading and there's no user, redirect to auth
-    if (!authLoading && !user) {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+    
+    // If no user after auth loaded, redirect to auth
+    if (!user) {
       navigate("/auth", { replace: true });
       return;
     }
     
-    // If auth is done loading and we have a user, load the profile
-    if (!authLoading && user) {
-      loadProfile();
-      loadRegistrations();
-    }
-  }, [user, authLoading, navigate]);
+    // User exists, load profile data
+    const loadData = async () => {
+      await loadProfile();
+      await loadRegistrations();
+    };
+    loadData();
+  }, [user, authLoading]);
 
   const loadProfile = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", user?.id)
-        .single();
+        .eq("id", user.id)
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -170,6 +181,8 @@ const Profile = () => {
   };
 
   const loadRegistrations = async () => {
+    if (!user?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from("registrations")
@@ -180,7 +193,7 @@ const Profile = () => {
           race:races(name, date, location),
           race_distance:race_distances(name, distance_km)
         `)
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
