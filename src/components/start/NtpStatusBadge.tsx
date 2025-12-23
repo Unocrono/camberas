@@ -3,12 +3,14 @@ import { Clock, RefreshCw, AlertTriangle, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface NtpStatusBadgeProps {
   offset: number;
   lastSync: Date | null;
   isCalculating: boolean;
+  calibrationProgress?: number;
   error: string | null;
   onRecalculate: () => void;
   className?: string;
@@ -18,6 +20,7 @@ export function NtpStatusBadge({
   offset,
   lastSync,
   isCalculating,
+  calibrationProgress = 0,
   error,
   onRecalculate,
   className
@@ -51,7 +54,7 @@ export function NtpStatusBadge({
   };
 
   const formatOffset = () => {
-    if (isCalculating) return 'Calculando...';
+    if (isCalculating) return 'Sincronizando...';
     if (error) return 'Error NTP';
     
     const sign = offset >= 0 ? '+' : '';
@@ -75,42 +78,55 @@ export function NtpStatusBadge({
   };
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge 
-            variant="outline"
-            className={cn(
-              "flex items-center gap-1.5 py-1 px-2.5 text-xs font-mono cursor-help",
-              getStatusColor()
-            )}
-          >
-            {getStatusIcon()}
-            <span>NTP: {formatOffset()}</span>
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-xs">
-          <p className="whitespace-pre-line">{getTooltipText()}</p>
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Botón de recalcular */}
-      {!isCalculating && (
+    <div className={cn("flex flex-col items-center gap-1", className)}>
+      <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={onRecalculate}
+            <Badge 
+              variant="outline"
+              className={cn(
+                "flex items-center gap-1.5 py-1 px-2.5 text-xs font-mono cursor-help",
+                getStatusColor()
+              )}
             >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+              {getStatusIcon()}
+              <span>NTP: {formatOffset()}</span>
+            </Badge>
           </TooltipTrigger>
-          <TooltipContent>
-            <p>Recalcular offset NTP</p>
+          <TooltipContent className="max-w-xs">
+            <p className="whitespace-pre-line">{getTooltipText()}</p>
           </TooltipContent>
         </Tooltip>
+
+        {/* Botón de recalcular */}
+        {!isCalculating && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={onRecalculate}
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Recalcular offset NTP</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* Barra de progreso de calibración */}
+      {isCalculating && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="w-full max-w-[200px] mt-1"
+        >
+          <Progress value={calibrationProgress} className="h-1.5" />
+        </motion.div>
       )}
     </div>
   );
