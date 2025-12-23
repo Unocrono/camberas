@@ -478,26 +478,37 @@ const Profile = () => {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {registrations.map((reg) => (
-                    <div key={reg.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-lg">{reg.race.name}</h3>
-                        <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded">
-                          {reg.status === "confirmed" ? "Confirmada" : "Pendiente"}
-                        </span>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="h-4 w-4" />
-                          <span>{reg.race_distance.name} - {reg.race_distance.distance_km}km</span>
+                  {registrations.map((reg) => {
+                    // Guard against null/undefined related data
+                    const raceName = reg.race?.name || "Carrera";
+                    const raceDate = reg.race?.date;
+                    const raceLocation = reg.race?.location || "Ubicación no disponible";
+                    const distanceName = reg.race_distance?.name || "Distancia";
+                    const distanceKm = reg.race_distance?.distance_km;
+                    
+                    return (
+                      <div key={reg.id} className="border rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-lg">{raceName}</h3>
+                          <span className="text-sm px-2 py-1 bg-primary/10 text-primary rounded">
+                            {reg.status === "confirmed" ? "Confirmada" : "Pendiente"}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>{new Date(reg.race.date).toLocaleDateString("es-ES")}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          <span>{reg.race.location}</span>
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Trophy className="h-4 w-4" />
+                            <span>{distanceName}{distanceKm ? ` - ${distanceKm}km` : ""}</span>
+                          </div>
+                          {raceDate && (
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              <span>{new Date(raceDate).toLocaleDateString("es-ES")}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4" />
+                            <span>{raceLocation}</span>
+                          </div>
                         </div>
                         {reg.bib_number && (
                           <div className="mt-2 pt-2 border-t">
@@ -505,8 +516,8 @@ const Profile = () => {
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
