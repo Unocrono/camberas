@@ -375,7 +375,7 @@ const MotoOverlay = () => {
     fetchConfig();
 
     const channel = supabase
-      .channel("overlay-config-changes")
+      .channel(`overlay-config-changes-${raceIdResolved}`)
       .on(
         "postgres_changes",
         {
@@ -389,22 +389,23 @@ const MotoOverlay = () => {
             const newConfig = payload.new as unknown as OverlayConfig;
             
             // Detect manual mode changes for glow effect
-            if (config) {
-              if (newConfig.speed_manual_mode !== config.speed_manual_mode) {
-                setManualModeChanged(prev => ({ ...prev, speed: true }));
-                setTimeout(() => setManualModeChanged(prev => ({ ...prev, speed: false })), 1000);
+            setConfig(prevConfig => {
+              if (prevConfig) {
+                if (newConfig.speed_manual_mode !== prevConfig.speed_manual_mode) {
+                  setManualModeChanged(prev => ({ ...prev, speed: true }));
+                  setTimeout(() => setManualModeChanged(prev => ({ ...prev, speed: false })), 1000);
+                }
+                if (newConfig.distance_manual_mode !== prevConfig.distance_manual_mode) {
+                  setManualModeChanged(prev => ({ ...prev, distance: true }));
+                  setTimeout(() => setManualModeChanged(prev => ({ ...prev, distance: false })), 1000);
+                }
+                if (newConfig.gaps_manual_mode !== prevConfig.gaps_manual_mode) {
+                  setManualModeChanged(prev => ({ ...prev, gap: true }));
+                  setTimeout(() => setManualModeChanged(prev => ({ ...prev, gap: false })), 1000);
+                }
               }
-              if (newConfig.distance_manual_mode !== config.distance_manual_mode) {
-                setManualModeChanged(prev => ({ ...prev, distance: true }));
-                setTimeout(() => setManualModeChanged(prev => ({ ...prev, distance: false })), 1000);
-              }
-              if (newConfig.gaps_manual_mode !== config.gaps_manual_mode) {
-                setManualModeChanged(prev => ({ ...prev, gap: true }));
-                setTimeout(() => setManualModeChanged(prev => ({ ...prev, gap: false })), 1000);
-              }
-            }
-            
-            setConfig(newConfig);
+              return newConfig;
+            });
           }
         }
       )
@@ -413,7 +414,7 @@ const MotoOverlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [raceIdResolved, config]);
+  }, [raceIdResolved]);
 
   // Fetch moto GPS data
   useEffect(() => {
