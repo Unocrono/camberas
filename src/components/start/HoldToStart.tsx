@@ -147,10 +147,10 @@ export function HoldToStart({
         setProgress(1);
         clearTimers();
         
-        // Sonido doble y vibración de confirmación
+        // Sonido doble y vibración de 300ms al completar
         playDoubleConfirmSound();
         if ('vibrate' in navigator) {
-          navigator.vibrate([50, 30, 100]);
+          navigator.vibrate(300);
         }
         
         onStart(capturedTimestamp.current);
