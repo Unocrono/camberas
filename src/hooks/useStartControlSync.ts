@@ -137,13 +137,36 @@ export function useStartControlSync() {
       return { ...prev, pendingStarts: newPendingStarts };
     });
     
-    // Intentar sincronizar inmediatamente si hay conexión
-    if (navigator.onLine) {
-      setTimeout(() => syncPendingStarts(), 100);
-    }
-    
     return newStart;
   }, [state.pendingStarts]);
+
+  // Sincronizar inmediatamente (para nuevas salidas)
+  const syncImmediately = useCallback(async (start: PendingStart): Promise<boolean> => {
+    if (!navigator.onLine) {
+      toast({
+        title: "Sin conexión",
+        description: "La salida se sincronizará cuando haya conexión",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    setState(prev => ({ ...prev, isSyncing: true }));
+    const success = await syncSingleStart(start);
+    setState(prev => ({ ...prev, isSyncing: false }));
+    
+    if (success) {
+      // Limpiar de la cola después de sincronizar
+      setTimeout(() => {
+        setState(prev => ({
+          ...prev,
+          pendingStarts: prev.pendingStarts.filter(p => p.id !== start.id)
+        }));
+      }, 2000);
+    }
+    
+    return success;
+  }, [toast]);
 
   // Sincronizar un registro individual
   const syncSingleStart = async (start: PendingStart): Promise<boolean> => {
@@ -341,6 +364,7 @@ export function useStartControlSync() {
     isSyncing: state.isSyncing,
     lastSyncAttempt: state.lastSyncAttempt,
     registerStart,
+    syncImmediately,
     syncPendingStarts,
     forcSync,
     getStartStatus

@@ -58,7 +58,7 @@ export default function StartControl() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   const { offset, lastSync, isCalculating, calibrationProgress, error: ntpError, calculateOffset, correctTimestamp } = useNtpOffset();
-  const { isOnline, pendingCount, isSyncing, lastSyncAttempt, registerStart, forcSync, getStartStatus } = useStartControlSync();
+  const { isOnline, pendingCount, isSyncing, lastSyncAttempt, registerStart, syncImmediately, forcSync, getStartStatus } = useStartControlSync();
 
   // Reloj en tiempo real
   useEffect(() => {
@@ -213,27 +213,40 @@ export default function StartControl() {
     }
   }, [isSyncing, pendingCount, selectedRaceId]);
 
-  const handleStart = (rawTimestamp: number) => {
+  const handleStart = async (rawTimestamp: number) => {
     if (selectedDistanceIds.length === 0) {
       toast({ title: 'Selecciona al menos un evento', variant: 'destructive' });
       return;
     }
 
     const correctedTimestamp = correctTimestamp(rawTimestamp);
-    registerStart(selectedRaceId, selectedDistanceIds, correctedTimestamp);
+    const pendingStart = registerStart(selectedRaceId, selectedDistanceIds, correctedTimestamp);
     
-    toast({
-      title: '¡Salida registrada!',
-      description: `${selectedDistanceIds.length} evento(s) a las ${new Date(correctedTimestamp).toLocaleTimeString('es-ES')}`
-    });
+    // Sincronizar inmediatamente
+    const success = await syncImmediately(pendingStart);
+    
+    if (success) {
+      toast({
+        title: '¡Salida registrada!',
+        description: `${selectedDistanceIds.length} evento(s) a las ${new Date(correctedTimestamp).toLocaleTimeString('es-ES')}`
+      });
+    }
 
     setSelectedDistanceIds([]);
   };
 
-  const handleEditStart = (distanceId: string, waveId: string, newTimeISO: string) => {
+  const handleEditStart = async (distanceId: string, waveId: string, newTimeISO: string) => {
     const newTimestamp = new Date(newTimeISO).getTime();
-    registerStart(selectedRaceId, [distanceId], newTimestamp, true, [waveId]);
-    toast({ title: 'Corrección registrada' });
+    const pendingStart = registerStart(selectedRaceId, [distanceId], newTimestamp, true, [waveId]);
+    
+    // Sincronizar inmediatamente la edición
+    const success = await syncImmediately(pendingStart);
+    
+    if (success) {
+      toast({ title: 'Corrección guardada' });
+    } else {
+      toast({ title: 'Corrección pendiente', description: 'Se sincronizará cuando haya conexión' });
+    }
   };
 
   // Ya no bloqueamos la pantalla durante la calibración - ahora se muestra en el badge
