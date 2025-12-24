@@ -273,6 +273,7 @@ const MotoOverlay = () => {
   const prevManualMode = useRef({ speed: false, distance: false, gap: false });
   const dataBuffer = useRef<BufferedData[]>([]);
   const [isVisible, setIsVisible] = useState(false);
+  const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
 
   // Spring configuration for TV-like animations
   const springConfig = {
@@ -358,14 +359,14 @@ const MotoOverlay = () => {
     compare_moto_id: null,
   };
 
-  // Fetch config
+  // Fetch config and wave start times
   useEffect(() => {
     if (!raceIdResolved) return;
 
     const fetchConfig = async () => {
       const { data, error } = await supabase
         .from("overlay_config")
-        .select("*")
+        .select("*, active_wave_ids")
         .eq("race_id", raceIdResolved)
         .maybeSingle();
 
@@ -374,6 +375,22 @@ const MotoOverlay = () => {
         setConfig(defaultConfig);
       } else if (data) {
         setConfig(data as unknown as OverlayConfig);
+        
+        // Fetch wave start time if active_wave_ids is set
+        const activeWaveIds = data.active_wave_ids as string[] | null;
+        if (activeWaveIds && activeWaveIds.length > 0) {
+          const { data: waveData } = await supabase
+            .from("race_waves")
+            .select("start_time")
+            .in("id", activeWaveIds)
+            .order("start_time", { ascending: true })
+            .limit(1)
+            .single();
+          
+          if (waveData?.start_time) {
+            setWaveStartTime(new Date(waveData.start_time));
+          }
+        }
       } else {
         // No config exists, use defaults
         setConfig(defaultConfig);
@@ -394,9 +411,26 @@ const MotoOverlay = () => {
           table: "overlay_config",
           filter: `race_id=eq.${raceIdResolved}`
         },
-        (payload) => {
+        async (payload) => {
           if (payload.new) {
-            const newConfig = payload.new as unknown as OverlayConfig;
+            const newConfig = payload.new as unknown as OverlayConfig & { active_wave_ids?: string[] };
+            
+            // Fetch updated wave start time if active_wave_ids changed
+            if (newConfig.active_wave_ids && newConfig.active_wave_ids.length > 0) {
+              const { data: waveData } = await supabase
+                .from("race_waves")
+                .select("start_time")
+                .in("id", newConfig.active_wave_ids)
+                .order("start_time", { ascending: true })
+                .limit(1)
+                .single();
+              
+              if (waveData?.start_time) {
+                setWaveStartTime(new Date(waveData.start_time));
+              }
+            } else {
+              setWaveStartTime(null);
+            }
             
             // Detect manual mode changes for glow effect
             setConfig(prevConfig => {
@@ -414,7 +448,7 @@ const MotoOverlay = () => {
                   setTimeout(() => setManualModeChanged(prev => ({ ...prev, gap: false })), 1000);
                 }
               }
-              return newConfig;
+              return newConfig as unknown as OverlayConfig;
             });
           }
         }
@@ -802,9 +836,9 @@ const MotoOverlay = () => {
           )}
         </AnimatePresence>
 
-        {/* Distance to Next Checkpoint */}
+        {/* Distance to Next Checkpoint - Always show if gaps visible and data available */}
         <AnimatePresence mode="wait">
-          {isVisible && config.distance_visible && displayData.nextCheckpointName && (
+          {isVisible && config.gaps_visible && displayData.distanceToNextCheckpoint !== "--" && (
             <motion.div
               key="distance-to-checkpoint"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -813,20 +847,20 @@ const MotoOverlay = () => {
               transition={springConfig}
               style={{
                 position: "absolute",
-                left: `${distanceX + 25}%`,
-                top: `${distanceY}%`,
-                transform: `translate(-50%, -50%) scale(${distanceScale})`,
-                fontFamily: getFontFamily(config.distance_font),
-                fontSize: `${config.distance_size * 0.8}px`,
-                color: config.distance_color,
-                backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
+                left: `${gapsX}%`,
+                top: `${gapsY}%`,
+                transform: `translate(-50%, -50%) scale(${gapsScale})`,
+                fontFamily: getFontFamily(config.gaps_font),
+                fontSize: `${config.gaps_size}px`,
+                color: config.gaps_color,
+                backgroundColor: hexToRgba(config.gaps_bg_color, config.gaps_bg_opacity ?? 0.7),
                 padding: "10px 20px",
                 borderRadius: "8px",
                 textAlign: "center",
               }}
             >
               <div style={{ fontSize: "0.45em", opacity: 0.7, marginBottom: "2px", whiteSpace: "nowrap" }}>
-                → {displayData.nextCheckpointName}
+                {displayData.nextCheckpointName ? `→ ${displayData.nextCheckpointName}` : "Próximo control"}
               </div>
               <AnimatedNumber 
                 value={parseNumericValue(displayData.distanceToNextCheckpoint)} 
@@ -894,7 +928,7 @@ const MotoOverlay = () => {
                 borderRadius: "8px",
               }}
             >
-              <ClockDisplay />
+              <RaceTimeDisplay startTime={waveStartTime} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -903,25 +937,54 @@ const MotoOverlay = () => {
   );
 };
 
-// Clock display component
-const ClockDisplay = () => {
-  const [time, setTime] = useState(new Date());
+// Race time display component - shows elapsed time since wave start
+const RaceTimeDisplay = ({ startTime }: { startTime: Date | null }) => {
+  const [elapsed, setElapsed] = useState("00:00:00");
   
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTime(new Date());
-    }, 1000);
+    if (!startTime) {
+      // If no start time, show current time
+      const updateClock = () => {
+        const now = new Date();
+        setElapsed(now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      };
+      updateClock();
+      const interval = setInterval(updateClock, 1000);
+      return () => clearInterval(interval);
+    }
+    
+    const updateElapsed = () => {
+      const now = new Date();
+      const diff = now.getTime() - startTime.getTime();
+      
+      if (diff < 0) {
+        // Race hasn't started yet
+        setElapsed("--:--:--");
+        return;
+      }
+      
+      const hours = Math.floor(diff / 3600000);
+      const minutes = Math.floor((diff % 3600000) / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+      
+      setElapsed(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      );
+    };
+    
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [startTime]);
   
   return (
     <motion.span
-      key={time.getSeconds()}
+      key={elapsed}
       initial={{ opacity: 0.8 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
     >
-      {time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      {elapsed}
     </motion.span>
   );
 };
