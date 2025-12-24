@@ -126,9 +126,9 @@ export function HoldToStart({
     // Sonido al tocar
     playTouchSound();
     
-    // Vibración inicial
+    // Vibración inicial (200ms)
     if ('vibrate' in navigator) {
-      navigator.vibrate(10);
+      navigator.vibrate(200);
     }
     
     // Actualizar progreso cada 50ms
