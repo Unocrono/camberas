@@ -3,7 +3,8 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 import { Hand, Radio } from "lucide-react";
-import SpeedometerGauge from "@/components/overlays/SpeedometerGauge";
+import SpeedDisplay from "@/components/overlays/SpeedDisplay";
+
 interface OverlayConfig {
   delay_seconds: number;
   layout: "horizontal" | "vertical" | "square";
@@ -57,6 +58,9 @@ interface OverlayConfig {
 interface MotoData {
   speed: number;
   distance_from_start: number;
+  distance_to_finish: number | null;
+  distance_to_next_checkpoint: number | null;
+  next_checkpoint_name: string | null;
   moto_name: string;
   color: string;
 }
@@ -64,6 +68,9 @@ interface MotoData {
 interface BufferedData {
   speed: string;
   distance: string;
+  distanceToFinish: string;
+  distanceToNextCheckpoint: string;
+  nextCheckpointName: string;
   gap: string;
   timestamp: number;
   isManualSpeed: boolean;
@@ -250,6 +257,9 @@ const MotoOverlay = () => {
   const [displayData, setDisplayData] = useState<BufferedData>({
     speed: "0",
     distance: "0.0",
+    distanceToFinish: "--",
+    distanceToNextCheckpoint: "--",
+    nextCheckpointName: "",
     gap: "",
     timestamp: Date.now(),
     isManualSpeed: false,
@@ -426,6 +436,9 @@ const MotoOverlay = () => {
         .select(`
           speed,
           distance_from_start,
+          distance_to_finish,
+          distance_to_next_checkpoint,
+          next_checkpoint_name,
           race_motos!inner (
             name,
             name_tv,
@@ -442,6 +455,9 @@ const MotoOverlay = () => {
         setMotoData({
           speed: data.speed || 0,
           distance_from_start: data.distance_from_start || 0,
+          distance_to_finish: data.distance_to_finish,
+          distance_to_next_checkpoint: data.distance_to_next_checkpoint,
+          next_checkpoint_name: data.next_checkpoint_name,
           moto_name: motoInfo?.name_tv || motoInfo?.name || "",
           color: motoInfo?.color || "#FF5722"
         });
@@ -469,7 +485,10 @@ const MotoOverlay = () => {
             setMotoData(prev => prev ? {
               ...prev,
               speed: newData.speed || 0,
-              distance_from_start: newData.distance_from_start || 0
+              distance_from_start: newData.distance_from_start || 0,
+              distance_to_finish: newData.distance_to_finish,
+              distance_to_next_checkpoint: newData.distance_to_next_checkpoint,
+              next_checkpoint_name: newData.next_checkpoint_name
             } : null);
             
             setIsOffRoute(newData.distance_from_start === null || newData.distance_from_start < 0);
@@ -512,6 +531,9 @@ const MotoOverlay = () => {
         setCompareMotoData({
           speed: data.speed || 0,
           distance_from_start: data.distance_from_start || 0,
+          distance_to_finish: null,
+          distance_to_next_checkpoint: null,
+          next_checkpoint_name: null,
           moto_name: motoInfo?.name_tv || motoInfo?.name || "",
           color: motoInfo?.color || "#FF5722"
         });
@@ -596,9 +618,27 @@ const MotoOverlay = () => {
       gap = (diff >= 0 ? "+" : "") + diffKm.toFixed(2) + " km";
     }
 
+    // Distance to finish and next checkpoint
+    let distanceToFinish = "--";
+    let distanceToNextCheckpoint = "--";
+    let nextCheckpointName = "";
+    
+    if (motoData?.distance_to_finish != null) {
+      distanceToFinish = motoData.distance_to_finish.toFixed(1);
+    }
+    if (motoData?.distance_to_next_checkpoint != null) {
+      distanceToNextCheckpoint = motoData.distance_to_next_checkpoint.toFixed(1);
+    }
+    if (motoData?.next_checkpoint_name) {
+      nextCheckpointName = motoData.next_checkpoint_name;
+    }
+
     addToBuffer({
       speed,
       distance,
+      distanceToFinish,
+      distanceToNextCheckpoint,
+      nextCheckpointName,
       gap,
       timestamp: Date.now(),
       isManualSpeed,
@@ -700,13 +740,13 @@ const MotoOverlay = () => {
                 transform: `translate(-50%, -50%) scale(${speedScale})`,
               }}
             >
-              <SpeedometerGauge
+              <SpeedDisplay
                 speed={parseNumericValue(displayData.speed)}
-                maxSpeed={config.speed_display_type === "pace" ? 15 : 120}
-                size={config.speed_size * 3}
+                size={config.speed_size}
                 color={config.speed_color}
                 bgColor={config.speed_bg_color}
                 bgOpacity={config.speed_bg_opacity ?? 0.7}
+                fontFamily={getFontFamily(config.speed_font)}
                 isManual={displayData.isManualSpeed}
                 showBadge={false}
                 displayType={config.speed_display_type || "speed"}
@@ -716,11 +756,11 @@ const MotoOverlay = () => {
           )}
         </AnimatePresence>
 
-        {/* Distance */}
+        {/* Distance to Finish (A Meta) */}
         <AnimatePresence mode="wait">
           {isVisible && config.distance_visible && (
             <motion.div
-              key="distance"
+              key="distance-to-finish"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
@@ -736,8 +776,10 @@ const MotoOverlay = () => {
                 backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
                 padding: "12px 24px",
                 borderRadius: "8px",
+                textAlign: "center",
               }}
             >
+              <div style={{ fontSize: "0.4em", opacity: 0.7, marginBottom: "2px" }}>A META</div>
               {displayData.isManualDistance ? (
                 <AnimatedText 
                   value={displayData.distance} 
@@ -747,7 +789,7 @@ const MotoOverlay = () => {
                 />
               ) : (
                 <AnimatedNumber 
-                  value={parseNumericValue(displayData.distance)} 
+                  value={parseNumericValue(displayData.distanceToFinish)} 
                   decimals={1}
                   suffix=" "
                   style={{}}
@@ -755,6 +797,45 @@ const MotoOverlay = () => {
                   showGlow={manualModeChanged.distance}
                 />
               )}
+              <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Distance to Next Checkpoint */}
+        <AnimatePresence mode="wait">
+          {isVisible && config.distance_visible && displayData.nextCheckpointName && (
+            <motion.div
+              key="distance-to-checkpoint"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springConfig}
+              style={{
+                position: "absolute",
+                left: `${distanceX + 25}%`,
+                top: `${distanceY}%`,
+                transform: `translate(-50%, -50%) scale(${distanceScale})`,
+                fontFamily: getFontFamily(config.distance_font),
+                fontSize: `${config.distance_size * 0.8}px`,
+                color: config.distance_color,
+                backgroundColor: hexToRgba(config.distance_bg_color, config.distance_bg_opacity ?? 0.7),
+                padding: "10px 20px",
+                borderRadius: "8px",
+                textAlign: "center",
+              }}
+            >
+              <div style={{ fontSize: "0.45em", opacity: 0.7, marginBottom: "2px", whiteSpace: "nowrap" }}>
+                → {displayData.nextCheckpointName}
+              </div>
+              <AnimatedNumber 
+                value={parseNumericValue(displayData.distanceToNextCheckpoint)} 
+                decimals={1}
+                suffix=" "
+                style={{}}
+                isManual={false}
+                showGlow={false}
+              />
               <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
             </motion.div>
           )}
@@ -790,8 +871,58 @@ const MotoOverlay = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Clock */}
+        <AnimatePresence mode="wait">
+          {isVisible && config.clock_visible && (
+            <motion.div
+              key="clock"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={springConfig}
+              style={{
+                position: "absolute",
+                left: `${clockX}%`,
+                top: `${clockY}%`,
+                transform: `translate(-50%, -50%) scale(${clockScale})`,
+                fontFamily: getFontFamily(config.clock_font),
+                fontSize: `${config.clock_size}px`,
+                color: config.clock_color,
+                backgroundColor: hexToRgba(config.clock_bg_color, config.clock_bg_opacity ?? 0.7),
+                padding: "8px 20px",
+                borderRadius: "8px",
+              }}
+            >
+              <ClockDisplay />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
+  );
+};
+
+// Clock display component
+const ClockDisplay = () => {
+  const [time, setTime] = useState(new Date());
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <motion.span
+      key={time.getSeconds()}
+      initial={{ opacity: 0.8 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
+      {time.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+    </motion.span>
   );
 };
 
