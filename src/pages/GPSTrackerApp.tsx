@@ -1062,7 +1062,9 @@ const GPSTrackerApp = () => {
   }
 
   const currentRaceId = appMode === 'moto' ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
-  const currentDistanceId = appMode === 'runner' ? selectedRegistration?.race_distance_id : undefined;
+  const currentDistanceId = appMode === 'moto' 
+    ? selectedMotoAssignment?.race_distance_id 
+    : selectedRegistration?.race_distance_id;
 
   // Moto color for theming
   const motoColor = selectedMotoAssignment?.moto.color || CAMBERAS_PINK;
