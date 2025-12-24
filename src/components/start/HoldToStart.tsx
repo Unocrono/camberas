@@ -36,8 +36,8 @@ export function HoldToStart({
     }
   }, []);
 
-  // Sonido de confirmación
-  const playConfirmSound = useCallback(() => {
+  // Sonido al tocar (inicio)
+  const playTouchSound = useCallback(() => {
     try {
       if (!audioContext.current) {
         audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -49,14 +49,51 @@ export function HoldToStart({
       oscillator.connect(gainNode);
       gainNode.connect(ctx.destination);
       
-      oscillator.frequency.setValueAtTime(880, ctx.currentTime); // La nota A5
+      oscillator.frequency.setValueAtTime(440, ctx.currentTime); // La nota A4
       oscillator.type = 'sine';
       
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+      gainNode.gain.setValueAtTime(0.2, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
       
       oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.15);
+      oscillator.stop(ctx.currentTime + 0.1);
+    } catch (e) {
+      console.log('Audio not available');
+    }
+  }, []);
+
+  // Sonido doble de confirmación (al completar)
+  const playDoubleConfirmSound = useCallback(() => {
+    try {
+      if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioContext.current;
+      
+      // Primer sonido
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.frequency.setValueAtTime(880, ctx.currentTime);
+      osc1.type = 'sine';
+      gain1.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.12);
+      
+      // Segundo sonido (más agudo, después de 150ms)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.frequency.setValueAtTime(1100, ctx.currentTime + 0.15);
+      osc2.type = 'sine';
+      gain2.gain.setValueAtTime(0.01, ctx.currentTime);
+      gain2.gain.setValueAtTime(0.3, ctx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.27);
+      osc2.start(ctx.currentTime + 0.15);
+      osc2.stop(ctx.currentTime + 0.27);
     } catch (e) {
       console.log('Audio not available');
     }
@@ -86,6 +123,9 @@ export function HoldToStart({
     setIsHolding(true);
     setProgress(0);
     
+    // Sonido al tocar
+    playTouchSound();
+    
     // Vibración inicial
     if ('vibrate' in navigator) {
       navigator.vibrate(10);
@@ -107,8 +147,8 @@ export function HoldToStart({
         setProgress(1);
         clearTimers();
         
-        // Sonido y vibración de confirmación
-        playConfirmSound();
+        // Sonido doble y vibración de confirmación
+        playDoubleConfirmSound();
         if ('vibrate' in navigator) {
           navigator.vibrate([50, 30, 100]);
         }
@@ -117,7 +157,7 @@ export function HoldToStart({
         capturedTimestamp.current = null;
       }
     }, HOLD_DURATION);
-  }, [disabled, isCompleted, clearTimers, playConfirmSound, onStart]);
+  }, [disabled, isCompleted, clearTimers, playTouchSound, playDoubleConfirmSound, onStart]);
 
   const handlePressEnd = useCallback(() => {
     if (!isCompleted) {
