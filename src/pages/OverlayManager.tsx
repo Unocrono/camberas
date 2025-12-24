@@ -42,6 +42,13 @@ interface Moto {
   name: string;
   name_tv: string | null;
   color: string;
+  race_distance_id: string | null;
+}
+
+interface RaceDistance {
+  id: string;
+  name: string;
+  distance_km: number;
 }
 
 interface Wave {
@@ -170,9 +177,11 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
 
 const OverlayManager = () => {
   const [races, setRaces] = useState<Race[]>([]);
+  const [raceDistances, setRaceDistances] = useState<RaceDistance[]>([]);
   const [motos, setMotos] = useState<Moto[]>([]);
   const [waves, setWaves] = useState<Wave[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>("");
+  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<OverlayConfig | null>(null);
@@ -185,11 +194,32 @@ const OverlayManager = () => {
 
   useEffect(() => {
     if (selectedRace) {
+      fetchRaceDistances();
       fetchMotos();
       fetchWaves();
       fetchConfig();
     }
   }, [selectedRace]);
+
+  const fetchRaceDistances = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km")
+        .eq("race_id", selectedRace)
+        .order("distance_km");
+
+      if (error) throw error;
+      setRaceDistances(data || []);
+      
+      // Auto-select first distance if none selected
+      if (data && data.length > 0 && !selectedDistanceId) {
+        setSelectedDistanceId(data[0].id);
+      }
+    } catch (error) {
+      console.error("Error fetching race distances:", error);
+    }
+  };
 
   const fetchRaces = async () => {
     try {
@@ -212,7 +242,7 @@ const OverlayManager = () => {
     try {
       const { data, error } = await supabase
         .from("race_motos")
-        .select("id, name, name_tv, color")
+        .select("id, name, name_tv, color, race_distance_id")
         .eq("race_id", selectedRace)
         .eq("is_active", true)
         .order("moto_order");
@@ -607,6 +637,36 @@ const OverlayManager = () => {
 
             {/* Control Tab */}
             <TabsContent value="control" className="space-y-6">
+              {/* Event/Distance Selection */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sliders className="h-5 w-5" />
+                    Evento / Distancia
+                  </CardTitle>
+                  <CardDescription>
+                    Selecciona el evento para calcular distancias correctamente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Select 
+                    value={selectedDistanceId} 
+                    onValueChange={setSelectedDistanceId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un evento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {raceDistances.map((distance) => (
+                        <SelectItem key={distance.id} value={distance.id}>
+                          {distance.name} ({distance.distance_km} km)
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
               <div className="grid md:grid-cols-2 gap-6">
                 {/* Moto Selection */}
                 <Card>
@@ -628,7 +688,9 @@ const OverlayManager = () => {
                         <SelectValue placeholder="Ninguna moto seleccionada" />
                       </SelectTrigger>
                       <SelectContent>
-                        {motos.map((moto) => (
+                        {motos
+                          .filter(moto => !selectedDistanceId || moto.race_distance_id === selectedDistanceId || !moto.race_distance_id)
+                          .map((moto) => (
                           <SelectItem key={moto.id} value={moto.id}>
                             <div className="flex items-center gap-2">
                               <div 

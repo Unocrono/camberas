@@ -1421,14 +1421,6 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <Navigation className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-2xl font-mono font-bold">{formatDistance(stats.distance)}</div>
-              <div className="text-xs text-muted-foreground">Distancia</div>
-            </CardContent>
-          </Card>
-          
           <Card 
             className="cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => setShowPace(!showPace)}
