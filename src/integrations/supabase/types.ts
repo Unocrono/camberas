@@ -467,11 +467,15 @@ export type Database = {
           battery_level: number | null
           created_at: string
           distance_from_start: number | null
+          distance_to_finish: number | null
+          distance_to_next_checkpoint: number | null
           heading: number | null
           id: string
           latitude: number
           longitude: number
           moto_id: string
+          next_checkpoint_id: string | null
+          next_checkpoint_name: string | null
           race_id: string
           speed: number | null
           timestamp: string
@@ -482,11 +486,15 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
+          distance_to_finish?: number | null
+          distance_to_next_checkpoint?: number | null
           heading?: number | null
           id?: string
           latitude: number
           longitude: number
           moto_id: string
+          next_checkpoint_id?: string | null
+          next_checkpoint_name?: string | null
           race_id: string
           speed?: number | null
           timestamp?: string
@@ -497,11 +505,15 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
+          distance_to_finish?: number | null
+          distance_to_next_checkpoint?: number | null
           heading?: number | null
           id?: string
           latitude?: number
           longitude?: number
           moto_id?: string
+          next_checkpoint_id?: string | null
+          next_checkpoint_name?: string | null
           race_id?: string
           speed?: number | null
           timestamp?: string
@@ -512,6 +524,13 @@ export type Database = {
             columns: ["moto_id"]
             isOneToOne: false
             referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "moto_gps_tracking_next_checkpoint_id_fkey"
+            columns: ["next_checkpoint_id"]
+            isOneToOne: false
+            referencedRelation: "race_checkpoints"
             referencedColumns: ["id"]
           },
           {
