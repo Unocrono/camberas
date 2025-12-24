@@ -1451,50 +1451,44 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          {/* Distance to finish / Next checkpoint - for both runner and moto */}
+          {/* Distance to finish - for both runner and moto */}
           <Card style={appMode === 'moto' ? { borderColor: `${motoColor}30` } : undefined}>
             <CardContent className="pt-4 text-center">
               <Target className="h-5 w-5 mx-auto mb-1" style={appMode === 'moto' ? { color: motoColor } : undefined} />
-              
-              {/* For moto mode: show next checkpoint name + distance */}
-              {appMode === 'moto' && nextCheckpoint ? (
-                <>
-                  <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>
-                    {nextCheckpoint.distance_remaining_km.toFixed(1)} km
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
-                    → {nextCheckpoint.name}
-                  </div>
-                </>
-              ) : appMode === 'moto' && distanceToFinish !== null ? (
-                <>
-                  <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>
-                    {formatDistance(distanceToFinish * 1000)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">A meta</div>
-                </>
-              ) : appMode === 'moto' ? (
-                <>
-                  <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>--</div>
-                  <div className="text-xs text-muted-foreground">Sin datos GPS</div>
-                </>
-              ) : (
-                /* Runner mode: original behavior */
-                <>
-                  <div className="text-2xl font-mono font-bold">
-                    {distanceToFinish !== null 
-                      ? formatDistance(distanceToFinish * 1000)
-                      : selectedRegistration?.race_distances?.distance_km 
-                        ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
-                        : '--'}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {distanceToFinish !== null ? 'A meta (recorrido)' : 'A meta'}
-                  </div>
-                </>
-              )}
+              <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
+                {distanceToFinish !== null 
+                  ? formatDistance(distanceToFinish * 1000)
+                  : selectedRegistration?.race_distances?.distance_km 
+                    ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
+                    : '--'}
+              </div>
+              <div className="text-xs text-muted-foreground">A meta</div>
             </CardContent>
           </Card>
+
+          {/* Next checkpoint - only for moto mode */}
+          {appMode === 'moto' && (
+            <Card style={{ borderColor: `${motoColor}30` }}>
+              <CardContent className="pt-4 text-center">
+                <Navigation className="h-5 w-5 mx-auto mb-1" style={{ color: motoColor }} />
+                {nextCheckpoint ? (
+                  <>
+                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>
+                      {nextCheckpoint.distance_remaining_km.toFixed(1)} km
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
+                      → {nextCheckpoint.name}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>--</div>
+                    <div className="text-xs text-muted-foreground">Sin checkpoints</div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Mini Map */}
