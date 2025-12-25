@@ -106,6 +106,18 @@ interface OverlayConfig {
   clock_pos_x: number;
   clock_pos_y: number;
   clock_scale: number;
+  // Checkpoint element
+  checkpoint_font: string;
+  checkpoint_size: number;
+  checkpoint_color: string;
+  checkpoint_bg_color: string;
+  checkpoint_visible: boolean;
+  checkpoint_manual_mode: boolean;
+  checkpoint_manual_value: string | null;
+  checkpoint_bg_opacity: number;
+  checkpoint_pos_x: number;
+  checkpoint_pos_y: number;
+  checkpoint_scale: number;
   active_wave_ids: string[];
   selected_moto_id: string | null;
   compare_moto_id: string | null;
@@ -170,6 +182,18 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   clock_pos_x: 50,
   clock_pos_y: 10,
   clock_scale: 1.0,
+  // Checkpoint defaults
+  checkpoint_font: "Roboto Condensed",
+  checkpoint_size: 36,
+  checkpoint_color: "#FFFFFF",
+  checkpoint_bg_color: "#1a1a1a",
+  checkpoint_visible: true,
+  checkpoint_manual_mode: false,
+  checkpoint_manual_value: null,
+  checkpoint_bg_opacity: 0.7,
+  checkpoint_pos_x: 90,
+  checkpoint_pos_y: 85,
+  checkpoint_scale: 1.0,
   active_wave_ids: [],
   selected_moto_id: null,
   compare_moto_id: null,
@@ -846,7 +870,6 @@ const OverlayManager = () => {
               </Card>
             </TabsContent>
 
-            {/* Styles Tab - Visual Editor */}
             <TabsContent value="styles" className="space-y-6">
               <OverlayVisualEditor
                 speedConfig={{
@@ -893,6 +916,17 @@ const OverlayManager = () => {
                   posY: config.clock_pos_y,
                   scale: config.clock_scale || 1,
                 }}
+                checkpointConfig={{
+                  visible: config.checkpoint_visible ?? true,
+                  font: config.checkpoint_font ?? "Roboto Condensed",
+                  size: config.checkpoint_size ?? 36,
+                  color: config.checkpoint_color ?? "#FFFFFF",
+                  bgColor: config.checkpoint_bg_color ?? "#1a1a1a",
+                  bgOpacity: config.checkpoint_bg_opacity ?? 0.7,
+                  posX: config.checkpoint_pos_x ?? 90,
+                  posY: config.checkpoint_pos_y ?? 85,
+                  scale: config.checkpoint_scale ?? 1,
+                }}
                 onSpeedChange={(updates) => {
                   if (updates.visible !== undefined) updateConfig("speed_visible", updates.visible);
                   if (updates.font !== undefined) updateConfig("speed_font", updates.font);
@@ -932,6 +966,16 @@ const OverlayManager = () => {
                   if (updates.posX !== undefined) updateConfig("clock_pos_x", updates.posX);
                   if (updates.posY !== undefined) updateConfig("clock_pos_y", updates.posY);
                   if (updates.scale !== undefined) updateConfig("clock_scale", updates.scale);
+                }}
+                onCheckpointChange={(updates) => {
+                  if (updates.visible !== undefined) updateConfig("checkpoint_visible", updates.visible);
+                  if (updates.font !== undefined) updateConfig("checkpoint_font", updates.font);
+                  if (updates.color !== undefined) updateConfig("checkpoint_color", updates.color);
+                  if (updates.bgColor !== undefined) updateConfig("checkpoint_bg_color", updates.bgColor);
+                  if (updates.bgOpacity !== undefined) updateConfig("checkpoint_bg_opacity", updates.bgOpacity);
+                  if (updates.posX !== undefined) updateConfig("checkpoint_pos_x", updates.posX);
+                  if (updates.posY !== undefined) updateConfig("checkpoint_pos_y", updates.posY);
+                  if (updates.scale !== undefined) updateConfig("checkpoint_scale", updates.scale);
                 }}
                 onSave={saveConfig}
                 saving={saving}

@@ -572,6 +572,17 @@ export type Database = {
       overlay_config: {
         Row: {
           active_wave_ids: Json | null
+          checkpoint_bg_color: string | null
+          checkpoint_bg_opacity: number | null
+          checkpoint_color: string | null
+          checkpoint_font: string | null
+          checkpoint_manual_mode: boolean | null
+          checkpoint_manual_value: string | null
+          checkpoint_pos_x: number | null
+          checkpoint_pos_y: number | null
+          checkpoint_scale: number | null
+          checkpoint_size: number | null
+          checkpoint_visible: boolean | null
           clock_bg_color: string | null
           clock_bg_opacity: number | null
           clock_color: string | null
@@ -626,6 +637,17 @@ export type Database = {
         }
         Insert: {
           active_wave_ids?: Json | null
+          checkpoint_bg_color?: string | null
+          checkpoint_bg_opacity?: number | null
+          checkpoint_color?: string | null
+          checkpoint_font?: string | null
+          checkpoint_manual_mode?: boolean | null
+          checkpoint_manual_value?: string | null
+          checkpoint_pos_x?: number | null
+          checkpoint_pos_y?: number | null
+          checkpoint_scale?: number | null
+          checkpoint_size?: number | null
+          checkpoint_visible?: boolean | null
           clock_bg_color?: string | null
           clock_bg_opacity?: number | null
           clock_color?: string | null
@@ -680,6 +702,17 @@ export type Database = {
         }
         Update: {
           active_wave_ids?: Json | null
+          checkpoint_bg_color?: string | null
+          checkpoint_bg_opacity?: number | null
+          checkpoint_color?: string | null
+          checkpoint_font?: string | null
+          checkpoint_manual_mode?: boolean | null
+          checkpoint_manual_value?: string | null
+          checkpoint_pos_x?: number | null
+          checkpoint_pos_y?: number | null
+          checkpoint_scale?: number | null
+          checkpoint_size?: number | null
+          checkpoint_visible?: boolean | null
           clock_bg_color?: string | null
           clock_bg_opacity?: number | null
           clock_color?: string | null
