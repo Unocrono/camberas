@@ -109,6 +109,12 @@ interface Checkpoint {
   timing_point_id: string | null;
 }
 
+interface NextCheckpointInfo {
+  name: string;
+  distance_km: number;
+  distance_remaining_km: number;
+}
+
 type AppMode = 'runner' | 'moto';
 
 const GPSTrackerApp = () => {
@@ -166,6 +172,7 @@ const GPSTrackerApp = () => {
   const [trackPoints, setTrackPoints] = useState<GpxTrackPoint[]>([]);
   const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
   const [projectedDistanceKm, setProjectedDistanceKm] = useState<number | null>(null);
+  const [nextCheckpoint, setNextCheckpoint] = useState<NextCheckpointInfo | null>(null);
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -498,12 +505,62 @@ const GPSTrackerApp = () => {
     fetchRegistrations();
   }, [user, appMode]);
 
-  // Fetch checkpoints when registration is selected (runner mode)
+  // Fetch checkpoints when registration is selected (runner mode) or moto selected (moto mode)
   useEffect(() => {
-    if (!selectedRegistration || appMode === 'moto') {
+    // For moto mode, fetch checkpoints from the first distance with data
+    if (appMode === 'moto') {
+      if (!selectedMotoAssignment) {
+        setCheckpoints([]);
+        setNextCheckpoint(null);
+        return;
+      }
+
+      const fetchMotoCheckpoints = async () => {
+        try {
+          // First try to get checkpoints from the specific distance assigned to the moto
+          let distanceId = selectedMotoAssignment.race_distance_id;
+          
+          // If no specific distance, get the first distance with checkpoints
+          if (!distanceId) {
+            const { data: distances } = await supabase
+              .from('race_distances')
+              .select('id')
+              .eq('race_id', selectedMotoAssignment.race_id)
+              .limit(1)
+              .maybeSingle();
+            
+            distanceId = distances?.id;
+          }
+
+          if (!distanceId) {
+            setCheckpoints([]);
+            return;
+          }
+
+          const { data, error } = await supabase
+            .from('race_checkpoints')
+            .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
+            .eq('race_distance_id', distanceId)
+            .order('checkpoint_order', { ascending: true });
+
+          if (error) throw error;
+          setCheckpoints((data || []) as Checkpoint[]);
+        } catch (error) {
+          console.error('Error fetching moto checkpoints:', error);
+          setCheckpoints([]);
+        }
+      };
+
+      fetchMotoCheckpoints();
+      return;
+    }
+
+    // Runner mode
+    if (!selectedRegistration) {
       setCheckpoints([]);
       setPassedCheckpoints(new Set());
       passedCheckpointsRef.current = new Set();
+      setNextCheckpoint(null);
       return;
     }
 
@@ -513,8 +570,6 @@ const GPSTrackerApp = () => {
           .from('race_checkpoints')
           .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
           .eq('race_distance_id', selectedRegistration.race_distance_id)
-          .not('latitude', 'is', null)
-          .not('longitude', 'is', null)
           .order('checkpoint_order', { ascending: true });
 
         if (error) throw error;
@@ -525,7 +580,7 @@ const GPSTrackerApp = () => {
     };
 
     fetchCheckpoints();
-  }, [selectedRegistration, appMode]);
+  }, [selectedRegistration, selectedMotoAssignment, appMode]);
 
   // Load GPX track points (runner mode AND moto mode)
   useEffect(() => {
@@ -626,6 +681,41 @@ const GPSTrackerApp = () => {
     );
     setDistanceToFinish(distance);
   }, [currentPosition, trackPoints]);
+
+  // Calculate next checkpoint based on current projected distance (for moto mode primarily)
+  useEffect(() => {
+    if (checkpoints.length === 0 || projectedDistanceKm === null) {
+      setNextCheckpoint(null);
+      return;
+    }
+
+    // Find the next checkpoint that is ahead of the current position
+    // Sort by distance_km ascending and find the first one > projectedDistanceKm
+    const sortedCheckpoints = [...checkpoints].sort((a, b) => a.distance_km - b.distance_km);
+    
+    const next = sortedCheckpoints.find(cp => cp.distance_km > projectedDistanceKm);
+    
+    if (next) {
+      setNextCheckpoint({
+        name: next.name,
+        distance_km: next.distance_km,
+        distance_remaining_km: next.distance_km - projectedDistanceKm
+      });
+    } else {
+      // All checkpoints passed, show last one (Meta) or null
+      const lastCheckpoint = sortedCheckpoints[sortedCheckpoints.length - 1];
+      if (lastCheckpoint) {
+        const remaining = Math.max(0, lastCheckpoint.distance_km - projectedDistanceKm);
+        setNextCheckpoint({
+          name: lastCheckpoint.name,
+          distance_km: lastCheckpoint.distance_km,
+          distance_remaining_km: remaining
+        });
+      } else {
+        setNextCheckpoint(null);
+      }
+    }
+  }, [checkpoints, projectedDistanceKm]);
 
   // Elapsed time counter - uses wave start time for both runner and moto
   useEffect(() => {
@@ -1331,14 +1421,6 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="pt-4 text-center">
-              <Navigation className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-2xl font-mono font-bold">{formatDistance(stats.distance)}</div>
-              <div className="text-xs text-muted-foreground">Distancia</div>
-            </CardContent>
-          </Card>
-          
           <Card 
             className="cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => setShowPace(!showPace)}
@@ -1368,15 +1450,37 @@ const GPSTrackerApp = () => {
               <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
                 {distanceToFinish !== null 
                   ? formatDistance(distanceToFinish * 1000)
-                  : appMode === 'runner' && selectedRegistration?.race_distances?.distance_km 
+                  : selectedRegistration?.race_distances?.distance_km 
                     ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
                     : '--'}
               </div>
-              <div className="text-xs text-muted-foreground">
-                {distanceToFinish !== null ? 'A meta (recorrido)' : 'A meta'}
-              </div>
+              <div className="text-xs text-muted-foreground">A meta</div>
             </CardContent>
           </Card>
+
+          {/* Next checkpoint - only for moto mode */}
+          {appMode === 'moto' && (
+            <Card style={{ borderColor: `${motoColor}30` }}>
+              <CardContent className="pt-4 text-center">
+                <Navigation className="h-5 w-5 mx-auto mb-1" style={{ color: motoColor }} />
+                {nextCheckpoint ? (
+                  <>
+                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>
+                      {nextCheckpoint.distance_remaining_km.toFixed(1)} km
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
+                      → {nextCheckpoint.name}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>--</div>
+                    <div className="text-xs text-muted-foreground">Sin checkpoints</div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Mini Map */}
