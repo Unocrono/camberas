@@ -383,14 +383,14 @@ const MotoOverlay = () => {
     compare_moto_id: null,
   };
 
-  // Fetch config and wave start times
+  // Fetch config
   useEffect(() => {
     if (!raceIdResolved) return;
 
     const fetchConfig = async () => {
       const { data, error } = await supabase
         .from("overlay_config")
-        .select("*, active_wave_ids")
+        .select("*")
         .eq("race_id", raceIdResolved)
         .maybeSingle();
 
@@ -399,22 +399,6 @@ const MotoOverlay = () => {
         setConfig(defaultConfig);
       } else if (data) {
         setConfig(data as unknown as OverlayConfig);
-        
-        // Fetch wave start time if active_wave_ids is set
-        const activeWaveIds = data.active_wave_ids as string[] | null;
-        if (activeWaveIds && activeWaveIds.length > 0) {
-          const { data: waveData } = await supabase
-            .from("race_waves")
-            .select("start_time")
-            .in("id", activeWaveIds)
-            .order("start_time", { ascending: true })
-            .limit(1)
-            .single();
-          
-          if (waveData?.start_time) {
-            setWaveStartTime(new Date(waveData.start_time));
-          }
-        }
       } else {
         // No config exists, use defaults
         setConfig(defaultConfig);
@@ -437,24 +421,7 @@ const MotoOverlay = () => {
         },
         async (payload) => {
           if (payload.new) {
-            const newConfig = payload.new as unknown as OverlayConfig & { active_wave_ids?: string[] };
-            
-            // Fetch updated wave start time if active_wave_ids changed
-            if (newConfig.active_wave_ids && newConfig.active_wave_ids.length > 0) {
-              const { data: waveData } = await supabase
-                .from("race_waves")
-                .select("start_time")
-                .in("id", newConfig.active_wave_ids)
-                .order("start_time", { ascending: true })
-                .limit(1)
-                .single();
-              
-              if (waveData?.start_time) {
-                setWaveStartTime(new Date(waveData.start_time));
-              }
-            } else {
-              setWaveStartTime(null);
-            }
+            const newConfig = payload.new as unknown as OverlayConfig;
             
             // Detect manual mode changes for glow effect
             setConfig(prevConfig => {
@@ -483,6 +450,47 @@ const MotoOverlay = () => {
       supabase.removeChannel(channel);
     };
   }, [raceIdResolved]);
+
+  // Fetch wave start time based on selected_moto's race_distance_id
+  useEffect(() => {
+    if (!raceIdResolved || !config?.selected_moto_id) {
+      setWaveStartTime(null);
+      return;
+    }
+
+    const fetchWaveStartTime = async () => {
+      // First get the moto's race_distance_id
+      const { data: motoData, error: motoError } = await supabase
+        .from("race_motos")
+        .select("race_distance_id")
+        .eq("id", config.selected_moto_id)
+        .single();
+
+      if (motoError || !motoData?.race_distance_id) {
+        console.error("Error fetching moto race_distance_id:", motoError);
+        setWaveStartTime(null);
+        return;
+      }
+
+      // Then get the wave for that race_distance
+      const { data: waveData, error: waveError } = await supabase
+        .from("race_waves")
+        .select("start_time")
+        .eq("race_distance_id", motoData.race_distance_id)
+        .single();
+
+      if (waveError || !waveData?.start_time) {
+        console.error("Error fetching wave start_time:", waveError);
+        setWaveStartTime(null);
+        return;
+      }
+
+      console.log("[Overlay] Wave start time for moto event:", waveData.start_time);
+      setWaveStartTime(new Date(waveData.start_time));
+    };
+
+    fetchWaveStartTime();
+  }, [raceIdResolved, config?.selected_moto_id]);
 
   // Fetch moto GPS data
   useEffect(() => {
