@@ -173,6 +173,7 @@ const GPSTrackerApp = () => {
   const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
   const [projectedDistanceKm, setProjectedDistanceKm] = useState<number | null>(null);
   const [nextCheckpoint, setNextCheckpoint] = useState<NextCheckpointInfo | null>(null);
+  const [waveStartTime, setWaveStartTime] = useState<string | null>(null);
   
   // Refs
   const watchIdRef = useRef<string | null>(null);
@@ -717,41 +718,95 @@ const GPSTrackerApp = () => {
     }
   }, [checkpoints, projectedDistanceKm]);
 
-  // Elapsed time counter - uses wave start time for both runner and moto
+  // Subscribe to wave_start_time changes in real-time
   useEffect(() => {
-    if (!isTracking) return;
+    const distanceId = appMode === 'runner' 
+      ? selectedRegistration?.race_distance_id 
+      : selectedMotoAssignment?.race_distance_id;
+    const raceId = appMode === 'runner'
+      ? selectedRegistration?.race_id
+      : selectedMotoAssignment?.race_id;
     
-    const calculateElapsed = () => {
-      // Get wave start time depending on mode
-      let eventStartTime: string | null | undefined = null;
+    if (!distanceId && !raceId) {
+      setWaveStartTime(null);
+      return;
+    }
+
+    // Initial fetch
+    const fetchWaveStartTime = async () => {
+      let query = supabase.from('race_waves').select('start_time');
       
-      if (appMode === 'runner') {
-        eventStartTime = selectedRegistration?.wave_start_time;
-      } else if (appMode === 'moto') {
-        eventStartTime = selectedMotoAssignment?.wave_start_time;
+      if (distanceId) {
+        query = query.eq('race_distance_id', distanceId);
+      } else if (raceId) {
+        query = query.eq('race_id', raceId);
       }
       
-      if (eventStartTime) {
-        const startDate = new Date(eventStartTime);
+      const { data, error } = await query.order('start_time', { ascending: true }).limit(1).maybeSingle();
+      
+      if (!error && data?.start_time) {
+        setWaveStartTime(data.start_time);
+      } else {
+        setWaveStartTime(null);
+      }
+    };
+    
+    fetchWaveStartTime();
+
+    // Real-time subscription
+    const channelFilter = distanceId 
+      ? `race_distance_id=eq.${distanceId}`
+      : `race_id=eq.${raceId}`;
+    
+    const channel = supabase
+      .channel(`wave-start-${distanceId || raceId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'race_waves',
+          filter: channelFilter
+        },
+        (payload) => {
+          console.log('Wave start time changed:', payload);
+          const newStartTime = (payload.new as any)?.start_time;
+          if (newStartTime) {
+            setWaveStartTime(newStartTime);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedRegistration?.race_distance_id, selectedRegistration?.race_id, selectedMotoAssignment?.race_distance_id, selectedMotoAssignment?.race_id, appMode]);
+
+  // Elapsed time counter - uses wave start time for both runner and moto
+  useEffect(() => {
+    // Calculate elapsed time based on wave start time
+    const calculateElapsed = () => {
+      if (waveStartTime) {
+        const startDate = new Date(waveStartTime);
         const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
         return Math.max(0, elapsedSeconds);
       }
-      
-      // Fallback to tracking start time
-      if (startTimeRef.current) {
-        return Math.floor((Date.now() - startTimeRef.current.getTime()) / 1000);
-      }
-      return 0;
+      return -1; // Negative to indicate no start time
     };
     
-    setStats(prev => ({ ...prev, elapsed: calculateElapsed() }));
+    // Update immediately
+    const elapsed = calculateElapsed();
+    setStats(prev => ({ ...prev, elapsed }));
     
+    // Update every second
     const timer = setInterval(() => {
-      setStats(prev => ({ ...prev, elapsed: calculateElapsed() }));
+      const elapsed = calculateElapsed();
+      setStats(prev => ({ ...prev, elapsed }));
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [isTracking, selectedRegistration?.wave_start_time, selectedMotoAssignment?.wave_start_time, appMode]);
+  }, [waveStartTime]);
 
   // Sync pending points
   const syncPendingPoints = useCallback(async () => {
@@ -1416,8 +1471,12 @@ const GPSTrackerApp = () => {
           <Card>
             <CardContent className="pt-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
-              <div className="text-2xl font-mono font-bold">{formatTime(stats.elapsed)}</div>
-              <div className="text-xs text-muted-foreground">Tiempo</div>
+              <div className="text-2xl font-mono font-bold">
+                {stats.elapsed >= 0 ? formatTime(stats.elapsed) : '--:--:--'}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {waveStartTime ? 'Tiempo carrera' : 'Sin hora salida'}
+              </div>
             </CardContent>
           </Card>
           
@@ -1458,29 +1517,27 @@ const GPSTrackerApp = () => {
             </CardContent>
           </Card>
 
-          {/* Next checkpoint - only for moto mode */}
-          {appMode === 'moto' && (
-            <Card style={{ borderColor: `${motoColor}30` }}>
-              <CardContent className="pt-4 text-center">
-                <Navigation className="h-5 w-5 mx-auto mb-1" style={{ color: motoColor }} />
-                {nextCheckpoint ? (
-                  <>
-                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>
-                      {nextCheckpoint.distance_remaining_km.toFixed(1)} km
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
-                      → {nextCheckpoint.name}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl font-mono font-bold" style={{ color: motoColor }}>--</div>
-                    <div className="text-xs text-muted-foreground">Sin checkpoints</div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          {/* Next checkpoint - for both runner and moto */}
+          <Card style={appMode === 'moto' ? { borderColor: `${motoColor}30` } : undefined}>
+            <CardContent className="pt-4 text-center">
+              <Navigation className="h-5 w-5 mx-auto mb-1" style={appMode === 'moto' ? { color: motoColor } : undefined} />
+              {nextCheckpoint ? (
+                <>
+                  <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
+                    {nextCheckpoint.distance_remaining_km.toFixed(1)} km
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
+                    → {nextCheckpoint.name}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>--</div>
+                  <div className="text-xs text-muted-foreground">Próximo control</div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Mini Map */}
@@ -1499,11 +1556,18 @@ const GPSTrackerApp = () => {
           </CardContent>
         </Card>
 
-        {/* Elevation Profile (runner mode only) */}
+        {/* Elevation Profile (both runner and moto modes) */}
         {appMode === 'runner' && selectedRegistration && (
           <ElevationMiniProfile
             distanceId={selectedRegistration.race_distance_id}
             currentDistanceKm={projectedDistanceKm ?? stats.distance / 1000}
+            checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
+          />
+        )}
+        {appMode === 'moto' && selectedMotoAssignment && selectedMotoAssignment.race_distance_id && (
+          <ElevationMiniProfile
+            distanceId={selectedMotoAssignment.race_distance_id}
+            currentDistanceKm={projectedDistanceKm ?? 0}
             checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
           />
         )}
