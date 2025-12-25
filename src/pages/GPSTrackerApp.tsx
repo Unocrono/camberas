@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -165,6 +165,11 @@ const GPSTrackerApp = () => {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   const [showSplash, setShowSplash] = useState(true);
+  
+  // Memoized splash complete handler to prevent re-renders
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
   const [showPace, setShowPace] = useState(() => {
     const stored = localStorage.getItem(SPEED_PACE_PREF_KEY);
     return stored === 'pace';
@@ -1257,7 +1262,7 @@ const GPSTrackerApp = () => {
 
   // Splash screen
   if (showSplash) {
-    return <GPSSplashScreen onComplete={() => setShowSplash(false)} duration={2500} />;
+    return <GPSSplashScreen onComplete={handleSplashComplete} duration={2500} />;
   }
 
   const currentRaceId = appMode === 'moto' ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
