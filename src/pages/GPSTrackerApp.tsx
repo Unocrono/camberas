@@ -206,7 +206,6 @@ const GPSTrackerApp = () => {
           const allAssignments: MotoAssignment[] = [];
           
           // 1. Fetch motos directly assigned via user_id in race_motos
-          // Use !inner to properly filter by race date
           const { data: directMotos, error: directError } = await supabase
             .from('race_motos')
             .select(`
@@ -215,23 +214,23 @@ const GPSTrackerApp = () => {
               color,
               race_id,
               race_distance_id,
-              races!race_motos_race_id_fkey!inner (
+              races!race_motos_race_id_fkey (
                 id,
                 name,
                 date,
                 gps_update_frequency
               )
             `)
-            .eq('user_id', user.id)
-            .gte('races.date', minDate);
+            .eq('user_id', user.id);
           
           console.log('Direct motos query result:', directMotos, directError);
           
           if (!directError && directMotos) {
+            // Filter in JavaScript: races must exist and date >= minDate
             const validDirectMotos = directMotos
-              .filter((m: any) => m.races !== null)
+              .filter((m: any) => m.races !== null && m.races.date >= minDate)
               .map((m: any) => ({
-                id: m.id, // Use moto id as assignment id
+                id: m.id,
                 moto_id: m.id,
                 race_id: m.race_id,
                 race_distance_id: m.race_distance_id,
