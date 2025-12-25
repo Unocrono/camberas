@@ -286,6 +286,7 @@ const MotoOverlay = () => {
   const dataBuffer = useRef<BufferedData[]>([]);
   const [isVisible, setIsVisible] = useState(false);
   const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
+  const [primaryMotoId, setPrimaryMotoId] = useState<string | null>(null);
 
   // Spring configuration for TV-like animations
   const springConfig = {
@@ -451,9 +452,36 @@ const MotoOverlay = () => {
     };
   }, [raceIdResolved]);
 
-  // Fetch wave start time based on selected_moto's race_distance_id
+  // Fetch primary moto (moto_order = 1) if no selected_moto_id is configured
   useEffect(() => {
-    if (!raceIdResolved || !config?.selected_moto_id) {
+    if (!raceIdResolved) return;
+
+    const fetchPrimaryMoto = async () => {
+      // Get the moto with moto_order = 1 (MOTO PRINCIPAL)
+      const { data, error } = await supabase
+        .from("race_motos")
+        .select("id")
+        .eq("race_id", raceIdResolved)
+        .eq("is_active", true)
+        .order("moto_order", { ascending: true })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        console.log("[Overlay] Primary moto (moto_order=1):", data.id);
+        setPrimaryMotoId(data.id);
+      }
+    };
+
+    fetchPrimaryMoto();
+  }, [raceIdResolved]);
+
+  // Determine which moto ID to use: config.selected_moto_id OR primaryMotoId
+  const effectiveMotoId = config?.selected_moto_id || primaryMotoId;
+
+  // Fetch wave start time based on effectiveMotoId's race_distance_id
+  useEffect(() => {
+    if (!raceIdResolved || !effectiveMotoId) {
       setWaveStartTime(null);
       return;
     }
@@ -463,7 +491,7 @@ const MotoOverlay = () => {
       const { data: motoData, error: motoError } = await supabase
         .from("race_motos")
         .select("race_distance_id")
-        .eq("id", config.selected_moto_id)
+        .eq("id", effectiveMotoId)
         .single();
 
       if (motoError || !motoData?.race_distance_id) {
@@ -490,11 +518,13 @@ const MotoOverlay = () => {
     };
 
     fetchWaveStartTime();
-  }, [raceIdResolved, config?.selected_moto_id]);
+  }, [raceIdResolved, effectiveMotoId]);
 
-  // Fetch moto GPS data
+  // Fetch moto GPS data using effectiveMotoId
   useEffect(() => {
-    if (!raceIdResolved || !config?.selected_moto_id) return;
+    if (!raceIdResolved || !effectiveMotoId) return;
+
+    console.log("[Overlay] Fetching GPS data for moto:", effectiveMotoId);
 
     const fetchMotoData = async () => {
       const { data, error } = await supabase
@@ -511,13 +541,18 @@ const MotoOverlay = () => {
             color
           )
         `)
-        .eq("moto_id", config.selected_moto_id)
+        .eq("moto_id", effectiveMotoId)
         .order("timestamp", { ascending: false })
         .limit(1)
         .single();
 
       if (!error && data) {
         const motoInfo = data.race_motos as any;
+        console.log("[Overlay] GPS data received:", {
+          distance_to_finish: data.distance_to_finish,
+          distance_to_next_checkpoint: data.distance_to_next_checkpoint,
+          next_checkpoint_name: data.next_checkpoint_name
+        });
         setMotoData({
           speed: data.speed || 0,
           distance_from_start: data.distance_from_start || 0,
@@ -530,24 +565,30 @@ const MotoOverlay = () => {
         
         // Check if off-route (distance_from_start is null or negative)
         setIsOffRoute(data.distance_from_start === null || data.distance_from_start < 0);
+      } else if (error) {
+        console.error("[Overlay] Error fetching moto GPS data:", error);
       }
     };
 
     fetchMotoData();
 
     const channel = supabase
-      .channel("moto-gps-overlay")
+      .channel(`moto-gps-overlay-${effectiveMotoId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "moto_gps_tracking",
-          filter: `moto_id=eq.${config.selected_moto_id}`
+          filter: `moto_id=eq.${effectiveMotoId}`
         },
         async (payload) => {
           if (payload.new) {
             const newData = payload.new as any;
+            console.log("[Overlay] Realtime GPS update:", {
+              distance_to_finish: newData.distance_to_finish,
+              distance_to_next_checkpoint: newData.distance_to_next_checkpoint
+            });
             setMotoData(prev => prev ? {
               ...prev,
               speed: newData.speed || 0,
@@ -566,7 +607,7 @@ const MotoOverlay = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [raceIdResolved, config?.selected_moto_id]);
+  }, [raceIdResolved, effectiveMotoId]);
 
   // Fetch compare moto data
   useEffect(() => {
