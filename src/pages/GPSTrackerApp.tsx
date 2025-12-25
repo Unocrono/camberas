@@ -727,22 +727,27 @@ const GPSTrackerApp = () => {
       ? selectedRegistration?.race_id
       : selectedMotoAssignment?.race_id;
     
+    console.log('[WaveStartTime] distanceId:', distanceId, 'raceId:', raceId, 'appMode:', appMode);
+    
     if (!distanceId && !raceId) {
       setWaveStartTime(null);
       return;
     }
 
-    // Initial fetch
+    // Initial fetch - ALWAYS filter by distanceId if available (more specific)
     const fetchWaveStartTime = async () => {
-      let query = supabase.from('race_waves').select('start_time');
+      let query = supabase.from('race_waves').select('start_time, race_distance_id');
       
       if (distanceId) {
         query = query.eq('race_distance_id', distanceId);
       } else if (raceId) {
+        // Fallback to race_id only if no distanceId
         query = query.eq('race_id', raceId);
       }
       
-      const { data, error } = await query.order('start_time', { ascending: true }).limit(1).maybeSingle();
+      const { data, error } = await query.order('start_time', { ascending: false }).limit(1).maybeSingle();
+      
+      console.log('[WaveStartTime] Query result:', data, 'error:', error);
       
       if (!error && data?.start_time) {
         setWaveStartTime(data.start_time);
