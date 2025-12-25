@@ -51,6 +51,18 @@ interface OverlayConfig {
   clock_pos_x: number;
   clock_pos_y: number;
   clock_scale: number;
+  // Checkpoint element
+  checkpoint_font: string;
+  checkpoint_size: number;
+  checkpoint_color: string;
+  checkpoint_bg_color: string;
+  checkpoint_visible: boolean;
+  checkpoint_manual_mode: boolean;
+  checkpoint_manual_value: string | null;
+  checkpoint_bg_opacity: number;
+  checkpoint_pos_x: number;
+  checkpoint_pos_y: number;
+  checkpoint_scale: number;
   selected_moto_id: string | null;
   compare_moto_id: string | null;
 }
@@ -355,6 +367,18 @@ const MotoOverlay = () => {
     clock_pos_x: 50,
     clock_pos_y: 10,
     clock_scale: 1,
+    // Checkpoint defaults
+    checkpoint_font: "Roboto Condensed",
+    checkpoint_size: 36,
+    checkpoint_color: "#FFFFFF",
+    checkpoint_bg_color: "#1a1a1a",
+    checkpoint_visible: true,
+    checkpoint_manual_mode: false,
+    checkpoint_manual_value: null,
+    checkpoint_bg_opacity: 0.7,
+    checkpoint_pos_x: 90,
+    checkpoint_pos_y: 85,
+    checkpoint_scale: 1,
     selected_moto_id: null,
     compare_moto_id: null,
   };
@@ -624,7 +648,8 @@ const MotoOverlay = () => {
     if (isManualSpeed && config.speed_manual_value) {
       speed = config.speed_manual_value;
     } else if (motoData) {
-      const speedKmh = Math.round(motoData.speed);
+      // CRITICAL: motoData.speed comes from GPS in m/s, convert to km/h
+      const speedKmh = Math.round(motoData.speed * 3.6);
       if (config.speed_display_type === "pace" && speedKmh > 0) {
         // Convert km/h to min/km
         const paceMinutes = 60 / speedKmh;
@@ -735,6 +760,9 @@ const MotoOverlay = () => {
   const clockX = config.clock_pos_x ?? 50;
   const clockY = config.clock_pos_y ?? 10;
   const clockScale = config.clock_scale ?? 1;
+  const checkpointX = config.checkpoint_pos_x ?? 90;
+  const checkpointY = config.checkpoint_pos_y ?? 85;
+  const checkpointScale = config.checkpoint_scale ?? 1;
 
   return (
     <>
@@ -836,9 +864,9 @@ const MotoOverlay = () => {
           )}
         </AnimatePresence>
 
-        {/* Distance to Next Checkpoint - Always show if gaps visible and data available */}
+        {/* Distance to Next Checkpoint - Independent element with own config */}
         <AnimatePresence mode="wait">
-          {isVisible && config.gaps_visible && displayData.distanceToNextCheckpoint !== "--" && (
+          {isVisible && config.checkpoint_visible && (
             <motion.div
               key="distance-to-checkpoint"
               initial={{ opacity: 0, scale: 0.8 }}
@@ -847,13 +875,13 @@ const MotoOverlay = () => {
               transition={springConfig}
               style={{
                 position: "absolute",
-                left: `${gapsX}%`,
-                top: `${gapsY}%`,
-                transform: `translate(-50%, -50%) scale(${gapsScale})`,
-                fontFamily: getFontFamily(config.gaps_font),
-                fontSize: `${config.gaps_size}px`,
-                color: config.gaps_color,
-                backgroundColor: hexToRgba(config.gaps_bg_color, config.gaps_bg_opacity ?? 0.7),
+                left: `${checkpointX}%`,
+                top: `${checkpointY}%`,
+                transform: `translate(-50%, -50%) scale(${checkpointScale})`,
+                fontFamily: getFontFamily(config.checkpoint_font),
+                fontSize: `${config.checkpoint_size}px`,
+                color: config.checkpoint_color,
+                backgroundColor: hexToRgba(config.checkpoint_bg_color, config.checkpoint_bg_opacity ?? 0.7),
                 padding: "10px 20px",
                 borderRadius: "8px",
                 textAlign: "center",
@@ -862,20 +890,32 @@ const MotoOverlay = () => {
               <div style={{ fontSize: "0.45em", opacity: 0.7, marginBottom: "2px", whiteSpace: "nowrap" }}>
                 {displayData.nextCheckpointName ? `→ ${displayData.nextCheckpointName}` : "Próximo control"}
               </div>
-              <AnimatedNumber 
-                value={parseNumericValue(displayData.distanceToNextCheckpoint)} 
-                decimals={1}
-                suffix=" "
-                style={{}}
-                isManual={false}
-                showGlow={false}
-              />
-              <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
+              {config.checkpoint_manual_mode && config.checkpoint_manual_value ? (
+                <AnimatedText 
+                  value={config.checkpoint_manual_value} 
+                  style={{}} 
+                  showGlow={false}
+                />
+              ) : displayData.distanceToNextCheckpoint !== "--" ? (
+                <>
+                  <AnimatedNumber 
+                    value={parseNumericValue(displayData.distanceToNextCheckpoint)} 
+                    decimals={1}
+                    suffix=" "
+                    style={{}}
+                    isManual={false}
+                    showGlow={false}
+                  />
+                  <motion.span style={{ fontSize: "0.6em" }}>km</motion.span>
+                </>
+              ) : (
+                <span>--</span>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Gap - Show even if empty in manual mode or when gap exists */}
+        {/* Gap - Show when gap exists or manual mode */}
         <AnimatePresence mode="wait">
           {isVisible && config.gaps_visible && (displayData.gap || config.gaps_manual_mode) && (
             <motion.div
@@ -939,18 +979,13 @@ const MotoOverlay = () => {
 
 // Race time display component - shows elapsed time since wave start
 const RaceTimeDisplay = ({ startTime }: { startTime: Date | null }) => {
-  const [elapsed, setElapsed] = useState("00:00:00");
+  const [elapsed, setElapsed] = useState("--:--:--");
   
   useEffect(() => {
+    // If no start time, show placeholder
     if (!startTime) {
-      // If no start time, show current time
-      const updateClock = () => {
-        const now = new Date();
-        setElapsed(now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      };
-      updateClock();
-      const interval = setInterval(updateClock, 1000);
-      return () => clearInterval(interval);
+      setElapsed("--:--:--");
+      return;
     }
     
     const updateElapsed = () => {

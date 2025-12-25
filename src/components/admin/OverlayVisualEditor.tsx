@@ -32,10 +32,12 @@ interface OverlayVisualEditorProps {
   distanceConfig: ElementConfig;
   gapsConfig: ElementConfig;
   clockConfig: ElementConfig;
+  checkpointConfig: ElementConfig;
   onSpeedChange: (updates: Partial<ElementConfig>) => void;
   onDistanceChange: (updates: Partial<ElementConfig>) => void;
   onGapsChange: (updates: Partial<ElementConfig>) => void;
   onClockChange: (updates: Partial<ElementConfig>) => void;
+  onCheckpointChange: (updates: Partial<ElementConfig>) => void;
   onSave: () => void;
   saving?: boolean;
 }
@@ -48,10 +50,12 @@ const OverlayVisualEditor = ({
   distanceConfig,
   gapsConfig,
   clockConfig,
+  checkpointConfig,
   onSpeedChange,
   onDistanceChange,
   onGapsChange,
   onClockChange,
+  onCheckpointChange,
   onSave,
   saving = false,
 }: OverlayVisualEditorProps) => {
@@ -211,7 +215,8 @@ const OverlayVisualEditor = ({
           <div className="flex items-center gap-2 ml-4">
             {[
               { id: "speed", config: speedConfig, onChange: onSpeedChange, label: "Velocidad" },
-              { id: "distance", config: distanceConfig, onChange: onDistanceChange, label: "Distancia" },
+              { id: "distance", config: distanceConfig, onChange: onDistanceChange, label: "A Meta" },
+              { id: "checkpoint", config: checkpointConfig, onChange: onCheckpointChange, label: "Checkpoint" },
               { id: "gaps", config: gapsConfig, onChange: onGapsChange, label: "Gaps" },
               { id: "clock", config: clockConfig, onChange: onClockChange, label: "Reloj" },
             ].map(({ id, config, onChange, label }) => (
@@ -280,16 +285,18 @@ const OverlayVisualEditor = ({
         />
 
         {/* Draggable elements */}
-        {renderElement("speed", speedConfig, "Velocidad", "145 km/h", onSpeedChange)}
-        {renderElement("distance", distanceConfig, "Distancia", "32.5 km", onDistanceChange)}
+        {renderElement("speed", speedConfig, "Velocidad", "45 km/h", onSpeedChange)}
+        {renderElement("distance", distanceConfig, "Distancia a Meta", "32.5 km", onDistanceChange)}
+        {renderElement("checkpoint", checkpointConfig, "Próximo Control", "→ KM 15", onCheckpointChange)}
         {renderElement("gaps", gapsConfig, "Gaps", "+0:15", onGapsChange)}
         {renderElement("clock", clockConfig, "Reloj", "01:23:45", onClockChange)}
       </div>
 
       {/* Coordinates display */}
-      <div className="flex gap-4 text-xs text-muted-foreground justify-center">
+      <div className="flex gap-4 text-xs text-muted-foreground justify-center flex-wrap">
         <span>Velocidad: {speedConfig.posX}%, {speedConfig.posY}%</span>
-        <span>Distancia: {distanceConfig.posX}%, {distanceConfig.posY}%</span>
+        <span>A Meta: {distanceConfig.posX}%, {distanceConfig.posY}%</span>
+        <span>Checkpoint: {checkpointConfig.posX}%, {checkpointConfig.posY}%</span>
         <span>Gaps: {gapsConfig.posX}%, {gapsConfig.posY}%</span>
         <span>Reloj: {clockConfig.posX}%, {clockConfig.posY}%</span>
       </div>
