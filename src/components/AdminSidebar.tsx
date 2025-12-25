@@ -28,13 +28,18 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
-  const { state } = useSidebar();
+  const { state, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const { groupedItems, loading } = useMenuItems({ menuType: "admin" });
 
   const getIconComponent = (iconName: string) => {
     const IconComponent = (LucideIcons as any)[iconName];
     return IconComponent || LucideIcons.Circle;
+  };
+
+  const handleItemClick = (view: string) => {
+    onViewChange(view);
+    setOpenMobile(false);
   };
 
   const isGroupActive = (items: any[]) => {
@@ -86,14 +91,14 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
                         <SidebarMenuItem key={item.id}>
                           {item.route ? (
                             <SidebarMenuButton asChild tooltip={item.title}>
-                              <Link to={item.route}>
+                              <Link to={item.route} onClick={() => setOpenMobile(false)}>
                                 <Icon className="h-4 w-4" />
                                 <span>{item.title}</span>
                               </Link>
                             </SidebarMenuButton>
                           ) : (
                             <SidebarMenuButton
-                              onClick={() => item.view_name && onViewChange(item.view_name)}
+                              onClick={() => item.view_name && handleItemClick(item.view_name)}
                               isActive={currentView === item.view_name}
                               tooltip={item.title}
                             >
@@ -117,7 +122,7 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Volver al sitio">
-                  <Link to="/">
+                  <Link to="/" onClick={() => setOpenMobile(false)}>
                     <Home />
                     <span>Volver al sitio</span>
                   </Link>
