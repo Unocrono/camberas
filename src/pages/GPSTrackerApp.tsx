@@ -819,9 +819,38 @@ const GPSTrackerApp = () => {
     
     try {
       const tableName = appMode === 'moto' ? 'moto_gps_tracking' : 'gps_tracking';
-      const { error } = await supabase.from(tableName).insert(pendingPoints);
       
-      if (error) throw error;
+      if (appMode === 'moto') {
+        // For moto mode, insert each point and call edge function
+        for (const point of pendingPoints) {
+          const { data: insertedData, error } = await supabase
+            .from(tableName)
+            .insert(point)
+            .select('id')
+            .single();
+          
+          if (error) throw error;
+          
+          // Call edge function to calculate distances
+          if (insertedData?.id && 'moto_id' in point) {
+            supabase.functions.invoke('process-moto-gps', {
+              body: {
+                moto_id: (point as any).moto_id,
+                race_id: point.race_id,
+                latitude: point.latitude,
+                longitude: point.longitude,
+                speed: point.speed,
+                heading: point.heading,
+                gps_id: insertedData.id
+              }
+            }).catch(err => console.error('Error calling process-moto-gps:', err));
+          }
+        }
+      } else {
+        // For runner mode, batch insert
+        const { error } = await supabase.from(tableName).insert(pendingPoints);
+        if (error) throw error;
+      }
       
       setStats(prev => ({ ...prev, pointsSent: prev.pointsSent + pendingPoints.length }));
       setPendingPoints([]);
@@ -908,8 +937,28 @@ const GPSTrackerApp = () => {
 
       if (isOnline) {
         try {
-          const { error } = await supabase.from('moto_gps_tracking').insert(point);
+          const { data: insertedData, error } = await supabase
+            .from('moto_gps_tracking')
+            .insert(point)
+            .select('id')
+            .single();
           if (error) throw error;
+          
+          // Call edge function to calculate distances from GPX
+          if (insertedData?.id) {
+            supabase.functions.invoke('process-moto-gps', {
+              body: {
+                moto_id: point.moto_id,
+                race_id: point.race_id,
+                latitude: point.latitude,
+                longitude: point.longitude,
+                speed: point.speed,
+                heading: point.heading,
+                gps_id: insertedData.id
+              }
+            }).catch(err => console.error('Error calling process-moto-gps:', err));
+          }
+          
           setStats(prev => ({ 
             ...prev, 
             pointsSent: prev.pointsSent + 1,
