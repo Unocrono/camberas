@@ -206,6 +206,7 @@ const GPSTrackerApp = () => {
           const allAssignments: MotoAssignment[] = [];
           
           // 1. Fetch motos directly assigned via user_id in race_motos
+          // Use !inner to properly filter by race date
           const { data: directMotos, error: directError } = await supabase
             .from('race_motos')
             .select(`
@@ -214,7 +215,7 @@ const GPSTrackerApp = () => {
               color,
               race_id,
               race_distance_id,
-              races!race_motos_race_id_fkey (
+              races!race_motos_race_id_fkey!inner (
                 id,
                 name,
                 date,
