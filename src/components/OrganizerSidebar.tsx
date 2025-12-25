@@ -122,7 +122,7 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Mi Perfil">
-                  <Link to="/organizer-profile">
+                  <Link to="/organizer-profile" onClick={() => setOpenMobile(false)}>
                     <UserCircle />
                     <span>Mi Perfil</span>
                   </Link>
@@ -130,7 +130,7 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Diseñador de Dorsales">
-                  <Link to="/organizer/bib-designer">
+                  <Link to="/organizer/bib-designer" onClick={() => setOpenMobile(false)}>
                     <RectangleHorizontal />
                     <span>Diseñador de Dorsales</span>
                   </Link>
@@ -138,7 +138,7 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild tooltip="Volver al sitio">
-                  <Link to="/">
+                  <Link to="/" onClick={() => setOpenMobile(false)}>
                     <Home />
                     <span>Volver al sitio</span>
                   </Link>
