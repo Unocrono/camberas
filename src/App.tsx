@@ -15,6 +15,8 @@ import LiveGPSTracking from "./pages/LiveGPSTracking";
 import RunnerGPSTracker from "./pages/RunnerGPSTracker";
 import TimingShop from "./pages/TimingShop";
 import Auth from "./pages/Auth";
+import OrganizerAuth from "./pages/OrganizerAuth";
+import OrganizersLanding from "./pages/OrganizersLanding";
 import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -62,6 +64,8 @@ const App = () => (
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/organizer" element={<OrganizerAuth />} />
+          <Route path="/organizers" element={<OrganizersLanding />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />

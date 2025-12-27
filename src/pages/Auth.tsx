@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Briefcase } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { z } from "zod";
@@ -56,21 +56,12 @@ const signupSchema = loginSchema.extend({
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Los apellidos solo pueden contener letras"),
 });
 
-const organizerSchema = signupSchema.extend({
-  club: z.string()
-    .trim()
-    .min(1, "El nombre del club es requerido")
-    .max(200, "El nombre debe tener menos de 200 caracteres"),
-});
-
 const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [isOrganizer, setIsOrganizer] = useState(false);
-  const [club, setClub] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -87,45 +78,27 @@ const Auth = () => {
     });
   }, [navigate, returnTo]);
 
-  const handleSignUp = async (e: React.FormEvent, isOrganizerSignup: boolean = false) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Validate input data based on user type
-      const baseData = {
+      const validatedData = signupSchema.parse({
         email,
         password,
         first_name: firstName,
         last_name: lastName,
-      };
-
-      let validatedData;
-      if (isOrganizerSignup) {
-        validatedData = organizerSchema.parse({
-          ...baseData,
-          club,
-        });
-      } else {
-        validatedData = signupSchema.parse(baseData);
-      }
-
-      const userData: any = {
-        first_name: validatedData.first_name,
-        last_name: validatedData.last_name,
-        is_organizer: isOrganizerSignup,
-      };
-
-      // Add organizer-specific data
-      if (isOrganizerSignup && 'club' in validatedData) {
-        userData.club = validatedData.club;
-      }
+      });
 
       const { error } = await supabase.auth.signUp({
         email: validatedData.email,
         password: validatedData.password,
         options: {
-          data: userData,
+          data: {
+            first_name: validatedData.first_name,
+            last_name: validatedData.last_name,
+            is_organizer: false,
+          },
           emailRedirectTo: `${window.location.origin}${returnTo}`,
         },
       });
@@ -134,50 +107,19 @@ const Auth = () => {
 
       // Send custom welcome email from Camberas
       try {
-        const { error: emailError } = await supabase.functions.invoke('send-welcome-email', {
+        await supabase.functions.invoke('send-welcome-email', {
           body: {
             email: validatedData.email,
             firstName: validatedData.first_name,
           },
         });
-        
-        if (emailError) {
-          console.error("Error sending welcome email:", emailError);
-        } else {
-          console.log("Welcome email sent successfully");
-        }
       } catch (emailErr) {
         console.error("Failed to send welcome email:", emailErr);
-        // Don't fail the signup if email fails
-      }
-
-      // Si es organizador, enviar notificación a soporte
-      if (isOrganizerSignup) {
-        try {
-          const { error: notifyError } = await supabase.functions.invoke('send-organizer-request-notification', {
-            body: {
-              organizerName: `${validatedData.first_name} ${validatedData.last_name}`,
-              organizerEmail: validatedData.email,
-              clubName: 'club' in validatedData ? validatedData.club : undefined,
-            },
-          });
-          
-          if (notifyError) {
-            console.error("Error sending organizer notification:", notifyError);
-          } else {
-            console.log("Organizer request notification sent successfully");
-          }
-        } catch (notifyErr) {
-          console.error("Failed to send organizer notification:", notifyErr);
-          // Don't fail the signup if notification fails
-        }
       }
 
       toast({
         title: "¡Cuenta creada!",
-        description: isOrganizerSignup 
-          ? "Tu solicitud como organizador será revisada. Te hemos enviado un email de bienvenida."
-          : "Te hemos enviado un email de bienvenida. ¡Ya puedes iniciar sesión!",
+        description: "Te hemos enviado un email de bienvenida. ¡Ya puedes iniciar sesión!",
       });
       
       // Clear form
@@ -185,8 +127,6 @@ const Auth = () => {
       setPassword("");
       setFirstName("");
       setLastName("");
-      setClub("");
-      setIsOrganizer(false);
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -313,108 +253,82 @@ const Auth = () => {
               </TabsContent>
               
               <TabsContent value="register">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Tipo de cuenta</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={!isOrganizer ? "default" : "outline"}
-                        className="w-full"
-                        onClick={() => setIsOrganizer(false)}
-                      >
-                        Corredor
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={isOrganizer ? "default" : "outline"}
-                        className="w-full"
-                        onClick={() => setIsOrganizer(true)}
-                      >
-                        Organizador
-                      </Button>
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="register-firstname">Nombre</Label>
+                      <Input
+                        id="register-firstname"
+                        type="text"
+                        placeholder="Juan"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        required
+                      />
                     </div>
-                    {isOrganizer && (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Tu cuenta de organizador será revisada por nuestro equipo antes de ser aprobada.
-                      </p>
-                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="register-lastname">Apellidos</Label>
+                      <Input
+                        id="register-lastname"
+                        type="text"
+                        placeholder="Pérez García"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   
-                  <form onSubmit={(e) => handleSignUp(e, isOrganizer)} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="register-firstname">Nombre</Label>
-                        <Input
-                          id="register-firstname"
-                          type="text"
-                          placeholder="Juan"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="register-lastname">Apellidos</Label>
-                        <Input
-                          id="register-lastname"
-                          type="text"
-                          placeholder="Pérez García"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
-                    
-                    {isOrganizer && (
-                      <div className="space-y-2">
-                        <Label htmlFor="register-club">Nombre del Club</Label>
-                        <Input
-                          id="register-club"
-                          type="text"
-                          placeholder="Club Deportivo"
-                          value={club}
-                          onChange={(e) => setClub(e.target.value)}
-                          required
-                        />
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">Email</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder="tu@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">Contraseña</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={8}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Mínimo 8 caracteres, con mayúscula, minúscula y número
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creando cuenta...
+                      </>
+                    ) : (
+                      "Registrarse como Corredor"
                     )}
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">Email</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder={isOrganizer ? "organizador@email.com" : "tu@email.com"}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">Contraseña</Label>
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creando cuenta...
-                        </>
-                      ) : (
-                        isOrganizer ? "Registrarse como Organizador" : "Registrarse como Corredor"
-                      )}
-                    </Button>
-                  </form>
+                  </Button>
+                </form>
+                
+                {/* Organizer Link */}
+                <div className="mt-6 pt-6 border-t">
+                  <Link 
+                    to="/organizers"
+                    className="flex items-center justify-center gap-2 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors group"
+                  >
+                    <Briefcase className="h-5 w-5 text-primary" />
+                    <span className="font-medium">¿Eres Organizador?</span>
+                    <span className="text-muted-foreground group-hover:text-foreground transition-colors">
+                      Descubre todas las ventajas →
+                    </span>
+                  </Link>
                 </div>
               </TabsContent>
             </Tabs>
