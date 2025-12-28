@@ -254,6 +254,13 @@ const OverlayManager = () => {
     }
   }, [selectedRace]);
 
+  // Sync selectedDistanceId with config when config is loaded
+  useEffect(() => {
+    if (config?.selected_distance_id && config.selected_distance_id !== selectedDistanceId) {
+      setSelectedDistanceId(config.selected_distance_id);
+    }
+  }, [config?.selected_distance_id]);
+
   const fetchRaceDistances = async () => {
     try {
       const { data, error } = await supabase
@@ -714,7 +721,10 @@ const OverlayManager = () => {
                 <CardContent>
                   <Select 
                     value={selectedDistanceId} 
-                    onValueChange={setSelectedDistanceId}
+                    onValueChange={(v) => {
+                      setSelectedDistanceId(v);
+                      updateConfig("selected_distance_id", v);
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona un evento" />
