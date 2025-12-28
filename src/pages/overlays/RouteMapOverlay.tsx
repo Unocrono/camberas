@@ -178,16 +178,24 @@ const RouteMapOverlay = () => {
     fetchTrack();
   }, [config?.selected_distance_id]);
 
-  // Fetch moto positions
+  // Fetch moto positions - if map_overlay_moto_ids is empty, fetch all active motos
   const fetchMotos = useCallback(async () => {
-    if (!resolvedRaceId || !config?.map_overlay_moto_ids?.length) return;
+    if (!resolvedRaceId) return;
     
-    const { data: motoData } = await supabase
+    let motoQuery = supabase
       .from('race_motos')
       .select('id, name, name_tv, color')
-      .in('id', config.map_overlay_moto_ids);
+      .eq('race_id', resolvedRaceId)
+      .eq('is_active', true);
     
-    if (!motoData) return;
+    // If specific motos are selected, filter by them
+    if (config?.map_overlay_moto_ids?.length) {
+      motoQuery = motoQuery.in('id', config.map_overlay_moto_ids);
+    }
+    
+    const { data: motoData } = await motoQuery;
+    
+    if (!motoData?.length) return;
     
     // Get latest GPS for each moto
     const motosWithGps: MotoData[] = [];
@@ -203,7 +211,7 @@ const RouteMapOverlay = () => {
       
       if (gps) {
         // Apply delay if configured
-        const delayMs = (config.delay_seconds || 0) * 1000;
+        const delayMs = (config?.delay_seconds || 0) * 1000;
         const gpsTime = new Date(gps.timestamp).getTime();
         const now = Date.now();
         

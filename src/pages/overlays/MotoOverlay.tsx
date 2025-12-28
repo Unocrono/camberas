@@ -465,7 +465,7 @@ const MotoOverlay = () => {
         .eq("is_active", true)
         .order("moto_order", { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         console.log("[Overlay] Primary moto (moto_order=1):", data.id);
@@ -544,7 +544,7 @@ const MotoOverlay = () => {
         .eq("moto_id", effectiveMotoId)
         .order("timestamp", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!error && data) {
         const motoInfo = data.race_motos as any;
@@ -571,6 +571,9 @@ const MotoOverlay = () => {
     };
 
     fetchMotoData();
+    
+    // Also poll every 2 seconds in case realtime doesn't trigger
+    const pollInterval = setInterval(fetchMotoData, 2000);
 
     const channel = supabase
       .channel(`moto-gps-overlay-${effectiveMotoId}`)
@@ -605,6 +608,7 @@ const MotoOverlay = () => {
       .subscribe();
 
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [raceIdResolved, effectiveMotoId]);
