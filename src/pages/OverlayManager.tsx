@@ -23,8 +23,7 @@ import {
   Play,
   Copy,
   ExternalLink,
-  Clock,
-  Timer
+  Clock
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -49,13 +48,6 @@ interface RaceDistance {
   id: string;
   name: string;
   distance_km: number;
-}
-
-interface Wave {
-  id: string;
-  wave_name: string;
-  start_time: string | null;
-  race_distance_id: string;
 }
 
 interface OverlayConfig {
@@ -232,7 +224,7 @@ const OverlayManager = () => {
   const [races, setRaces] = useState<Race[]>([]);
   const [raceDistances, setRaceDistances] = useState<RaceDistance[]>([]);
   const [motos, setMotos] = useState<Moto[]>([]);
-  const [waves, setWaves] = useState<Wave[]>([]);
+  
   const [selectedRace, setSelectedRace] = useState<string>("");
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -249,7 +241,6 @@ const OverlayManager = () => {
     if (selectedRace) {
       fetchRaceDistances();
       fetchMotos();
-      fetchWaves();
       fetchConfig();
     }
   }, [selectedRace]);
@@ -314,45 +305,6 @@ const OverlayManager = () => {
     }
   };
 
-  const fetchWaves = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("race_waves")
-        .select("id, wave_name, start_time, race_distance_id")
-        .eq("race_id", selectedRace)
-        .order("start_time", { ascending: true, nullsFirst: false });
-
-      if (error) throw error;
-      setWaves(data || []);
-    } catch (error) {
-      console.error("Error fetching waves:", error);
-    }
-  };
-
-  const handleGiveStart = async (waveId: string) => {
-    try {
-      const { error } = await supabase
-        .from("race_waves")
-        .update({ start_time: new Date().toISOString() })
-        .eq("id", waveId);
-
-      if (error) throw error;
-      toast.success("¡Salida dada! El cronómetro está en marcha.");
-      fetchWaves();
-    } catch (error) {
-      console.error("Error giving start:", error);
-      toast.error("Error al dar la salida");
-    }
-  };
-
-  const toggleWaveActive = (waveId: string) => {
-    if (!config) return;
-    const currentIds = config.active_wave_ids || [];
-    const newIds = currentIds.includes(waveId)
-      ? currentIds.filter(id => id !== waveId)
-      : [...currentIds, waveId];
-    updateConfig("active_wave_ids", newIds);
-  };
 
   const fetchConfig = async () => {
     try {
@@ -869,54 +821,6 @@ const OverlayManager = () => {
                 </CardContent>
               </Card>
 
-              {/* Race Clocks - Waves */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Timer className="h-5 w-5" />
-                    Cronómetros de Carrera
-                  </CardTitle>
-                  <CardDescription>
-                    Gestiona las horas de salida de cada oleada
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {waves.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No hay oleadas configuradas para esta carrera.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {waves.map(wave => (
-                        <div key={wave.id} className="flex items-center justify-between gap-4 p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <Switch
-                              checked={(config.active_wave_ids || []).includes(wave.id)}
-                              onCheckedChange={() => toggleWaveActive(wave.id)}
-                            />
-                            <div>
-                              <p className="font-medium">{wave.wave_name}</p>
-                              {wave.start_time ? (
-                                <p className="text-xs text-green-600">
-                                  Salida: {new Date(wave.start_time).toLocaleTimeString()}
-                                </p>
-                              ) : (
-                                <p className="text-xs text-muted-foreground">Sin hora de salida</p>
-                              )}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant={wave.start_time ? "outline" : "default"}
-                            onClick={() => handleGiveStart(wave.id)}
-                          >
-                            <Play className="h-4 w-4 mr-1" />
-                            {wave.start_time ? "Reiniciar" : "DAR SALIDA"}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
 
             <TabsContent value="styles" className="space-y-6">
