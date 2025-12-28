@@ -56,18 +56,52 @@ function parseGpxToTrackPoints(gpxContent: string): TrackPoint[] {
   return trackPoints
 }
 
-// Find closest point on track and calculate distances
+// Find closest point on track within a search range, considering previous position
+// This prevents "jumping" to far-away parts of the route that happen to be geographically close
 function findClosestPointOnTrack(
   lat: number, 
   lon: number, 
-  trackPoints: TrackPoint[]
-): { distanceFromStart: number; distanceToFinish: number } | null {
+  trackPoints: TrackPoint[],
+  previousDistanceFromStart: number | null,
+  maxSearchRangeMeters: number = 5000 // Only search within 5km forward/backward from last position
+): { distanceFromStart: number; distanceToFinish: number; trackIndex: number } | null {
   if (!trackPoints.length) return null
   
-  let closestIndex = 0
+  const totalDistance = trackPoints[trackPoints.length - 1].distanceFromStart
+  
+  // Determine search range
+  let searchStartIndex = 0
+  let searchEndIndex = trackPoints.length - 1
+  
+  if (previousDistanceFromStart !== null && previousDistanceFromStart >= 0) {
+    // Find the index range to search based on previous position
+    const minSearchDist = Math.max(0, previousDistanceFromStart - maxSearchRangeMeters)
+    const maxSearchDist = Math.min(totalDistance, previousDistanceFromStart + maxSearchRangeMeters)
+    
+    // Find start index
+    for (let i = 0; i < trackPoints.length; i++) {
+      if (trackPoints[i].distanceFromStart >= minSearchDist) {
+        searchStartIndex = i
+        break
+      }
+    }
+    
+    // Find end index
+    for (let i = trackPoints.length - 1; i >= 0; i--) {
+      if (trackPoints[i].distanceFromStart <= maxSearchDist) {
+        searchEndIndex = i
+        break
+      }
+    }
+    
+    console.log(`Searching in range [${searchStartIndex}:${searchEndIndex}] based on previous distance ${(previousDistanceFromStart/1000).toFixed(2)}km`)
+  }
+  
+  let closestIndex = searchStartIndex
   let closestDistance = Infinity
   
-  for (let i = 0; i < trackPoints.length; i++) {
+  // Search only within the range
+  for (let i = searchStartIndex; i <= searchEndIndex; i++) {
     const d = calculateDistance(lat, lon, trackPoints[i].lat, trackPoints[i].lon)
     if (d < closestDistance) {
       closestDistance = d
@@ -75,13 +109,43 @@ function findClosestPointOnTrack(
     }
   }
   
-  const totalDistance = trackPoints[trackPoints.length - 1].distanceFromStart
+  // If we didn't find a close point in the range (moto might be off-route or jumped),
+  // do a global search but with penalty for large jumps
+  if (closestDistance > 200 && previousDistanceFromStart !== null) { // More than 200m from track in range
+    console.log(`Warning: Moto is ${closestDistance.toFixed(0)}m from track in search range, doing global search...`)
+    
+    let globalClosestIndex = 0
+    let globalClosestDistance = Infinity
+    
+    for (let i = 0; i < trackPoints.length; i++) {
+      const d = calculateDistance(lat, lon, trackPoints[i].lat, trackPoints[i].lon)
+      if (d < globalClosestDistance) {
+        globalClosestDistance = d
+        globalClosestIndex = i
+      }
+    }
+    
+    // Only use global result if it's significantly closer (less than half the range distance)
+    // AND if the moto would have had to move at reasonable speed to get there
+    const jumpDistanceOnTrack = Math.abs(trackPoints[globalClosestIndex].distanceFromStart - previousDistanceFromStart)
+    
+    // If global result is much closer to the track AND the jump is reasonable (e.g., within 10km on track)
+    if (globalClosestDistance < closestDistance * 0.5 && jumpDistanceOnTrack < 10000) {
+      console.log(`Using global result: index=${globalClosestIndex}, jump=${(jumpDistanceOnTrack/1000).toFixed(2)}km on track`)
+      closestIndex = globalClosestIndex
+      closestDistance = globalClosestDistance
+    } else {
+      // Stick with the range result even if a bit far from track
+      console.log(`Keeping range result despite distance, avoiding ${(jumpDistanceOnTrack/1000).toFixed(2)}km jump`)
+    }
+  }
+  
   const distanceFromStart = trackPoints[closestIndex].distanceFromStart
   const distanceToFinish = (totalDistance - distanceFromStart) / 1000 // Convert to km
   
   console.log(`Closest point: index=${closestIndex}, distance=${closestDistance.toFixed(1)}m, fromStart=${(distanceFromStart/1000).toFixed(2)}km, toFinish=${distanceToFinish.toFixed(2)}km`)
   
-  return { distanceFromStart, distanceToFinish }
+  return { distanceFromStart, distanceToFinish, trackIndex: closestIndex }
 }
 
 // Find next checkpoint based on current distance
@@ -180,6 +244,24 @@ Deno.serve(async (req) => {
       .eq('race_distance_id', moto.race_distance_id)
       .order('distance_km')
 
+    // Get the previous GPS record to know last distance_from_start
+    let previousDistanceFromStart: number | null = null
+    const { data: previousGps } = await supabase
+      .from('moto_gps_tracking')
+      .select('distance_from_start')
+      .eq('moto_id', moto_id)
+      .not('id', 'eq', gps_id) // Exclude current record
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    
+    if (previousGps?.distance_from_start != null) {
+      previousDistanceFromStart = previousGps.distance_from_start
+      console.log(`Previous distance_from_start: ${(previousDistanceFromStart!/1000).toFixed(2)}km`)
+    } else {
+      console.log('No previous GPS record found, will do global search')
+    }
+
     let distanceFromStart: number | null = null
     let distanceToFinish: number | null = null
     let distanceToNextCheckpoint: number | null = null
@@ -192,7 +274,12 @@ Deno.serve(async (req) => {
         const trackPoints = await getTrackPoints(gpxUrl)
         
         if (trackPoints.length > 0) {
-          const result = findClosestPointOnTrack(latitude, longitude, trackPoints)
+          const result = findClosestPointOnTrack(
+            latitude, 
+            longitude, 
+            trackPoints, 
+            previousDistanceFromStart
+          )
           
           if (result) {
             distanceFromStart = result.distanceFromStart
