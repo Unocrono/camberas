@@ -43,6 +43,34 @@ const RouteMapOverlay = () => {
   const [mapToken, setMapToken] = useState<string | null>(null);
   const [resolvedRaceId, setResolvedRaceId] = useState<string | null>(null);
 
+  // Make html/body transparent IMMEDIATELY on mount - before any renders
+  // This MUST be at the top to ensure transparency from the first frame
+  useEffect(() => {
+    // Remove any existing background styles
+    document.documentElement.style.background = 'transparent';
+    document.documentElement.style.backgroundColor = 'transparent';
+    document.body.style.background = 'transparent';
+    document.body.style.backgroundColor = 'transparent';
+    
+    // Also hide the root element's background
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.background = 'transparent';
+      root.style.backgroundColor = 'transparent';
+    }
+    
+    return () => {
+      document.documentElement.style.background = '';
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.background = '';
+      document.body.style.backgroundColor = '';
+      if (root) {
+        root.style.background = '';
+        root.style.backgroundColor = '';
+      }
+    };
+  }, []);
+
   // Resolve raceId (could be slug or UUID)
   useEffect(() => {
     const resolveRaceId = async () => {
@@ -200,15 +228,7 @@ const RouteMapOverlay = () => {
     return () => clearInterval(interval);
   }, [fetchMotos]);
 
-  // Make html/body transparent for overlay - MUST be before any conditional returns
-  useEffect(() => {
-    document.documentElement.style.background = 'transparent';
-    document.body.style.background = 'transparent';
-    return () => {
-      document.documentElement.style.background = '';
-      document.body.style.background = '';
-    };
-  }, []);
+  // This effect is now at the top of the component
 
   // Initialize map
   useEffect(() => {
@@ -321,8 +341,19 @@ const RouteMapOverlay = () => {
     });
   }, [motos, config]);
 
+  // Always render a transparent container, even when not visible
+  // This ensures the overlay is always transparent in VMix/OBS
   if (!config?.route_map_visible) {
-    return null;
+    return (
+      <div 
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: 'transparent',
+          backgroundColor: 'transparent'
+        }}
+      />
+    );
   }
 
   return (
