@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerRefresh } from "@/hooks/useDataRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -943,6 +944,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     setIsDialogOpen(false);
     resetForm();
     fetchCheckpoints();
+    triggerRefresh("checkpoints");
   };
 
   const handleDeleteClick = (checkpoint: Checkpoint) => {
@@ -968,6 +970,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     setIsDeleteDialogOpen(false);
     setSelectedCheckpoint(null);
     fetchCheckpoints();
+    triggerRefresh("checkpoints");
   };
 
   const handleGpxFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
