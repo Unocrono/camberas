@@ -575,6 +575,34 @@ const MotoOverlay = () => {
     // Also poll every 2 seconds in case realtime doesn't trigger
     const pollInterval = setInterval(fetchMotoData, 2000);
 
+    // Handler function for GPS data updates
+    const handleGpsUpdate = (newData: any) => {
+      // Only update if we have valid distance data (edge function has processed it)
+      if (newData.distance_from_start != null && newData.distance_to_finish != null) {
+        console.log("[Overlay] Valid GPS update:", {
+          distance_to_finish: newData.distance_to_finish,
+          distance_to_next_checkpoint: newData.distance_to_next_checkpoint
+        });
+        setMotoData(prev => prev ? {
+          ...prev,
+          speed: newData.speed || 0,
+          distance_from_start: newData.distance_from_start || 0,
+          distance_to_finish: newData.distance_to_finish,
+          distance_to_next_checkpoint: newData.distance_to_next_checkpoint,
+          next_checkpoint_name: newData.next_checkpoint_name
+        } : null);
+        
+        setIsOffRoute(false);
+      } else {
+        // Only update speed if distances are null (still being processed)
+        console.log("[Overlay] GPS update pending processing, updating speed only");
+        setMotoData(prev => prev ? {
+          ...prev,
+          speed: newData.speed || 0
+        } : null);
+      }
+    };
+
     const channel = supabase
       .channel(`moto-gps-overlay-${effectiveMotoId}`)
       .on(
@@ -585,23 +613,23 @@ const MotoOverlay = () => {
           table: "moto_gps_tracking",
           filter: `moto_id=eq.${effectiveMotoId}`
         },
-        async (payload) => {
+        (payload) => {
           if (payload.new) {
-            const newData = payload.new as any;
-            console.log("[Overlay] Realtime GPS update:", {
-              distance_to_finish: newData.distance_to_finish,
-              distance_to_next_checkpoint: newData.distance_to_next_checkpoint
-            });
-            setMotoData(prev => prev ? {
-              ...prev,
-              speed: newData.speed || 0,
-              distance_from_start: newData.distance_from_start || 0,
-              distance_to_finish: newData.distance_to_finish,
-              distance_to_next_checkpoint: newData.distance_to_next_checkpoint,
-              next_checkpoint_name: newData.next_checkpoint_name
-            } : null);
-            
-            setIsOffRoute(newData.distance_from_start === null || newData.distance_from_start < 0);
+            handleGpsUpdate(payload.new);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "moto_gps_tracking",
+          filter: `moto_id=eq.${effectiveMotoId}`
+        },
+        (payload) => {
+          if (payload.new) {
+            handleGpsUpdate(payload.new);
           }
         }
       )
