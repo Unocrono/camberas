@@ -228,6 +228,16 @@ const ElevationOverlay = () => {
     };
   }, [elevationData]);
 
+  // Make html/body transparent for overlay
+  useEffect(() => {
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    return () => {
+      document.documentElement.style.background = '';
+      document.body.style.background = '';
+    };
+  }, []);
+
   if (!config?.elevation_visible) {
     return null;
   }

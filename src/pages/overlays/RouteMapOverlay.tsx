@@ -315,6 +315,16 @@ const RouteMapOverlay = () => {
     return null;
   }
 
+  // Make html/body transparent for overlay
+  useEffect(() => {
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    return () => {
+      document.documentElement.style.background = '';
+      document.body.style.background = '';
+    };
+  }, []);
+
   return (
     <div 
       ref={mapContainer} 
