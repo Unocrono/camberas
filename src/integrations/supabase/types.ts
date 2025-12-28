@@ -606,6 +606,10 @@ export type Database = {
           distance_scale: number | null
           distance_size: number
           distance_visible: boolean
+          elevation_fill_opacity: number | null
+          elevation_line_color: string | null
+          elevation_moto_marker_size: number | null
+          elevation_visible: boolean | null
           gaps_bg_color: string
           gaps_bg_opacity: number | null
           gaps_color: string
@@ -619,7 +623,15 @@ export type Database = {
           gaps_visible: boolean
           id: string
           layout: string
+          map_overlay_moto_ids: Json | null
           race_id: string | null
+          route_map_line_color: string | null
+          route_map_line_width: number | null
+          route_map_moto_label_bg_color: string | null
+          route_map_moto_label_color: string | null
+          route_map_moto_label_size: number | null
+          route_map_visible: boolean | null
+          selected_distance_id: string | null
           selected_moto_id: string | null
           speed_bg_color: string
           speed_bg_opacity: number | null
@@ -671,6 +683,10 @@ export type Database = {
           distance_scale?: number | null
           distance_size?: number
           distance_visible?: boolean
+          elevation_fill_opacity?: number | null
+          elevation_line_color?: string | null
+          elevation_moto_marker_size?: number | null
+          elevation_visible?: boolean | null
           gaps_bg_color?: string
           gaps_bg_opacity?: number | null
           gaps_color?: string
@@ -684,7 +700,15 @@ export type Database = {
           gaps_visible?: boolean
           id?: string
           layout?: string
+          map_overlay_moto_ids?: Json | null
           race_id?: string | null
+          route_map_line_color?: string | null
+          route_map_line_width?: number | null
+          route_map_moto_label_bg_color?: string | null
+          route_map_moto_label_color?: string | null
+          route_map_moto_label_size?: number | null
+          route_map_visible?: boolean | null
+          selected_distance_id?: string | null
           selected_moto_id?: string | null
           speed_bg_color?: string
           speed_bg_opacity?: number | null
@@ -736,6 +760,10 @@ export type Database = {
           distance_scale?: number | null
           distance_size?: number
           distance_visible?: boolean
+          elevation_fill_opacity?: number | null
+          elevation_line_color?: string | null
+          elevation_moto_marker_size?: number | null
+          elevation_visible?: boolean | null
           gaps_bg_color?: string
           gaps_bg_opacity?: number | null
           gaps_color?: string
@@ -749,7 +777,15 @@ export type Database = {
           gaps_visible?: boolean
           id?: string
           layout?: string
+          map_overlay_moto_ids?: Json | null
           race_id?: string | null
+          route_map_line_color?: string | null
+          route_map_line_width?: number | null
+          route_map_moto_label_bg_color?: string | null
+          route_map_moto_label_color?: string | null
+          route_map_moto_label_size?: number | null
+          route_map_visible?: boolean | null
+          selected_distance_id?: string | null
           selected_moto_id?: string | null
           speed_bg_color?: string
           speed_bg_opacity?: number | null
@@ -778,6 +814,13 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: true
             referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overlay_config_selected_distance_id_fkey"
+            columns: ["selected_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
             referencedColumns: ["id"]
           },
           {

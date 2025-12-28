@@ -121,6 +121,21 @@ interface OverlayConfig {
   active_wave_ids: string[];
   selected_moto_id: string | null;
   compare_moto_id: string | null;
+  // Route Map Overlay
+  route_map_visible: boolean;
+  route_map_line_color: string;
+  route_map_line_width: number;
+  route_map_moto_label_size: number;
+  route_map_moto_label_color: string;
+  route_map_moto_label_bg_color: string;
+  // Elevation Overlay
+  elevation_visible: boolean;
+  elevation_line_color: string;
+  elevation_fill_opacity: number;
+  elevation_moto_marker_size: number;
+  // Shared config for map/elevation overlays
+  map_overlay_moto_ids: string[];
+  selected_distance_id: string | null;
 }
 
 const FONTS = [
@@ -182,7 +197,6 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   clock_pos_x: 50,
   clock_pos_y: 10,
   clock_scale: 1.0,
-  // Checkpoint defaults
   checkpoint_font: "Roboto Condensed",
   checkpoint_size: 36,
   checkpoint_color: "#FFFFFF",
@@ -197,6 +211,21 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
   active_wave_ids: [],
   selected_moto_id: null,
   compare_moto_id: null,
+  // Route Map Overlay defaults
+  route_map_visible: true,
+  route_map_line_color: "#FF0000",
+  route_map_line_width: 4,
+  route_map_moto_label_size: 16,
+  route_map_moto_label_color: "#FFFFFF",
+  route_map_moto_label_bg_color: "#000000",
+  // Elevation Overlay defaults
+  elevation_visible: true,
+  elevation_line_color: "#00FF00",
+  elevation_fill_opacity: 0.3,
+  elevation_moto_marker_size: 10,
+  // Shared config
+  map_overlay_moto_ids: [],
+  selected_distance_id: null,
 };
 
 const OverlayManager = () => {
@@ -372,14 +401,24 @@ const OverlayManager = () => {
 
   const selectedRaceData = races.find(r => r.id === selectedRace);
   const overlayUrl = selectedRace ? `${baseUrl}/overlay/moto/${selectedRaceData?.slug || selectedRace}` : "";
+  const routeMapUrl = selectedRace ? `${baseUrl}/overlay/route-map/${selectedRaceData?.slug || selectedRace}` : "";
+  const elevationUrl = selectedRace ? `${baseUrl}/overlay/elevation/${selectedRaceData?.slug || selectedRace}` : "";
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(overlayUrl);
+  const copyToClipboard = (url: string = overlayUrl) => {
+    navigator.clipboard.writeText(url);
     toast.success("URL copiada al portapapeles");
   };
 
-  const openPreview = () => {
-    window.open(`/overlay/moto/${selectedRaceData?.slug || selectedRace}`, "_blank", "width=1920,height=1080");
+  const openPreview = (url: string = `/overlay/moto/${selectedRaceData?.slug || selectedRace}`) => {
+    window.open(url, "_blank", "width=1920,height=1080");
+  };
+
+  const toggleMapOverlayMoto = (motoId: string) => {
+    const currentIds = config?.map_overlay_moto_ids || [];
+    const newIds = currentIds.includes(motoId)
+      ? currentIds.filter(id => id !== motoId)
+      : [...currentIds, motoId];
+    updateConfig("map_overlay_moto_ids", newIds);
   };
 
   const FontPreview = ({ fontName, size, color, bgColor, label }: { fontName: string; size: number; color: string; bgColor: string; label: string }) => {
@@ -984,40 +1023,76 @@ const OverlayManager = () => {
 
             {/* Output Tab */}
             <TabsContent value="output" className="space-y-6">
+              {/* Moto Overlay URL */}
               <Card>
                 <CardHeader>
-                  <CardTitle>URL del Overlay para vMix</CardTitle>
-                  <CardDescription>
-                    Usa esta URL como fuente Browser en vMix/OBS con resolución 1920x1080
-                  </CardDescription>
+                  <CardTitle>Overlay de Datos (Moto)</CardTitle>
+                  <CardDescription>Velocidad, distancia, gaps, cronómetro</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-2">
-                    <Input 
-                      value={overlayUrl} 
-                      readOnly 
-                      className="font-mono text-sm"
-                    />
-                    <Button variant="outline" onClick={copyToClipboard}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button onClick={openPreview}>
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Abrir
-                    </Button>
-                  </div>
-
-                  <div className="p-4 bg-muted rounded-lg space-y-2">
-                    <p className="text-sm font-medium">💡 Configuración en vMix</p>
-                    <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
-                      <li>Añade un input <strong>Web Browser</strong></li>
-                      <li>Pega la URL y configura <strong>1920x1080</strong></li>
-                      <li>El fondo es transparente (canal Alpha)</li>
-                      <li>Ajusta el delay según el retardo de tu vídeo</li>
-                    </ol>
+                    <Input value={overlayUrl} readOnly className="font-mono text-sm" />
+                    <Button variant="outline" onClick={() => copyToClipboard(overlayUrl)}><Copy className="h-4 w-4" /></Button>
+                    <Button onClick={() => openPreview(`/overlay/moto/${selectedRaceData?.slug || selectedRace}`)}><ExternalLink className="h-4 w-4" /></Button>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Route Map Overlay URL */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Overlay de Mapa de Ruta</CardTitle>
+                  <CardDescription>Track GPX con posición de motos (fondo transparente)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input value={routeMapUrl} readOnly className="font-mono text-sm" />
+                    <Button variant="outline" onClick={() => copyToClipboard(routeMapUrl)}><Copy className="h-4 w-4" /></Button>
+                    <Button onClick={() => openPreview(`/overlay/route-map/${selectedRaceData?.slug || selectedRace}`)}><ExternalLink className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Motos a mostrar en Mapa/Perfil:</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {motos.filter(m => !selectedDistanceId || m.race_distance_id === selectedDistanceId || !m.race_distance_id).map(moto => (
+                        <Badge
+                          key={moto.id}
+                          variant={(config.map_overlay_moto_ids || []).includes(moto.id) ? "default" : "outline"}
+                          className="cursor-pointer"
+                          onClick={() => toggleMapOverlayMoto(moto.id)}
+                        >
+                          <div className="w-2 h-2 rounded-full mr-1" style={{ backgroundColor: moto.color }} />
+                          {moto.name_tv || moto.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Elevation Overlay URL */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Overlay de Perfil de Elevación</CardTitle>
+                  <CardDescription>Perfil altimétrico con posición de motos (fondo transparente)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input value={elevationUrl} readOnly className="font-mono text-sm" />
+                    <Button variant="outline" onClick={() => copyToClipboard(elevationUrl)}><Copy className="h-4 w-4" /></Button>
+                    <Button onClick={() => openPreview(`/overlay/elevation/${selectedRaceData?.slug || selectedRace}`)}><ExternalLink className="h-4 w-4" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="p-4 bg-muted rounded-lg space-y-2">
+                <p className="text-sm font-medium">💡 Configuración en vMix</p>
+                <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                  <li>Añade un input <strong>Web Browser</strong></li>
+                  <li>Pega la URL y configura <strong>1920x1080</strong></li>
+                  <li>El fondo es transparente (canal Alpha)</li>
+                  <li>Ajusta el delay según el retardo de tu vídeo</li>
+                </ol>
+              </div>
             </TabsContent>
 
             {/* Save Actions */}

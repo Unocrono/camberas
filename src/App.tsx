@@ -44,6 +44,8 @@ import Terms from "./pages/Terms";
 import Cookies from "./pages/Cookies";
 import OverlayManager from "./pages/OverlayManager";
 import MotoOverlay from "./pages/overlays/MotoOverlay";
+import RouteMapOverlay from "./pages/overlays/RouteMapOverlay";
+import ElevationOverlay from "./pages/overlays/ElevationOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
 
 const queryClient = new QueryClient();
@@ -95,6 +97,8 @@ const App = () => (
           {/* Overlay Manager y Overlays PRO */}
           <Route path="/overlays" element={<OverlayManager />} />
           <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
+          <Route path="/overlay/route-map/:raceId" element={<RouteMapOverlay />} />
+          <Route path="/overlay/elevation/:raceId" element={<ElevationOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
