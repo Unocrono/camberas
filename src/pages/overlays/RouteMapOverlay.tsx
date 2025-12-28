@@ -200,6 +200,16 @@ const RouteMapOverlay = () => {
     return () => clearInterval(interval);
   }, [fetchMotos]);
 
+  // Make html/body transparent for overlay - MUST be before any conditional returns
+  useEffect(() => {
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    return () => {
+      document.documentElement.style.background = '';
+      document.body.style.background = '';
+    };
+  }, []);
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current || !mapToken || map.current) return;
@@ -314,16 +324,6 @@ const RouteMapOverlay = () => {
   if (!config?.route_map_visible) {
     return null;
   }
-
-  // Make html/body transparent for overlay
-  useEffect(() => {
-    document.documentElement.style.background = 'transparent';
-    document.body.style.background = 'transparent';
-    return () => {
-      document.documentElement.style.background = '';
-      document.body.style.background = '';
-    };
-  }, []);
 
   return (
     <div 

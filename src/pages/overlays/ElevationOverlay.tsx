@@ -1,9 +1,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceDot } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { parseGpxFile, calculateHaversineDistance } from '@/lib/gpxParser';
-
+import { Bike } from 'lucide-react';
 interface ElevationPoint {
   distance: number;
   elevation: number;
@@ -252,7 +252,8 @@ const ElevationOverlay = () => {
         width: '100vw',
         height: '100vh',
         background: 'transparent',
-        padding: '20px'
+        padding: '20px',
+        position: 'relative'
       }}
     >
       <ResponsiveContainer width="100%" height="100%">
@@ -286,28 +287,64 @@ const ElevationOverlay = () => {
             fill="url(#elevationGradientOverlay)"
             isAnimationActive={false}
           />
-
-          {/* Moto markers */}
-          {motoElevations.map((moto) => (
-            <ReferenceDot
-              key={moto.id}
-              x={moto.chartDistance}
-              y={moto.elevation}
-              r={markerSize}
-              fill={moto.color}
-              stroke="white"
-              strokeWidth={2}
-              label={{
-                value: moto.name_tv || moto.name,
-                position: 'top',
-                fill: 'white',
-                fontSize: 14,
-                fontWeight: 'bold'
-              }}
-            />
-          ))}
         </AreaChart>
       </ResponsiveContainer>
+
+      {/* Moto markers as custom positioned elements */}
+      {motoElevations.map((moto) => {
+        // Calculate position based on chart dimensions with margins
+        const marginLeft = 40;
+        const marginRight = 40;
+        const marginTop = 20;
+        const marginBottom = 40;
+        const padding = 20; // container padding
+        
+        // X position: map distance to chart area
+        const xPercent = ((moto.chartDistance / totalDistance) * 100);
+        const xPos = `calc(${padding}px + ${marginLeft}px + (100% - ${padding * 2}px - ${marginLeft}px - ${marginRight}px) * ${xPercent / 100})`;
+        
+        // Y position: map elevation to chart area
+        const yRange = maxElevation - minElevation;
+        const yPercent = (moto.elevation - minElevation) / yRange;
+        const yPos = `calc(${padding}px + ${marginTop}px + (100% - ${padding * 2}px - ${marginTop}px - ${marginBottom}px) * ${1 - yPercent})`;
+        
+        return (
+          <div
+            key={moto.id}
+            style={{
+              position: 'absolute',
+              left: xPos,
+              top: yPos,
+              transform: 'translate(-50%, -100%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              pointerEvents: 'none'
+            }}
+          >
+            <span style={{
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              textShadow: '0 0 4px rgba(0,0,0,0.8)',
+              marginBottom: '2px'
+            }}>
+              {moto.name_tv || moto.name}
+            </span>
+            <div style={{
+              backgroundColor: moto.color,
+              borderRadius: '50%',
+              padding: `${markerSize * 0.4}px`,
+              border: '2px solid white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Bike size={markerSize} color="white" />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
