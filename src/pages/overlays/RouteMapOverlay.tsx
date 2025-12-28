@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { Bike } from 'lucide-react';
+import { createRoot } from 'react-dom/client';
 
 interface MotoData {
   id: string;
@@ -317,23 +319,53 @@ const RouteMapOverlay = () => {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
     
-    // Add new markers
+    // Add new markers with Bike icon
     motos.forEach(moto => {
       const el = document.createElement('div');
       el.className = 'moto-marker';
       el.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        pointer-events: none;
+      `;
+      
+      // Create label
+      const label = document.createElement('span');
+      label.style.cssText = `
         background-color: ${config.route_map_moto_label_bg_color || '#000000'};
         color: ${config.route_map_moto_label_color || '#FFFFFF'};
         font-size: ${config.route_map_moto_label_size || 16}px;
         font-weight: bold;
         padding: 4px 8px;
         border-radius: 4px;
-        border: 2px solid ${moto.color};
         white-space: nowrap;
+        margin-bottom: 4px;
       `;
-      el.textContent = moto.name_tv || moto.name;
+      label.textContent = moto.name_tv || moto.name;
       
-      const marker = new mapboxgl.Marker({ element: el })
+      // Create icon container
+      const iconContainer = document.createElement('div');
+      iconContainer.style.cssText = `
+        background-color: ${moto.color};
+        border-radius: 50%;
+        padding: 6px;
+        border: 2px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      // Render Bike icon using React
+      const iconRoot = document.createElement('div');
+      const root = createRoot(iconRoot);
+      root.render(<Bike size={20} color="white" />);
+      iconContainer.appendChild(iconRoot);
+      
+      el.appendChild(label);
+      el.appendChild(iconContainer);
+      
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([moto.longitude, moto.latitude])
         .addTo(map.current!);
       
