@@ -104,45 +104,80 @@ const ElevationOverlay = () => {
         .eq('id', config.selected_distance_id)
         .maybeSingle();
       
-      if (!distance?.gpx_file_url) return;
+      if (!distance?.gpx_file_url) {
+        console.log('[ElevationOverlay] No GPX file URL found');
+        return;
+      }
       
       try {
         const response = await fetch(distance.gpx_file_url);
         const gpxText = await response.text();
         const parsedGpx = parseGpxFile(gpxText);
         
-        if (!parsedGpx.tracks?.length) return;
+        if (!parsedGpx.tracks?.length) {
+          console.log('[ElevationOverlay] No tracks found in GPX');
+          return;
+        }
         
         const points: ElevationPoint[] = [];
         let cumulativeDistance = 0;
         
-        parsedGpx.tracks.forEach((track) => {
-          for (let i = 0; i < track.points.length; i++) {
-            const point = track.points[i];
-            
-            if (i > 0) {
-              const prev = track.points[i - 1];
-              cumulativeDistance += calculateHaversineDistance(
-                prev.lat, prev.lon, point.lat, point.lon
-              );
-            }
-            
-            const elevation = point.ele || 0;
-            
-            // Sample every ~100m
-            if (points.length === 0 || cumulativeDistance - points[points.length - 1].distance >= 0.1) {
-              points.push({
-                distance: Math.round(cumulativeDistance * 10) / 10,
-                elevation: Math.round(elevation),
-              });
-            }
+        // Combine all track segments
+        const allTrackPoints = parsedGpx.tracks.flatMap(track => track.points);
+        
+        console.log('[ElevationOverlay] Processing', allTrackPoints.length, 'track points');
+        
+        for (let i = 0; i < allTrackPoints.length; i++) {
+          const point = allTrackPoints[i];
+          
+          if (i > 0) {
+            const prev = allTrackPoints[i - 1];
+            cumulativeDistance += calculateHaversineDistance(
+              prev.lat, prev.lon, point.lat, point.lon
+            );
           }
-        });
+          
+          // Get elevation - GPX may have ele as number or need parsing
+          const elevation = typeof point.ele === 'number' ? point.ele : 0;
+          
+          // Sample every ~50m for smoother profile
+          const sampleInterval = 0.05; // km
+          if (points.length === 0 || cumulativeDistance - points[points.length - 1].distance >= sampleInterval) {
+            points.push({
+              distance: Math.round(cumulativeDistance * 100) / 100,
+              elevation: Math.round(elevation),
+            });
+          }
+        }
+        
+        // Add final point if not included
+        if (points.length > 0 && allTrackPoints.length > 0) {
+          const lastPoint = allTrackPoints[allTrackPoints.length - 1];
+          const lastElevation = typeof lastPoint.ele === 'number' ? lastPoint.ele : 0;
+          if (points[points.length - 1].distance < cumulativeDistance - 0.01) {
+            points.push({
+              distance: Math.round(cumulativeDistance * 100) / 100,
+              elevation: Math.round(lastElevation),
+            });
+          }
+        }
+        
+        console.log('[ElevationOverlay] Generated', points.length, 'elevation points');
+        console.log('[ElevationOverlay] Elevation range:', 
+          Math.min(...points.map(p => p.elevation)), 
+          'to', 
+          Math.max(...points.map(p => p.elevation))
+        );
+        
+        // Use calculated distance if DB value is missing or 0
+        const finalDistance = (distance.distance_km && distance.distance_km > 0) 
+          ? distance.distance_km 
+          : cumulativeDistance;
         
         setElevationData(points);
-        setTotalDistance(distance.distance_km || cumulativeDistance);
+        setTotalDistance(finalDistance);
       } catch (e) {
-        console.error('Error parsing GPX:', e);
+        console.error('[ElevationOverlay] Error parsing GPX:', e);
       }
     };
     
