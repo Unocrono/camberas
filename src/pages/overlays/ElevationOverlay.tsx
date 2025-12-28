@@ -228,18 +228,42 @@ const ElevationOverlay = () => {
     };
   }, [elevationData]);
 
-  // Make html/body transparent for overlay
+  // Make html/body/root transparent for overlay - MUST be early
   useEffect(() => {
     document.documentElement.style.background = 'transparent';
+    document.documentElement.style.backgroundColor = 'transparent';
     document.body.style.background = 'transparent';
+    document.body.style.backgroundColor = 'transparent';
+    
+    const root = document.getElementById('root');
+    if (root) {
+      root.style.background = 'transparent';
+      root.style.backgroundColor = 'transparent';
+    }
+    
     return () => {
       document.documentElement.style.background = '';
+      document.documentElement.style.backgroundColor = '';
       document.body.style.background = '';
+      document.body.style.backgroundColor = '';
+      if (root) {
+        root.style.background = '';
+        root.style.backgroundColor = '';
+      }
     };
   }, []);
 
   if (!config?.elevation_visible) {
-    return null;
+    return (
+      <div 
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: 'transparent',
+          backgroundColor: 'transparent'
+        }}
+      />
+    );
   }
 
   const lineColor = config.elevation_line_color || '#00FF00';
