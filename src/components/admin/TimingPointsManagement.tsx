@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { triggerRefresh } from "@/hooks/useDataRefresh";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -718,6 +719,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     setIsDialogOpen(false);
     resetForm();
     fetchTimingPoints();
+    triggerRefresh("checkpoints");
   };
 
   const handleDeleteClick = (point: TimingPoint) => {
@@ -743,6 +745,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     setIsDeleteDialogOpen(false);
     setSelectedPoint(null);
     fetchTimingPoints();
+    triggerRefresh("checkpoints");
   };
 
   const getCurrentLocation = () => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { triggerRefresh } from "@/hooks/useDataRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -447,6 +448,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
       setIsDialogOpen(false);
       fetchDistances();
+      triggerRefresh("distances");
     } catch (error: any) {
       if (error instanceof z.ZodError) {
         toast({
@@ -482,6 +484,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       });
 
       fetchDistances();
+      triggerRefresh("distances");
     } catch (error: any) {
       toast({
         title: "Error al eliminar",

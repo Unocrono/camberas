@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { triggerRefresh } from "@/hooks/useDataRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -205,6 +206,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       setSelectedRows(new Set());
       setBulkDeleteDialog(false);
       fetchData();
+      triggerRefresh("registrations");
     } catch (error: any) {
       console.error("Bulk delete catch error:", error);
       toast({ 
@@ -586,6 +588,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       setIsCreateOpen(false);
       setFormData(emptyFormData);
       fetchData();
+      triggerRefresh("registrations");
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -620,6 +623,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       setEditingRegistration(null);
       setFormData(emptyFormData);
       fetchData();
+      triggerRefresh("registrations");
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -646,6 +650,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       toast({ title: "Inscripción eliminada" });
       setDeleteDialogId(null);
       fetchData();
+      triggerRefresh("registrations");
     } catch (error: any) {
       console.error("Delete catch error:", error);
       toast({ 

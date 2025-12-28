@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useDataRefresh } from "./useDataRefresh";
 
 const STORAGE_KEY_ADMIN = "admin_selected_race";
 const STORAGE_KEY_ORGANIZER = "organizer_selected_race";
@@ -99,6 +100,10 @@ export const useRaceSelection = ({ type, userId }: UseRaceSelectionOptions) => {
     }
   }, [selectedRaceId]);
 
+  // Listen for refresh events
+  useDataRefresh(["races"], fetchRaces);
+  useDataRefresh(["distances"], fetchDistances);
+
   useEffect(() => {
     if (type === "admin" || (type === "organizer" && userId)) {
       fetchRaces();
@@ -128,5 +133,6 @@ export const useRaceSelection = ({ type, userId }: UseRaceSelectionOptions) => {
     loadingRaces,
     clearSelection,
     refetchRaces: fetchRaces,
+    refetchDistances: fetchDistances,
   };
 };
