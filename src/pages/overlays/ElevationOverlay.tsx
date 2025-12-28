@@ -35,6 +35,8 @@ const ElevationOverlay = () => {
   const [motos, setMotos] = useState<MotoData[]>([]);
   const [resolvedRaceId, setResolvedRaceId] = useState<string | null>(null);
   const [totalDistance, setTotalDistance] = useState(0);
+  const [hasValidElevation, setHasValidElevation] = useState(true);
+  const [noDataMessage, setNoDataMessage] = useState<string | null>(null);
 
   // Resolve raceId (could be slug or UUID)
   useEffect(() => {
@@ -93,7 +95,7 @@ const ElevationOverlay = () => {
     return () => { supabase.removeChannel(channel); };
   }, [resolvedRaceId]);
 
-  // Fetch elevation data from GPX
+  // Fetch elevation data from GPX - Using same logic as ElevationMiniProfile
   useEffect(() => {
     if (!config?.selected_distance_id) return;
     
@@ -106,6 +108,8 @@ const ElevationOverlay = () => {
       
       if (!distance?.gpx_file_url) {
         console.log('[ElevationOverlay] No GPX file URL found');
+        setNoDataMessage('No hay archivo GPX configurado');
+        setHasValidElevation(false);
         return;
       }
       
@@ -114,70 +118,86 @@ const ElevationOverlay = () => {
         const gpxText = await response.text();
         const parsedGpx = parseGpxFile(gpxText);
         
-        if (!parsedGpx.tracks?.length) {
+        if (!parsedGpx.tracks || parsedGpx.tracks.length === 0) {
           console.log('[ElevationOverlay] No tracks found in GPX');
+          setNoDataMessage('El archivo GPX no contiene tracks');
+          setHasValidElevation(false);
           return;
         }
         
+        // Use same processing logic as ElevationMiniProfile
         const points: ElevationPoint[] = [];
         let cumulativeDistance = 0;
+        let hasAnyElevation = false;
+        let pointsWithElevation = 0;
         
-        // Combine all track segments
-        const allTrackPoints = parsedGpx.tracks.flatMap(track => track.points);
-        
-        console.log('[ElevationOverlay] Processing', allTrackPoints.length, 'track points');
-        
-        for (let i = 0; i < allTrackPoints.length; i++) {
-          const point = allTrackPoints[i];
-          
-          if (i > 0) {
-            const prev = allTrackPoints[i - 1];
-            cumulativeDistance += calculateHaversineDistance(
-              prev.lat, prev.lon, point.lat, point.lon
-            );
+        // Process each track maintaining segment continuity
+        parsedGpx.tracks.forEach((track) => {
+          for (let i = 0; i < track.points.length; i++) {
+            const point = track.points[i];
+            
+            if (i > 0) {
+              const prev = track.points[i - 1];
+              cumulativeDistance += calculateHaversineDistance(
+                prev.lat, prev.lon, point.lat, point.lon
+              );
+            }
+            
+            // Check if this point has valid elevation data
+            const hasEle = point.ele !== undefined && point.ele !== null && point.ele !== 0;
+            if (hasEle) {
+              hasAnyElevation = true;
+              pointsWithElevation++;
+            }
+            
+            const elevation = point.ele || 0;
+            
+            // Sample every ~100m to keep data manageable (same as ElevationMiniProfile)
+            if (points.length === 0 || cumulativeDistance - points[points.length - 1].distance >= 0.1) {
+              points.push({
+                distance: Math.round(cumulativeDistance * 10) / 10,
+                elevation: Math.round(elevation),
+              });
+            }
           }
-          
-          // Get elevation - GPX may have ele as number or need parsing
-          const elevation = typeof point.ele === 'number' ? point.ele : 0;
-          
-          // Sample every ~50m for smoother profile
-          const sampleInterval = 0.05; // km
-          if (points.length === 0 || cumulativeDistance - points[points.length - 1].distance >= sampleInterval) {
-            points.push({
-              distance: Math.round(cumulativeDistance * 100) / 100,
-              elevation: Math.round(elevation),
-            });
-          }
-        }
-        
-        // Add final point if not included
-        if (points.length > 0 && allTrackPoints.length > 0) {
-          const lastPoint = allTrackPoints[allTrackPoints.length - 1];
-          const lastElevation = typeof lastPoint.ele === 'number' ? lastPoint.ele : 0;
-          if (points[points.length - 1].distance < cumulativeDistance - 0.01) {
-            points.push({
-              distance: Math.round(cumulativeDistance * 100) / 100,
-              elevation: Math.round(lastElevation),
-            });
-          }
-        }
+        });
         
         console.log('[ElevationOverlay] Generated', points.length, 'elevation points');
-        console.log('[ElevationOverlay] Elevation range:', 
-          Math.min(...points.map(p => p.elevation)), 
-          'to', 
-          Math.max(...points.map(p => p.elevation))
-        );
+        console.log('[ElevationOverlay] Points with elevation data:', pointsWithElevation);
+        console.log('[ElevationOverlay] Total distance calculated:', cumulativeDistance.toFixed(2), 'km');
         
-        // Use calculated distance if DB value is missing or 0
-        const finalDistance = (distance.distance_km && distance.distance_km > 0) 
-          ? distance.distance_km 
-          : cumulativeDistance;
+        // Check if we have valid elevation data
+        if (!hasAnyElevation || pointsWithElevation < 10) {
+          console.log('[ElevationOverlay] GPX file does not contain elevation data in track points');
+          setNoDataMessage('El archivo GPX no contiene datos de elevación');
+          setHasValidElevation(false);
+          setElevationData([]);
+          return;
+        }
         
+        // Verify we have elevation variation (not all same value)
+        const elevations = points.map(p => p.elevation);
+        const minElev = Math.min(...elevations);
+        const maxElev = Math.max(...elevations);
+        
+        console.log('[ElevationOverlay] Elevation range:', minElev, 'to', maxElev);
+        
+        if (maxElev - minElev < 1) {
+          console.log('[ElevationOverlay] No significant elevation variation');
+          setNoDataMessage('Sin variación de elevación significativa');
+          setHasValidElevation(false);
+          setElevationData([]);
+          return;
+        }
+        
+        setHasValidElevation(true);
+        setNoDataMessage(null);
         setElevationData(points);
-        setTotalDistance(finalDistance);
+        setTotalDistance(distance.distance_km || cumulativeDistance);
       } catch (e) {
         console.error('[ElevationOverlay] Error parsing GPX:', e);
+        setNoDataMessage('Error al procesar el archivo GPX');
+        setHasValidElevation(false);
       }
     };
     
@@ -306,6 +326,32 @@ const ElevationOverlay = () => {
           backgroundColor: 'transparent'
         }}
       />
+    );
+  }
+
+  // Show message if no valid elevation data
+  if (!hasValidElevation || elevationData.length === 0) {
+    return (
+      <div 
+        style={{
+          width: '100vw',
+          height: '100vh',
+          background: 'transparent',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}
+      >
+        <div style={{
+          color: 'rgba(255,255,255,0.7)',
+          fontSize: '18px',
+          textAlign: 'center',
+          textShadow: '0 0 4px rgba(0,0,0,0.8)'
+        }}>
+          {noDataMessage || 'Cargando perfil de elevación...'}
+        </div>
+      </div>
     );
   }
 
