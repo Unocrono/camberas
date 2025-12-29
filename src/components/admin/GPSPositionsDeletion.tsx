@@ -475,8 +475,8 @@ export default function GPSPositionsDeletion() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label>Carrera</Label>
-              <Select value={selectedRaceId} onValueChange={(v) => {
-                setSelectedRaceId(v);
+              <Select value={selectedRaceId || 'none'} onValueChange={(v) => {
+                setSelectedRaceId(v === 'none' ? '' : v);
                 setSelectedDistanceId('');
                 setSelectedMotoId('');
               }}>
@@ -484,7 +484,8 @@ export default function GPSPositionsDeletion() {
                   <SelectValue placeholder="Seleccionar carrera" />
                 </SelectTrigger>
                 <SelectContent>
-                  {races.map(race => (
+                  <SelectItem value="none">Seleccionar carrera</SelectItem>
+                  {races.filter(race => race.id).map(race => (
                     <SelectItem key={race.id} value={race.id}>
                       {race.name}
                     </SelectItem>
