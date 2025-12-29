@@ -54,37 +54,51 @@ interface FormField {
   label: string;
   isCustom?: boolean;
   fieldId?: string;
+  profileField?: string | null; // Campo de profiles vinculado
+  registrationField?: string; // Campo equivalente en registrations
 }
 
-// Base registration fields (always available)
-const BASE_FIELDS: FormField[] = [
+// Mapeo de profile_field a campo de registrations
+const PROFILE_TO_REGISTRATION: Record<string, string> = {
+  'first_name': 'guest_first_name',
+  'last_name': 'guest_last_name',
+  'email': 'guest_email',
+  'phone': 'guest_phone',
+  'dni_passport': 'guest_dni_passport',
+  'birth_date': 'guest_birth_date',
+  'gender': 'guest_gender',
+  'emergency_contact': 'guest_emergency_contact',
+  'emergency_phone': 'guest_emergency_phone',
+};
+
+// Campos especiales que siempre están disponibles (no dependen de registration_form_fields)
+const SPECIAL_FIELDS: FormField[] = [
   { value: "ignore", label: "-- Ignorar --" },
-  { value: "guest_first_name", label: "Nombre" },
-  { value: "guest_last_name", label: "Apellidos" },
-  { value: "guest_email", label: "Email" },
-  { value: "guest_phone", label: "Teléfono" },
-  { value: "guest_dni_passport", label: "DNI/Pasaporte" },
-  { value: "guest_birth_date", label: "Fecha de Nacimiento" },
   { value: "bib_number", label: "Dorsal" },
-  { value: "status", label: "Estado" },
+  { value: "chip_code", label: "Código de Chip" },
+  { value: "status", label: "Estado de Inscripción" },
   { value: "payment_status", label: "Estado de Pago" },
-  { value: "guest_emergency_contact", label: "Contacto de Emergencia" },
-  { value: "guest_emergency_phone", label: "Teléfono de Emergencia" },
 ];
 
-// Auto-detection mapping
-const AUTO_DETECT_PATTERNS: Record<string, RegExp[]> = {
-  guest_first_name: [/^nombre$/i, /^first.?name$/i, /^primer.?nombre$/i],
-  guest_last_name: [/^apellido/i, /^last.?name$/i, /^surname$/i],
-  guest_email: [/^email$/i, /^correo$/i, /^e-?mail$/i],
-  guest_phone: [/^tel/i, /^phone$/i, /^móvil$/i, /^movil$/i, /^celular$/i],
-  guest_dni_passport: [/^dni$/i, /^pasaporte$/i, /^documento$/i, /^id$/i, /^nif$/i, /^nie$/i],
-  guest_birth_date: [/^fecha.?nac/i, /^birth/i, /^nacimiento$/i, /^f\.?\s?nac/i],
+// Patrones de auto-detección por profile_field
+const PROFILE_FIELD_PATTERNS: Record<string, RegExp[]> = {
+  first_name: [/^nombre$/i, /^first.?name$/i, /^primer.?nombre$/i],
+  last_name: [/^apellido/i, /^last.?name$/i, /^surname$/i],
+  email: [/^email$/i, /^correo$/i, /^e-?mail$/i],
+  phone: [/^tel/i, /^phone$/i, /^móvil$/i, /^movil$/i, /^celular$/i],
+  dni_passport: [/^dni$/i, /^pasaporte$/i, /^documento$/i, /^id$/i, /^nif$/i, /^nie$/i],
+  birth_date: [/^fecha.?nac/i, /^birth/i, /^nacimiento$/i, /^f\.?\s?nac/i],
+  gender: [/^g[eé]nero$/i, /^sexo$/i, /^gender$/i],
+  emergency_contact: [/^emergencia$/i, /^contacto.?emergencia$/i],
+  emergency_phone: [/^tel.?emergencia$/i, /^phone.?emergency$/i],
+};
+
+// Patrones para campos especiales
+const SPECIAL_FIELD_PATTERNS: Record<string, RegExp[]> = {
   bib_number: [/^dorsal$/i, /^bib$/i, /^número$/i, /^numero$/i],
+  chip_code: [/^chip$/i, /^código.?chip$/i, /^chip.?code$/i],
   status: [/^estado$/i, /^status$/i],
   payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i],
-  guest_emergency_contact: [/^emergencia$/i, /^contacto.?emergencia$/i],
-  guest_emergency_phone: [/^tel.?emergencia$/i, /^phone.?emergency$/i],
 };
 
 type Encoding = "utf-8" | "iso-8859-1";
@@ -150,16 +164,34 @@ function autoDetectMapping(headers: string[], availableFields: FormField[]): Col
   return headers.map((header) => {
     const normalizedHeader = header.trim().toLowerCase();
     
-    // First check against base patterns
-    for (const [field, patterns] of Object.entries(AUTO_DETECT_PATTERNS)) {
+    // 1. Check special field patterns (bib_number, status, etc.)
+    for (const [field, patterns] of Object.entries(SPECIAL_FIELD_PATTERNS)) {
       if (patterns.some((pattern) => pattern.test(normalizedHeader))) {
         return { csvColumn: header, field };
       }
     }
     
-    // Then check against custom form field labels
+    // 2. Check available fields by profile_field patterns
     for (const field of availableFields) {
-      if (field.isCustom && field.label.toLowerCase() === normalizedHeader) {
+      if (field.profileField && PROFILE_FIELD_PATTERNS[field.profileField]) {
+        const patterns = PROFILE_FIELD_PATTERNS[field.profileField];
+        if (patterns.some((pattern) => pattern.test(normalizedHeader))) {
+          return { csvColumn: header, field: field.value };
+        }
+      }
+    }
+    
+    // 3. Check by exact label match
+    for (const field of availableFields) {
+      if (field.label.toLowerCase() === normalizedHeader) {
+        return { csvColumn: header, field: field.value };
+      }
+    }
+    
+    // 4. Check by partial label match
+    for (const field of availableFields) {
+      if (normalizedHeader.includes(field.label.toLowerCase()) || 
+          field.label.toLowerCase().includes(normalizedHeader)) {
         return { csvColumn: header, field: field.value };
       }
     }
@@ -198,7 +230,7 @@ export function RegistrationImportDialog({
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>(distanceId || "");
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0, errors: 0 });
   const [importErrors, setImportErrors] = useState<string[]>([]);
-  const [availableFields, setAvailableFields] = useState<FormField[]>(BASE_FIELDS);
+  const [availableFields, setAvailableFields] = useState<FormField[]>(SPECIAL_FIELDS);
   const [encoding, setEncoding] = useState<Encoding>("utf-8");
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [newFieldName, setNewFieldName] = useState("");
@@ -211,21 +243,35 @@ export function RegistrationImportDialog({
     const loadFormFields = async () => {
       const { data: formFields } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, field_label")
+        .select("id, field_name, field_label, profile_field, is_system_field")
         .or(`race_id.eq.${raceId},race_distance_id.eq.${selectedDistanceId || distanceId}`)
-        .eq("is_visible", true);
+        .eq("is_visible", true)
+        .order("field_order");
 
       if (formFields) {
-        const customFields: FormField[] = formFields
-          .filter(f => !BASE_FIELDS.some(bf => bf.value === f.field_name))
-          .map(f => ({
-            value: `custom_${f.id}`,
+        const configuredFields: FormField[] = formFields.map(f => {
+          const profileField = f.profile_field as string | null;
+          const registrationField = profileField ? PROFILE_TO_REGISTRATION[profileField] : undefined;
+          
+          return {
+            value: registrationField || `custom_${f.id}`,
             label: f.field_label,
-            isCustom: true,
+            isCustom: !f.is_system_field && !registrationField,
             fieldId: f.id,
-          }));
+            profileField: profileField,
+            registrationField: registrationField,
+          };
+        });
         
-        setAvailableFields([...BASE_FIELDS, ...customFields]);
+        // Merge special fields with configured fields, avoiding duplicates
+        const mergedFields = [...SPECIAL_FIELDS];
+        for (const field of configuredFields) {
+          if (!mergedFields.some(mf => mf.value === field.value)) {
+            mergedFields.push(field);
+          }
+        }
+        
+        setAvailableFields(mergedFields);
       }
     };
 
@@ -543,28 +589,38 @@ export function RegistrationImportDialog({
       const mappedData = getMappedData(row);
 
       try {
-        // Separate base fields from custom fields
+        // Separate registration fields from custom fields
         const customFieldMappings: { fieldId: string; value: string }[] = [];
         
         const insertData: any = {
           race_id: raceId,
           race_distance_id: selectedDistanceId,
-          guest_first_name: mappedData.guest_first_name || null,
-          guest_last_name: mappedData.guest_last_name || null,
-          guest_email: mappedData.guest_email || null,
-          guest_phone: mappedData.guest_phone || null,
-          guest_dni_passport: mappedData.guest_dni_passport || null,
-          guest_birth_date: convertDateFormat(mappedData.guest_birth_date),
-          guest_emergency_contact: mappedData.guest_emergency_contact || null,
-          guest_emergency_phone: mappedData.guest_emergency_phone || null,
-          status: mappedData.status || "confirmed",
-          payment_status: mappedData.payment_status || "paid",
-          bib_number: mappedData.bib_number ? parseInt(mappedData.bib_number) : null,
+          status: "confirmed",
+          payment_status: "paid",
         };
 
-        // Collect custom field values
+        // Process mapped data based on field configuration
         for (const [key, value] of Object.entries(mappedData)) {
-          if (key.startsWith("custom_") && value) {
+          if (!value) continue;
+          
+          // Handle special fields directly
+          if (key === "bib_number") {
+            insertData.bib_number = parseInt(value) || null;
+          } else if (key === "chip_code") {
+            insertData.chip_code = value;
+          } else if (key === "status") {
+            insertData.status = value;
+          } else if (key === "payment_status") {
+            insertData.payment_status = value;
+          } else if (key.startsWith("guest_")) {
+            // Direct guest field (linked via profile_field)
+            if (key === "guest_birth_date") {
+              insertData[key] = convertDateFormat(value);
+            } else {
+              insertData[key] = value;
+            }
+          } else if (key.startsWith("custom_")) {
+            // Custom field - store in registration_responses
             const field = availableFields.find(f => f.value === key);
             if (field?.fieldId) {
               customFieldMappings.push({ fieldId: field.fieldId, value });
