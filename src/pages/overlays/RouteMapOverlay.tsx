@@ -195,19 +195,31 @@ const RouteMapOverlay = () => {
     
     const { data: motoData } = await motoQuery;
     
-    if (!motoData?.length) return;
+    if (!motoData?.length) {
+      console.log('[RouteMapOverlay] No active motos found for race:', resolvedRaceId);
+      return;
+    }
     
-    // Get latest GPS for each moto
+    console.log('[RouteMapOverlay] Found motos:', motoData.length);
+    
+    // Get latest GPS for each moto - only get records with valid position
     const motosWithGps: MotoData[] = [];
     
     for (const moto of motoData) {
-      const { data: gps } = await supabase
+      const { data: gps, error: gpsError } = await supabase
         .from('moto_gps_tracking')
         .select('latitude, longitude, distance_from_start, timestamp')
         .eq('moto_id', moto.id)
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null)
         .order('timestamp', { ascending: false })
         .limit(1)
         .maybeSingle();
+      
+      if (gpsError) {
+        console.error('[RouteMapOverlay] Error fetching GPS for moto:', moto.id, gpsError);
+        continue;
+      }
       
       if (gps) {
         // Apply delay if configured
@@ -215,7 +227,8 @@ const RouteMapOverlay = () => {
         const gpsTime = new Date(gps.timestamp).getTime();
         const now = Date.now();
         
-        if (now - gpsTime >= delayMs) {
+        if (now - gpsTime >= delayMs || delayMs === 0) {
+          console.log('[RouteMapOverlay] Adding moto with GPS:', moto.name, gps.latitude, gps.longitude);
           motosWithGps.push({
             id: moto.id,
             name: moto.name,
@@ -226,9 +239,12 @@ const RouteMapOverlay = () => {
             distance_from_start: gps.distance_from_start
           });
         }
+      } else {
+        console.log('[RouteMapOverlay] No GPS data for moto:', moto.name);
       }
     }
     
+    console.log('[RouteMapOverlay] Motos with GPS:', motosWithGps.length);
     setMotos(motosWithGps);
   }, [resolvedRaceId, config?.map_overlay_moto_ids, config?.delay_seconds]);
 

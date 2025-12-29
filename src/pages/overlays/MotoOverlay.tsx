@@ -527,6 +527,8 @@ const MotoOverlay = () => {
     console.log("[Overlay] Fetching GPS data for moto:", effectiveMotoId);
 
     const fetchMotoData = async () => {
+      // Fetch the most recent record that has PROCESSED distance values
+      // This avoids getting records where the edge function hasn't updated yet
       const { data, error } = await supabase
         .from("moto_gps_tracking")
         .select(`
@@ -542,6 +544,8 @@ const MotoOverlay = () => {
           )
         `)
         .eq("moto_id", effectiveMotoId)
+        .not("distance_from_start", "is", null)
+        .not("distance_to_finish", "is", null)
         .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -578,6 +582,7 @@ const MotoOverlay = () => {
     // Handler function for GPS data updates
     const handleGpsUpdate = (newData: any) => {
       // Only update if we have valid distance data (edge function has processed it)
+      // This prevents the animation from showing values going back to zero
       if (newData.distance_from_start != null && newData.distance_to_finish != null) {
         console.log("[Overlay] Valid GPS update:", {
           distance_to_finish: newData.distance_to_finish,
@@ -594,12 +599,9 @@ const MotoOverlay = () => {
         
         setIsOffRoute(false);
       } else {
-        // Only update speed if distances are null (still being processed)
-        console.log("[Overlay] GPS update pending processing, updating speed only");
-        setMotoData(prev => prev ? {
-          ...prev,
-          speed: newData.speed || 0
-        } : null);
+        // Skip this update entirely - don't update speed with unprocessed data
+        // The polling will pick up the processed data shortly
+        console.log("[Overlay] GPS update pending processing, skipping update");
       }
     };
 
