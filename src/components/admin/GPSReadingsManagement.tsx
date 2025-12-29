@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -28,9 +29,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users, Radio, Upload } from "lucide-react";
+import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users, Radio, Upload, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface GPSTimingReading {
@@ -98,6 +109,14 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [isLive, setIsLive] = useState(true);
   const [newReadingsCount, setNewReadingsCount] = useState(0);
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Delete dialogs
+  const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false);
+  const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Reimport dialog
   const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
@@ -510,6 +529,135 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
     });
   };
 
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(readings.map(r => r.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  // Delete selected readings
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    
+    setDeleting(true);
+    try {
+      const idsToDelete = Array.from(selectedIds);
+      
+      // Delete in batches of 100
+      const batchSize = 100;
+      for (let i = 0; i < idsToDelete.length; i += batchSize) {
+        const batch = idsToDelete.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("timing_readings")
+          .delete()
+          .in("id", batch);
+        
+        if (error) throw error;
+      }
+      
+      toast({
+        title: "Lecturas eliminadas",
+        description: `Se eliminaron ${idsToDelete.length} lecturas GPS`,
+      });
+      
+      setSelectedIds(new Set());
+      setIsDeleteSelectedOpen(false);
+      fetchReadings();
+    } catch (error: any) {
+      console.error("Error deleting readings:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron eliminar las lecturas",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Delete ALL filtered readings (handles >1000 records)
+  const handleDeleteAllFiltered = async () => {
+    if (!filterRaceId) return;
+    
+    setDeleting(true);
+    let totalDeleted = 0;
+    
+    try {
+      let hasMore = true;
+      
+      while (hasMore) {
+        // Build query to get IDs to delete (max 1000 at a time)
+        let query = supabase
+          .from("timing_readings")
+          .select("id")
+          .eq("race_id", filterRaceId)
+          .eq("reading_type", "gps_geofence")
+          .limit(1000);
+        
+        if (filterDistanceId && filterDistanceId !== "all") {
+          query = query.eq("race_distance_id", filterDistanceId);
+        }
+        
+        const { data: idsData, error: fetchError } = await query;
+        
+        if (fetchError) throw fetchError;
+        
+        if (!idsData || idsData.length === 0) {
+          hasMore = false;
+          break;
+        }
+        
+        const idsToDelete = idsData.map(r => r.id);
+        
+        // Delete these IDs
+        const { error: deleteError } = await supabase
+          .from("timing_readings")
+          .delete()
+          .in("id", idsToDelete);
+        
+        if (deleteError) throw deleteError;
+        
+        totalDeleted += idsToDelete.length;
+        
+        // If we got less than 1000, we're done
+        if (idsToDelete.length < 1000) {
+          hasMore = false;
+        }
+      }
+      
+      toast({
+        title: "Lecturas eliminadas",
+        description: `Se eliminaron ${totalDeleted} lecturas GPS`,
+      });
+      
+      setSelectedIds(new Set());
+      setIsDeleteAllOpen(false);
+      fetchReadings();
+    } catch (error: any) {
+      console.error("Error deleting all readings:", error);
+      toast({
+        title: "Error",
+        description: error.message || "No se pudieron eliminar las lecturas",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -534,6 +682,26 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {selectedIds.size > 0 && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setIsDeleteSelectedOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Eliminar ({selectedIds.size})
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsDeleteAllOpen(true)}
+            disabled={!filterRaceId || readings.length === 0}
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Eliminar todas
+          </Button>
           <Button
             variant={isLive ? "default" : "outline"}
             size="sm"
@@ -684,6 +852,12 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
               <Table>
                 <TableHeader className="sticky top-0 bg-background">
                   <TableRow>
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={readings.length > 0 && selectedIds.size === readings.length}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                      />
+                    </TableHead>
                     <TableHead className="w-[80px]">Dorsal</TableHead>
                     <TableHead>Participante</TableHead>
                     <TableHead>Evento</TableHead>
@@ -695,7 +869,13 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
                 </TableHeader>
                 <TableBody>
                   {readings.map((reading) => (
-                    <TableRow key={reading.id}>
+                    <TableRow key={reading.id} data-state={selectedIds.has(reading.id) ? "selected" : undefined}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(reading.id)}
+                          onCheckedChange={(checked) => handleSelectOne(reading.id, checked as boolean)}
+                        />
+                      </TableCell>
                       <TableCell className="font-bold">{reading.bib_number}</TableCell>
                       <TableCell>
                         {reading.registration
@@ -785,6 +965,55 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Selected Confirmation */}
+      <AlertDialog open={isDeleteSelectedOpen} onOpenChange={setIsDeleteSelectedOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar lecturas seleccionadas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán {selectedIds.size} lecturas GPS seleccionadas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete All Filtered Confirmation */}
+      <AlertDialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar TODAS las lecturas filtradas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminarán TODAS las lecturas GPS que coincidan con los filtros actuales
+              {filterDistanceId && filterDistanceId !== "all" ? ` (evento: ${distances.find(d => d.id === filterDistanceId)?.name})` : ""}.
+              <br /><br />
+              <strong className="text-destructive">Esta acción eliminará más de {stats.totalReadings} lecturas y NO se puede deshacer.</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAllFiltered}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Eliminar todas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
