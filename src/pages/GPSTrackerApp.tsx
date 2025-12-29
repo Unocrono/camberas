@@ -663,8 +663,12 @@ const GPSTrackerApp = () => {
     loadGpxTrack();
   }, [selectedRegistration, selectedMotoAssignment, appMode]);
 
-  // Recalculate distance to finish when position changes (runner and moto mode)
+  // Recalculate distance to finish when position changes (runner mode)
+  // For moto mode, use data from database via realtime subscription
   useEffect(() => {
+    // Skip local calculation for moto mode - we get distances from DB
+    if (appMode === 'moto') return;
+    
     if (!currentPosition || trackPoints.length === 0) {
       setDistanceToFinish(null);
       setProjectedDistanceKm(null);
@@ -686,10 +690,97 @@ const GPSTrackerApp = () => {
       currentPosition.lng
     );
     setDistanceToFinish(distance);
-  }, [currentPosition, trackPoints]);
+  }, [currentPosition, trackPoints, appMode]);
 
-  // Calculate next checkpoint based on current projected distance (for moto mode primarily)
+  // For moto mode: Subscribe to GPS data from database (calculated by edge function)
   useEffect(() => {
+    if (appMode !== 'moto' || !selectedMotoAssignment) return;
+    
+    const motoId = selectedMotoAssignment.moto_id;
+    
+    // Fetch initial data
+    const fetchMotoGpsData = async () => {
+      const { data, error } = await supabase
+        .from('moto_gps_tracking')
+        .select('distance_to_finish, distance_to_next_checkpoint, next_checkpoint_name, distance_from_start, latitude, longitude')
+        .eq('moto_id', motoId)
+        .not('distance_from_start', 'is', null)
+        .not('distance_to_finish', 'is', null)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (!error && data) {
+        console.log('[GPSTrackerApp] Moto GPS data from DB:', data);
+        setDistanceToFinish(data.distance_to_finish);
+        setProjectedDistanceKm(data.distance_from_start / 1000); // Convert to km
+        
+        if (data.next_checkpoint_name && data.distance_to_next_checkpoint != null) {
+          setNextCheckpoint({
+            name: data.next_checkpoint_name,
+            distance_km: 0, // Not used in display
+            distance_remaining_km: data.distance_to_next_checkpoint
+          });
+        }
+        
+        // Update current position for map display
+        if (data.latitude && data.longitude) {
+          setCurrentPosition({ lat: data.latitude, lng: data.longitude, heading: null });
+        }
+      }
+    };
+    
+    fetchMotoGpsData();
+    
+    // Poll every 2 seconds for moto GPS data
+    const pollInterval = setInterval(fetchMotoGpsData, 2000);
+    
+    // Also subscribe to realtime updates
+    const channel = supabase
+      .channel(`moto-gps-tracker-${motoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'moto_gps_tracking',
+          filter: `moto_id=eq.${motoId}`
+        },
+        (payload) => {
+          const newData = payload.new as any;
+          // Only update if distances have been processed
+          if (newData.distance_from_start != null && newData.distance_to_finish != null) {
+            console.log('[GPSTrackerApp] Moto GPS realtime update:', newData);
+            setDistanceToFinish(newData.distance_to_finish);
+            setProjectedDistanceKm(newData.distance_from_start / 1000);
+            
+            if (newData.next_checkpoint_name && newData.distance_to_next_checkpoint != null) {
+              setNextCheckpoint({
+                name: newData.next_checkpoint_name,
+                distance_km: 0,
+                distance_remaining_km: newData.distance_to_next_checkpoint
+              });
+            }
+            
+            if (newData.latitude && newData.longitude) {
+              setCurrentPosition({ lat: newData.latitude, lng: newData.longitude, heading: newData.heading });
+            }
+          }
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [appMode, selectedMotoAssignment]);
+
+  // Calculate next checkpoint based on current projected distance (for runner mode primarily)
+  useEffect(() => {
+    // Skip for moto mode - checkpoint info comes from DB
+    if (appMode === 'moto') return;
+    
     if (checkpoints.length === 0 || projectedDistanceKm === null) {
       setNextCheckpoint(null);
       return;
@@ -721,7 +812,7 @@ const GPSTrackerApp = () => {
         setNextCheckpoint(null);
       }
     }
-  }, [checkpoints, projectedDistanceKm]);
+  }, [checkpoints, projectedDistanceKm, appMode]);
 
   // Subscribe to wave_start_time changes in real-time
   useEffect(() => {
