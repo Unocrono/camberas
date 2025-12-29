@@ -496,13 +496,13 @@ export default function GPSPositionsDeletion() {
             {(trackingType === 'all' || trackingType === 'runners') && (
               <div className="space-y-2">
                 <Label>Evento (opcional)</Label>
-                <Select value={selectedDistanceId} onValueChange={setSelectedDistanceId} disabled={!selectedRaceId}>
+                <Select value={selectedDistanceId || 'all'} onValueChange={(v) => setSelectedDistanceId(v === 'all' ? '' : v)} disabled={!selectedRaceId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todos los eventos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los eventos</SelectItem>
-                    {distances.map(d => (
+                    <SelectItem value="all">Todos los eventos</SelectItem>
+                    {distances.filter(d => d.id).map(d => (
                       <SelectItem key={d.id} value={d.id}>
                         {d.name}
                       </SelectItem>
@@ -515,13 +515,13 @@ export default function GPSPositionsDeletion() {
             {(trackingType === 'all' || trackingType === 'motos') && (
               <div className="space-y-2">
                 <Label>Moto (opcional)</Label>
-                <Select value={selectedMotoId} onValueChange={setSelectedMotoId} disabled={!selectedRaceId}>
+                <Select value={selectedMotoId || 'all'} onValueChange={(v) => setSelectedMotoId(v === 'all' ? '' : v)} disabled={!selectedRaceId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Todas las motos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las motos</SelectItem>
-                    {motos.map(m => (
+                    <SelectItem value="all">Todas las motos</SelectItem>
+                    {motos.filter(m => m.id).map(m => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.name}
                       </SelectItem>
