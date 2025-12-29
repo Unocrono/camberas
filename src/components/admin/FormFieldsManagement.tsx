@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock, Copy, Link } from "lucide-react";
 import { z } from "zod";
 import {
   DndContext,
@@ -60,7 +60,24 @@ interface FormField {
   field_options?: any;
   is_system_field?: boolean;
   is_visible?: boolean;
+  profile_field?: string | null;
 }
+
+// Campos disponibles en la tabla profiles para vincular
+const PROFILE_FIELDS = [
+  { value: 'first_name', label: 'Nombre' },
+  { value: 'last_name', label: 'Apellidos' },
+  { value: 'phone', label: 'Teléfono' },
+  { value: 'gender', label: 'Género' },
+  { value: 'birth_date', label: 'Fecha de Nacimiento' },
+  { value: 'dni_passport', label: 'DNI/Pasaporte' },
+  { value: 'address', label: 'Dirección' },
+  { value: 'city', label: 'Localidad' },
+  { value: 'province', label: 'Provincia' },
+  { value: 'autonomous_community', label: 'Comunidad Autónoma' },
+  { value: 'club', label: 'Club' },
+  { value: 'team', label: 'Equipo' },
+];
 
 interface FormFieldsManagementProps {
   isOrganizer?: boolean;
@@ -150,6 +167,15 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
                   <>
                     <span className="mx-2">•</span>
                     <span className="text-destructive">Obligatorio</span>
+                  </>
+                )}
+                {field.profile_field && (
+                  <>
+                    <span className="mx-2">•</span>
+                    <span className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full">
+                      <Link className="h-3 w-3" />
+                      {field.profile_field}
+                    </span>
                   </>
                 )}
               </CardDescription>
@@ -247,6 +273,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     help_text: "",
     is_required: false,
     options: [] as string[],
+    profile_field: "" as string,
   });
 
   const [optionInput, setOptionInput] = useState("");
@@ -449,6 +476,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         help_text: field.help_text || "",
         is_required: field.is_required,
         options: options,
+        profile_field: field.profile_field || "",
       });
     } else {
       setEditingField(null);
@@ -460,6 +488,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         help_text: "",
         is_required: false,
         options: [],
+        profile_field: "",
       });
     }
     setOptionInput("");
@@ -566,6 +595,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               help_text: validatedData.help_text || null,
               is_required: validatedData.is_required,
               field_options: fieldOptions,
+              profile_field: formData.profile_field || null,
             })
             .eq("id", editingField.id);
 
@@ -595,6 +625,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               field_options: fieldOptions,
               is_system_field: false,
               is_visible: true,
+              profile_field: formData.profile_field || null,
             }]);
 
           if (error) throw error;
@@ -873,6 +904,31 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {!isSystemFieldEditing && (
+                  <div className="space-y-2">
+                    <Label htmlFor="profile_field">Vincular a campo de Perfil</Label>
+                    <Select
+                      value={formData.profile_field || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, profile_field: value === "none" ? "" : value })}
+                    >
+                      <SelectTrigger id="profile_field">
+                        <SelectValue placeholder="Sin vincular" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin vincular (guardar en respuestas)</SelectItem>
+                        {PROFILE_FIELDS.map((pf) => (
+                          <SelectItem key={pf.value} value={pf.value}>
+                            {pf.label} ({pf.value})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Si vinculas a un campo de perfil, se pre-rellenará con los datos del usuario y se guardará en su perfil.
+                    </p>
                   </div>
                 )}
 

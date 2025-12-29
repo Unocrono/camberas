@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 interface FormField {
   id: string;
@@ -20,6 +21,7 @@ interface FormField {
   field_order: number;
   is_visible?: boolean;
   is_system_field?: boolean;
+  profile_field?: string | null;
 }
 
 interface DynamicRegistrationFormProps {
@@ -32,11 +34,59 @@ interface DynamicRegistrationFormProps {
 export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange }: DynamicRegistrationFormProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchFormFields();
   }, [raceId, distanceId]);
+
+  // Pre-fill form with profile data when user is logged in and fields are loaded
+  useEffect(() => {
+    if (user && fields.length > 0 && !profileLoaded) {
+      prefillFromProfile();
+    }
+  }, [user, fields, profileLoaded]);
+
+  const prefillFromProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (profile) {
+        // For each field that has a profile_field mapping, set the value
+        fields.forEach(field => {
+          if (field.profile_field && profile[field.profile_field as keyof typeof profile]) {
+            const profileValue = profile[field.profile_field as keyof typeof profile];
+            // Only set if formData doesn't already have a value
+            if (!formData[field.field_name]) {
+              onChange(field.field_name, profileValue);
+            }
+          }
+        });
+
+        // Also get email from auth user
+        if (user.email) {
+          const emailField = fields.find(f => f.field_name === 'email');
+          if (emailField && !formData['email']) {
+            onChange('email', user.email);
+          }
+        }
+      }
+
+      setProfileLoaded(true);
+    } catch (error: any) {
+      console.error("Error loading profile for prefill:", error);
+    }
+  };
 
   const fetchFormFields = async () => {
     try {
@@ -62,6 +112,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       if (error) throw error;
 
       setFields(data || []);
+      setProfileLoaded(false); // Reset to allow prefill when fields change
     } catch (error: any) {
       toast({
         title: "Error al cargar el formulario",

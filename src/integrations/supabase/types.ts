@@ -1550,6 +1550,7 @@ export type Database = {
           is_system_field: boolean
           is_visible: boolean
           placeholder: string | null
+          profile_field: string | null
           race_distance_id: string | null
           race_id: string | null
           updated_at: string
@@ -1567,6 +1568,7 @@ export type Database = {
           is_system_field?: boolean
           is_visible?: boolean
           placeholder?: string | null
+          profile_field?: string | null
           race_distance_id?: string | null
           race_id?: string | null
           updated_at?: string
@@ -1584,6 +1586,7 @@ export type Database = {
           is_system_field?: boolean
           is_visible?: boolean
           placeholder?: string | null
+          profile_field?: string | null
           race_distance_id?: string | null
           race_id?: string | null
           updated_at?: string
