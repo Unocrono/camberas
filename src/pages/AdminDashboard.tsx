@@ -38,6 +38,7 @@ import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
+import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -125,7 +126,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -283,6 +284,7 @@ const AdminDashboard = () => {
             )}
             {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
+            {currentView === "gps-deletion" && <GPSPositionsDeletion />}
           </main>
         </div>
       </div>
