@@ -892,6 +892,50 @@ export type Database = {
         }
         Relationships: []
       }
+      race_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          gender: string | null
+          id: string
+          max_age: number | null
+          min_age: number | null
+          name: string
+          race_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          gender?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name: string
+          race_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          gender?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name?: string
+          race_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_categories_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_checkpoints: {
         Row: {
           checkpoint_order: number
@@ -1467,6 +1511,7 @@ export type Database = {
       races: {
         Row: {
           additional_info: string | null
+          category_age_reference: string
           cover_image_url: string | null
           created_at: string
           date: string
@@ -1492,6 +1537,7 @@ export type Database = {
         }
         Insert: {
           additional_info?: string | null
+          category_age_reference?: string
           cover_image_url?: string | null
           created_at?: string
           date: string
@@ -1517,6 +1563,7 @@ export type Database = {
         }
         Update: {
           additional_info?: string | null
+          category_age_reference?: string
           cover_image_url?: string | null
           created_at?: string
           date?: string
@@ -2484,6 +2531,10 @@ export type Database = {
         }[]
       }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
+      get_race_category: {
+        Args: { p_birth_date: string; p_gender: string; p_race_id: string }
+        Returns: string
+      }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_users_with_emails: {
         Args: never
