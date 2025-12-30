@@ -32,6 +32,13 @@ const distanceSchema = z.object({
   finish_location: z.string().trim().max(200).optional(),
 });
 
+interface PriceRange {
+  id?: string;
+  start_datetime: string;
+  end_datetime: string;
+  price: string;
+}
+
 interface Distance {
   id: string;
   race_id: string;
@@ -53,6 +60,8 @@ interface Distance {
   gps_tracking_enabled: boolean | null;
   gps_update_frequency: number | null;
   show_route_map: boolean | null;
+  registration_opens: string | null;
+  registration_closes: string | null;
   // From race_waves join
   wave_start_time: string | null;
 }
@@ -97,7 +106,13 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     gps_tracking_enabled: false,
     gps_update_frequency: "30",
     show_route_map: true,
+    registration_opens_date: "",
+    registration_opens_time: "",
+    registration_closes_date: "",
+    registration_closes_time: "",
   });
+
+  const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [gpxFile, setGpxFile] = useState<File | null>(null);
@@ -191,26 +206,49 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     }
   };
 
-  const handleOpenDialog = (distance?: Distance) => {
+  // Helper to parse timestamp into date and time parts
+  const parseTimestamp = (timestamp: string | null): { date: string; time: string } => {
+    if (!timestamp) return { date: "", time: "" };
+    const d = new Date(timestamp);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
+  };
+
+  const fetchPriceRanges = async (distanceId: string) => {
+    const { data, error } = await supabase
+      .from("race_distance_prices")
+      .select("*")
+      .eq("race_distance_id", distanceId)
+      .order("start_datetime", { ascending: true });
+    
+    if (!error && data) {
+      setPriceRanges(data.map(pr => {
+        const start = parseTimestamp(pr.start_datetime);
+        const end = parseTimestamp(pr.end_datetime);
+        return {
+          id: pr.id,
+          start_datetime: `${start.date}T${start.time}`,
+          end_datetime: `${end.date}T${end.time}`,
+          price: pr.price.toString(),
+        };
+      }));
+    } else {
+      setPriceRanges([]);
+    }
+  };
+
+  const handleOpenDialog = async (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
       // Parse wave start_time into date and time using LOCAL timezone
-      let startDate = "";
-      let startTimeValue = "";
-      if (distance.wave_start_time) {
-        // Create Date object which will convert from UTC to local
-        const date = new Date(distance.wave_start_time);
-        // Get local date components
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        startDate = `${year}-${month}-${day}`;
-        // Get local time components
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        startTimeValue = `${hours}:${minutes}:${seconds}`;
-      }
+      const waveStart = parseTimestamp(distance.wave_start_time);
+      const regOpens = parseTimestamp(distance.registration_opens);
+      const regCloses = parseTimestamp(distance.registration_closes);
+      
       setFormData({
         race_id: distance.race_id,
         name: distance.name,
@@ -218,8 +256,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         elevation_gain: distance.elevation_gain?.toString() || "",
         price: distance.price.toString(),
         max_participants: distance.max_participants?.toString() || "",
-        start_date: startDate,
-        start_time_value: startTimeValue,
+        start_date: waveStart.date,
+        start_time_value: waveStart.time ? `${waveStart.time}:00` : "",
         cutoff_time: distance.cutoff_time || "",
         start_location: distance.start_location || "",
         finish_location: distance.finish_location || "",
@@ -230,9 +268,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: distance.gps_tracking_enabled ?? false,
         gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
         show_route_map: distance.show_route_map ?? true,
+        registration_opens_date: regOpens.date,
+        registration_opens_time: regOpens.time,
+        registration_closes_date: regCloses.date,
+        registration_closes_time: regCloses.time,
       });
       setCurrentImageUrl(distance.image_url);
       setCurrentGpxUrl(distance.gpx_file_url);
+      await fetchPriceRanges(distance.id);
     } else {
       setEditingDistance(null);
       // Get default date from selected race
@@ -257,9 +300,14 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: false,
         gps_update_frequency: "30",
         show_route_map: true,
+        registration_opens_date: "",
+        registration_opens_time: "",
+        registration_closes_date: "",
+        registration_closes_time: "",
       });
       setCurrentImageUrl(null);
       setCurrentGpxUrl(null);
+      setPriceRanges([]);
     }
     setImageFile(null);
     setGpxFile(null);
@@ -375,6 +423,16 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         startTime = `${formData.start_date}T${formData.start_time_value}`;
       }
 
+      // Build registration window timestamps
+      let registrationOpens: string | null = null;
+      let registrationCloses: string | null = null;
+      if (formData.registration_opens_date && formData.registration_opens_time) {
+        registrationOpens = `${formData.registration_opens_date}T${formData.registration_opens_time}:00`;
+      }
+      if (formData.registration_closes_date && formData.registration_closes_time) {
+        registrationCloses = `${formData.registration_closes_date}T${formData.registration_closes_time}:00`;
+      }
+
       const distanceData = {
         race_id: formData.race_id,
         name: validatedData.name,
@@ -394,7 +452,11 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: formData.gps_tracking_enabled,
         gps_update_frequency: parseInt(formData.gps_update_frequency) || 30,
         show_route_map: formData.show_route_map,
+        registration_opens: registrationOpens,
+        registration_closes: registrationCloses,
       };
+
+      let distanceId = editingDistance?.id;
 
       if (editingDistance) {
         const { error } = await supabase
@@ -414,9 +476,33 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           console.error("Error updating wave start_time:", waveError);
         }
 
+        // Manage price ranges
+        // Delete existing and insert new
+        await supabase
+          .from("race_distance_prices")
+          .delete()
+          .eq("race_distance_id", editingDistance.id);
+
+        if (priceRanges.length > 0) {
+          const rangesToInsert = priceRanges
+            .filter(pr => pr.start_datetime && pr.end_datetime && pr.price)
+            .map(pr => ({
+              race_distance_id: editingDistance.id,
+              start_datetime: pr.start_datetime,
+              end_datetime: pr.end_datetime,
+              price: parseFloat(pr.price),
+            }));
+          
+          if (rangesToInsert.length > 0) {
+            await supabase
+              .from("race_distance_prices")
+              .insert(rangesToInsert);
+          }
+        }
+
         toast({
           title: "Recorrido actualizado",
-          description: "El recorrido y hora de salida se han actualizado exitosamente",
+          description: "El recorrido se ha actualizado exitosamente",
         });
       } else {
         // Insert new distance - wave will be created by trigger
@@ -428,6 +514,8 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
+        distanceId = newDistance?.id;
+
         // Update start_time in the newly created wave
         if (newDistance && startTime) {
           const { error: waveError } = await supabase
@@ -437,6 +525,24 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
           if (waveError) {
             console.error("Error updating wave start_time:", waveError);
+          }
+        }
+
+        // Insert price ranges for new distance
+        if (newDistance && priceRanges.length > 0) {
+          const rangesToInsert = priceRanges
+            .filter(pr => pr.start_datetime && pr.end_datetime && pr.price)
+            .map(pr => ({
+              race_distance_id: newDistance.id,
+              start_datetime: pr.start_datetime,
+              end_datetime: pr.end_datetime,
+              price: parseFloat(pr.price),
+            }));
+          
+          if (rangesToInsert.length > 0) {
+            await supabase
+              .from("race_distance_prices")
+              .insert(rangesToInsert);
           }
         }
 
@@ -553,28 +659,32 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 </Select>
               </div>
 
-              <Tabs defaultValue="recorrido" className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="recorrido" className="gap-1">
-                    <Route className="h-4 w-4" />
-                    <span className="hidden sm:inline">Recorrido</span>
+              <Tabs defaultValue="general" className="w-full">
+                <TabsList className="grid w-full grid-cols-5">
+                  <TabsTrigger value="general" className="gap-1 text-xs sm:text-sm">
+                    <Eye className="h-4 w-4" />
+                    <span className="hidden sm:inline">General</span>
                   </TabsTrigger>
-                  <TabsTrigger value="precios" className="gap-1">
+                  <TabsTrigger value="precios" className="gap-1 text-xs sm:text-sm">
                     <Euro className="h-4 w-4" />
                     <span className="hidden sm:inline">Precios</span>
                   </TabsTrigger>
-                  <TabsTrigger value="dorsales" className="gap-1">
+                  <TabsTrigger value="recorrido" className="gap-1 text-xs sm:text-sm">
+                    <Route className="h-4 w-4" />
+                    <span className="hidden sm:inline">Recorrido</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="horarios" className="gap-1 text-xs sm:text-sm">
+                    <Clock className="h-4 w-4" />
+                    <span className="hidden sm:inline">Horarios</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="dorsales" className="gap-1 text-xs sm:text-sm">
                     <Users className="h-4 w-4" />
                     <span className="hidden sm:inline">Dorsales</span>
                   </TabsTrigger>
-                  <TabsTrigger value="gps" className="gap-1">
-                    <Navigation className="h-4 w-4" />
-                    <span className="hidden sm:inline">GPS</span>
-                  </TabsTrigger>
                 </TabsList>
 
-                {/* TAB: Recorrido */}
-                <TabsContent value="recorrido" className="space-y-4 mt-4">
+                {/* TAB: General */}
+                <TabsContent value="general" className="space-y-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Nombre del Recorrido *</Label>
                     <Input
@@ -586,6 +696,207 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="max_participants">Plazas Máximas</Label>
+                    <Input
+                      id="max_participants"
+                      type="number"
+                      min="1"
+                      placeholder="500"
+                      value={formData.max_participants}
+                      onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="image_file">Imagen del Evento</Label>
+                    <Input
+                      id="image_file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    />
+                    {currentImageUrl && !imageFile && (
+                      <p className="text-xs text-muted-foreground">✓ Imagen cargada</p>
+                    )}
+                    {imageFile && (
+                      <p className="text-xs text-muted-foreground">
+                        Archivo seleccionado: {imageFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Registration window */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium text-sm">Periodo de Inscripciones</h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Fecha Inicio Inscripciones</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="date"
+                            value={formData.registration_opens_date}
+                            onChange={(e) => setFormData({ ...formData, registration_opens_date: e.target.value })}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="time"
+                            value={formData.registration_opens_time}
+                            onChange={(e) => setFormData({ ...formData, registration_opens_time: e.target.value })}
+                            className="w-28"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Fecha Fin Inscripciones</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            type="date"
+                            value={formData.registration_closes_date}
+                            onChange={(e) => setFormData({ ...formData, registration_closes_date: e.target.value })}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="time"
+                            value={formData.registration_closes_time}
+                            onChange={(e) => setFormData({ ...formData, registration_closes_time: e.target.value })}
+                            className="w-28"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Visibility */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium text-sm">Visibilidad</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="is_visible_distance" className="flex items-center gap-2">
+                          {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          Visible para usuarios
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Si está desactivado, solo los organizadores y administradores podrán ver este recorrido
+                        </p>
+                      </div>
+                      <Switch
+                        id="is_visible_distance"
+                        checked={formData.is_visible}
+                        onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                      />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB: Precios */}
+                <TabsContent value="precios" className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Precio Base (€) *</Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      placeholder="45.00"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Este precio se aplica cuando no hay un rango de precios activo
+                    </p>
+                  </div>
+
+                  {/* Price Ranges */}
+                  <div className="space-y-4 border-t pt-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Rangos de Precios</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPriceRanges([...priceRanges, { start_datetime: "", end_datetime: "", price: "" }])}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Añadir Rango
+                      </Button>
+                    </div>
+
+                    {priceRanges.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No hay rangos de precios configurados. Se usará el precio base.
+                      </p>
+                    )}
+
+                    {priceRanges.map((range, index) => (
+                      <div key={index} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Rango {index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const newRanges = priceRanges.filter((_, i) => i !== index);
+                              setPriceRanges(newRanges);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Desde</Label>
+                            <Input
+                              type="datetime-local"
+                              value={range.start_datetime}
+                              onChange={(e) => {
+                                const newRanges = [...priceRanges];
+                                newRanges[index].start_datetime = e.target.value;
+                                setPriceRanges(newRanges);
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Hasta</Label>
+                            <Input
+                              type="datetime-local"
+                              value={range.end_datetime}
+                              onChange={(e) => {
+                                const newRanges = [...priceRanges];
+                                newRanges[index].end_datetime = e.target.value;
+                                setPriceRanges(newRanges);
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Precio (€)</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="35.00"
+                              value={range.price}
+                              onChange={(e) => {
+                                const newRanges = [...priceRanges];
+                                newRanges[index].price = e.target.value;
+                                setPriceRanges(newRanges);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+
+                {/* TAB: Recorrido */}
+                <TabsContent value="recorrido" className="space-y-4 mt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="distance_km">Distancia (km) *</Label>
@@ -616,7 +927,106 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date">Fecha</Label>
+                      <Label htmlFor="start_location">Zona de Salida</Label>
+                      <Input
+                        id="start_location"
+                        placeholder="ej: Plaza Mayor"
+                        value={formData.start_location}
+                        onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="finish_location">Zona de Meta</Label>
+                      <Input
+                        id="finish_location"
+                        placeholder="ej: Parque Central"
+                        value={formData.finish_location}
+                        onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gpx_file">Archivo GPX</Label>
+                    <Input
+                      id="gpx_file"
+                      type="file"
+                      accept=".gpx"
+                      onChange={(e) => setGpxFile(e.target.files?.[0] || null)}
+                    />
+                    {currentGpxUrl && !gpxFile && (
+                      <p className="text-xs text-muted-foreground">✓ Archivo GPX cargado</p>
+                    )}
+                    {gpxFile && (
+                      <p className="text-xs text-muted-foreground">
+                        Archivo seleccionado: {gpxFile.name}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* GPS Tracking config */}
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium text-sm">Configuración de Tracking</h4>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="show_route_map" className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4" />
+                          Mostrar mapa de recorrido
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Muestra el botón "Ver Recorrido" en la página del evento
+                        </p>
+                      </div>
+                      <Switch
+                        id="show_route_map"
+                        checked={formData.show_route_map}
+                        onCheckedChange={(checked) => setFormData({ ...formData, show_route_map: checked })}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="gps_tracking_enabled" className="flex items-center gap-2">
+                          <Navigation className="h-4 w-4" />
+                          Seguimiento GPS en vivo
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Permite a los corredores compartir su ubicación en tiempo real
+                        </p>
+                      </div>
+                      <Switch
+                        id="gps_tracking_enabled"
+                        checked={formData.gps_tracking_enabled}
+                        onCheckedChange={(checked) => setFormData({ ...formData, gps_tracking_enabled: checked })}
+                      />
+                    </div>
+
+                    {formData.gps_tracking_enabled && (
+                      <div className="space-y-2 pl-6">
+                        <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
+                        <Input
+                          id="gps_update_frequency"
+                          type="number"
+                          min="5"
+                          max="300"
+                          value={formData.gps_update_frequency}
+                          onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Frecuencia recomendada: 30-60 segundos para ahorrar batería
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* TAB: Horarios */}
+                <TabsContent value="horarios" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start_date">Fecha de Salida</Label>
                       <Input
                         id="start_date"
                         type="date"
@@ -651,93 +1061,9 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                       value={formData.cutoff_time}
                       onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="image_file">Imagen del Evento</Label>
-                    <Input
-                      id="image_file"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                    />
-                    {currentImageUrl && !imageFile && (
-                      <p className="text-xs text-muted-foreground">✓ Imagen cargada</p>
-                    )}
-                    {imageFile && (
-                      <p className="text-xs text-muted-foreground">
-                        Archivo seleccionado: {imageFile.name}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="space-y-4 border-t pt-4">
-                    <h4 className="font-medium text-sm">Visibilidad</h4>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="is_visible_distance" className="flex items-center gap-2">
-                          {formData.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                          Visible para usuarios
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Si está desactivado, solo los organizadores y administradores podrán ver este recorrido
-                        </p>
-                      </div>
-                      <Switch
-                        id="is_visible_distance"
-                        checked={formData.is_visible}
-                        onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="show_route_map" className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          Mostrar mapa de recorrido
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Muestra el botón "Ver Recorrido" en la página del evento (requiere GPX importado en rutómetro)
-                        </p>
-                      </div>
-                      <Switch
-                        id="show_route_map"
-                        checked={formData.show_route_map}
-                        onCheckedChange={(checked) => setFormData({ ...formData, show_route_map: checked })}
-                      />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* TAB: Precios */}
-                <TabsContent value="precios" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Precio (€) *</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="45.00"
-                        value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="max_participants">Plazas Máximas</Label>
-                      <Input
-                        id="max_participants"
-                        type="number"
-                        min="1"
-                        placeholder="500"
-                        value={formData.max_participants}
-                        onChange={(e) => setFormData({ ...formData, max_participants: e.target.value })}
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Tiempo máximo permitido para completar el recorrido
+                    </p>
                   </div>
                 </TabsContent>
 
@@ -811,75 +1137,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                         Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1} 
                         ({formData.next_bib} - {formData.bib_end})
                       </span>
-                    </div>
-                  )}
-                </TabsContent>
-
-                {/* TAB: GPS */}
-                <TabsContent value="gps" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="start_location">Zona de Salida</Label>
-                      <Input
-                        id="start_location"
-                        placeholder="ej: Plaza Mayor"
-                        value={formData.start_location}
-                        onChange={(e) => setFormData({ ...formData, start_location: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="finish_location">Zona de Meta</Label>
-                      <Input
-                        id="finish_location"
-                        placeholder="ej: Parque Central"
-                        value={formData.finish_location}
-                        onChange={(e) => setFormData({ ...formData, finish_location: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="gpx_file">Archivo GPX</Label>
-                    <Input
-                      id="gpx_file"
-                      type="file"
-                      accept=".gpx"
-                      onChange={(e) => setGpxFile(e.target.files?.[0] || null)}
-                    />
-                    {currentGpxUrl && !gpxFile && (
-                      <p className="text-xs text-muted-foreground">✓ Archivo GPX cargado</p>
-                    )}
-                    {gpxFile && (
-                      <p className="text-xs text-muted-foreground">
-                        Archivo seleccionado: {gpxFile.name}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      id="gps_tracking_enabled"
-                      checked={formData.gps_tracking_enabled}
-                      onCheckedChange={(checked) => setFormData({ ...formData, gps_tracking_enabled: checked })}
-                    />
-                    <Label htmlFor="gps_tracking_enabled">Habilitar seguimiento GPS en vivo</Label>
-                  </div>
-
-                  {formData.gps_tracking_enabled && (
-                    <div className="space-y-2">
-                      <Label htmlFor="gps_update_frequency">Frecuencia de actualización (segundos)</Label>
-                      <Input
-                        id="gps_update_frequency"
-                        type="number"
-                        min="5"
-                        max="300"
-                        value={formData.gps_update_frequency}
-                        onChange={(e) => setFormData({ ...formData, gps_update_frequency: e.target.value })}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Frecuencia recomendada: 30-60 segundos para ahorrar batería
-                      </p>
                     </div>
                   )}
                 </TabsContent>
