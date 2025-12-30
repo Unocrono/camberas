@@ -200,9 +200,56 @@ function autoDetectMapping(headers: string[], availableFields: FormField[]): Col
   });
 }
 
-// Detect if text has encoding issues (replacement characters)
+// Detect if text has encoding issues (replacement characters or common malformed patterns)
 function hasEncodingIssues(text: string): boolean {
-  return text.includes("�") || text.includes("\ufffd");
+  // Check for replacement character
+  if (text.includes("�") || text.includes("\ufffd")) return true;
+  
+  // Check for common malformed Spanish characters (UTF-8 bytes interpreted as Latin-1)
+  const malformedPatterns = [
+    /Ã¡/, /Ã©/, /Ã­/, /Ã³/, /Ãº/, // á, é, í, ó, ú
+    /Ã±/, /Ã'/, // ñ, Ñ
+    /Ãœ/, /Ã¼/, // Ü, ü
+    /Âº/, /Âª/, // º, ª
+  ];
+  
+  return malformedPatterns.some(pattern => pattern.test(text));
+}
+
+// Normalize gender value to standard format (male/female)
+function normalizeGender(value: string): string {
+  if (!value) return value;
+  
+  const normalized = value.trim().toLowerCase();
+  
+  // Map common variations to standard values
+  if (normalized === 'm' || normalized === 'masculino' || normalized === 'male' || normalized === 'hombre' || normalized === 'h') {
+    return 'male';
+  }
+  if (normalized === 'f' || normalized === 'femenino' || normalized === 'female' || normalized === 'mujer') {
+    return 'female';
+  }
+  
+  // Return original if not recognized
+  return value;
+}
+
+// Check if a row has minimum required data (name or email)
+function rowHasRequiredData(row: CSVRow, mappings: ColumnMapping[]): boolean {
+  // Find which CSV columns are mapped to name/email fields
+  const nameMapping = mappings.find(m => 
+    m.field === 'guest_first_name' || 
+    m.field.includes('first_name')
+  );
+  const emailMapping = mappings.find(m => 
+    m.field === 'guest_email' || 
+    m.field.includes('email')
+  );
+  
+  const hasName = nameMapping && row[nameMapping.csvColumn]?.trim();
+  const hasEmail = emailMapping && row[emailMapping.csvColumn]?.trim();
+  
+  return !!(hasName || hasEmail);
 }
 
 // Read file with specific encoding
@@ -497,13 +544,25 @@ export function RegistrationImportDialog({
     return columnMappings.filter((m) => m.field !== "ignore").length;
   };
 
-  const validateRow = (row: CSVRow): { valid: boolean; errors: string[] } => {
+  const validateRow = (row: CSVRow, rowIndex: number): { valid: boolean; errors: string[]; skipped: boolean } => {
     const errors: string[] = [];
     const mappedData = getMappedData(row);
 
+    // Check if row has any data at all
+    const hasAnyData = Object.values(row).some(v => v?.trim());
+    if (!hasAnyData) {
+      return { valid: false, errors: [], skipped: true }; // Silent skip for empty rows
+    }
+
     // At least name or email required
     if (!mappedData.guest_first_name && !mappedData.guest_email) {
-      errors.push("Se requiere nombre o email");
+      // Check if row only has bib number (incomplete data)
+      const onlyHasBib = mappedData.bib_number && !mappedData.guest_first_name && !mappedData.guest_last_name && !mappedData.guest_email;
+      if (onlyHasBib) {
+        errors.push("Solo contiene dorsal, falta nombre o email");
+      } else {
+        errors.push("Se requiere nombre o email");
+      }
     }
 
     // Validate email format if provided
@@ -519,7 +578,7 @@ export function RegistrationImportDialog({
       }
     }
 
-    return { valid: errors.length === 0, errors };
+    return { valid: errors.length === 0, errors, skipped: false };
   };
 
   // Convert date from DD/MM/YYYY or D/M/YYYY to YYYY-MM-DD (ISO format for PostgreSQL)
@@ -556,7 +615,14 @@ export function RegistrationImportDialog({
     const data: Record<string, string> = {};
     columnMappings.forEach((mapping) => {
       if (mapping.field !== "ignore") {
-        data[mapping.field] = row[mapping.csvColumn] || "";
+        let value = row[mapping.csvColumn] || "";
+        
+        // Normalize gender field automatically
+        if (mapping.field === 'guest_gender' || mapping.field.includes('gender')) {
+          value = normalizeGender(value);
+        }
+        
+        data[mapping.field] = value;
       }
     });
     return data;
@@ -575,9 +641,21 @@ export function RegistrationImportDialog({
     // Get the category field ID if it exists
     const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
 
+    let skippedCount = 0;
+    
     for (let i = 0; i < csvData.rows.length; i++) {
       const row = csvData.rows[i];
-      const validation = validateRow(row);
+      const validation = validateRow(row, i);
+
+      // Skip empty rows silently
+      if (validation.skipped) {
+        skippedCount++;
+        setImportProgress((prev) => ({
+          ...prev,
+          current: i + 1,
+        }));
+        continue;
+      }
 
       if (!validation.valid) {
         errors.push(`Fila ${i + 2}: ${validation.errors.join(", ")}`);
@@ -701,15 +779,18 @@ export function RegistrationImportDialog({
     setImportErrors(errors);
 
     if (successCount > 0) {
+      const skippedMsg = skippedCount > 0 ? `, ${skippedCount} filas vacías omitidas` : "";
+      const errorsMsg = errors.length > 0 ? `, ${errors.length} errores` : "";
       toast({
         title: "Importación completada",
-        description: `Se importaron ${successCount} inscripciones${errors.length > 0 ? ` (${errors.length} errores)` : ""}`,
+        description: `Se importaron ${successCount} inscripciones${errorsMsg}${skippedMsg}`,
       });
       onImportComplete();
     } else {
+      const skippedMsg = skippedCount > 0 ? ` (${skippedCount} filas vacías omitidas)` : "";
       toast({
         title: "Error en importación",
-        description: "No se pudo importar ninguna inscripción",
+        description: `No se pudo importar ninguna inscripción${skippedMsg}`,
         variant: "destructive",
       });
     }
