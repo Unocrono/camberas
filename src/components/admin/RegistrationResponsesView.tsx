@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Eye, FileText } from "lucide-react";
+import { Eye } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface RegistrationResponse {
@@ -20,7 +20,8 @@ interface RegistrationResponsesViewProps {
   registrationId: string;
 }
 
-export function RegistrationResponsesView({ registrationId }: RegistrationResponsesViewProps) {
+export const RegistrationResponsesView = forwardRef<HTMLDivElement, RegistrationResponsesViewProps>(
+  function RegistrationResponsesView({ registrationId }, ref) {
   const { toast } = useToast();
   const [responses, setResponses] = useState<RegistrationResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,4 +119,4 @@ export function RegistrationResponsesView({ registrationId }: RegistrationRespon
       </DialogContent>
     </Dialog>
   );
-}
+});
