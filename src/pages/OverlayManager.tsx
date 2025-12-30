@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -222,9 +223,12 @@ const defaultConfig: Omit<OverlayConfig, "id" | "race_id"> = {
 };
 
 const OverlayManager = () => {
+  const navigate = useNavigate();
   const [races, setRaces] = useState<Race[]>([]);
   const [raceDistances, setRaceDistances] = useState<RaceDistance[]>([]);
   const [motos, setMotos] = useState<Moto[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
   
   const [selectedRace, setSelectedRace] = useState<string>("");
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
@@ -234,9 +238,36 @@ const OverlayManager = () => {
 
   const baseUrl = window.location.origin;
 
+  // Check authentication
   useEffect(() => {
-    fetchRaces();
-  }, []);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debes iniciar sesión para acceder a esta página");
+        navigate("/auth");
+        return;
+      }
+      setUser(session.user);
+      setAuthChecked(true);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      } else {
+        setUser(session.user);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (authChecked) {
+      fetchRaces();
+    }
+  }, [authChecked]);
 
   useEffect(() => {
     if (selectedRace) {
@@ -612,6 +643,22 @@ const OverlayManager = () => {
       </Card>
     );
   };
+
+  // Show loading while checking auth
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Verificando acceso...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
