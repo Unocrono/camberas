@@ -1021,6 +1021,44 @@ export type Database = {
           },
         ]
       }
+      race_distance_prices: {
+        Row: {
+          created_at: string
+          end_datetime: string
+          id: string
+          price: number
+          race_distance_id: string
+          start_datetime: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_datetime: string
+          id?: string
+          price: number
+          race_distance_id: string
+          start_datetime: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_datetime?: string
+          id?: string
+          price?: number
+          race_distance_id?: string
+          start_datetime?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_distance_prices_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_distances: {
         Row: {
           bib_end: number | null
@@ -1041,6 +1079,8 @@ export type Database = {
           next_bib: number | null
           price: number
           race_id: string
+          registration_closes: string | null
+          registration_opens: string | null
           show_route_map: boolean | null
           start_location: string | null
           updated_at: string
@@ -1064,6 +1104,8 @@ export type Database = {
           next_bib?: number | null
           price: number
           race_id: string
+          registration_closes?: string | null
+          registration_opens?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
@@ -1087,6 +1129,8 @@ export type Database = {
           next_bib?: number | null
           price?: number
           race_id?: string
+          registration_closes?: string | null
+          registration_opens?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
