@@ -29,6 +29,7 @@ import { MotosManagement } from "@/components/admin/MotosManagement";
 import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
+import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -223,6 +224,7 @@ const OrganizerDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "bib-chips" && (
