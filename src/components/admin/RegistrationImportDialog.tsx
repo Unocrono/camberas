@@ -59,6 +59,8 @@ interface FormField {
 }
 
 // Mapeo de profile_field a campo de registrations
+// NOTA: 'gender' NO está aquí porque no existe guest_gender en registrations
+// El género se guarda en registration_responses como campo personalizado
 const PROFILE_TO_REGISTRATION: Record<string, string> = {
   'first_name': 'guest_first_name',
   'last_name': 'guest_last_name',
@@ -66,7 +68,6 @@ const PROFILE_TO_REGISTRATION: Record<string, string> = {
   'phone': 'guest_phone',
   'dni_passport': 'guest_dni_passport',
   'birth_date': 'guest_birth_date',
-  'gender': 'guest_gender',
   'emergency_contact': 'guest_emergency_contact',
   'emergency_phone': 'guest_emergency_phone',
 };
@@ -618,7 +619,9 @@ export function RegistrationImportDialog({
         let value = row[mapping.csvColumn] || "";
         
         // Normalize gender field automatically
-        if (mapping.field === 'guest_gender' || mapping.field.includes('gender')) {
+        // Check if this mapping corresponds to a gender field by looking at availableFields
+        const fieldConfig = availableFields.find(f => f.value === mapping.field);
+        if (fieldConfig?.profileField === 'gender' || mapping.field.includes('gender')) {
           value = normalizeGender(value);
         }
         
@@ -737,7 +740,13 @@ export function RegistrationImportDialog({
           // Calculate and save category if we have birth_date and gender
           if (registration && categoryField?.fieldId) {
             const birthDate = insertData.guest_birth_date;
-            const gender = insertData.guest_gender || mappedData.guest_gender;
+            
+            // Gender comes from customFieldMappings (since it's stored in registration_responses)
+            const genderField = customFieldMappings.find(cf => {
+              const field = availableFields.find(f => f.fieldId === cf.fieldId);
+              return field?.profileField === 'gender';
+            });
+            const gender = genderField?.value ? normalizeGender(genderField.value) : null;
             
             if (birthDate && gender) {
               try {
