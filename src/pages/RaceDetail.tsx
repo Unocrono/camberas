@@ -153,6 +153,16 @@ const RaceDetail = () => {
 
       if (wavesError) throw wavesError;
 
+      // Fetch price ranges for all distances
+      const { data: priceRangesData, error: priceRangesError } = await supabase
+        .from("race_distance_prices")
+        .select("*")
+        .in("race_distance_id", distancesData.map((d: any) => d.id));
+
+      if (priceRangesError) throw priceRangesError;
+
+      const now = new Date();
+
       const distancesWithAvailability = distancesData.map((distance: any) => {
         const registeredCount = registrationsData.filter(
           (reg: any) => reg.race_distance_id === distance.id
@@ -164,12 +174,32 @@ const RaceDetail = () => {
         // Find the wave for this distance
         const wave = wavesData?.find((w: any) => w.race_distance_id === distance.id);
         
+        // Check registration window
+        const regOpens = distance.registration_opens ? new Date(distance.registration_opens) : null;
+        const regCloses = distance.registration_closes ? new Date(distance.registration_closes) : null;
+        const isRegistrationOpen = (!regOpens || now >= regOpens) && (!regCloses || now <= regCloses);
+        
+        // Get current price from ranges or fallback to base price
+        const distancePriceRanges = priceRangesData?.filter((pr: any) => pr.race_distance_id === distance.id) || [];
+        let currentPrice = distance.price;
+        
+        for (const range of distancePriceRanges) {
+          const rangeStart = new Date(range.start_datetime);
+          const rangeEnd = new Date(range.end_datetime);
+          if (now >= rangeStart && now <= rangeEnd) {
+            currentPrice = range.price;
+            break;
+          }
+        }
+        
         return {
           ...distance,
           registeredCount,
           availablePlaces,
           start_time: wave?.start_time || null,
           wave_name: wave?.wave_name || null,
+          isRegistrationOpen,
+          currentPrice,
         };
       });
 
@@ -710,7 +740,7 @@ const RaceDetail = () => {
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
                           <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground font-bold text-base px-3 py-1">
-                            {distance.price}€
+                            {distance.currentPrice}€
                           </Badge>
                         </div>
                       )}
@@ -718,7 +748,7 @@ const RaceDetail = () => {
                       <CardHeader className="pb-3">
                         <CardTitle className="text-2xl text-primary">{distance.name}</CardTitle>
                         {!distance.image_url && (
-                          <div className="text-3xl font-bold text-primary mt-2">{distance.price}€</div>
+                          <div className="text-3xl font-bold text-primary mt-2">{distance.currentPrice}€</div>
                         )}
                       </CardHeader>
                       <CardContent className="space-y-4 flex-1 flex flex-col">
@@ -854,9 +884,14 @@ const RaceDetail = () => {
                               <Button 
                                 className="w-full"
                                 onClick={() => handleRegisterClick(distance)}
-                                disabled={distance.availablePlaces === 0}
+                                disabled={distance.availablePlaces === 0 || !distance.isRegistrationOpen}
+                                variant={!distance.isRegistrationOpen ? "secondary" : "default"}
                               >
-                                {distance.availablePlaces === 0 ? "Completo" : "Inscribirme"}
+                                {distance.availablePlaces === 0 
+                                  ? "Completo" 
+                                  : !distance.isRegistrationOpen 
+                                    ? "NO DISPONIBLE" 
+                                    : "Inscribirme"}
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -893,7 +928,7 @@ const RaceDetail = () => {
                                 <div className="pt-4 border-t border-border">
                                   <div className="flex justify-between items-center mb-4">
                                     <span className="text-sm text-muted-foreground">Precio de inscripción:</span>
-                                    <span className="text-2xl font-bold">{distance.price}€</span>
+                                    <span className="text-2xl font-bold">{distance.currentPrice}€</span>
                                   </div>
                                   
                                   <Button 
