@@ -34,6 +34,7 @@ interface Race {
   name: string;
   slug: string | null;
   date: string;
+  race_type: string;
 }
 
 interface Moto {
@@ -276,7 +277,7 @@ const OverlayManager = () => {
     try {
       const { data, error } = await supabase
         .from("races")
-        .select("id, name, slug, date")
+        .select("id, name, slug, date, race_type")
         .order("date", { ascending: false });
 
       if (error) throw error;
@@ -319,11 +320,24 @@ const OverlayManager = () => {
       if (data) {
         setConfig(data as unknown as OverlayConfig);
       } else {
-        setConfig({ ...defaultConfig, race_id: selectedRace });
+        // Set default speed_display_type based on race_type
+        const race = races.find(r => r.id === selectedRace);
+        const defaultDisplayType = race?.race_type === 'mtb' ? 'speed' : 'pace';
+        setConfig({ 
+          ...defaultConfig, 
+          race_id: selectedRace,
+          speed_display_type: defaultDisplayType
+        });
       }
     } catch (error) {
       console.error("Error fetching config:", error);
-      setConfig({ ...defaultConfig, race_id: selectedRace });
+      const race = races.find(r => r.id === selectedRace);
+      const defaultDisplayType = race?.race_type === 'mtb' ? 'speed' : 'pace';
+      setConfig({ 
+        ...defaultConfig, 
+        race_id: selectedRace,
+        speed_display_type: defaultDisplayType
+      });
     }
   };
 
@@ -670,7 +684,7 @@ const OverlayManager = () => {
                     Selecciona el evento para calcular distancias correctamente
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
                   <Select 
                     value={selectedDistanceId} 
                     onValueChange={(v) => {
@@ -689,6 +703,38 @@ const OverlayManager = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {/* Speed Display Type Selector */}
+                  <div className="pt-2 border-t">
+                    <Label className="text-sm font-medium mb-2 block">Mostrar velocidad como</Label>
+                    <Select 
+                      value={config.speed_display_type || "speed"} 
+                      onValueChange={(v) => updateConfig("speed_display_type", v as "speed" | "pace")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="speed">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-muted px-1 rounded">km/h</span>
+                            Velocidad
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="pace">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs bg-muted px-1 rounded">min/km</span>
+                            Ritmo
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {races.find(r => r.id === selectedRace)?.race_type === 'mtb' 
+                        ? 'MTB: se recomienda velocidad (km/h)' 
+                        : 'Trail/Running: se recomienda ritmo (min/km)'}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 
