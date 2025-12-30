@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
 
 interface FormField {
   id: string;
@@ -35,6 +36,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [calculatedCategory, setCalculatedCategory] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -48,6 +50,36 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       prefillFromProfile();
     }
   }, [user, fields, profileLoaded]);
+
+  // Calculate category when birth_date or gender changes
+  useEffect(() => {
+    const birthDate = formData.birth_date;
+    const gender = formData.gender;
+    
+    if (birthDate && gender && raceId) {
+      calculateCategory(birthDate, gender);
+    } else {
+      setCalculatedCategory(null);
+    }
+  }, [formData.birth_date, formData.gender, raceId]);
+
+  const calculateCategory = async (birthDate: string, gender: string) => {
+    try {
+      const { data, error } = await supabase.rpc('get_race_category', {
+        p_race_id: raceId,
+        p_birth_date: birthDate,
+        p_gender: gender
+      });
+      
+      if (!error && data) {
+        setCalculatedCategory(data);
+        // Update formData so it gets saved
+        onChange('category', data);
+      }
+    } catch (err) {
+      console.error('Error calculating category:', err);
+    }
+  };
 
   const prefillFromProfile = async () => {
     if (!user) return;
@@ -312,6 +344,43 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
             {field.help_text && (
               <p className="text-sm text-muted-foreground">{field.help_text}</p>
             )}
+          </div>
+        );
+
+      case "readonly":
+        // Special handling for category field
+        if (field.field_name === 'category') {
+          return (
+            <div key={field.id} className="space-y-2">
+              <Label htmlFor={field.field_name}>
+                {field.field_label}
+              </Label>
+              <div className="flex items-center h-10 px-3 py-2 border rounded-md bg-muted">
+                {calculatedCategory ? (
+                  <Badge variant="secondary" className="text-sm">
+                    {calculatedCategory}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground text-sm">
+                    Introduce fecha de nacimiento y género
+                  </span>
+                )}
+              </div>
+              {field.help_text && (
+                <p className="text-sm text-muted-foreground">{field.help_text}</p>
+              )}
+            </div>
+          );
+        }
+        // Generic readonly field
+        return (
+          <div key={field.id} className="space-y-2">
+            <Label htmlFor={field.field_name}>
+              {field.field_label}
+            </Label>
+            <div className="flex items-center h-10 px-3 py-2 border rounded-md bg-muted text-muted-foreground">
+              {value || "-"}
+            </div>
           </div>
         );
 

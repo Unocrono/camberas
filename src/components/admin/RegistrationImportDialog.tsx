@@ -572,6 +572,9 @@ export function RegistrationImportDialog({
     const errors: string[] = [];
     let successCount = 0;
 
+    // Get the category field ID if it exists
+    const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
+
     for (let i = 0; i < csvData.rows.length; i++) {
       const row = csvData.rows[i];
       const validation = validateRow(row);
@@ -651,6 +654,32 @@ export function RegistrationImportDialog({
             }));
             
             await supabase.from("registration_responses").insert(responses);
+          }
+          
+          // Calculate and save category if we have birth_date and gender
+          if (registration && categoryField?.fieldId) {
+            const birthDate = insertData.guest_birth_date;
+            const gender = insertData.guest_gender || mappedData.guest_gender;
+            
+            if (birthDate && gender) {
+              try {
+                const { data: categoryData } = await supabase.rpc('get_race_category', {
+                  p_race_id: raceId,
+                  p_birth_date: birthDate,
+                  p_gender: gender
+                });
+                
+                if (categoryData) {
+                  await supabase.from("registration_responses").insert({
+                    registration_id: registration.id,
+                    field_id: categoryField.fieldId,
+                    field_value: categoryData,
+                  });
+                }
+              } catch (catErr) {
+                console.error('Error calculating category:', catErr);
+              }
+            }
           }
           
           successCount++;
