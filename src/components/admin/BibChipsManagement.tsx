@@ -481,6 +481,19 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
       <CardContent>
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <Select value={filterDistanceId} onValueChange={setFilterDistanceId}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Todos los eventos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos los eventos</SelectItem>
+              {distances.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -490,19 +503,6 @@ export function BibChipsManagement({ selectedRaceId, selectedDistanceId }: BibCh
               className="pl-10"
             />
           </div>
-          <Select value={filterDistanceId} onValueChange={setFilterDistanceId}>
-            <SelectTrigger className="w-full sm:w-[200px]">
-              <SelectValue placeholder="Todos los eventos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos los eventos</SelectItem>
-              {distances.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name} ({d.distance_km}km)
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Table */}
