@@ -333,7 +333,7 @@ export default function LiveResults() {
             status,
             photo_url,
             race_distance_id,
-            registration:registrations (
+            registration:registrations!inner (
               bib_number,
               user_id,
               guest_first_name,
