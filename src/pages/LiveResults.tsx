@@ -78,6 +78,7 @@ interface RaceCheckpoint {
 
 interface SplitTime {
   id: string;
+  checkpoint_id?: string;
   checkpoint_name: string;
   checkpoint_order: number;
   split_time: string;
@@ -365,7 +366,7 @@ export default function LiveResults() {
             .in("id", userIds),
           supabase
             .from("split_times")
-            .select("id, race_result_id, checkpoint_name, checkpoint_order, split_time, distance_km")
+            .select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km")
             .in("race_result_id", resultIds)
             .order("checkpoint_order")
         ]);
@@ -766,26 +767,29 @@ export default function LiveResults() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
-                        <TableHead className="w-[60px] text-center">Puesto</TableHead>
-                        <TableHead className="w-[70px] text-center">Dorsal</TableHead>
-                        <TableHead className="min-w-[180px]">Nombre</TableHead>
-                        <TableHead className="min-w-[120px]">Club</TableHead>
-                        <TableHead className="text-center min-w-[90px] font-bold">Tiempo</TableHead>
-                        <TableHead className="text-center min-w-[80px]">GAP</TableHead>
-                        <TableHead className="text-center">Categoría</TableHead>
-                        <TableHead className="text-center w-[50px]">Cat.</TableHead>
-                        <TableHead className="text-center">Género</TableHead>
-                        <TableHead className="text-center w-[50px]">Gén.</TableHead>
-                        {filteredCheckpoints.filter(c => c.checkpoint_type !== 'META').map(cp => (
-                          <TableHead key={cp.id} className="text-center min-w-[100px]">
+                        <TableHead className="w-[50px] text-center">Pto.</TableHead>
+                        <TableHead className="hidden md:table-cell w-[70px] text-center">Dorsal</TableHead>
+                        <TableHead className="min-w-[150px]">Nombre</TableHead>
+                        <TableHead className="hidden lg:table-cell min-w-[120px]">Club</TableHead>
+                        <TableHead className="text-center min-w-[80px] font-bold">Tiempo</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center min-w-[70px]">GAP</TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Categoría</TableHead>
+                        <TableHead className="text-center w-[70px]">
+                          <span className="hidden md:inline">Pto.Cat.</span>
+                          <span className="md:hidden text-xs">Pto.Cat.<br/>(Pto.Sex)</span>
+                        </TableHead>
+                        <TableHead className="hidden lg:table-cell text-center">Género</TableHead>
+                        <TableHead className="hidden md:table-cell text-center w-[50px]">Gén.</TableHead>
+                        {filteredCheckpoints.filter(c => c.checkpoint_type !== 'FINISH').map(cp => (
+                          <TableHead key={cp.id} className="text-center min-w-[100px] hidden xl:table-cell">
                             <div className="text-xs">
                               <div className="font-medium">{cp.name}</div>
                               <div className="text-muted-foreground">{cp.distance_km}km</div>
                             </div>
                           </TableHead>
                         ))}
-                        <TableHead className="text-center min-w-[70px]">
-                          {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
+                        <TableHead className="hidden lg:table-cell text-center min-w-[70px]">
+                          {race.race_type === 'mtb' ? 'Vel.' : 'Ritmo'}
                         </TableHead>
                       </TableRow>
                     </TableHeader>
@@ -801,25 +805,38 @@ export default function LiveResults() {
                             {result.overall_position === 3 && <Award className="inline h-4 w-4 text-amber-600 mr-1" />}
                             {result.overall_position}
                           </TableCell>
-                          <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
-                          <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                          <TableCell className="hidden md:table-cell text-center font-mono">{result.registration.bib_number}</TableCell>
+                          <TableCell>
+                            <div className="font-medium">
+                              {getRunnerName(result)} 
+                              <span className="md:hidden text-muted-foreground"> #{result.registration.bib_number}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground md:hidden">
+                              {getCategory(result)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
                           <TableCell className="text-center font-mono font-bold text-primary">
                             {formatTime(result.finish_time)}
                           </TableCell>
-                          <TableCell className="text-center font-mono text-sm text-muted-foreground">
+                          <TableCell className="hidden lg:table-cell text-center font-mono text-sm text-muted-foreground">
                             {calculateGap(result.finish_time, leaderTime)}
                           </TableCell>
-                          <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
-                          <TableCell className="text-center font-mono text-sm text-primary">{result.category_position || '-'}</TableCell>
-                          <TableCell className="text-center text-sm">{getGender(result)}</TableCell>
-                          <TableCell className="text-center font-mono text-sm text-primary">{result.gender_position || '-'}</TableCell>
-                          {filteredCheckpoints.filter(c => c.checkpoint_type !== 'META').map(cp => (
-                            <TableCell key={cp.id} className="text-center font-mono text-sm">
+                          <TableCell className="hidden lg:table-cell text-center text-sm">{getCategory(result)}</TableCell>
+                          <TableCell className="text-center font-mono text-sm text-primary">
+                            <span>{result.category_position || '-'}</span>
+                            <span className="md:hidden text-muted-foreground">
+                              <br/>({result.gender_position || '-'})
+                            </span>
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-center text-sm">{getGender(result)}</TableCell>
+                          <TableCell className="hidden md:table-cell text-center font-mono text-sm text-primary">{result.gender_position || '-'}</TableCell>
+                          {filteredCheckpoints.filter(c => c.checkpoint_type !== 'FINISH').map(cp => (
+                            <TableCell key={cp.id} className="text-center font-mono text-sm hidden xl:table-cell">
                               {getSplitTime(result, cp) || '-'}
                             </TableCell>
                           ))}
-                          <TableCell className="text-center font-mono text-sm">
+                          <TableCell className="hidden lg:table-cell text-center font-mono text-sm">
                             {race.race_type === 'mtb' 
                               ? `${calculateSpeed(result.finish_time, result.registration.race_distances.distance_km)} km/h`
                               : `${calculatePace(result.finish_time, result.registration.race_distances.distance_km)}/km`
@@ -828,7 +845,7 @@ export default function LiveResults() {
                         </TableRow>
                       )) : (
                         <TableRow>
-                          <TableCell colSpan={10 + filteredCheckpoints.filter(c => c.checkpoint_type !== 'META').length} className="text-center py-12 text-muted-foreground">
+                          <TableCell colSpan={10 + filteredCheckpoints.filter(c => c.checkpoint_type !== 'FINISH').length} className="text-center py-12 text-muted-foreground">
                             <Trophy className="h-12 w-12 mx-auto mb-3 opacity-20" />
                             <p>Aún no hay finalizados</p>
                             <p className="text-sm">Los resultados aparecerán aquí en tiempo real</p>
