@@ -301,7 +301,7 @@ export default function LiveResults() {
       // Fetch race details, distances, and checkpoints in parallel
       const [raceResponse, distancesResponse, checkpointsResponse] = await Promise.all([
         supabase.from("races").select("id, name, date, location, logo_url, cover_image_url, race_type").eq("id", raceId).single(),
-        supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
+        supabase.from("race_distances").select("id, name, distance_km, display_order").eq("race_id", raceId).eq("is_visible", true).order("display_order"),
         supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id").eq("race_id", raceId).order("checkpoint_order")
       ]);
 
@@ -310,8 +310,8 @@ export default function LiveResults() {
       setDistances(distancesResponse.data || []);
       setCheckpoints(checkpointsResponse.data || []);
 
-      // Auto-select first distance if only one
-      if (distancesResponse.data?.length === 1) {
+      // Auto-select first distance always
+      if (distancesResponse.data?.length > 0) {
         setSelectedDistance(distancesResponse.data[0].id);
       }
 
@@ -700,15 +700,6 @@ export default function LiveResults() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           {/* Distance Buttons */}
           <div className="flex flex-wrap gap-2">
-            {distances.length > 1 && (
-              <Button
-                variant={selectedDistance === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedDistance("all")}
-              >
-                Todas
-              </Button>
-            )}
             {distances.map(d => (
               <Button
                 key={d.id}
