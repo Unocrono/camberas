@@ -809,69 +809,80 @@ const RaceDetail = () => {
                           </div>
                         )}
 
-                        {/* GPX View, Roadbook & Download */}
-                        {(distance.gpx_file_url || (roadbooks[distance.id] && roadbooks[distance.id].length > 0)) && (
-                          <div className="space-y-2">
-                            {distance.gpx_file_url && distance.show_route_map !== false && (
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="w-full"
-                                  >
-                                    <Map className="h-4 w-4 mr-2" />
-                                    Ver Recorrido
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-4xl max-h-[90vh]">
-                                  <DialogHeader>
-                                    <DialogTitle className="flex items-center gap-2">
-                                      <Map className="h-5 w-5 text-primary" />
-                                      Recorrido - {distance.name}
-                                    </DialogTitle>
-                                    <DialogDescription>
-                                      {distance.distance_km} km {distance.elevation_gain && `• +${distance.elevation_gain}m desnivel`}
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <RoutePreviewMap 
-                                    gpxUrl={distance.gpx_file_url} 
-                                    distanceName={distance.name}
-                                  />
-                                </DialogContent>
-                              </Dialog>
-                            )}
-                            
-                            {/* Roadbook Button */}
-                            {roadbooks[distance.id] && roadbooks[distance.id].length > 0 && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="w-full"
-                                asChild
-                              >
-                                <a href={`/roadbook/${roadbooks[distance.id][0].id}`} target="_blank" rel="noopener noreferrer">
+                        {/* GPX View, Roadbook, Download & Results */}
+                        <div className="space-y-2">
+                          {distance.gpx_file_url && distance.show_route_map !== false && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="w-full"
+                                >
                                   <Map className="h-4 w-4 mr-2" />
-                                  Rutómetro
-                                </a>
-                              </Button>
-                            )}
-                            
-                            {distance.gpx_file_url && (
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="w-full"
-                                asChild
-                              >
-                                <a href={distance.gpx_file_url} download>
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Descargar GPX
-                                </a>
-                              </Button>
-                            )}
-                          </div>
-                        )}
+                                  Ver Recorrido
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-4xl max-h-[90vh]">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <Map className="h-5 w-5 text-primary" />
+                                    Recorrido - {distance.name}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    {distance.distance_km} km {distance.elevation_gain && `• +${distance.elevation_gain}m desnivel`}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <RoutePreviewMap 
+                                  gpxUrl={distance.gpx_file_url} 
+                                  distanceName={distance.name}
+                                />
+                              </DialogContent>
+                            </Dialog>
+                          )}
+                          
+                          {/* Roadbook Button */}
+                          {roadbooks[distance.id] && roadbooks[distance.id].length > 0 && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              asChild
+                            >
+                              <a href={`/roadbook/${roadbooks[distance.id][0].id}`} target="_blank" rel="noopener noreferrer">
+                                <Map className="h-4 w-4 mr-2" />
+                                Rutómetro
+                              </a>
+                            </Button>
+                          )}
+                          
+                          {distance.gpx_file_url && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full"
+                              asChild
+                            >
+                              <a href={distance.gpx_file_url} download>
+                                <Download className="h-4 w-4 mr-2" />
+                                Descargar GPX
+                              </a>
+                            </Button>
+                          )}
+
+                          {/* Enlace a clasificación/resultados - siempre visible */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full"
+                            asChild
+                          >
+                            <a href={`/${race.slug || raceId}/live`}>
+                              <BarChart3 className="h-4 w-4 mr-2" />
+                              Resultados
+                            </a>
+                          </Button>
+                        </div>
                         
                         <div className="pt-3 mt-auto">
                           <Dialog open={isDialogOpen && selectedDistance?.id === distance.id} onOpenChange={(open) => {
