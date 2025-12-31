@@ -148,7 +148,7 @@ export default function LiveResults() {
           .from("races")
           .select("id, slug")
           .eq("slug", searchSlug)
-          .maybeSingle();
+          .single();
 
         if (data && !error) {
           setRaceId(data.id);
@@ -333,20 +333,17 @@ export default function LiveResults() {
             status,
             photo_url,
             race_distance_id,
-            registration:registrations!inner (
+            registration:registrations (
               bib_number,
               user_id,
               guest_first_name,
               guest_last_name,
-              race_distances!inner (
-                id,
-                name,
-                distance_km
-              )
+              race_distance_id
             )
           `)
           .in("race_distance_id", distanceIds)
-          .order("overall_position", { ascending: true, nullsFirst: false });
+          .order("overall_position", { ascending: true, nullsFirst: false })
+          .limit(2000);
         
         resultsData = result.data || [];
         resultsError = result.error;
@@ -354,16 +351,19 @@ export default function LiveResults() {
 
       if (resultsError) throw resultsError;
       
+      // Create distances map for quick lookup
+      const distancesMap = new Map(distancesResponse.data?.map((d: any) => [d.id, d]) || []);
+      
       // Fetch profiles and split_times for results
       if (resultsData && resultsData.length > 0) {
-        const userIds = resultsData.map((r: any) => r.registration.user_id).filter(Boolean);
+        const userIds = resultsData.map((r: any) => r.registration?.user_id).filter(Boolean);
         const resultIds = resultsData.map((r: any) => r.id);
         
         const [profilesResponse, splitTimesResponse] = await Promise.all([
-          supabase
+          userIds.length > 0 ? supabase
             .from("profiles")
             .select("id, first_name, last_name, gender, club, team, birth_date")
-            .in("id", userIds),
+            .in("id", userIds) : Promise.resolve({ data: [] }),
           supabase
             .from("split_times")
             .select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km")
@@ -371,7 +371,7 @@ export default function LiveResults() {
             .order("checkpoint_order")
         ]);
         
-        const profilesMap = new Map(profilesResponse.data?.map((p: any) => [p.id, p]));
+        const profilesMap = new Map((profilesResponse.data || []).map((p: any) => [p.id, p] as [string, any]));
         const splitTimesMap = new Map<string, SplitTime[]>();
         
         splitTimesResponse.data?.forEach((st: any) => {
@@ -380,14 +380,22 @@ export default function LiveResults() {
           splitTimesMap.set(st.race_result_id, existing);
         });
         
-        const enrichedData = resultsData.map((r: any) => ({
-          ...r,
-          registration: {
-            ...r.registration,
-            profiles: r.registration.user_id ? profilesMap.get(r.registration.user_id) || null : null
-          },
-          split_times: splitTimesMap.get(r.id) || []
-        }));
+        const enrichedData = resultsData.map((r: any) => {
+          const distanceInfo = distancesMap.get(r.race_distance_id);
+          return {
+            ...r,
+            registration: {
+              ...r.registration,
+              profiles: r.registration?.user_id ? profilesMap.get(r.registration.user_id) || null : null,
+              race_distances: distanceInfo ? {
+                id: distanceInfo.id,
+                name: distanceInfo.name,
+                distance_km: distanceInfo.distance_km
+              } : null
+            },
+            split_times: splitTimesMap.get(r.id) || []
+          };
+        });
         setAllResults(enrichedData);
       } else {
         setAllResults([]);
