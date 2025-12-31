@@ -1065,6 +1065,7 @@ export type Database = {
           bib_start: number | null
           created_at: string
           cutoff_time: string | null
+          display_order: number | null
           distance_km: number
           elevation_gain: number | null
           finish_location: string | null
@@ -1090,6 +1091,7 @@ export type Database = {
           bib_start?: number | null
           created_at?: string
           cutoff_time?: string | null
+          display_order?: number | null
           distance_km: number
           elevation_gain?: number | null
           finish_location?: string | null
@@ -1115,6 +1117,7 @@ export type Database = {
           bib_start?: number | null
           created_at?: string
           cutoff_time?: string | null
+          display_order?: number | null
           distance_km?: number
           elevation_gain?: number | null
           finish_location?: string | null
