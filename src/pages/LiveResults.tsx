@@ -148,7 +148,7 @@ export default function LiveResults() {
           .from("races")
           .select("id, slug")
           .eq("slug", searchSlug)
-          .single();
+          .maybeSingle();
 
         if (data && !error) {
           setRaceId(data.id);
