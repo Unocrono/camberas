@@ -181,11 +181,27 @@ export default function LiveResults() {
     });
   }, [allResults, selectedDistance, searchQuery]);
 
-  // Sorted and finished results
+  // Sorted results - include both FIN and STD (in progress) results
   const sortedResults = useMemo(() => {
-    return filteredResults
-      .filter(r => r.status === 'FIN' && r.overall_position)
-      .sort((a, b) => (a.overall_position || 999) - (b.overall_position || 999));
+    // Separate finished and in-progress results
+    const finished = filteredResults.filter(r => r.status === 'FIN' && r.overall_position);
+    const inProgress = filteredResults.filter(r => r.status !== 'FIN' || !r.overall_position);
+    
+    // Sort finished by position, in-progress by finish_time
+    finished.sort((a, b) => (a.overall_position || 999) - (b.overall_position || 999));
+    inProgress.sort((a, b) => {
+      const parseTime = (t: any) => {
+        if (!t) return Infinity;
+        const str = typeof t === 'string' ? t : String(t);
+        const match = str.match(/(\d{2}):(\d{2}):(\d{2})/);
+        if (!match) return Infinity;
+        return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
+      };
+      return parseTime(a.finish_time) - parseTime(b.finish_time);
+    });
+    
+    // Return finished first, then in-progress
+    return [...finished, ...inProgress];
   }, [filteredResults]);
 
   // Pagination
