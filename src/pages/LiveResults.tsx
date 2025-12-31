@@ -30,6 +30,7 @@ interface RaceResult {
   status: string;
   photo_url: string | null;
   registration: {
+    id: string;
     bib_number: number | null;
     user_id: string;
     guest_first_name: string | null;
@@ -46,6 +47,14 @@ interface RaceResult {
       id: string;
       name: string;
       distance_km: number;
+    };
+    // Custom field responses
+    responses?: {
+      gender?: string;
+      club?: string;
+      team?: string;
+      birth_date?: string;
+      category?: string;
     };
   };
   split_times?: SplitTime[];
@@ -352,13 +361,13 @@ export default function LiveResults() {
       // Create distances map for quick lookup
       const distancesMap = new Map(distancesResponse.data?.map((d: any) => [d.id, d]) || []);
       
-      // Fetch registrations, profiles and split_times for results
+      // Fetch registrations, profiles, registration_responses, and split_times for results
       if (resultsData && resultsData.length > 0) {
         const registrationIds = resultsData.map((r: any) => r.registration_id).filter(Boolean);
         const resultIds = resultsData.map((r: any) => r.id);
         
-        // Fetch registrations separately to work around RLS
-        const [registrationsResponse, splitTimesResponse] = await Promise.all([
+        // Fetch registrations, split_times, and registration_responses in parallel
+        const [registrationsResponse, splitTimesResponse, responsesResponse, fieldsResponse] = await Promise.all([
           registrationIds.length > 0 ? supabase
             .from("registrations")
             .select("id, bib_number, user_id, guest_first_name, guest_last_name, race_distance_id")
@@ -367,8 +376,32 @@ export default function LiveResults() {
             .from("split_times")
             .select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km")
             .in("race_result_id", resultIds)
-            .order("checkpoint_order")
+            .order("checkpoint_order"),
+          // Fetch registration responses for custom fields
+          registrationIds.length > 0 ? supabase
+            .from("registration_responses")
+            .select("registration_id, field_id, field_value")
+            .in("registration_id", registrationIds) : Promise.resolve({ data: [] }),
+          // Fetch field definitions to map field_id to field_name
+          supabase
+            .from("registration_form_fields")
+            .select("id, field_name")
+            .eq("race_id", raceId)
         ]);
+
+        // Create field name mapping
+        const fieldNameMap = new Map((fieldsResponse.data || []).map((f: any) => [f.id, f.field_name]));
+        
+        // Create registration responses map (registration_id -> { field_name: value })
+        const responsesMap = new Map<string, Record<string, string>>();
+        (responsesResponse.data || []).forEach((resp: any) => {
+          const fieldName = fieldNameMap.get(resp.field_id);
+          if (fieldName) {
+            const existing = responsesMap.get(resp.registration_id) || {};
+            existing[fieldName] = resp.field_value;
+            responsesMap.set(resp.registration_id, existing);
+          }
+        });
 
         // Create registration map
         const registrationsMap = new Map((registrationsResponse.data || []).map((r: any) => [r.id, r] as [string, any]));
@@ -392,6 +425,7 @@ export default function LiveResults() {
         const enrichedData = resultsData.map((r: any) => {
           const distanceInfo = distancesMap.get(r.race_distance_id);
           const registration = registrationsMap.get(r.registration_id);
+          const responses = registration ? responsesMap.get(registration.id) : undefined;
           return {
             ...r,
             registration: registration ? {
@@ -401,7 +435,8 @@ export default function LiveResults() {
                 id: distanceInfo.id,
                 name: distanceInfo.name,
                 distance_km: distanceInfo.distance_km
-              } : null
+              } : null,
+              responses: responses || undefined
             } : null,
             split_times: splitTimesMap.get(r.id) || []
           };
@@ -594,19 +629,35 @@ export default function LiveResults() {
   };
 
   const getClub = (result: RaceResult) => {
-    return result.registration.profiles?.club || result.registration.profiles?.team || "";
+    // First check responses (custom form fields), then profiles
+    return result.registration.responses?.club || 
+           result.registration.responses?.team ||
+           result.registration.profiles?.club || 
+           result.registration.profiles?.team || 
+           "";
   };
 
   const getCategory = (result: RaceResult) => {
-    const gender = result.registration.profiles?.gender;
-    const birthDate = result.registration.profiles?.birth_date;
+    // First check if category is stored in responses
+    if (result.registration.responses?.category) {
+      return result.registration.responses.category;
+    }
+    
+    // Get gender from responses first, then profiles
+    const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
+    // Get birth_date from responses first, then profiles  
+    const birthDate = result.registration.responses?.birth_date || result.registration.profiles?.birth_date;
+    
     if (!birthDate || !gender) return "-";
     
     const raceDate = race?.date ? new Date(race.date) : new Date();
     const birth = new Date(birthDate);
     const age = Math.floor((raceDate.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     
-    const genderPrefix = gender === 'M' ? 'M' : 'F';
+    // Normalize gender
+    const normalizedGender = gender?.toLowerCase();
+    const genderPrefix = (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino') ? 'M' : 'F';
+    
     if (age < 20) return `${genderPrefix}-JUN`;
     if (age < 35) return `${genderPrefix}-SEN`;
     if (age < 45) return `${genderPrefix}-VA`;
@@ -616,10 +667,14 @@ export default function LiveResults() {
   };
 
   const getGender = (result: RaceResult) => {
-    const gender = result.registration.profiles?.gender;
-    if (gender === 'M') return 'Hombre';
-    if (gender === 'F') return 'Mujer';
-    return '-';
+    // Get gender from responses first, then profiles
+    const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
+    if (!gender) return '-';
+    
+    const normalizedGender = gender?.toLowerCase();
+    if (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino') return 'Hombre';
+    if (normalizedGender === 'f' || normalizedGender === 'female' || normalizedGender === 'femenino') return 'Mujer';
+    return gender;
   };
 
   const getReadingRunnerName = (reading: TimingReading) => {
