@@ -2579,6 +2579,10 @@ export type Database = {
         Args: { p_birth_date: string; p_gender: string; p_race_id: string }
         Returns: string
       }
+      get_registration_gender: {
+        Args: { p_registration_id: string }
+        Returns: string
+      }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_users_with_emails: {
         Args: never
