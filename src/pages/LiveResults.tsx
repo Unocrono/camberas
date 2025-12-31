@@ -168,7 +168,10 @@ export default function LiveResults() {
   // Filter results based on distance and search
   const filteredResults = useMemo(() => {
     return allResults.filter(result => {
-      const matchesDistance = selectedDistance === "all" || result.registration.race_distances.id === selectedDistance;
+      // Skip results without registration data
+      if (!result.registration) return false;
+      
+      const matchesDistance = selectedDistance === "all" || result.registration.race_distances?.id === selectedDistance;
       if (!matchesDistance) return false;
       
       if (!searchQuery.trim()) return true;
@@ -408,7 +411,7 @@ export default function LiveResults() {
         setAllResults([]);
       }
 
-      // Fetch recent timing readings
+      // Fetch recent timing readings - without embedded registration to avoid RLS issues
       const { data: readingsData, error: readingsError } = await supabase
         .from("timing_readings")
         .select(`
@@ -417,13 +420,8 @@ export default function LiveResults() {
           timing_timestamp,
           reading_type,
           notes,
-          checkpoint:race_checkpoints(id, name, distance_km),
-          registration:registrations(
-            race_distances(name),
-            user_id,
-            guest_first_name,
-            guest_last_name
-          )
+          registration_id,
+          checkpoint:race_checkpoints(id, name, distance_km)
         `)
         .eq("race_id", raceId)
         .is("status_code", null)
@@ -431,27 +429,50 @@ export default function LiveResults() {
         .limit(100);
 
       if (!readingsError && readingsData) {
-        const userIds = readingsData.map((r: any) => r.registration?.user_id).filter(Boolean);
+        // Fetch registrations separately
+        const registrationIds = readingsData.map((r: any) => r.registration_id).filter(Boolean);
         
-        if (userIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from("profiles")
-            .select("id, first_name, last_name")
-            .in("id", userIds);
+        if (registrationIds.length > 0) {
+          const { data: regsData } = await supabase
+            .from("registrations")
+            .select("id, user_id, guest_first_name, guest_last_name, race_distance_id")
+            .in("id", registrationIds);
           
-          const profilesMap = new Map(profilesData?.map((p: any) => [p.id, p]));
-          const enrichedReadings = readingsData.map((r: any) => ({
-            ...r,
-            registration: r.registration ? {
-              ...r.registration,
-              profiles: profilesMap.get(r.registration.user_id) || null
-            } : null
-          }));
+          const regsMap = new Map((regsData || []).map((r: any) => [r.id, r]));
+          
+          // Fetch distance names
+          const distanceIds = [...new Set((regsData || []).map((r: any) => r.race_distance_id).filter(Boolean))];
+          const { data: distData } = distanceIds.length > 0 
+            ? await supabase.from("race_distances").select("id, name").in("id", distanceIds)
+            : { data: [] };
+          const distMap = new Map((distData || []).map((d: any) => [d.id, d]));
+          
+          // Fetch profiles
+          const userIds = (regsData || []).map((r: any) => r.user_id).filter(Boolean);
+          const { data: profilesData } = userIds.length > 0 
+            ? await supabase.from("profiles").select("id, first_name, last_name").in("id", userIds)
+            : { data: [] };
+          const profilesMap = new Map((profilesData || []).map((p: any) => [p.id, p]));
+          
+          const enrichedReadings = readingsData.map((r: any) => {
+            const reg = regsMap.get(r.registration_id);
+            const dist = reg ? distMap.get(reg.race_distance_id) : null;
+            return {
+              ...r,
+              registration: reg ? {
+                user_id: reg.user_id,
+                guest_first_name: reg.guest_first_name,
+                guest_last_name: reg.guest_last_name,
+                race_distances: dist ? { name: dist.name } : null,
+                profiles: reg.user_id ? profilesMap.get(reg.user_id) || null : null
+              } : null
+            };
+          });
           setRecentReadings(enrichedReadings as TimingReading[]);
         } else {
           const formattedReadings = readingsData.map((r: any) => ({
             ...r,
-            registration: r.registration ? { ...r.registration, profiles: null } : null
+            registration: null
           }));
           setRecentReadings(formattedReadings as TimingReading[]);
         }
