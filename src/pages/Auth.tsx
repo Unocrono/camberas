@@ -37,10 +37,7 @@ const loginSchema = z.object({
     .email("Formato de email inválido")
     .max(255, "El email debe tener menos de 255 caracteres"),
   password: z.string()
-    .min(8, "La contraseña debe tener al menos 8 caracteres")
-    .regex(/[A-Z]/, "La contraseña debe contener al menos una mayúscula")
-    .regex(/[a-z]/, "La contraseña debe contener al menos una minúscula")
-    .regex(/[0-9]/, "La contraseña debe contener al menos un número"),
+    .min(1, "La contraseña es requerida"),
 });
 
 const signupSchema = loginSchema.extend({
