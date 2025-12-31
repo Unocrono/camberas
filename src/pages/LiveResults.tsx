@@ -363,38 +363,46 @@ export default function LiveResults() {
       
       // Fetch registrations, profiles, registration_responses, and split_times for results
       if (resultsData && resultsData.length > 0) {
-        const registrationIds = resultsData.map((r: any) => r.registration_id).filter(Boolean);
-        const resultIds = resultsData.map((r: any) => r.id);
+        const registrationIds: string[] = resultsData.map((r: any) => r.registration_id).filter(Boolean);
+        const resultIds: string[] = resultsData.map((r: any) => r.id);
         
-        // Fetch registrations, split_times, and registration_responses in parallel
-        const [registrationsResponse, splitTimesResponse, responsesResponse, fieldsResponse] = await Promise.all([
-          registrationIds.length > 0 ? supabase
-            .from("registrations")
-            .select("id, bib_number, user_id, guest_first_name, guest_last_name, race_distance_id")
-            .in("id", registrationIds) : Promise.resolve({ data: [] }),
-          supabase
-            .from("split_times")
-            .select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km")
-            .in("race_result_id", resultIds)
-            .order("checkpoint_order"),
-          // Fetch registration responses for custom fields
-          registrationIds.length > 0 ? supabase
-            .from("registration_responses")
-            .select("registration_id, field_id, field_value")
-            .in("registration_id", registrationIds) : Promise.resolve({ data: [] }),
-          // Fetch field definitions to map field_id to field_name
-          supabase
-            .from("registration_form_fields")
-            .select("id, field_name")
-            .eq("race_id", raceId)
+        // Helper to create batch promises
+        const BATCH_SIZE = 100;
+        const createBatches = (ids: string[]) => {
+          const batches: string[][] = [];
+          for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+            batches.push(ids.slice(i, i + BATCH_SIZE));
+          }
+          return batches;
+        };
+        
+        // Run all batched queries in parallel
+        const regBatches = createBatches(registrationIds);
+        const resultBatches = createBatches(resultIds);
+        
+        const [regResults, splitResults, respResults, fieldsData] = await Promise.all([
+          Promise.all(regBatches.map(batch => 
+            supabase.from("registrations").select("id, bib_number, user_id, guest_first_name, guest_last_name, race_distance_id").in("id", batch)
+          )),
+          Promise.all(resultBatches.map(batch => 
+            supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km").in("race_result_id", batch).order("checkpoint_order")
+          )),
+          Promise.all(regBatches.map(batch => 
+            supabase.from("registration_responses").select("registration_id, field_id, field_value").in("registration_id", batch)
+          )),
+          supabase.from("registration_form_fields").select("id, field_name").eq("race_id", raceId)
         ]);
+        
+        const batchedRegistrations = regResults.flatMap(r => r.data || []);
+        const batchedSplitTimes = splitResults.flatMap(r => r.data || []);
+        const batchedResponses = respResults.flatMap(r => r.data || []);
 
         // Create field name mapping
-        const fieldNameMap = new Map((fieldsResponse.data || []).map((f: any) => [f.id, f.field_name]));
+        const fieldNameMap = new Map((fieldsData || []).map((f: any) => [f.id, f.field_name]));
         
         // Create registration responses map (registration_id -> { field_name: value })
         const responsesMap = new Map<string, Record<string, string>>();
-        (responsesResponse.data || []).forEach((resp: any) => {
+        batchedResponses.forEach((resp: any) => {
           const fieldName = fieldNameMap.get(resp.field_id);
           if (fieldName) {
             const existing = responsesMap.get(resp.registration_id) || {};
@@ -404,19 +412,24 @@ export default function LiveResults() {
         });
 
         // Create registration map
-        const registrationsMap = new Map((registrationsResponse.data || []).map((r: any) => [r.id, r] as [string, any]));
+        const registrationsMap = new Map(batchedRegistrations.map((r: any) => [r.id, r] as [string, any]));
         
-        // Fetch profiles for users with user_id
-        const userIds = (registrationsResponse.data || []).map((r: any) => r.user_id).filter(Boolean);
-        const profilesResponse = userIds.length > 0 ? await supabase
-          .from("profiles")
-          .select("id, first_name, last_name, gender, club, team, birth_date")
-          .in("id", userIds) : { data: [] };
+        // Fetch profiles for users with user_id - also batched
+        const userIds: string[] = batchedRegistrations.map((r: any) => r.user_id).filter(Boolean);
+        const batchedProfiles: any[] = [];
+        for (let i = 0; i < userIds.length; i += BATCH_SIZE) {
+          const batch = userIds.slice(i, i + BATCH_SIZE);
+          const { data } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, gender, club, team, birth_date")
+            .in("id", batch);
+          if (data) batchedProfiles.push(...data);
+        }
         
-        const profilesMap = new Map((profilesResponse.data || []).map((p: any) => [p.id, p] as [string, any]));
+        const profilesMap = new Map(batchedProfiles.map((p: any) => [p.id, p] as [string, any]));
         const splitTimesMap = new Map<string, SplitTime[]>();
         
-        splitTimesResponse.data?.forEach((st: any) => {
+        batchedSplitTimes.forEach((st: any) => {
           const existing = splitTimesMap.get(st.race_result_id) || [];
           existing.push(st);
           splitTimesMap.set(st.race_result_id, existing);
