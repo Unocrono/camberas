@@ -956,6 +956,11 @@ export type Database = {
           race_id: string
           timing_point_id: string | null
           updated_at: string
+          youtube_error_text: string | null
+          youtube_seconds_after: number | null
+          youtube_seconds_before: number | null
+          youtube_video_id: string | null
+          youtube_video_start_time: string | null
         }
         Insert: {
           checkpoint_order: number
@@ -976,6 +981,11 @@ export type Database = {
           race_id: string
           timing_point_id?: string | null
           updated_at?: string
+          youtube_error_text?: string | null
+          youtube_seconds_after?: number | null
+          youtube_seconds_before?: number | null
+          youtube_video_id?: string | null
+          youtube_video_start_time?: string | null
         }
         Update: {
           checkpoint_order?: number
@@ -996,6 +1006,11 @@ export type Database = {
           race_id?: string
           timing_point_id?: string | null
           updated_at?: string
+          youtube_error_text?: string | null
+          youtube_seconds_after?: number | null
+          youtube_seconds_before?: number | null
+          youtube_video_id?: string | null
+          youtube_video_start_time?: string | null
         }
         Relationships: [
           {

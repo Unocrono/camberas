@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock, Youtube, Play } from "lucide-react";
 import { CircuitLapsPreview } from "./CircuitLapsPreview";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -60,6 +60,11 @@ interface Checkpoint {
   max_time: unknown;
   min_lap_time: unknown;
   expected_laps: number | null;
+  youtube_video_id: string | null;
+  youtube_video_start_time: string | null;
+  youtube_seconds_before: number | null;
+  youtube_seconds_after: number | null;
+  youtube_error_text: string | null;
 }
 
 interface RaceDistance {
@@ -141,6 +146,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     max_time: "",
     lap_number: 1,
     min_lap_time: "",
+    youtube_video_id: "",
+    youtube_video_start_time: "",
+    youtube_seconds_before: 5,
+    youtube_seconds_after: 10,
+    youtube_error_text: "",
   });
 
   // Detectar si el timing_point seleccionado ya está en uso por otros checkpoints (indica circuito con vueltas)
@@ -768,6 +778,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       max_time: "",
       lap_number: 1,
       min_lap_time: "",
+      youtube_video_id: "",
+      youtube_video_start_time: "",
+      youtube_seconds_before: 5,
+      youtube_seconds_after: 10,
+      youtube_error_text: "",
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -854,6 +869,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         max_time: intervalToString(checkpoint.max_time),
         lap_number: checkpoint.expected_laps || 1,
         min_lap_time: intervalToString(checkpoint.min_lap_time),
+        youtube_video_id: checkpoint.youtube_video_id || "",
+        youtube_video_start_time: checkpoint.youtube_video_start_time || "",
+        youtube_seconds_before: checkpoint.youtube_seconds_before ?? 5,
+        youtube_seconds_after: checkpoint.youtube_seconds_after ?? 10,
+        youtube_error_text: checkpoint.youtube_error_text || "",
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -880,6 +900,13 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const min_lap_time = formData.min_lap_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_lap_time) ? formData.min_lap_time : null;
     const expected_laps = isLapConfiguration ? formData.lap_number : null;
 
+    // YouTube fields
+    const youtube_video_id = formData.youtube_video_id?.trim() || null;
+    const youtube_video_start_time = formData.youtube_video_start_time || null;
+    const youtube_seconds_before = formData.youtube_seconds_before;
+    const youtube_seconds_after = formData.youtube_seconds_after;
+    const youtube_error_text = formData.youtube_error_text?.trim() || null;
+
     // Validación: Si es configuración de vueltas (timing_point compartido), min_time es obligatorio
     if (isLapConfiguration && !min_time) {
       toast.error("El Tiempo Mínimo es obligatorio cuando el Punto de Cronometraje es compartido con otro checkpoint (circuito con vueltas)");
@@ -903,6 +930,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           max_time,
           min_lap_time,
           expected_laps,
+          youtube_video_id,
+          youtube_video_start_time,
+          youtube_seconds_before,
+          youtube_seconds_after,
+          youtube_error_text,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -932,6 +964,11 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           max_time,
           min_lap_time,
           expected_laps,
+          youtube_video_id,
+          youtube_video_start_time,
+          youtube_seconds_before,
+          youtube_seconds_after,
+          youtube_error_text,
         });
 
       if (error) {
@@ -1489,9 +1526,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <Tabs defaultValue="general" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
+                    <TabsList className="grid w-full grid-cols-3">
                       <TabsTrigger value="general">General</TabsTrigger>
                       <TabsTrigger value="position">Posición</TabsTrigger>
+                      <TabsTrigger value="youtube">Youtube</TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="general" className="space-y-4 mt-4">
@@ -1842,6 +1880,97 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                           Radio para detección automática de paso por GPS (geofencing)
                         </p>
                       </div>
+                    </TabsContent>
+                    
+                    <TabsContent value="youtube" className="space-y-4 mt-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Youtube className="h-4 w-4 text-red-600" />
+                        <Label className="text-sm font-medium">Integración con YouTube</Label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Configura un video de YouTube para que los corredores puedan ver el momento exacto en que cruzaron este punto de control.
+                      </p>
+                      
+                      <div>
+                        <Label htmlFor="youtube_video_id">ID del Video de YouTube</Label>
+                        <Input
+                          id="youtube_video_id"
+                          value={formData.youtube_video_id}
+                          onChange={(e) => setFormData({ ...formData, youtube_video_id: e.target.value })}
+                          placeholder="Ej: dQw4w9WgXcQ"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          El ID es la parte final de la URL del video. Ej: youtube.com/watch?v=<strong>dQw4w9WgXcQ</strong>
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="youtube_video_start_time">Hora de Inicio del Video (hora real)</Label>
+                        <Input
+                          id="youtube_video_start_time"
+                          type="datetime-local"
+                          value={formData.youtube_video_start_time ? formData.youtube_video_start_time.slice(0, 16) : ""}
+                          onChange={(e) => setFormData({ ...formData, youtube_video_start_time: e.target.value ? new Date(e.target.value).toISOString() : "" })}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          La hora exacta del mundo real en que comenzó la grabación del video
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="youtube_seconds_before">Segundos Antes</Label>
+                          <Input
+                            id="youtube_seconds_before"
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={formData.youtube_seconds_before}
+                            onChange={(e) => setFormData({ ...formData, youtube_seconds_before: parseInt(e.target.value) || 5 })}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Inicio del video antes del paso
+                          </p>
+                        </div>
+                        <div>
+                          <Label htmlFor="youtube_seconds_after">Segundos Después</Label>
+                          <Input
+                            id="youtube_seconds_after"
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={formData.youtube_seconds_after}
+                            onChange={(e) => setFormData({ ...formData, youtube_seconds_after: parseInt(e.target.value) || 10 })}
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Fin del video tras el paso
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="youtube_error_text">Texto de Error</Label>
+                        <Input
+                          id="youtube_error_text"
+                          value={formData.youtube_error_text}
+                          onChange={(e) => setFormData({ ...formData, youtube_error_text: e.target.value })}
+                          placeholder="Video no disponible para este momento"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Mensaje que se mostrará si el video no está disponible
+                        </p>
+                      </div>
+                      
+                      {formData.youtube_video_id && (
+                        <div className="p-3 bg-muted/50 rounded-md">
+                          <p className="text-xs text-muted-foreground mb-2">
+                            <strong>Vista previa:</strong> Al hacer clic en el icono <Play className="h-3 w-3 inline" /> en las clasificaciones, se abrirá el video en el momento calculado.
+                          </p>
+                          <p className="text-xs font-mono">
+                            Video ID: {formData.youtube_video_id}
+                          </p>
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                   
