@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
   DialogContent,
@@ -1479,336 +1481,370 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                   Añadir Punto de Control
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {isEditing ? "Editar Punto de Control" : "Crear Punto de Control"}
                   </DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Nombre</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ej: Avituallamiento 1"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lugar">Lugar</Label>
-                    <Input
-                      id="lugar"
-                      value={formData.lugar}
-                      onChange={(e) => setFormData({ ...formData, lugar: e.target.value })}
-                      placeholder="Ej: Plaza Mayor"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="order">Orden</Label>
-                      <Input
-                        id="order"
-                        type="number"
-                        min="1"
-                        value={formData.checkpoint_order}
-                        onChange={(e) =>
-                          setFormData({ ...formData, checkpoint_order: parseInt(e.target.value) || 1 })
-                        }
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="distance">Distancia (km)</Label>
-                      <Input
-                        id="distance"
-                        type="number"
-                        step="0.001"
-                        min="0"
-                        value={formData.distance_km}
-                        onChange={(e) =>
-                          setFormData({ ...formData, distance_km: parseFloat(e.target.value) || 0 })
-                        }
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="checkpoint_type">Tipo de Punto</Label>
-                    <select
-                      id="checkpoint_type"
-                      value={formData.checkpoint_type}
-                      onChange={(e) => setFormData({ ...formData, checkpoint_type: e.target.value })}
-                      className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="START">Salida (START)</option>
-                      <option value="CONTROL">Intermedio (CONTROL)</option>
-                      <option value="FINISH">Meta (FINISH)</option>
-                    </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      FINISH se usa para calcular resultados finales
-                    </p>
-                  </div>
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Navigation className="h-4 w-4 text-muted-foreground" />
-                        <Label className="text-sm font-medium">Coordenadas GPS (opcional)</Label>
+                  <Tabs defaultValue="general" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="general">General</TabsTrigger>
+                      <TabsTrigger value="position">Posición</TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="general" className="space-y-4 mt-4">
+                      <div>
+                        <Label htmlFor="name">Nombre</Label>
+                        <Input
+                          id="name"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          placeholder="Ej: Avituallamiento 1"
+                          required
+                        />
                       </div>
-                      {mapboxToken && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowFormMap(!showFormMap)}
+                      <div>
+                        <Label htmlFor="lugar">Lugar</Label>
+                        <Input
+                          id="lugar"
+                          value={formData.lugar}
+                          onChange={(e) => setFormData({ ...formData, lugar: e.target.value })}
+                          placeholder="Ej: Plaza Mayor"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="order">Orden</Label>
+                          <Input
+                            id="order"
+                            type="number"
+                            min="1"
+                            value={formData.checkpoint_order}
+                            onChange={(e) =>
+                              setFormData({ ...formData, checkpoint_order: parseInt(e.target.value) || 1 })
+                            }
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="distance">Distancia (km)</Label>
+                          <Input
+                            id="distance"
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            value={formData.distance_km}
+                            onChange={(e) =>
+                              setFormData({ ...formData, distance_km: parseFloat(e.target.value) || 0 })
+                            }
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Tipo de Punto con Radio Buttons */}
+                      <div className="space-y-3">
+                        <Label>Tipo de Punto de Control</Label>
+                        <RadioGroup 
+                          value={formData.checkpoint_type} 
+                          onValueChange={(value) => setFormData({ ...formData, checkpoint_type: value })}
+                          className="flex flex-col gap-2"
                         >
-                          <MapPin className="mr-1 h-3 w-3" />
-                          {showFormMap ? "Ocultar" : "Seleccionar en mapa"}
-                        </Button>
-                      )}
-                    </div>
-                    {showFormMap && mapboxToken && (
-                      <div className="mb-4">
-                        <div ref={formMapContainer} className="w-full h-[200px] rounded-lg border" />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Haz clic en el mapa para seleccionar las coordenadas
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="START" id="type-start" />
+                            <Label htmlFor="type-start" className="flex items-center gap-2 cursor-pointer font-normal">
+                              <Flag className="h-4 w-4 text-green-600" />
+                              Salida (START)
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="CONTROL" id="type-control" />
+                            <Label htmlFor="type-control" className="flex items-center gap-2 cursor-pointer font-normal">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              Intermedio (CONTROL)
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="FINISH" id="type-finish" />
+                            <Label htmlFor="type-finish" className="flex items-center gap-2 cursor-pointer font-normal">
+                              <FlagTriangleRight className="h-4 w-4 text-amber-600" />
+                              Meta (FINISH)
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                        <p className="text-xs text-muted-foreground">
+                          FINISH se usa para calcular resultados finales
                         </p>
                       </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="latitude">Latitud</Label>
-                        <Input
-                          id="latitude"
-                          type="number"
-                          step="any"
-                          value={formData.latitude}
-                          onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                          placeholder="40.4168"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="longitude">Longitud</Label>
-                        <Input
-                          id="longitude"
-                          type="number"
-                          step="any"
-                          value={formData.longitude}
-                          onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                          placeholder="-3.7038"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  {/* Asignación a eventos - Simplificado */}
-                  <p className="text-xs text-muted-foreground">
-                    Este checkpoint se asignará al evento: <strong>{allDistances.find(d => d.id === selectedDistanceId)?.name}</strong>
-                  </p>
-                  {/* Selector de Punto de Cronometraje */}
-                  <div className="border-t pt-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label htmlFor="timing_point_id">Punto de Cronometraje</Label>
-                      {!isCreatingTimingPoint && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsCreatingTimingPoint(true)}
-                        >
-                          <Plus className="h-3 w-3 mr-1" />
-                          Crear nuevo
-                        </Button>
-                      )}
-                    </div>
-                    {isCreatingTimingPoint ? (
-                      <div className="space-y-2">
-                        <div className="p-3 bg-muted rounded-md">
-                          <p className="text-sm text-muted-foreground mb-1">Se creará el punto de cronometraje:</p>
-                          <p className="font-medium">
-                            {formData.checkpoint_type === "START" 
-                              ? "START" 
-                              : formData.checkpoint_type === "FINISH" 
-                                ? "FINISH" 
-                                : formData.name.trim() 
-                                  ? `${formData.name.trim()} PC`
-                                  : "(Ingresa nombre del checkpoint)"}
-                          </p>
-                          {formData.latitude && formData.longitude && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              📍 Coordenadas: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
-                            </p>
+
+                      {/* Asignación a eventos */}
+                      <p className="text-xs text-muted-foreground">
+                        Este checkpoint se asignará al evento: <strong>{allDistances.find(d => d.id === selectedDistanceId)?.name}</strong>
+                      </p>
+                      
+                      {/* Selector de Punto de Cronometraje */}
+                      <div className="border-t pt-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label htmlFor="timing_point_id">Punto de Cronometraje</Label>
+                          {!isCreatingTimingPoint && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setIsCreatingTimingPoint(true)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Crear nuevo
+                            </Button>
                           )}
                         </div>
-                        <div className="flex gap-2">
-                          <Button 
-                            type="button" 
-                            size="sm" 
-                            onClick={handleCreateTimingPoint}
-                            disabled={!formData.name.trim() && formData.checkpoint_type === "CONTROL"}
-                            className="flex-1"
+                        {isCreatingTimingPoint ? (
+                          <div className="space-y-2">
+                            <div className="p-3 bg-muted rounded-md">
+                              <p className="text-sm text-muted-foreground mb-1">Se creará el punto de cronometraje:</p>
+                              <p className="font-medium">
+                                {formData.checkpoint_type === "START" 
+                                  ? "START" 
+                                  : formData.checkpoint_type === "FINISH" 
+                                    ? "FINISH" 
+                                    : formData.name.trim() 
+                                      ? `${formData.name.trim()} PC`
+                                      : "(Ingresa nombre del checkpoint)"}
+                              </p>
+                              {formData.latitude && formData.longitude && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  📍 Coordenadas: {parseFloat(formData.latitude).toFixed(4)}, {parseFloat(formData.longitude).toFixed(4)}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button 
+                                type="button" 
+                                size="sm" 
+                                onClick={handleCreateTimingPoint}
+                                disabled={!formData.name.trim() && formData.checkpoint_type === "CONTROL"}
+                                className="flex-1"
+                              >
+                                Crear Punto de Cronometraje
+                              </Button>
+                              <Button type="button" size="sm" variant="outline" onClick={() => {
+                                setIsCreatingTimingPoint(false);
+                                setNewTimingPointName("");
+                              }}>
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <select
+                            id="timing_point_id"
+                            value={formData.timing_point_id}
+                            onChange={(e) => setFormData({ ...formData, timing_point_id: e.target.value })}
+                            className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                           >
-                            Crear Punto de Cronometraje
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => {
-                            setIsCreatingTimingPoint(false);
-                            setNewTimingPointName("");
-                          }}>
-                            Cancelar
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <select
-                        id="timing_point_id"
-                        value={formData.timing_point_id}
-                        onChange={(e) => setFormData({ ...formData, timing_point_id: e.target.value })}
-                        className="w-full h-9 px-3 py-1 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      >
-                        <option value="">Sin asignar</option>
-                        {timingPoints.map((tp) => (
-                          <option key={tp.id} value={tp.id}>
-                            {tp.name}{tp.notes ? ` (${tp.notes})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Nomenclatura: START, CP1, CP2..., FINISH
-                    </p>
-                  </div>
-                  
-                  {/* Parámetros de Tiempo - Ventana de validación */}
-                  <div className="border-t pt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <Label className="text-sm font-medium">
-                        {isLapConfiguration ? `LAP ${formData.lap_number} - Ventana de Tiempo` : 'Ventana de Tiempo para Validación'}
-                      </Label>
-                      {isLapConfiguration && (
-                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                          Circuito con vueltas
-                        </Badge>
-                      )}
-                    </div>
-                    
-                    {isLapConfiguration ? (
-                      <>
-                        <p className="text-xs text-muted-foreground -mt-1">
-                          Este punto de cronometraje ya está asignado a otro checkpoint. Configura la vuelta y ventana de tiempo para este paso.
+                            <option value="">Sin asignar</option>
+                            {timingPoints.map((tp) => (
+                              <option key={tp.id} value={tp.id}>
+                                {tp.name}{tp.notes ? ` (${tp.notes})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Nomenclatura: START, CP1, CP2..., FINISH
                         </p>
+                      </div>
+                      
+                      {/* Parámetros de Tiempo - Ventana de validación */}
+                      <div className="border-t pt-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-primary" />
+                          <Label className="text-sm font-medium">
+                            {isLapConfiguration ? `LAP ${formData.lap_number} - Ventana de Tiempo` : 'Ventana de Tiempo para Validación'}
+                          </Label>
+                          {isLapConfiguration && (
+                            <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                              Circuito con vueltas
+                            </Badge>
+                          )}
+                        </div>
                         
-                        {/* Campos específicos de vueltas */}
+                        {isLapConfiguration ? (
+                          <>
+                            <p className="text-xs text-muted-foreground -mt-1">
+                              Este punto de cronometraje ya está asignado a otro checkpoint. Configura la vuelta y ventana de tiempo para este paso.
+                            </p>
+                            
+                            {/* Campos específicos de vueltas */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="lap_number" className="text-xs font-medium">Número de Vuelta (LAP)</Label>
+                                <Input
+                                  id="lap_number"
+                                  type="number"
+                                  min="1"
+                                  value={formData.lap_number}
+                                  onChange={(e) => setFormData({ ...formData, lap_number: parseInt(e.target.value) || 1 })}
+                                  className="font-mono"
+                                />
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Sugerido: LAP {suggestedLapNumber}
+                                </p>
+                              </div>
+                              <div>
+                                <Label htmlFor="min_lap_time" className="text-xs font-medium">Tiempo Mínimo Vuelta</Label>
+                                <Input
+                                  id="min_lap_time"
+                                  type="text"
+                                  value={formData.min_lap_time}
+                                  onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
+                                  placeholder="00:15:00"
+                                  pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                                  className="font-mono"
+                                />
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  Tiempo mínimo entre vueltas
+                                </p>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground -mt-1">
+                            Define el rango de tiempo válido para este checkpoint. Lecturas fuera del rango se ignoran.
+                          </p>
+                        )}
+                        
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label htmlFor="lap_number" className="text-xs font-medium">Número de Vuelta (LAP)</Label>
+                            <Label htmlFor="min_time" className="text-xs font-medium">
+                              Tiempo Mínimo
+                              {isLapConfiguration && <span className="text-destructive ml-1">*</span>}
+                            </Label>
                             <Input
-                              id="lap_number"
-                              type="number"
-                              min="1"
-                              value={formData.lap_number}
-                              onChange={(e) => setFormData({ ...formData, lap_number: parseInt(e.target.value) || 1 })}
-                              className="font-mono"
+                              id="min_time"
+                              type="text"
+                              value={formData.min_time}
+                              onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
+                              placeholder="00:00:00"
+                              pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                              className={`font-mono ${isLapConfiguration && !formData.min_time ? 'border-destructive' : ''}`}
                             />
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Sugerido: LAP {suggestedLapNumber}
+                              {isLapConfiguration 
+                                ? "Obligatorio: diferencia este paso del anterior en el mismo punto"
+                                : "Lecturas antes de este tiempo se ignoran"
+                              }
                             </p>
                           </div>
                           <div>
-                            <Label htmlFor="min_lap_time" className="text-xs font-medium">Tiempo Mínimo Vuelta</Label>
+                            <Label htmlFor="max_time" className="text-xs font-medium">Tiempo Máximo (Cutoff)</Label>
                             <Input
-                              id="min_lap_time"
+                              id="max_time"
                               type="text"
-                              value={formData.min_lap_time}
-                              onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
-                              placeholder="00:15:00"
+                              value={formData.max_time}
+                              onChange={(e) => setFormData({ ...formData, max_time: e.target.value })}
+                              placeholder="HH:MM:SS"
                               pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
                               className="font-mono"
                             />
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Tiempo mínimo entre vueltas
+                              Lecturas después de este tiempo se ignoran
                             </p>
                           </div>
                         </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground -mt-1">
-                        Define el rango de tiempo válido para este checkpoint. Lecturas fuera del rango se ignoran.
-                      </p>
-                    )}
+                        
+                        {isLapConfiguration && (
+                          <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                            <p className="text-xs text-amber-800 dark:text-amber-200">
+                              <strong>Circuito detectado:</strong> El punto de cronometraje seleccionado ya está en uso.
+                              <br />Este checkpoint representa el <strong>LAP {formData.lap_number}</strong> del circuito.
+                              <br /><strong className="text-destructive">El Tiempo Mínimo es obligatorio</strong> para diferenciar las lecturas de cada vuelta.
+                            </p>
+                          </div>
+                        )}
+                        {!isLapConfiguration && (
+                          <div className="p-3 bg-muted/50 rounded-md">
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Tip:</strong> Para crear un circuito con vueltas, asigna el mismo Punto de Cronometraje a varios checkpoints con diferentes rangos de tiempo.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </TabsContent>
                     
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="min_time" className="text-xs font-medium">
-                          Tiempo Mínimo
-                          {isLapConfiguration && <span className="text-destructive ml-1">*</span>}
-                        </Label>
+                    <TabsContent value="position" className="space-y-4 mt-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Navigation className="h-4 w-4 text-muted-foreground" />
+                        <Label className="text-sm font-medium">Coordenadas GPS</Label>
+                      </div>
+                      
+                      {mapboxToken && (
+                        <div className="space-y-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowFormMap(!showFormMap)}
+                            className="w-full"
+                          >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            {showFormMap ? "Ocultar mapa" : "Seleccionar en mapa"}
+                          </Button>
+                          {showFormMap && (
+                            <div className="space-y-2">
+                              <div ref={formMapContainer} className="w-full h-[250px] rounded-lg border" />
+                              <p className="text-xs text-muted-foreground text-center">
+                                Haz clic en el mapa para seleccionar las coordenadas
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="latitude">Latitud</Label>
+                          <Input
+                            id="latitude"
+                            type="number"
+                            step="any"
+                            value={formData.latitude}
+                            onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                            placeholder="40.4168"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="longitude">Longitud</Label>
+                          <Input
+                            id="longitude"
+                            type="number"
+                            step="any"
+                            value={formData.longitude}
+                            onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                            placeholder="-3.7038"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-4">
+                        <Label htmlFor="geofence_radius">Radio GPS (metros)</Label>
                         <Input
-                          id="min_time"
-                          type="text"
-                          value={formData.min_time}
-                          onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
-                          placeholder="00:00:00"
-                          pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                          className={`font-mono ${isLapConfiguration && !formData.min_time ? 'border-destructive' : ''}`}
+                          id="geofence_radius"
+                          type="number"
+                          min="10"
+                          max="200"
+                          value={formData.geofence_radius}
+                          onChange={(e) => setFormData({ ...formData, geofence_radius: parseInt(e.target.value) || 50 })}
                         />
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {isLapConfiguration 
-                            ? "Obligatorio: diferencia este paso del anterior en el mismo punto"
-                            : "Lecturas antes de este tiempo se ignoran"
-                          }
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Radio para detección automática de paso por GPS (geofencing)
                         </p>
                       </div>
-                      <div>
-                        <Label htmlFor="max_time" className="text-xs font-medium">Tiempo Máximo (Cutoff)</Label>
-                        <Input
-                          id="max_time"
-                          type="text"
-                          value={formData.max_time}
-                          onChange={(e) => setFormData({ ...formData, max_time: e.target.value })}
-                          placeholder="HH:MM:SS"
-                          pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                          className="font-mono"
-                        />
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Lecturas después de este tiempo se ignoran
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {isLapConfiguration && (
-                      <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
-                        <p className="text-xs text-amber-800 dark:text-amber-200">
-                          <strong>Circuito detectado:</strong> El punto de cronometraje seleccionado ya está en uso.
-                          <br />Este checkpoint representa el <strong>LAP {formData.lap_number}</strong> del circuito.
-                          <br /><strong className="text-destructive">El Tiempo Mínimo es obligatorio</strong> para diferenciar las lecturas de cada vuelta.
-                        </p>
-                      </div>
-                    )}
-                    {!isLapConfiguration && (
-                      <div className="p-3 bg-muted/50 rounded-md">
-                        <p className="text-xs text-muted-foreground">
-                          <strong>Tip:</strong> Para crear un circuito con vueltas, asigna el mismo Punto de Cronometraje a varios checkpoints con diferentes rangos de tiempo.
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                   
-                  {/* Radio GPS para Geofencing */}
-                  <div>
-                    <Label htmlFor="geofence_radius">Radio GPS (metros)</Label>
-                    <Input
-                      id="geofence_radius"
-                      type="number"
-                      min="10"
-                      max="200"
-                      value={formData.geofence_radius}
-                      onChange={(e) => setFormData({ ...formData, geofence_radius: parseInt(e.target.value) || 50 })}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Radio para detección automática de paso por GPS
-                    </p>
-                  </div>
                   <Button type="submit" className="w-full">
                     {isEditing ? "Guardar Cambios" : "Crear Punto de Control"}
                   </Button>
