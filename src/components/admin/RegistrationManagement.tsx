@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3 } from "lucide-react";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 
@@ -29,6 +30,7 @@ interface Registration {
   guest_last_name: string | null;
   guest_phone: string | null;
   guest_dni_passport: string | null;
+  guest_birth_date: string | null;
   race_id: string;
   race_distance_id: string;
   race: {
@@ -47,6 +49,11 @@ interface Registration {
     last_name: string | null;
     phone: string | null;
     dni_passport: string | null;
+    gender: string | null;
+    birth_date: string | null;
+    club: string | null;
+    team: string | null;
+    country: string | null;
   } | null;
 }
 
@@ -88,13 +95,20 @@ const emptyFormData: RegistrationFormData = {
   bib_number: "",
 };
 
-type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "type" | "distance" | "status" | "payment" | "actions";
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "actions";
 
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "bib_number", label: "Dorsal" },
   { key: "participant", label: "Participante" },
   { key: "email", label: "Email" },
-  { key: "dni", label: "DNI" },
+  { key: "dni", label: "DNI/Pasaporte" },
+  { key: "phone", label: "Teléfono" },
+  { key: "gender", label: "Género" },
+  { key: "birth_date", label: "F. Nacimiento" },
+  { key: "category", label: "Categoría" },
+  { key: "club", label: "Club" },
+  { key: "team", label: "Equipo" },
+  { key: "country", label: "País" },
   { key: "type", label: "Tipo" },
   { key: "distance", label: "Distancia" },
   { key: "status", label: "Estado" },
@@ -142,10 +156,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [bulkPaymentDialog, setBulkPaymentDialog] = useState(false);
   const [bulkDistanceDialog, setBulkDistanceDialog] = useState(false);
   const [bulkDeleteDialog, setBulkDeleteDialog] = useState(false);
+  const [bulkGenderDialog, setBulkGenderDialog] = useState(false);
+  const [bulkCategoryDialog, setBulkCategoryDialog] = useState(false);
+  const [bulkClubDialog, setBulkClubDialog] = useState(false);
+  const [bulkTeamDialog, setBulkTeamDialog] = useState(false);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
+  const [bulkGender, setBulkGender] = useState("male");
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkClub, setBulkClub] = useState("");
+  const [bulkTeam, setBulkTeam] = useState("");
+  
+  // Form fields and responses
+  const [formFields, setFormFields] = useState<any[]>([]);
+  const [registrationResponses, setRegistrationResponses] = useState<Map<string, Map<string, string>>>(new Map());
+  const [categories, setCategories] = useState<any[]>([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -357,9 +384,241 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
   };
 
+  const handleBulkGender = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const raceId = selectedRaceId || selectedRace;
+      
+      // Get gender field for each registration's distance
+      for (const regId of ids) {
+        const reg = filteredRegistrations.find(r => r.id === regId);
+        if (!reg) continue;
+        
+        // Find gender field for this distance
+        const genderField = formFields.find(
+          f => f.race_distance_id === reg.race_distance_id && (f.profile_field === 'gender' || f.field_name === 'gender')
+        );
+        
+        if (genderField) {
+          // Upsert registration response
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: regId,
+              field_id: genderField.id,
+              field_value: bulkGender === 'male' ? 'Masculino' : 'Femenino'
+            }, { onConflict: 'registration_id,field_id' });
+        }
+      }
+      
+      toast({ title: `Género actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkGenderDialog(false);
+      if (raceId) fetchFormFieldsAndResponses(raceId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkCategory = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const raceId = selectedRaceId || selectedRace;
+      
+      for (const regId of ids) {
+        const reg = filteredRegistrations.find(r => r.id === regId);
+        if (!reg) continue;
+        
+        const categoryField = formFields.find(
+          f => f.race_distance_id === reg.race_distance_id && (f.profile_field === 'category' || f.field_name === 'category')
+        );
+        
+        if (categoryField) {
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: regId,
+              field_id: categoryField.id,
+              field_value: bulkCategory
+            }, { onConflict: 'registration_id,field_id' });
+        }
+      }
+      
+      toast({ title: `Categoría actualizada en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkCategoryDialog(false);
+      if (raceId) fetchFormFieldsAndResponses(raceId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkClub = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const raceId = selectedRaceId || selectedRace;
+      
+      for (const regId of ids) {
+        const reg = filteredRegistrations.find(r => r.id === regId);
+        if (!reg) continue;
+        
+        const clubField = formFields.find(
+          f => f.race_distance_id === reg.race_distance_id && (f.profile_field === 'club' || f.field_name === 'club')
+        );
+        
+        if (clubField) {
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: regId,
+              field_id: clubField.id,
+              field_value: bulkClub
+            }, { onConflict: 'registration_id,field_id' });
+        }
+      }
+      
+      toast({ title: `Club actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkClubDialog(false);
+      if (raceId) fetchFormFieldsAndResponses(raceId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkTeam = async () => {
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      const raceId = selectedRaceId || selectedRace;
+      
+      for (const regId of ids) {
+        const reg = filteredRegistrations.find(r => r.id === regId);
+        if (!reg) continue;
+        
+        const teamField = formFields.find(
+          f => f.race_distance_id === reg.race_distance_id && (f.profile_field === 'team' || f.field_name === 'team')
+        );
+        
+        if (teamField) {
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: regId,
+              field_id: teamField.id,
+              field_value: bulkTeam
+            }, { onConflict: 'registration_id,field_id' });
+        }
+      }
+      
+      toast({ title: `Equipo actualizado en ${ids.length} inscripciones` });
+      setSelectedRows(new Set());
+      setBulkTeamDialog(false);
+      if (raceId) fetchFormFieldsAndResponses(raceId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    if (selectedRaceId) {
+      fetchFormFieldsAndResponses(selectedRaceId);
+      fetchCategories(selectedRaceId);
+    }
   }, [selectedRaceId]);
+
+  const fetchFormFieldsAndResponses = async (raceId: string) => {
+    try {
+      // Fetch all distances for this race
+      const { data: distancesData } = await supabase
+        .from("race_distances")
+        .select("id")
+        .eq("race_id", raceId);
+      
+      const distanceIds = distancesData?.map(d => d.id) || [];
+      
+      if (distanceIds.length === 0) return;
+
+      // Fetch form fields for all distances
+      const { data: fieldsData } = await supabase
+        .from("registration_form_fields")
+        .select("id, field_name, field_label, profile_field, race_distance_id")
+        .in("race_distance_id", distanceIds);
+      
+      setFormFields(fieldsData || []);
+
+      // Fetch all registrations for this race
+      const { data: regsData } = await supabase
+        .from("registrations")
+        .select("id")
+        .eq("race_id", raceId);
+      
+      const regIds = regsData?.map(r => r.id) || [];
+      
+      if (regIds.length === 0) return;
+
+      // Batch fetch registration responses
+      const batchSize = 100;
+      const batches = [];
+      for (let i = 0; i < regIds.length; i += batchSize) {
+        batches.push(regIds.slice(i, i + batchSize));
+      }
+
+      const allResponses: any[] = [];
+      for (const batch of batches) {
+        const { data: respData } = await supabase
+          .from("registration_responses")
+          .select("registration_id, field_id, field_value")
+          .in("registration_id", batch);
+        if (respData) allResponses.push(...respData);
+      }
+
+      // Build a map: registration_id -> { field_name -> field_value }
+      const fieldIdToName = new Map<string, string>();
+      fieldsData?.forEach(f => fieldIdToName.set(f.id, f.profile_field || f.field_name));
+
+      const responsesMap = new Map<string, Map<string, string>>();
+      allResponses.forEach(resp => {
+        if (!responsesMap.has(resp.registration_id)) {
+          responsesMap.set(resp.registration_id, new Map());
+        }
+        const fieldName = fieldIdToName.get(resp.field_id);
+        if (fieldName) {
+          responsesMap.get(resp.registration_id)!.set(fieldName, resp.field_value);
+        }
+      });
+
+      setRegistrationResponses(responsesMap);
+    } catch (error) {
+      console.error("Error fetching form fields and responses:", error);
+    }
+  };
+
+  const fetchCategories = async (raceId: string) => {
+    const { data } = await supabase
+      .from("race_categories")
+      .select("*")
+      .eq("race_id", raceId)
+      .order("display_order");
+    setCategories(data || []);
+  };
+
+  // Helper to get registration response value
+  const getResponseValue = (regId: string, fieldName: string): string => {
+    return registrationResponses.get(regId)?.get(fieldName) || "";
+  };
 
   useEffect(() => {
     // If selectedRaceId prop changes, update the internal filter
@@ -446,7 +705,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           guest_last_name,
           guest_phone,
           guest_dni_passport,
+          guest_birth_date,
           race_id,
+          race_distance_id,
           race_distance_id,
           race:races!registrations_race_id_fkey (
             id,
@@ -463,7 +724,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             first_name,
             last_name,
             phone,
-            dni_passport
+            dni_passport,
+            gender,
+            birth_date,
+            club,
+            team,
+            country
           )
         `)
         .order("created_at", { ascending: false });
@@ -918,6 +1184,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 Asignar dorsales automáticamente
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuLabel>Datos de inscripción</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setBulkGenderDialog(true)}>
+                <Users className="h-4 w-4 mr-2" />
+                Cambiar género
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkCategoryDialog(true)}>
+                <Tag className="h-4 w-4 mr-2" />
+                Cambiar categoría
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkClubDialog(true)}>
+                <Users className="h-4 w-4 mr-2" />
+                Cambiar club
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkTeamDialog(true)}>
+                <Users className="h-4 w-4 mr-2" />
+                Cambiar equipo
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setBulkDeleteDialog(true)} className="text-destructive focus:text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" />
                 Eliminar seleccionadas
@@ -944,10 +1228,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10</SelectItem>
                   <SelectItem value="25">25</SelectItem>
                   <SelectItem value="50">50</SelectItem>
                   <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="200">200</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1000</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -990,7 +1276,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   {visibleColumns.has("bib_number") && <TableHead className="w-[80px]">Dorsal</TableHead>}
                   {visibleColumns.has("participant") && <TableHead>Participante</TableHead>}
                   {visibleColumns.has("email") && <TableHead>Email</TableHead>}
-                  {visibleColumns.has("dni") && <TableHead>DNI</TableHead>}
+                  {visibleColumns.has("dni") && <TableHead>DNI/Pasaporte</TableHead>}
+                  {visibleColumns.has("phone") && <TableHead>Teléfono</TableHead>}
+                  {visibleColumns.has("gender") && <TableHead>Género</TableHead>}
+                  {visibleColumns.has("birth_date") && <TableHead>F. Nacimiento</TableHead>}
+                  {visibleColumns.has("category") && <TableHead>Categoría</TableHead>}
+                  {visibleColumns.has("club") && <TableHead>Club</TableHead>}
+                  {visibleColumns.has("team") && <TableHead>Equipo</TableHead>}
+                  {visibleColumns.has("country") && <TableHead>País</TableHead>}
                   {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
                   {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
                   {visibleColumns.has("status") && <TableHead>Estado</TableHead>}
@@ -1012,6 +1305,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
                     const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
                     const email = reg.guest_email || "";
+                    const phone = reg.profiles?.phone || reg.guest_phone || "";
+                    
+                    // Get values from registration_responses
+                    const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
+                    const category = getResponseValue(reg.id, 'category') || "";
+                    const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
+                    const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
+                    const country = getResponseValue(reg.id, 'country') || reg.profiles?.country || "";
+                    const birthDate = getResponseValue(reg.id, 'birth_date') || reg.profiles?.birth_date || reg.guest_birth_date || "";
                     
                     return (
                       <TableRow key={reg.id} data-state={selectedRows.has(reg.id) ? "selected" : undefined}>
@@ -1043,6 +1345,29 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                         )}
                         {visibleColumns.has("dni") && (
                           <TableCell>{dniPassport || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("phone") && (
+                          <TableCell>{phone || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("gender") && (
+                          <TableCell>{gender || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("birth_date") && (
+                          <TableCell>
+                            {birthDate ? new Date(birthDate).toLocaleDateString("es-ES") : "-"}
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("category") && (
+                          <TableCell>{category || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("club") && (
+                          <TableCell>{club || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("team") && (
+                          <TableCell>{team || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("country") && (
+                          <TableCell>{country || "-"}</TableCell>
                         )}
                         {visibleColumns.has("type") && (
                           <TableCell>
@@ -1573,6 +1898,117 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Gender Dialog */}
+      <Dialog open={bulkGenderDialog} onOpenChange={setBulkGenderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar género masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el género de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <RadioGroup value={bulkGender} onValueChange={setBulkGender}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="male" id="male" />
+                <Label htmlFor="male">Masculino</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="female" id="female" />
+                <Label htmlFor="female">Femenino</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkGenderDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkGender} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Category Dialog */}
+      <Dialog open={bulkCategoryDialog} onOpenChange={setBulkCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar categoría masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar la categoría de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nueva categoría</Label>
+              <Select value={bulkCategory} onValueChange={setBulkCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkCategoryDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkCategory} disabled={bulkActionLoading || !bulkCategory}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Club Dialog */}
+      <Dialog open={bulkClubDialog} onOpenChange={setBulkClubDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar club masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el club de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nuevo club</Label>
+              <Input value={bulkClub} onChange={(e) => setBulkClub(e.target.value)} placeholder="Nombre del club" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkClubDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkClub} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Team Dialog */}
+      <Dialog open={bulkTeamDialog} onOpenChange={setBulkTeamDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar equipo masivo</DialogTitle>
+            <DialogDescription>
+              Cambiar el equipo de {selectedRows.size} inscripciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nuevo equipo</Label>
+              <Input value={bulkTeam} onChange={(e) => setBulkTeam(e.target.value)} placeholder="Nombre del equipo" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkTeamDialog(false)}>Cancelar</Button>
+            <Button onClick={handleBulkTeam} disabled={bulkActionLoading}>
+              {bulkActionLoading ? "Procesando..." : "Aplicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
