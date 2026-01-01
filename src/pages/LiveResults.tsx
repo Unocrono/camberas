@@ -1031,21 +1031,7 @@ export default function LiveResults() {
           <TabsContent value="podium" className="space-y-6">
             {podiumResults.length >= 3 ? (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Second place */}
-                <div className="md:order-1 md:mt-8">
-                  <ResultCard
-                    position={podiumResults[1]?.overall_position || null}
-                    bibNumber={podiumResults[1]?.registration.bib_number || null}
-                    runnerName={getRunnerName(podiumResults[1])}
-                    distanceName={podiumResults[1]?.registration.race_distances.name}
-                    finishTime={formatTime(podiumResults[1]?.finish_time)}
-                    pace={calculatePace(podiumResults[1]?.finish_time, podiumResults[1]?.registration.race_distances.distance_km)}
-                    photoUrl={podiumResults[1]?.photo_url}
-                    isNew={newResultIds.has(podiumResults[1]?.id)}
-                    variant="podium"
-                  />
-                </div>
-                {/* First place */}
+                {/* First place - first in DOM for mobile, centered in desktop */}
                 <div className="md:order-2">
                   <ResultCard
                     position={podiumResults[0]?.overall_position || null}
@@ -1059,7 +1045,21 @@ export default function LiveResults() {
                     variant="podium"
                   />
                 </div>
-                {/* Third place */}
+                {/* Second place - second in DOM for mobile, left in desktop */}
+                <div className="md:order-1 md:mt-8">
+                  <ResultCard
+                    position={podiumResults[1]?.overall_position || null}
+                    bibNumber={podiumResults[1]?.registration.bib_number || null}
+                    runnerName={getRunnerName(podiumResults[1])}
+                    distanceName={podiumResults[1]?.registration.race_distances.name}
+                    finishTime={formatTime(podiumResults[1]?.finish_time)}
+                    pace={calculatePace(podiumResults[1]?.finish_time, podiumResults[1]?.registration.race_distances.distance_km)}
+                    photoUrl={podiumResults[1]?.photo_url}
+                    isNew={newResultIds.has(podiumResults[1]?.id)}
+                    variant="podium"
+                  />
+                </div>
+                {/* Third place - third in DOM for mobile, right in desktop */}
                 <div className="md:order-3 md:mt-12">
                   <ResultCard
                     position={podiumResults[2]?.overall_position || null}
