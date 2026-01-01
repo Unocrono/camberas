@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   ArrowLeft, Trophy, Medal, Award, MapPin, Timer, Search,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Youtube
 } from "lucide-react";
 import { ShareResultsButton } from "@/components/results/ShareResultsButton";
+import { YouTubeVideoModal } from "@/components/YouTubeVideoModal";
 
 interface SplitResult {
   id: string;
@@ -66,6 +67,11 @@ interface RaceCheckpoint {
   distance_km: number;
   checkpoint_order: number;
   checkpoint_type: string;
+  youtube_video_id: string | null;
+  youtube_video_start_time: string | null;
+  youtube_seconds_before: number | null;
+  youtube_seconds_after: number | null;
+  youtube_error_text: string | null;
 }
 
 type ClassificationType = "general" | "gender" | "category";
@@ -86,6 +92,17 @@ export default function SplitClassification() {
   const [searchQuery, setSearchQuery] = useState("");
   const [classificationType, setClassificationType] = useState<ClassificationType>("general");
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // YouTube modal state
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+  const [youtubeVideoData, setYoutubeVideoData] = useState<{
+    videoId: string;
+    startSeconds: number;
+    runnerName: string;
+    checkpointName: string;
+    formattedTime: string;
+    errorText: string;
+  } | null>(null);
 
   // Resolve race ID from slug or direct ID
   useEffect(() => {
@@ -123,7 +140,7 @@ export default function SplitClassification() {
         const [raceRes, distancesRes, checkpointsRes] = await Promise.all([
           supabase.from("races").select("id, name, date, location, logo_url").eq("id", raceId).single(),
           supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
-          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type").eq("race_id", raceId).order("checkpoint_order")
+          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text").eq("race_id", raceId).order("checkpoint_order")
         ]);
 
         if (raceRes.error) throw raceRes.error;
@@ -335,6 +352,60 @@ export default function SplitClassification() {
     return null;
   };
 
+  // Calculate YouTube video timestamp from split time and checkpoint config
+  const handleYoutubeClick = (
+    checkpoint: RaceCheckpoint,
+    splitTimeStr: string,
+    runnerName: string
+  ) => {
+    if (!checkpoint.youtube_video_id || !checkpoint.youtube_video_start_time) {
+      return;
+    }
+
+    // Parse the split time to get total seconds from race start
+    const splitMatch = splitTimeStr.match(/(\d{2}):(\d{2}):(\d{2})/);
+    if (!splitMatch) {
+      return;
+    }
+    const splitSeconds = parseInt(splitMatch[1]) * 3600 + parseInt(splitMatch[2]) * 60 + parseInt(splitMatch[3]);
+
+    // Get race date as base
+    const raceDate = race?.date ? new Date(race.date) : new Date();
+    
+    // Parse video start time (real-world wall-clock time)
+    const videoStartTime = new Date(checkpoint.youtube_video_start_time);
+    
+    // Calculate the runner's crossing timestamp: race start + split time
+    const raceStartTime = new Date(raceDate);
+    raceStartTime.setHours(0, 0, 0, 0);
+    
+    // The crossing time in the real world
+    const crossingTime = new Date(raceStartTime.getTime() + splitSeconds * 1000);
+    
+    // Difference between crossing time and video start time
+    const diffMs = crossingTime.getTime() - videoStartTime.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    
+    // Apply the seconds_before offset
+    const secondsBefore = checkpoint.youtube_seconds_before || 5;
+    const startSeconds = Math.max(0, diffSeconds - secondsBefore);
+    
+    // Validate that the crossing time is after the video start time
+    if (diffSeconds < 0) {
+      return;
+    }
+
+    setYoutubeVideoData({
+      videoId: checkpoint.youtube_video_id,
+      startSeconds,
+      runnerName,
+      checkpointName: checkpoint.name,
+      formattedTime: splitTimeStr,
+      errorText: checkpoint.youtube_error_text || "Video no disponible"
+    });
+    setYoutubeModalOpen(true);
+  };
+
   const currentCheckpoint = checkpoints.find(cp => cp.checkpoint_order === parseInt(selectedCheckpoint));
   const raceSlug = slug || id;
 
@@ -465,6 +536,7 @@ export default function SplitClassification() {
                         <TableHead className="w-16 text-center hidden sm:table-cell">P.Cat</TableHead>
                         <TableHead className="w-24 text-right">Tiempo</TableHead>
                         <TableHead className="w-20 text-right hidden sm:table-cell">Ritmo</TableHead>
+                        <TableHead className="w-12 text-center">Video</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -516,6 +588,20 @@ export default function SplitClassification() {
                             <TableCell className="text-right font-mono text-muted-foreground hidden sm:table-cell">
                               {result.pace || "-"}
                             </TableCell>
+                            <TableCell className="text-center">
+                              {currentCheckpoint?.youtube_video_id && currentCheckpoint?.youtube_video_start_time ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => currentCheckpoint && handleYoutubeClick(currentCheckpoint, result.split_time, getRunnerName(result))}
+                                >
+                                  <Youtube className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -551,6 +637,18 @@ export default function SplitClassification() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* YouTube Video Modal */}
+      <YouTubeVideoModal
+        isOpen={youtubeModalOpen}
+        onClose={() => setYoutubeModalOpen(false)}
+        videoId={youtubeVideoData?.videoId || ""}
+        startSeconds={youtubeVideoData?.startSeconds || 0}
+        runnerName={youtubeVideoData?.runnerName}
+        checkpointName={youtubeVideoData?.checkpointName}
+        formattedTime={youtubeVideoData?.formattedTime}
+        errorText={youtubeVideoData?.errorText}
+      />
     </div>
   );
 }
