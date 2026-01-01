@@ -398,7 +398,8 @@ export default function LiveResults() {
         const batchedResponses = respResults.flatMap(r => r.data || []);
 
         // Create field name mapping
-        const fieldNameMap = new Map((fieldsData || []).map((f: any) => [f.id, f.field_name]));
+        const fieldsArray = (fieldsData as any)?.data || [];
+        const fieldNameMap = new Map<string, string>(fieldsArray.map((f: { id: string; field_name: string }) => [f.id, f.field_name]));
         
         // Create registration responses map (registration_id -> { field_name: value })
         const responsesMap = new Map<string, Record<string, string>>();
