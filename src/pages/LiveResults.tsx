@@ -13,13 +13,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { 
   ArrowLeft, Trophy, Medal, Award, Activity, MapPin, Timer, Satellite, 
   Radio, Clock, Map as MapIcon, MapPinned, Search,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Flag, Mic, List
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Flag, Mic, List, Youtube
 } from "lucide-react";
 import { LiveGPSMap } from "@/components/LiveGPSMap";
 import { toast } from "sonner";
 import { ShareResultsButton } from "@/components/results/ShareResultsButton";
 import { ExportResultsButton } from "@/components/results/ExportResultsButton";
 import { ResultCard } from "@/components/results/ResultCard";
+import { YouTubeVideoModal } from "@/components/YouTubeVideoModal";
 
 interface RaceResult {
   id: string;
@@ -83,6 +84,11 @@ interface RaceCheckpoint {
   checkpoint_order: number;
   checkpoint_type: string;
   race_distance_id: string | null;
+  youtube_video_id: string | null;
+  youtube_video_start_time: string | null;
+  youtube_seconds_before: number | null;
+  youtube_seconds_after: number | null;
+  youtube_error_text: string | null;
 }
 
 interface SplitTime {
@@ -142,6 +148,17 @@ export default function LiveResults() {
   const [intermediosCheckpoint, setIntermediosCheckpoint] = useState<string>("all");
   const [intermediosPage, setIntermediosPage] = useState(1);
   const [speakerPage, setSpeakerPage] = useState(1);
+  
+  // YouTube modal state
+  const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
+  const [youtubeVideoData, setYoutubeVideoData] = useState<{
+    videoId: string;
+    startSeconds: number;
+    runnerName: string;
+    checkpointName: string;
+    formattedTime: string;
+    errorText: string;
+  } | null>(null);
 
   // Resolve race ID from slug or direct ID
   useEffect(() => {
@@ -315,7 +332,7 @@ export default function LiveResults() {
       const [raceResponse, distancesResponse, checkpointsResponse] = await Promise.all([
         supabase.from("races").select("id, name, date, location, logo_url, cover_image_url, race_type").eq("id", raceId).single(),
         supabase.from("race_distances").select("id, name, distance_km, display_order").eq("race_id", raceId).eq("is_visible", true).order("display_order"),
-        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id").eq("race_id", raceId).order("checkpoint_order")
+        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text").eq("race_id", raceId).order("checkpoint_order")
       ]);
 
       if (raceResponse.error) throw raceResponse.error;
@@ -704,6 +721,65 @@ export default function LiveResults() {
       (s as any).checkpoint_id === checkpoint.id || s.checkpoint_order === checkpoint.checkpoint_order
     );
     return split ? formatTime(split.split_time) : null;
+  };
+
+  // Calculate YouTube video timestamp from split time and checkpoint config
+  const handleYoutubeClick = (
+    checkpoint: RaceCheckpoint,
+    splitTimeStr: string,
+    runnerName: string
+  ) => {
+    if (!checkpoint.youtube_video_id || !checkpoint.youtube_video_start_time) {
+      toast.error(checkpoint.youtube_error_text || "Video no disponible para este momento");
+      return;
+    }
+
+    // Parse the split time to get total seconds from race start
+    const splitMatch = splitTimeStr.match(/(\d{2}):(\d{2}):(\d{2})/);
+    if (!splitMatch) {
+      toast.error("Tiempo de split no válido");
+      return;
+    }
+    const splitSeconds = parseInt(splitMatch[1]) * 3600 + parseInt(splitMatch[2]) * 60 + parseInt(splitMatch[3]);
+
+    // Get wave start time for this race distance
+    // For simplicity, we'll use the race date as base - in real usage this would come from race_waves
+    const raceDate = race?.date ? new Date(race.date) : new Date();
+    
+    // Parse video start time (real-world wall-clock time)
+    const videoStartTime = new Date(checkpoint.youtube_video_start_time);
+    
+    // Calculate the runner's crossing timestamp: race start + split time
+    // Assuming race start is at 00:00:00 of race day for calculation
+    const raceStartTime = new Date(raceDate);
+    raceStartTime.setHours(0, 0, 0, 0);
+    
+    // The crossing time in the real world
+    const crossingTime = new Date(raceStartTime.getTime() + splitSeconds * 1000);
+    
+    // Difference between crossing time and video start time
+    const diffMs = crossingTime.getTime() - videoStartTime.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    
+    // Apply the seconds_before offset
+    const secondsBefore = checkpoint.youtube_seconds_before || 5;
+    const startSeconds = Math.max(0, diffSeconds - secondsBefore);
+    
+    // Validate that the crossing time is after the video start time
+    if (diffSeconds < 0) {
+      toast.error(checkpoint.youtube_error_text || "El corredor pasó antes de que comenzara la grabación");
+      return;
+    }
+
+    setYoutubeVideoData({
+      videoId: checkpoint.youtube_video_id,
+      startSeconds,
+      runnerName,
+      checkpointName: checkpoint.name,
+      formattedTime: splitTimeStr,
+      errorText: checkpoint.youtube_error_text || "Video no disponible"
+    });
+    setYoutubeModalOpen(true);
   };
 
   // Leader time for gap calculation
@@ -1294,6 +1370,7 @@ export default function LiveResults() {
                             <TableHead className="text-center min-w-[70px]">
                               {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
                             </TableHead>
+                            <TableHead className="w-[50px] text-center">Video</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1301,6 +1378,7 @@ export default function LiveResults() {
                             const splitPosition = (intermediosPage - 1) * ITEMS_PER_PAGE + idx + 1;
                             const checkpoint = checkpoints.find(c => c.id === intermediosCheckpoint);
                             const distanceKm = checkpoint?.distance_km || 0;
+                            const hasVideo = checkpoint?.youtube_video_id && checkpoint?.youtube_video_start_time;
                             
                             return (
                               <TableRow 
@@ -1326,11 +1404,25 @@ export default function LiveResults() {
                                     : `${calculatePace(result.splitTime, distanceKm)}/km`
                                   }
                                 </TableCell>
+                                <TableCell className="text-center">
+                                  {hasVideo ? (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                      onClick={() => checkpoint && handleYoutubeClick(checkpoint, result.splitTime, getRunnerName(result))}
+                                    >
+                                      <Youtube className="h-4 w-4" />
+                                    </Button>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
                               </TableRow>
                             );
                           }) : (
                             <TableRow>
-                              <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                              <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                                 <MapPin className="h-12 w-12 mx-auto mb-3 opacity-20" />
                                 <p>No hay tiempos registrados en este punto</p>
                               </TableCell>
@@ -1404,6 +1496,18 @@ export default function LiveResults() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* YouTube Video Modal */}
+      <YouTubeVideoModal
+        isOpen={youtubeModalOpen}
+        onClose={() => setYoutubeModalOpen(false)}
+        videoId={youtubeVideoData?.videoId || ""}
+        startSeconds={youtubeVideoData?.startSeconds || 0}
+        runnerName={youtubeVideoData?.runnerName}
+        checkpointName={youtubeVideoData?.checkpointName}
+        formattedTime={youtubeVideoData?.formattedTime}
+        errorText={youtubeVideoData?.errorText}
+      />
     </div>
   );
 }
