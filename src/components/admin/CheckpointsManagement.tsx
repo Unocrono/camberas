@@ -1929,7 +1929,17 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                           id="youtube_video_start_time"
                           type="datetime-local"
                           step="1"
-                          value={formData.youtube_video_start_time ? formData.youtube_video_start_time.slice(0, 19) : ""}
+                          value={formData.youtube_video_start_time ? (() => {
+                            // Convertir de UTC (ISO) a formato datetime-local (hora local)
+                            const date = new Date(formData.youtube_video_start_time);
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const seconds = String(date.getSeconds()).padStart(2, '0');
+                            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+                          })() : ""}
                           onChange={(e) => setFormData({ ...formData, youtube_video_start_time: e.target.value ? new Date(e.target.value).toISOString() : "" })}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
