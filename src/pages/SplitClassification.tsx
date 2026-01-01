@@ -72,6 +72,7 @@ interface RaceCheckpoint {
   youtube_seconds_before: number | null;
   youtube_seconds_after: number | null;
   youtube_error_text: string | null;
+  youtube_enabled: boolean | null;
 }
 
 type ClassificationType = "general" | "gender" | "category";
@@ -140,7 +141,7 @@ export default function SplitClassification() {
         const [raceRes, distancesRes, checkpointsRes] = await Promise.all([
           supabase.from("races").select("id, name, date, location, logo_url").eq("id", raceId).single(),
           supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
-          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text").eq("race_id", raceId).order("checkpoint_order")
+          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text, youtube_enabled").eq("race_id", raceId).order("checkpoint_order")
         ]);
 
         if (raceRes.error) throw raceRes.error;
@@ -589,7 +590,7 @@ export default function SplitClassification() {
                               {result.pace || "-"}
                             </TableCell>
                             <TableCell className="text-center">
-                              {currentCheckpoint?.youtube_video_id && currentCheckpoint?.youtube_video_start_time ? (
+                              {currentCheckpoint?.youtube_enabled && currentCheckpoint?.youtube_video_id && currentCheckpoint?.youtube_video_start_time ? (
                                 <Button
                                   variant="ghost"
                                   size="icon"
