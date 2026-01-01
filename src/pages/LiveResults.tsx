@@ -408,7 +408,8 @@ export default function LiveResults() {
           Promise.all(regBatches.map(batch => 
             supabase.from("registration_responses").select("registration_id, field_id, field_value").in("registration_id", batch)
           )),
-          supabase.from("registration_form_fields").select("id, field_name").eq("race_id", raceId)
+          // Fetch fields by race_distance_id since fields are created per distance, not per race
+          supabase.from("registration_form_fields").select("id, field_name, race_distance_id").in("race_distance_id", distanceIds)
         ]);
         
         const batchedRegistrations = regResults.flatMap(r => r.data || []);
