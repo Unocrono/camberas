@@ -956,6 +956,7 @@ export type Database = {
           race_id: string
           timing_point_id: string | null
           updated_at: string
+          youtube_enabled: boolean | null
           youtube_error_text: string | null
           youtube_seconds_after: number | null
           youtube_seconds_before: number | null
@@ -981,6 +982,7 @@ export type Database = {
           race_id: string
           timing_point_id?: string | null
           updated_at?: string
+          youtube_enabled?: boolean | null
           youtube_error_text?: string | null
           youtube_seconds_after?: number | null
           youtube_seconds_before?: number | null
@@ -1006,6 +1008,7 @@ export type Database = {
           race_id?: string
           timing_point_id?: string | null
           updated_at?: string
+          youtube_enabled?: boolean | null
           youtube_error_text?: string | null
           youtube_seconds_after?: number | null
           youtube_seconds_before?: number | null

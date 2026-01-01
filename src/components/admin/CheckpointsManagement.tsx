@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Dialog,
@@ -65,6 +66,7 @@ interface Checkpoint {
   youtube_seconds_before: number | null;
   youtube_seconds_after: number | null;
   youtube_error_text: string | null;
+  youtube_enabled: boolean | null;
 }
 
 interface RaceDistance {
@@ -151,6 +153,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     youtube_seconds_before: 5,
     youtube_seconds_after: 10,
     youtube_error_text: "",
+    youtube_enabled: false,
   });
 
   // Detectar si el timing_point seleccionado ya está en uso por otros checkpoints (indica circuito con vueltas)
@@ -783,6 +786,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
       youtube_seconds_before: 5,
       youtube_seconds_after: 10,
       youtube_error_text: "",
+      youtube_enabled: false,
     });
     setSelectedCheckpoint(null);
     setIsEditing(false);
@@ -874,6 +878,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         youtube_seconds_before: checkpoint.youtube_seconds_before ?? 5,
         youtube_seconds_after: checkpoint.youtube_seconds_after ?? 10,
         youtube_error_text: checkpoint.youtube_error_text || "",
+        youtube_enabled: checkpoint.youtube_enabled ?? false,
       });
       setSelectedCheckpoint(checkpoint);
       setIsEditing(true);
@@ -906,6 +911,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const youtube_seconds_before = formData.youtube_seconds_before;
     const youtube_seconds_after = formData.youtube_seconds_after;
     const youtube_error_text = formData.youtube_error_text?.trim() || null;
+    const youtube_enabled = formData.youtube_enabled;
 
     // Validación: Si es configuración de vueltas (timing_point compartido), min_time es obligatorio
     if (isLapConfiguration && !min_time) {
@@ -935,6 +941,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           youtube_seconds_before,
           youtube_seconds_after,
           youtube_error_text,
+          youtube_enabled,
         })
         .eq("id", selectedCheckpoint.id);
 
@@ -969,6 +976,7 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
           youtube_seconds_before,
           youtube_seconds_after,
           youtube_error_text,
+          youtube_enabled,
         });
 
       if (error) {
@@ -1891,6 +1899,17 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                         Configura un video de YouTube para que los corredores puedan ver el momento exacto en que cruzaron este punto de control.
                       </p>
                       
+                      <div className="flex items-center space-x-2 p-3 bg-muted/30 rounded-md">
+                        <Switch
+                          id="youtube_enabled"
+                          checked={formData.youtube_enabled}
+                          onCheckedChange={(checked) => setFormData({ ...formData, youtube_enabled: checked })}
+                        />
+                        <Label htmlFor="youtube_enabled" className="text-sm">
+                          Mostrar icono de video en las clasificaciones
+                        </Label>
+                      </div>
+                      
                       <div>
                         <Label htmlFor="youtube_video_id">ID del Video de YouTube</Label>
                         <Input
@@ -1909,11 +1928,12 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                         <Input
                           id="youtube_video_start_time"
                           type="datetime-local"
-                          value={formData.youtube_video_start_time ? formData.youtube_video_start_time.slice(0, 16) : ""}
+                          step="1"
+                          value={formData.youtube_video_start_time ? formData.youtube_video_start_time.slice(0, 19) : ""}
                           onChange={(e) => setFormData({ ...formData, youtube_video_start_time: e.target.value ? new Date(e.target.value).toISOString() : "" })}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          La hora exacta del mundo real en que comenzó la grabación del video
+                          La hora exacta del mundo real en que comenzó la grabación del video (incluye segundos)
                         </p>
                       </div>
                       

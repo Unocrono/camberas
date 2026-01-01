@@ -89,6 +89,7 @@ interface RaceCheckpoint {
   youtube_seconds_before: number | null;
   youtube_seconds_after: number | null;
   youtube_error_text: string | null;
+  youtube_enabled: boolean | null;
 }
 
 interface SplitTime {
@@ -332,7 +333,7 @@ export default function LiveResults() {
       const [raceResponse, distancesResponse, checkpointsResponse] = await Promise.all([
         supabase.from("races").select("id, name, date, location, logo_url, cover_image_url, race_type").eq("id", raceId).single(),
         supabase.from("race_distances").select("id, name, distance_km, display_order").eq("race_id", raceId).eq("is_visible", true).order("display_order"),
-        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text").eq("race_id", raceId).order("checkpoint_order")
+        supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text, youtube_enabled").eq("race_id", raceId).order("checkpoint_order")
       ]);
 
       if (raceResponse.error) throw raceResponse.error;
@@ -1378,7 +1379,7 @@ export default function LiveResults() {
                             const splitPosition = (intermediosPage - 1) * ITEMS_PER_PAGE + idx + 1;
                             const checkpoint = checkpoints.find(c => c.id === intermediosCheckpoint);
                             const distanceKm = checkpoint?.distance_km || 0;
-                            const hasVideo = checkpoint?.youtube_video_id && checkpoint?.youtube_video_start_time;
+                            const hasVideo = checkpoint?.youtube_enabled && checkpoint?.youtube_video_id && checkpoint?.youtube_video_start_time;
                             
                             return (
                               <TableRow 
