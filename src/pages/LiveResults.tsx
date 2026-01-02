@@ -1219,24 +1219,27 @@ export default function LiveResults() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
-                        <TableHead className="w-[60px] text-center">Puesto</TableHead>
-                        <TableHead className="w-[70px] text-center">Dorsal</TableHead>
-                        <TableHead className="min-w-[180px]">Nombre</TableHead>
-                        <TableHead className="min-w-[120px]">Club</TableHead>
-                        <TableHead className="text-center">Categoría</TableHead>
-                        <TableHead className="text-center min-w-[90px] font-bold">Tiempo</TableHead>
-                        <TableHead className="text-center min-w-[70px]">
-                          {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
+                        <TableHead className="w-[50px] text-center">Pto.</TableHead>
+                        <TableHead className="hidden md:table-cell w-[70px] text-center">Dorsal</TableHead>
+                        <TableHead className="min-w-[150px]">Nombre</TableHead>
+                        <TableHead className="hidden lg:table-cell min-w-[120px]">Club</TableHead>
+                        <TableHead className="hidden md:table-cell text-center">Categoría</TableHead>
+                        <TableHead className="text-center min-w-[80px] font-bold">Tiempo</TableHead>
+                        <TableHead className="hidden md:table-cell text-center min-w-[70px]">
+                          {race.race_type === 'mtb' ? 'Vel.' : 'Ritmo'}
                         </TableHead>
+                        <TableHead className="hidden sm:table-cell w-[50px] text-center">Video</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {speakerResults.length > 0 ? speakerResults.map((result, idx) => {
                         const isSplitResult = 'splitTime' in result;
                         const displayTime = isSplitResult ? (result as any).splitTime : result.finish_time;
+                        const checkpoint = isSplitResult ? checkpoints.find(c => c.id === speakerCheckpoint) : null;
                         const distanceKm = isSplitResult 
-                          ? (checkpoints.find(c => c.id === speakerCheckpoint)?.distance_km || result.registration.race_distances.distance_km)
+                          ? (checkpoint?.distance_km || result.registration.race_distances.distance_km)
                           : result.registration.race_distances.distance_km;
+                        const hasVideo = checkpoint?.youtube_enabled && checkpoint?.youtube_video_id && checkpoint?.youtube_video_start_time;
                         
                         return (
                           <TableRow 
@@ -1249,24 +1252,46 @@ export default function LiveResults() {
                               {result.overall_position === 3 && <Award className="inline h-4 w-4 text-amber-600 mr-1" />}
                               {result.overall_position}
                             </TableCell>
-                            <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
-                            <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
-                            <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
+                            <TableCell className="hidden md:table-cell text-center font-mono">{result.registration.bib_number}</TableCell>
+                            <TableCell>
+                              <div className="font-medium">
+                                {getRunnerName(result)}
+                                <span className="md:hidden text-muted-foreground"> #{result.registration.bib_number}</span>
+                              </div>
+                              <div className="text-xs text-muted-foreground md:hidden">
+                                {getCategory(result)}
+                              </div>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                            <TableCell className="hidden md:table-cell text-center text-sm">{getCategory(result)}</TableCell>
                             <TableCell className="text-center font-mono font-bold text-primary">
                               {formatTime(displayTime)}
                             </TableCell>
-                            <TableCell className="text-center font-mono text-sm">
+                            <TableCell className="hidden md:table-cell text-center font-mono text-sm">
                               {race.race_type === 'mtb' 
                                 ? `${calculateSpeed(displayTime, distanceKm)} km/h`
                                 : `${calculatePace(displayTime, distanceKm)}/km`
                               }
                             </TableCell>
+                            <TableCell className="hidden sm:table-cell text-center">
+                              {isSplitResult && hasVideo ? (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => checkpoint && handleYoutubeClick(checkpoint, (result as any).splitTime, getRunnerName(result))}
+                                >
+                                  <Youtube className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         );
                       }) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
                             <Mic className="h-12 w-12 mx-auto mb-3 opacity-20" />
                             <p>No hay llegadas recientes</p>
                             <p className="text-sm">Las nuevas llegadas aparecerán aquí automáticamente</p>
@@ -1294,18 +1319,16 @@ export default function LiveResults() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Checkpoint Timeline Tabs */}
+                {/* Checkpoint Timeline Tabs - Responsive */}
                 <TooltipProvider delayDuration={100}>
                   <div className="relative mb-6">
-                    {/* Timeline line */}
-                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 z-0" />
+                    {/* Timeline line - hidden on mobile */}
+                    <div className="hidden md:block absolute top-1/2 left-0 right-0 h-0.5 bg-border -translate-y-1/2 z-0" />
                     
-                    {/* Checkpoint tabs */}
-                    <div className="relative flex items-center justify-between overflow-x-auto pb-2 gap-1">
+                    {/* Mobile: Scrollable horizontal pills */}
+                    <div className="relative flex items-center gap-2 overflow-x-auto pb-2 md:justify-between md:gap-1 scrollbar-hide">
                       {filteredCheckpoints.map((cp, idx) => {
                         const isSelected = intermediosCheckpoint === cp.id;
-                        const isFirst = idx === 0;
-                        const isLast = idx === filteredCheckpoints.length - 1;
                         const isMeta = cp.checkpoint_type === 'META';
                         
                         return (
@@ -1314,13 +1337,13 @@ export default function LiveResults() {
                               <button
                                 onClick={() => { setIntermediosCheckpoint(cp.id); setIntermediosPage(1); }}
                                 className={`
-                                  relative z-10 flex flex-col items-center transition-all duration-200 group min-w-[80px]
+                                  relative z-10 flex flex-col items-center transition-all duration-200 group flex-shrink-0
                                   ${isSelected ? '' : 'opacity-70 hover:opacity-100'}
                                 `}
                               >
                                 {/* Checkpoint name pill */}
                                 <div className={`
-                                  px-3 py-1.5 rounded-md text-sm font-medium whitespace-nowrap transition-all
+                                  px-3 py-1.5 rounded-md text-xs md:text-sm font-medium whitespace-nowrap transition-all
                                   ${isSelected 
                                     ? isMeta 
                                       ? 'bg-amber-500 text-white shadow-md' 
@@ -1328,19 +1351,21 @@ export default function LiveResults() {
                                     : 'bg-muted text-muted-foreground hover:bg-muted/80'
                                   }
                                 `}>
-                                  {cp.name.toUpperCase()}
+                                  <span className="md:hidden">{cp.name.length > 8 ? cp.name.substring(0, 8) + '...' : cp.name}</span>
+                                  <span className="hidden md:inline">{cp.name.toUpperCase()}</span>
+                                  <span className="md:hidden ml-1 text-[10px] opacity-75">{cp.distance_km}km</span>
                                 </div>
                                 
-                                {/* Distance indicator shown on selection */}
+                                {/* Distance indicator shown on selection - desktop only */}
                                 {isSelected && (
-                                  <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium bg-background border rounded px-1.5 py-0.5 shadow-sm">
+                                  <div className="hidden md:block absolute -bottom-5 left-1/2 -translate-x-1/2 text-xs font-medium bg-background border rounded px-1.5 py-0.5 shadow-sm">
                                     {cp.distance_km}km
                                   </div>
                                 )}
                                 
-                                {/* Connector dot */}
+                                {/* Connector dot - desktop only */}
                                 <div className={`
-                                  absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-all
+                                  hidden md:block absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full transition-all
                                   ${isSelected 
                                     ? isMeta ? 'bg-amber-500' : 'bg-primary' 
                                     : 'bg-border group-hover:bg-muted-foreground'
@@ -1366,19 +1391,19 @@ export default function LiveResults() {
                         {intermediosResults.length} clasificados
                       </Badge>
                     </div>
-                    {/* Classification table */}
+                    {/* Classification table - Responsive */}
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow className="bg-muted/50">
-                            <TableHead className="w-[60px] text-center">Puesto</TableHead>
-                            <TableHead className="w-[70px] text-center">Dorsal</TableHead>
-                            <TableHead className="min-w-[180px]">Nombre</TableHead>
-                            <TableHead className="min-w-[120px]">Club</TableHead>
-                            <TableHead className="text-center">Categoría</TableHead>
-                            <TableHead className="text-center min-w-[90px] font-bold">Tiempo Split</TableHead>
-                            <TableHead className="text-center min-w-[70px]">
-                              {race.race_type === 'mtb' ? 'Vel. Media' : 'Ritmo'}
+                            <TableHead className="w-[50px] text-center">Pto.</TableHead>
+                            <TableHead className="hidden md:table-cell w-[70px] text-center">Dorsal</TableHead>
+                            <TableHead className="min-w-[150px]">Nombre</TableHead>
+                            <TableHead className="hidden lg:table-cell min-w-[120px]">Club</TableHead>
+                            <TableHead className="hidden md:table-cell text-center">Categoría</TableHead>
+                            <TableHead className="text-center min-w-[80px] font-bold">Tiempo</TableHead>
+                            <TableHead className="hidden md:table-cell text-center min-w-[70px]">
+                              {race.race_type === 'mtb' ? 'Vel.' : 'Ritmo'}
                             </TableHead>
                             <TableHead className="w-[50px] text-center">Video</TableHead>
                           </TableRow>
@@ -1401,14 +1426,22 @@ export default function LiveResults() {
                                   {splitPosition === 3 && <Award className="inline h-4 w-4 text-amber-600 mr-1" />}
                                   {splitPosition}
                                 </TableCell>
-                                <TableCell className="text-center font-mono">{result.registration.bib_number}</TableCell>
-                                <TableCell className="font-medium">{getRunnerName(result)}</TableCell>
-                                <TableCell className="text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
-                                <TableCell className="text-center text-sm">{getCategory(result)}</TableCell>
+                                <TableCell className="hidden md:table-cell text-center font-mono">{result.registration.bib_number}</TableCell>
+                                <TableCell>
+                                  <div className="font-medium">
+                                    {getRunnerName(result)}
+                                    <span className="md:hidden text-muted-foreground"> #{result.registration.bib_number}</span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground md:hidden">
+                                    {getCategory(result)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="hidden lg:table-cell text-muted-foreground text-sm">{getClub(result) || '-'}</TableCell>
+                                <TableCell className="hidden md:table-cell text-center text-sm">{getCategory(result)}</TableCell>
                                 <TableCell className="text-center font-mono font-bold text-primary">
                                   {formatTime(result.splitTime)}
                                 </TableCell>
-                                <TableCell className="text-center font-mono text-sm">
+                                <TableCell className="hidden md:table-cell text-center font-mono text-sm">
                                   {race.race_type === 'mtb' 
                                     ? `${calculateSpeed(result.splitTime, distanceKm)} km/h`
                                     : `${calculatePace(result.splitTime, distanceKm)}/km`
