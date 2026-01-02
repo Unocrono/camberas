@@ -61,12 +61,19 @@ interface RaceDistance {
   distance_km: number;
 }
 
+interface RaceWave {
+  id: string;
+  race_distance_id: string;
+  start_time: string | null;
+}
+
 interface RaceCheckpoint {
   id: string;
   name: string;
   distance_km: number;
   checkpoint_order: number;
   checkpoint_type: string;
+  race_distance_id: string | null;
   youtube_video_id: string | null;
   youtube_video_start_time: string | null;
   youtube_seconds_before: number | null;
@@ -85,6 +92,7 @@ export default function SplitClassification() {
   const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
+  const [waves, setWaves] = useState<RaceWave[]>([]);
   const [checkpoints, setCheckpoints] = useState<RaceCheckpoint[]>([]);
   const [selectedDistance, setSelectedDistance] = useState<string>("all");
   const [selectedCheckpoint, setSelectedCheckpoint] = useState<string>("");
@@ -138,16 +146,18 @@ export default function SplitClassification() {
       if (!raceId) return;
 
       try {
-        const [raceRes, distancesRes, checkpointsRes] = await Promise.all([
+        const [raceRes, distancesRes, checkpointsRes, wavesRes] = await Promise.all([
           supabase.from("races").select("id, name, date, location, logo_url").eq("id", raceId).single(),
           supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
-          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text, youtube_enabled").eq("race_id", raceId).order("checkpoint_order")
+          supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text, youtube_enabled").eq("race_id", raceId).order("checkpoint_order"),
+          supabase.from("race_waves").select("id, race_distance_id, start_time").eq("race_id", raceId)
         ]);
 
         if (raceRes.error) throw raceRes.error;
         setRace(raceRes.data);
         setDistances(distancesRes.data || []);
         setCheckpoints(checkpointsRes.data || []);
+        setWaves(wavesRes.data || []);
 
         // Set initial checkpoint from URL param
         if (checkpointOrder && checkpointsRes.data) {
@@ -370,18 +380,18 @@ export default function SplitClassification() {
     }
     const splitSeconds = parseInt(splitMatch[1]) * 3600 + parseInt(splitMatch[2]) * 60 + parseInt(splitMatch[3]);
 
-    // Get race date as base
-    const raceDate = race?.date ? new Date(race.date) : new Date();
+    // Get wave start time for this race distance
+    const wave = waves.find(w => w.race_distance_id === checkpoint.race_distance_id);
+    if (!wave?.start_time) {
+      return;
+    }
+    const waveStartTime = new Date(wave.start_time);
     
     // Parse video start time (real-world wall-clock time)
     const videoStartTime = new Date(checkpoint.youtube_video_start_time);
     
-    // Calculate the runner's crossing timestamp: race start + split time
-    const raceStartTime = new Date(raceDate);
-    raceStartTime.setHours(0, 0, 0, 0);
-    
-    // The crossing time in the real world
-    const crossingTime = new Date(raceStartTime.getTime() + splitSeconds * 1000);
+    // The crossing time in the real world: wave start + split time
+    const crossingTime = new Date(waveStartTime.getTime() + splitSeconds * 1000);
     
     // Difference between crossing time and video start time
     const diffMs = crossingTime.getTime() - videoStartTime.getTime();
