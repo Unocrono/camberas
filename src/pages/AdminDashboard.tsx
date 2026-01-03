@@ -40,6 +40,7 @@ import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsMan
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
+import { CategoryTemplatesManagement } from "@/components/admin/CategoryTemplatesManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -287,6 +288,7 @@ const AdminDashboard = () => {
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
             {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "category-templates" && <CategoryTemplatesManagement />}
           </main>
         </div>
       </div>
