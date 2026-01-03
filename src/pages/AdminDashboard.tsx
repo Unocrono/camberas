@@ -286,7 +286,7 @@ const AdminDashboard = () => {
             {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
-            {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
           </main>
         </div>
       </div>

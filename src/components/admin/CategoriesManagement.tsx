@@ -40,12 +40,34 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, Users, Copy, ArrowUpDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Download, ArrowUpDown, FileDown } from "lucide-react";
+import { format } from "date-fns";
 
-interface RaceCategory {
+interface EventCategory {
   id: string;
   race_id: string;
+  race_distance_id: string | null;
   name: string;
+  short_name: string | null;
+  gender: string | null;
+  min_age: number | null;
+  max_age: number | null;
+  age_calculation_date: string | null;
+  display_order: number;
+}
+
+interface CategoryTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+}
+
+interface CategoryTemplateItem {
+  id: string;
+  template_id: string;
+  name: string;
+  short_name: string | null;
   gender: string | null;
   min_age: number | null;
   max_age: number | null;
@@ -54,58 +76,55 @@ interface RaceCategory {
 
 interface CategoriesManagementProps {
   selectedRaceId: string | null;
+  selectedDistanceId?: string | null;
 }
 
-const DEFAULT_CATEGORIES = [
-  { name: "M-Junior", gender: "M", min_age: 0, max_age: 19, display_order: 1 },
-  { name: "M-Senior", gender: "M", min_age: 20, max_age: 34, display_order: 2 },
-  { name: "M-VetA", gender: "M", min_age: 35, max_age: 44, display_order: 3 },
-  { name: "M-VetB", gender: "M", min_age: 45, max_age: 54, display_order: 4 },
-  { name: "M-VetC", gender: "M", min_age: 55, max_age: 64, display_order: 5 },
-  { name: "M-VetD", gender: "M", min_age: 65, max_age: null, display_order: 6 },
-  { name: "F-Junior", gender: "F", min_age: 0, max_age: 19, display_order: 7 },
-  { name: "F-Senior", gender: "F", min_age: 20, max_age: 34, display_order: 8 },
-  { name: "F-VetA", gender: "F", min_age: 35, max_age: 44, display_order: 9 },
-  { name: "F-VetB", gender: "F", min_age: 45, max_age: 54, display_order: 10 },
-  { name: "F-VetC", gender: "F", min_age: 55, max_age: 64, display_order: 11 },
-  { name: "F-VetD", gender: "F", min_age: 65, max_age: null, display_order: 12 },
-];
-
-export function CategoriesManagement({ selectedRaceId }: CategoriesManagementProps) {
+export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: CategoriesManagementProps) {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<RaceCategory[]>([]);
+  const [categories, setCategories] = useState<EventCategory[]>([]);
+  const [templates, setTemplates] = useState<CategoryTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<RaceCategory | null>(null);
-  const [editingCategory, setEditingCategory] = useState<RaceCategory | null>(null);
-  const [ageReference, setAgeReference] = useState<string>("race_date");
-  const [savingReference, setSavingReference] = useState(false);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<EventCategory | null>(null);
+  const [editingCategory, setEditingCategory] = useState<EventCategory | null>(null);
+  const [raceDate, setRaceDate] = useState<string | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
+    short_name: "",
     gender: "",
     min_age: "",
     max_age: "",
+    age_calculation_date: "",
     display_order: "0",
   });
 
   useEffect(() => {
-    if (selectedRaceId) {
+    if (selectedDistanceId) {
       fetchCategories();
-      fetchAgeReference();
+      fetchTemplates();
+      fetchRaceDate();
+    } else if (selectedRaceId) {
+      // Fallback: cargar categorías a nivel de carrera si no hay evento seleccionado
+      fetchCategoriesByRace();
+      fetchTemplates();
+      fetchRaceDate();
     }
-  }, [selectedRaceId]);
+  }, [selectedRaceId, selectedDistanceId]);
 
   const fetchCategories = async () => {
-    if (!selectedRaceId) return;
+    if (!selectedDistanceId) return;
     
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from("race_categories")
         .select("*")
-        .eq("race_id", selectedRaceId)
+        .eq("race_distance_id", selectedDistanceId)
         .order("display_order");
 
       if (error) throw error;
@@ -121,40 +140,20 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     }
   };
 
-  const fetchAgeReference = async () => {
+  const fetchCategoriesByRace = async () => {
     if (!selectedRaceId) return;
     
+    setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("races")
-        .select("category_age_reference")
-        .eq("id", selectedRaceId)
-        .single();
+        .from("race_categories")
+        .select("*")
+        .eq("race_id", selectedRaceId)
+        .is("race_distance_id", null)
+        .order("display_order");
 
       if (error) throw error;
-      setAgeReference(data?.category_age_reference || "race_date");
-    } catch (error: any) {
-      console.error("Error fetching age reference:", error);
-    }
-  };
-
-  const handleAgeReferenceChange = async (value: string) => {
-    if (!selectedRaceId) return;
-    
-    setSavingReference(true);
-    try {
-      const { error } = await supabase
-        .from("races")
-        .update({ category_age_reference: value })
-        .eq("id", selectedRaceId);
-
-      if (error) throw error;
-      
-      setAgeReference(value);
-      toast({
-        title: "Guardado",
-        description: "Referencia de edad actualizada",
-      });
+      setCategories(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -162,7 +161,38 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         variant: "destructive",
       });
     } finally {
-      setSavingReference(false);
+      setLoading(false);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("category_templates")
+        .select("*")
+        .order("is_default", { ascending: false });
+
+      if (error) throw error;
+      setTemplates(data || []);
+    } catch (error: any) {
+      console.error("Error fetching templates:", error);
+    }
+  };
+
+  const fetchRaceDate = async () => {
+    if (!selectedRaceId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from("races")
+        .select("date")
+        .eq("id", selectedRaceId)
+        .single();
+
+      if (error) throw error;
+      setRaceDate(data?.date || null);
+    } catch (error: any) {
+      console.error("Error fetching race date:", error);
     }
   };
 
@@ -170,21 +200,25 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     setEditingCategory(null);
     setFormData({
       name: "",
+      short_name: "",
       gender: "",
       min_age: "",
       max_age: "",
+      age_calculation_date: raceDate || "",
       display_order: String(categories.length + 1),
     });
     setDialogOpen(true);
   };
 
-  const openEditDialog = (category: RaceCategory) => {
+  const openEditDialog = (category: EventCategory) => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
+      short_name: category.short_name || "",
       gender: category.gender || "",
       min_age: category.min_age?.toString() || "",
       max_age: category.max_age?.toString() || "",
+      age_calculation_date: category.age_calculation_date || raceDate || "",
       display_order: category.display_order.toString(),
     });
     setDialogOpen(true);
@@ -203,10 +237,13 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     try {
       const categoryData = {
         race_id: selectedRaceId,
+        race_distance_id: selectedDistanceId || null,
         name: formData.name.trim(),
-        gender: formData.gender || null,
+        short_name: formData.short_name.trim() || formData.name.trim().substring(0, 6).toUpperCase(),
+        gender: formData.gender === "all" ? null : formData.gender || null,
         min_age: formData.min_age ? parseInt(formData.min_age) : null,
         max_age: formData.max_age ? parseInt(formData.max_age) : null,
+        age_calculation_date: formData.age_calculation_date || null,
         display_order: parseInt(formData.display_order) || 0,
       };
 
@@ -228,7 +265,11 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
       }
 
       setDialogOpen(false);
-      fetchCategories();
+      if (selectedDistanceId) {
+        fetchCategories();
+      } else {
+        fetchCategoriesByRace();
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -252,7 +293,11 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
       toast({ title: "Categoría eliminada" });
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
-      fetchCategories();
+      if (selectedDistanceId) {
+        fetchCategories();
+      } else {
+        fetchCategoriesByRace();
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -262,23 +307,90 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     }
   };
 
-  const loadDefaultCategories = async () => {
-    if (!selectedRaceId) return;
+  const loadFromTemplate = async () => {
+    if (!selectedRaceId || !selectedTemplateId) return;
 
+    setLoadingTemplate(true);
     try {
-      const categoriesToInsert = DEFAULT_CATEGORIES.map(cat => ({
-        ...cat,
+      // Obtener items de la plantilla
+      const { data: templateItems, error: itemsError } = await supabase
+        .from("category_template_items")
+        .select("*")
+        .eq("template_id", selectedTemplateId)
+        .order("display_order");
+
+      if (itemsError) throw itemsError;
+
+      if (!templateItems || templateItems.length === 0) {
+        toast({
+          title: "Plantilla vacía",
+          description: "La plantilla seleccionada no tiene categorías",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Crear categorías basadas en la plantilla
+      const categoriesToInsert = templateItems.map((item: CategoryTemplateItem) => ({
         race_id: selectedRaceId,
+        race_distance_id: selectedDistanceId || null,
+        name: item.name,
+        short_name: item.short_name,
+        gender: item.gender,
+        min_age: item.min_age,
+        max_age: item.max_age,
+        age_calculation_date: raceDate,
+        display_order: item.display_order,
       }));
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from("race_categories")
         .insert(categoriesToInsert);
 
+      if (insertError) throw insertError;
+
+      toast({ 
+        title: "Plantilla cargada",
+        description: `Se han creado ${categoriesToInsert.length} categorías`,
+      });
+      
+      setTemplateDialogOpen(false);
+      setSelectedTemplateId("");
+      
+      if (selectedDistanceId) {
+        fetchCategories();
+      } else {
+        fetchCategoriesByRace();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
+  const deleteAllCategories = async () => {
+    if (!selectedRaceId) return;
+
+    try {
+      let query = supabase.from("race_categories").delete();
+      
+      if (selectedDistanceId) {
+        query = query.eq("race_distance_id", selectedDistanceId);
+      } else {
+        query = query.eq("race_id", selectedRaceId).is("race_distance_id", null);
+      }
+
+      const { error } = await query;
+
       if (error) throw error;
       
-      toast({ title: "Categorías predefinidas cargadas" });
-      fetchCategories();
+      toast({ title: "Todas las categorías eliminadas" });
+      setCategories([]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -289,14 +401,19 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
   };
 
   const getGenderLabel = (gender: string | null) => {
-    if (!gender) return "Todos";
+    if (!gender) return "Mixto";
     return gender === "M" ? "Masculino" : "Femenino";
+  };
+
+  const getGenderBadgeVariant = (gender: string | null) => {
+    if (!gender) return "outline";
+    return gender === "M" ? "default" : "secondary";
   };
 
   const getAgeRange = (min: number | null, max: number | null) => {
     if (min === null && max === null) return "Sin límite";
     if (min === null) return `≤ ${max} años`;
-    if (max === null) return `≥ ${min} años`;
+    if (max === null || max >= 999) return `≥ ${min} años`;
     return `${min} - ${max} años`;
   };
 
@@ -318,39 +435,17 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
 
   return (
     <div className="space-y-6">
-      {/* Configuración de referencia de edad */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Cálculo de Edad</CardTitle>
-          <CardDescription>
-            Define cómo se calcula la edad para asignar categorías
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Label htmlFor="age-reference" className="whitespace-nowrap">
-              Referencia de edad:
-            </Label>
-            <Select
-              value={ageReference}
-              onValueChange={handleAgeReferenceChange}
-              disabled={savingReference}
-            >
-              <SelectTrigger className="w-[280px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="race_date">
-                  Edad el día de la carrera
-                </SelectItem>
-                <SelectItem value="year_end">
-                  Edad a 31/12 del año de la carrera
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Info del contexto */}
+      {!selectedDistanceId && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardContent className="pt-4">
+            <p className="text-sm text-amber-600 dark:text-amber-400">
+              <strong>Nota:</strong> Selecciona un evento (distancia) para gestionar sus categorías específicas. 
+              Las categorías se definen por evento, no por carrera.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lista de categorías */}
       <Card>
@@ -359,17 +454,17 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Categorías de la Carrera
+                {selectedDistanceId ? "Categorías del Evento" : "Categorías de la Carrera"}
               </CardTitle>
               <CardDescription>
                 Define las categorías de edad y género para clasificaciones
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              {categories.length === 0 && (
-                <Button variant="outline" onClick={loadDefaultCategories}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  Cargar predefinidas
+              {categories.length === 0 && templates.length > 0 && (
+                <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Cargar plantilla
                 </Button>
               )}
               <Button onClick={openCreateDialog}>
@@ -390,63 +485,100 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No hay categorías definidas</p>
-              <p className="text-sm">
-                Carga las categorías predefinidas o crea las tuyas propias
+              <p className="text-sm mb-4">
+                Carga una plantilla o crea categorías manualmente
               </p>
+              {templates.length > 0 && (
+                <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Cargar desde plantilla
+                </Button>
+              )}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">
-                    <ArrowUpDown className="h-4 w-4" />
-                  </TableHead>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Género</TableHead>
-                  <TableHead>Rango de Edad</TableHead>
-                  <TableHead className="w-[100px]">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {categories.map((category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="text-muted-foreground">
-                      {category.display_order}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {category.name}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={category.gender === "M" ? "default" : category.gender === "F" ? "secondary" : "outline"}>
-                        {getGenderLabel(category.gender)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{getAgeRange(category.min_age, category.max_age)}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditDialog(category)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setCategoryToDelete(category);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[60px]">
+                      <ArrowUpDown className="h-4 w-4" />
+                    </TableHead>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Corto</TableHead>
+                    <TableHead>Género</TableHead>
+                    <TableHead>Rango de Edad</TableHead>
+                    <TableHead>Fecha Cálculo</TableHead>
+                    <TableHead className="w-[100px]">Acciones</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {categories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell className="text-muted-foreground">
+                        {category.display_order}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {category.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {category.short_name || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getGenderBadgeVariant(category.gender)}>
+                          {getGenderLabel(category.gender)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{getAgeRange(category.min_age, category.max_age)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {category.age_calculation_date 
+                          ? format(new Date(category.age_calculation_date), "dd/MM/yyyy")
+                          : "Fecha carrera"
+                        }
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(category)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setCategoryToDelete(category);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  {categories.length} categorías definidas
+                </p>
+                <div className="flex gap-2">
+                  {templates.length > 0 && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setTemplateDialogOpen(true)}
+                    >
+                      <FileDown className="h-4 w-4 mr-2" />
+                      Reemplazar con plantilla
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -463,14 +595,26 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nombre *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="ej: M-Senior, F-VetA"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nombre *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="ej: M-Senior"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="short_name">Nombre corto</Label>
+                <Input
+                  id="short_name"
+                  value={formData.short_name}
+                  onChange={(e) => setFormData({ ...formData, short_name: e.target.value })}
+                  placeholder="ej: M-SEN"
+                  maxLength={10}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="gender">Género</Label>
@@ -479,10 +623,10 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
                 onValueChange={(value) => setFormData({ ...formData, gender: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos los géneros" />
+                  <SelectValue placeholder="Mixto (todos)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="all">Mixto (todos)</SelectItem>
                   <SelectItem value="M">Masculino</SelectItem>
                   <SelectItem value="F">Femenino</SelectItem>
                 </SelectContent>
@@ -511,6 +655,18 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
               </div>
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="age_calculation_date">Fecha de cálculo de edad</Label>
+              <Input
+                id="age_calculation_date"
+                type="date"
+                value={formData.age_calculation_date}
+                onChange={(e) => setFormData({ ...formData, age_calculation_date: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Fecha para calcular la edad del participante (ej: 31/12 del año, día de la carrera)
+              </p>
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="display_order">Orden de visualización</Label>
               <Input
                 id="display_order"
@@ -526,6 +682,66 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
             </Button>
             <Button onClick={handleSubmit}>
               {editingCategory ? "Guardar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog cargar plantilla */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cargar categorías desde plantilla</DialogTitle>
+            <DialogDescription>
+              Selecciona una plantilla para crear las categorías automáticamente.
+              {categories.length > 0 && (
+                <span className="text-amber-600 dark:text-amber-400 block mt-2">
+                  ⚠️ Las categorías existentes serán eliminadas antes de cargar la plantilla.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label>Plantilla</Label>
+            <Select
+              value={selectedTemplateId}
+              onValueChange={setSelectedTemplateId}
+            >
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Selecciona una plantilla" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((template) => (
+                  <SelectItem key={template.id} value={template.id}>
+                    {template.name}
+                    {template.is_default && " (por defecto)"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {templates.find(t => t.id === selectedTemplateId)?.description && (
+              <p className="text-sm text-muted-foreground mt-2">
+                {templates.find(t => t.id === selectedTemplateId)?.description}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setTemplateDialogOpen(false);
+              setSelectedTemplateId("");
+            }}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (categories.length > 0) {
+                  await deleteAllCategories();
+                }
+                await loadFromTemplate();
+              }}
+              disabled={!selectedTemplateId || loadingTemplate}
+            >
+              {loadingTemplate ? "Cargando..." : "Cargar plantilla"}
             </Button>
           </DialogFooter>
         </DialogContent>
