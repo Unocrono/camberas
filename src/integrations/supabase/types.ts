@@ -148,6 +148,80 @@ export type Database = {
           },
         ]
       }
+      category_template_items: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          gender: string | null
+          id: string
+          max_age: number | null
+          min_age: number | null
+          name: string
+          short_name: string | null
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          gender?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name: string
+          short_name?: string | null
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          gender?: string | null
+          id?: string
+          max_age?: number | null
+          min_age?: number | null
+          name?: string
+          short_name?: string | null
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "category_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -894,6 +968,7 @@ export type Database = {
       }
       race_categories: {
         Row: {
+          age_calculation_date: string | null
           created_at: string
           display_order: number
           gender: string | null
@@ -901,10 +976,13 @@ export type Database = {
           max_age: number | null
           min_age: number | null
           name: string
+          race_distance_id: string | null
           race_id: string
+          short_name: string | null
           updated_at: string
         }
         Insert: {
+          age_calculation_date?: string | null
           created_at?: string
           display_order?: number
           gender?: string | null
@@ -912,10 +990,13 @@ export type Database = {
           max_age?: number | null
           min_age?: number | null
           name: string
+          race_distance_id?: string | null
           race_id: string
+          short_name?: string | null
           updated_at?: string
         }
         Update: {
+          age_calculation_date?: string | null
           created_at?: string
           display_order?: number
           gender?: string | null
@@ -923,10 +1004,19 @@ export type Database = {
           max_age?: number | null
           min_age?: number | null
           name?: string
+          race_distance_id?: string | null
           race_id?: string
+          short_name?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "race_categories_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "race_categories_race_id_fkey"
             columns: ["race_id"]
