@@ -74,16 +74,24 @@ interface CategoryTemplateItem {
   display_order: number;
 }
 
-interface CategoriesManagementProps {
-  selectedRaceId: string | null;
-  selectedDistanceId?: string | null;
+interface RaceDistance {
+  id: string;
+  name: string;
+  distance_km: number;
 }
 
-export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: CategoriesManagementProps) {
+interface CategoriesManagementProps {
+  selectedRaceId: string | null;
+}
+
+export function CategoriesManagement({ selectedRaceId }: CategoriesManagementProps) {
   const { toast } = useToast();
   const [categories, setCategories] = useState<EventCategory[]>([]);
   const [templates, setTemplates] = useState<CategoryTemplate[]>([]);
+  const [distances, setDistances] = useState<RaceDistance[]>([]);
+  const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [loadingDistances, setLoadingDistances] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -103,18 +111,53 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
     display_order: "0",
   });
 
+  // Cargar distancias cuando cambia la carrera
+  useEffect(() => {
+    if (selectedRaceId) {
+      fetchDistances();
+      fetchRaceDate();
+      fetchTemplates();
+    } else {
+      setDistances([]);
+      setSelectedDistanceId("");
+      setCategories([]);
+    }
+  }, [selectedRaceId]);
+
+  // Cargar categorías cuando cambia el evento seleccionado
   useEffect(() => {
     if (selectedDistanceId) {
       fetchCategories();
-      fetchTemplates();
-      fetchRaceDate();
-    } else if (selectedRaceId) {
-      // Fallback: cargar categorías a nivel de carrera si no hay evento seleccionado
-      fetchCategoriesByRace();
-      fetchTemplates();
-      fetchRaceDate();
+    } else {
+      setCategories([]);
+      setLoading(false);
     }
-  }, [selectedRaceId, selectedDistanceId]);
+  }, [selectedDistanceId]);
+
+  const fetchDistances = async () => {
+    if (!selectedRaceId) return;
+    
+    setLoadingDistances(true);
+    try {
+      const { data, error } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km")
+        .eq("race_id", selectedRaceId)
+        .order("display_order", { ascending: true });
+
+      if (error) throw error;
+      
+      setDistances(data || []);
+      // Auto-seleccionar el primer evento si hay alguno
+      if (data && data.length > 0 && !selectedDistanceId) {
+        setSelectedDistanceId(data[0].id);
+      }
+    } catch (error: any) {
+      console.error("Error fetching distances:", error);
+    } finally {
+      setLoadingDistances(false);
+    }
+  };
 
   const fetchCategories = async () => {
     if (!selectedDistanceId) return;
@@ -125,31 +168,6 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
         .from("race_categories")
         .select("*")
         .eq("race_distance_id", selectedDistanceId)
-        .order("display_order");
-
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchCategoriesByRace = async () => {
-    if (!selectedRaceId) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("race_categories")
-        .select("*")
-        .eq("race_id", selectedRaceId)
-        .is("race_distance_id", null)
         .order("display_order");
 
       if (error) throw error;
@@ -265,11 +283,7 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
       }
 
       setDialogOpen(false);
-      if (selectedDistanceId) {
-        fetchCategories();
-      } else {
-        fetchCategoriesByRace();
-      }
+      fetchCategories();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -293,11 +307,7 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
       toast({ title: "Categoría eliminada" });
       setDeleteDialogOpen(false);
       setCategoryToDelete(null);
-      if (selectedDistanceId) {
-        fetchCategories();
-      } else {
-        fetchCategoriesByRace();
-      }
+      fetchCategories();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -356,12 +366,7 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
       
       setTemplateDialogOpen(false);
       setSelectedTemplateId("");
-      
-      if (selectedDistanceId) {
-        fetchCategories();
-      } else {
-        fetchCategoriesByRace();
-      }
+      fetchCategories();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -435,13 +440,44 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
 
   return (
     <div className="space-y-6">
-      {/* Info del contexto */}
-      {!selectedDistanceId && (
+      {/* Selector de Evento */}
+      <Card>
+        <CardContent className="pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="distance-select">Evento (Distancia)</Label>
+            {loadingDistances ? (
+              <Skeleton className="h-10 w-full" />
+            ) : distances.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay eventos definidos para esta carrera
+              </p>
+            ) : (
+              <Select
+                value={selectedDistanceId}
+                onValueChange={setSelectedDistanceId}
+              >
+                <SelectTrigger id="distance-select">
+                  <SelectValue placeholder="Selecciona un evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {distances.map((distance) => (
+                    <SelectItem key={distance.id} value={distance.id}>
+                      {distance.name} ({distance.distance_km} km)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Info si no hay evento seleccionado */}
+      {!selectedDistanceId && distances.length > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="pt-4">
             <p className="text-sm text-amber-600 dark:text-amber-400">
-              <strong>Nota:</strong> Selecciona un evento (distancia) para gestionar sus categorías específicas. 
-              Las categorías se definen por evento, no por carrera.
+              <strong>Nota:</strong> Selecciona un evento para gestionar sus categorías.
             </p>
           </CardContent>
         </Card>
@@ -461,13 +497,13 @@ export function CategoriesManagement({ selectedRaceId, selectedDistanceId }: Cat
               </CardDescription>
             </div>
             <div className="flex gap-2">
-              {categories.length === 0 && templates.length > 0 && (
+              {categories.length === 0 && templates.length > 0 && selectedDistanceId && (
                 <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
                   <Download className="h-4 w-4 mr-2" />
                   Cargar plantilla
                 </Button>
               )}
-              <Button onClick={openCreateDialog}>
+              <Button onClick={openCreateDialog} disabled={!selectedDistanceId}>
                 <Plus className="h-4 w-4 mr-2" />
                 Nueva Categoría
               </Button>
