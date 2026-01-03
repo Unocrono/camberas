@@ -224,7 +224,7 @@ const OrganizerDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
-            {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "bib-chips" && (
