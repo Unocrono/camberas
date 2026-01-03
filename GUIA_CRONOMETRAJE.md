@@ -447,25 +447,156 @@ NOTAS:
 
 ---
 
-## 📊 Categorías Estándar
+## 📊 Sistema de Categorías
 
-### Por Edad (ejemplo común)
-- **Junior**: Sub-20 (< 20 años)
-- **Senior**: 20-34 años
-- **Veteranos A**: 35-44 años
-- **Veteranos B**: 45-54 años
-- **Veteranos C**: 55-64 años
-- **Veteranos D**: 65+ años
+### Arquitectura de Categorías por Evento
+
+Las categorías se definen **por evento** (`race_distance_id`), no por carrera. Dos eventos de la misma carrera pueden tener categorías diferentes.
+
+```
+race (carrera)
+├── race_distance (evento 1: 10K)
+│   └── event_categories
+│       ├── M-Absoluto (18-39)
+│       ├── F-Absoluto (18-39)
+│       ├── M-Master40 (40-49)
+│       └── F-Master40 (40-49)
+│
+└── race_distance (evento 2: Maratón)
+    └── event_categories
+        ├── M-Sub23 (18-22)
+        ├── F-Sub23 (18-22)
+        ├── M-Senior (23-34)
+        ├── F-Senior (23-34)
+        ├── M-VetA (35-44)
+        └── ... más categorías
+```
+
+### Tabla `event_categories` (evolución de race_categories)
+```sql
+- id (uuid)
+- race_distance_id (uuid, FK) -- Evento al que pertenece la categoría
+- name (text) -- Nombre completo: "M-Senior", "F-Veterano A"
+- short_name (text) -- Nombre corto: "M-SEN", "F-VA"
+- gender (text) -- 'M', 'F', o NULL (mixta)
+- min_age (integer) -- Edad mínima (nullable)
+- max_age (integer) -- Edad máxima (nullable)
+- age_calculation_date (date) -- Fecha para calcular edad (31 dic, día carrera, etc.)
+- display_order (integer) -- Orden de visualización
+- created_at, updated_at
+
+NOTAS:
+- Si age_calculation_date es NULL, se usa la fecha de la carrera
+- Las categorías sin min_age ni max_age son "absolutas"
+- El campo short_name se usa en clasificaciones compactas y dorsales
+```
+
+### Tabla `category_templates` - Plantillas Reutilizables
+```sql
+- id (uuid)
+- name (text) -- "Categorías RFEA", "Trail Running ITRA", "MTB UCI"
+- description (text)
+- is_default (boolean) -- Plantilla por defecto al crear eventos
+- created_at, updated_at
+```
+
+### Tabla `category_template_items` - Items de Plantilla
+```sql
+- id (uuid)
+- template_id (uuid, FK → category_templates)
+- name (text) -- "M-Senior"
+- short_name (text) -- "M-SEN"
+- gender (text)
+- min_age (integer)
+- max_age (integer)
+- display_order (integer)
+```
+
+### Flujo de Carga de Categorías
+
+```
+1. Crear evento (race_distance)
+   ↓
+2. Seleccionar plantilla de categorías
+   ↓
+3. Copiar items de plantilla → event_categories
+   - Ajustar age_calculation_date según evento
+   ↓
+4. Personalizar categorías si es necesario
+```
+
+### Categoría del Corredor (Editable)
+
+El campo `response_category` en `registration_responses` almacena la categoría asignada al corredor:
+
+```sql
+-- En registration_responses
+field_id → campo 'category' de registration_form_fields
+field_value → "M-Senior" (nombre de la categoría)
+
+-- La categoría puede:
+1. Calcularse automáticamente basándose en birth_date + gender + age_calculation_date
+2. Editarse manualmente por el organizador
+3. Importarse desde CSV
+```
+
+### Auto-Creación de Categorías en Importación CSV
+
+Al importar inscripciones desde CSV:
+
+```
+1. Leer columna "Categoría" del CSV
+2. Para cada categoría única encontrada:
+   a. Buscar en event_categories del evento
+   b. Si NO existe → crear automáticamente:
+      - name = valor del CSV
+      - short_name = primeros 6 caracteres
+      - gender, min_age, max_age = NULL (se puede editar después)
+3. Asignar categoría al corredor en registration_responses
+```
+
+### Categorías Estándar (Ejemplo)
+
+#### Por Edad (RFEA)
+| Nombre | Short | Género | Edad Min | Edad Max |
+|--------|-------|--------|----------|----------|
+| M-Sub18 | M-S18 | M | 0 | 17 |
+| F-Sub18 | F-S18 | F | 0 | 17 |
+| M-Sub20 | M-S20 | M | 18 | 19 |
+| F-Sub20 | F-S20 | F | 18 | 19 |
+| M-Sub23 | M-S23 | M | 20 | 22 |
+| F-Sub23 | F-S23 | F | 20 | 22 |
+| M-Senior | M-SEN | M | 23 | 34 |
+| F-Senior | F-SEN | F | 23 | 34 |
+| M-Vet35 | M-V35 | M | 35 | 39 |
+| F-Vet35 | F-V35 | F | 35 | 39 |
+| M-Vet40 | M-V40 | M | 40 | 44 |
+| F-Vet40 | F-V40 | F | 40 | 44 |
+| M-Vet45 | M-V45 | M | 45 | 49 |
+| F-Vet45 | F-V45 | F | 45 | 49 |
+| M-Vet50 | M-V50 | M | 50 | 54 |
+| F-Vet50 | F-V50 | F | 50 | 54 |
+| M-Vet55 | M-V55 | M | 55 | 59 |
+| F-Vet55 | F-V55 | F | 55 | 59 |
+| M-Vet60 | M-V60 | M | 60 | 64 |
+| F-Vet60 | F-V60 | F | 60 | 64 |
+| M-Vet65 | M-V65 | M | 65 | 999 |
+| F-Vet65 | F-V65 | F | 65 | 999 |
+
+### Cálculo de Edad según Referencia
+
+```sql
+-- Opciones de age_calculation_date:
+1. Fecha de la carrera → edad el día del evento
+2. 31 de diciembre del año → edad al finalizar el año
+3. 1 de enero del año → edad al comenzar el año
+4. Fecha específica → configuración personalizada
+```
 
 ### Por Género
-- **Masculino**
-- **Femenino**
+- **Masculino** (M)
+- **Femenino** (F)
 - **Mixto** (para relevos)
-
-### Combinadas
-- M-Senior, F-Senior
-- M-VetA, F-VetA
-- etc.
 
 ---
 
