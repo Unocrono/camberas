@@ -189,6 +189,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_VISIBLE_COLUMNS));
 
+  // Helper to get registration response value - MUST be defined before useMemo hooks that use it
+  const getResponseValue = (regId: string, fieldName: string): string => {
+    return registrationResponses.get(regId)?.get(fieldName) || "";
+  };
+
   const toggleRowSelection = (id: string) => {
     setSelectedRows(prev => {
       const newSet = new Set(prev);
@@ -787,10 +792,6 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     setCategories(data || []);
   };
 
-  // Helper to get registration response value
-  const getResponseValue = (regId: string, fieldName: string): string => {
-    return registrationResponses.get(regId)?.get(fieldName) || "";
-  };
 
   useEffect(() => {
     // If selectedRaceId prop changes, update the internal filter
