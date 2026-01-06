@@ -26,12 +26,12 @@ interface Registration {
   bib_number: number | null;
   created_at: string;
   user_id: string | null;
-  guest_email: string | null;
-  guest_first_name: string | null;
-  guest_last_name: string | null;
-  guest_phone: string | null;
-  guest_dni_passport: string | null;
-  guest_birth_date: string | null;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  dni_passport: string | null;
+  birth_date: string | null;
   race_id: string;
   race_distance_id: string;
   race: {
@@ -71,11 +71,11 @@ interface RegistrationManagementProps {
 }
 
 interface RegistrationFormData {
-  guest_first_name: string;
-  guest_last_name: string;
-  guest_email: string;
-  guest_phone: string;
-  guest_dni_passport: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  dni_passport: string;
   race_id: string;
   race_distance_id: string;
   status: string;
@@ -84,11 +84,11 @@ interface RegistrationFormData {
 }
 
 const emptyFormData: RegistrationFormData = {
-  guest_first_name: "",
-  guest_last_name: "",
-  guest_email: "",
-  guest_phone: "",
-  guest_dni_passport: "",
+  first_name: "",
+  last_name: "",
+  email: "",
+  phone: "",
+  dni_passport: "",
   race_id: "",
   race_distance_id: "",
   status: "pending",
@@ -638,7 +638,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
         // Get birth date from responses or profile
         let birthDate = getResponseValue(regId, 'birth_date') || 
-                        reg.guest_birth_date || 
+                        reg.birth_date || 
                         reg.profiles?.birth_date || null;
         
         // Get gender from responses or profile
@@ -873,12 +873,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           bib_number,
           created_at,
           user_id,
-          guest_email,
-          guest_first_name,
-          guest_last_name,
-          guest_phone,
-          guest_dni_passport,
-          guest_birth_date,
+          email,
+          first_name,
+          last_name,
+          phone,
+          dni_passport,
+          birth_date,
           race_id,
           race_distance_id,
           race_distance_id,
@@ -986,10 +986,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (reg) => {
-          const firstName = reg.profiles?.first_name || reg.guest_first_name || "";
-          const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
-          const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
-          const email = reg.guest_email || "";
+          const firstName = reg.profiles?.first_name || reg.first_name || "";
+          const lastName = reg.profiles?.last_name || reg.last_name || "";
+          const dniPassport = reg.profiles?.dni_passport || reg.dni_passport || "";
+          const email = reg.email || "";
           return (
             firstName.toLowerCase().includes(term) ||
             lastName.toLowerCase().includes(term) ||
@@ -1043,11 +1043,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const insertData: any = {
         race_id: formData.race_id,
         race_distance_id: formData.race_distance_id,
-        guest_first_name: formData.guest_first_name || null,
-        guest_last_name: formData.guest_last_name || null,
-        guest_email: formData.guest_email || null,
-        guest_phone: formData.guest_phone || null,
-        guest_dni_passport: formData.guest_dni_passport || null,
+        first_name: formData.first_name || null,
+        last_name: formData.last_name || null,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        dni_passport: formData.dni_passport || null,
         status: formData.status,
         payment_status: formData.payment_status,
         bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
@@ -1073,11 +1073,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     setSaving(true);
     try {
       const updateData: any = {
-        guest_first_name: formData.guest_first_name || null,
-        guest_last_name: formData.guest_last_name || null,
-        guest_email: formData.guest_email || null,
-        guest_phone: formData.guest_phone || null,
-        guest_dni_passport: formData.guest_dni_passport || null,
+        first_name: formData.first_name || null,
+        last_name: formData.last_name || null,
+        email: formData.email || null,
+        phone: formData.phone || null,
+        dni_passport: formData.dni_passport || null,
         status: formData.status,
         payment_status: formData.payment_status,
         bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
@@ -1137,11 +1137,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const openEditDialog = (reg: Registration) => {
     setEditingRegistration(reg);
     setFormData({
-      guest_first_name: reg.guest_first_name || reg.profiles?.first_name || "",
-      guest_last_name: reg.guest_last_name || reg.profiles?.last_name || "",
-      guest_email: reg.guest_email || "",
-      guest_phone: reg.guest_phone || reg.profiles?.phone || "",
-      guest_dni_passport: reg.guest_dni_passport || reg.profiles?.dni_passport || "",
+      first_name: reg.first_name || reg.profiles?.first_name || "",
+      last_name: reg.last_name || reg.profiles?.last_name || "",
+      email: reg.email || "",
+      phone: reg.phone || reg.profiles?.phone || "",
+      dni_passport: reg.dni_passport || reg.profiles?.dni_passport || "",
       race_id: reg.race_id,
       race_distance_id: reg.race_distance_id,
       status: reg.status,
@@ -1214,11 +1214,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     const rows = filteredRegistrations.map((reg) => {
       const isGuest = !reg.user_id;
       return [
-        reg.profiles?.first_name || reg.guest_first_name || "",
-        reg.profiles?.last_name || reg.guest_last_name || "",
-        reg.profiles?.dni_passport || reg.guest_dni_passport || "",
-        reg.profiles?.phone || reg.guest_phone || "",
-        reg.guest_email || "",
+        reg.profiles?.first_name || reg.first_name || "",
+        reg.profiles?.last_name || reg.last_name || "",
+        reg.profiles?.dni_passport || reg.dni_passport || "",
+        reg.profiles?.phone || reg.phone || "",
+        reg.email || "",
         isGuest ? "Invitado" : "Registrado",
         reg.race.name,
         `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`,
@@ -1645,11 +1645,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 ) : (
                   paginatedRegistrations.map((reg) => {
                     const isGuest = !reg.user_id;
-                    const firstName = reg.profiles?.first_name || reg.guest_first_name || "";
-                    const lastName = reg.profiles?.last_name || reg.guest_last_name || "";
-                    const dniPassport = reg.profiles?.dni_passport || reg.guest_dni_passport || "";
-                    const email = reg.guest_email || "";
-                    const phone = reg.profiles?.phone || reg.guest_phone || "";
+                    const firstName = reg.profiles?.first_name || reg.first_name || "";
+                    const lastName = reg.profiles?.last_name || reg.last_name || "";
+                    const dniPassport = reg.profiles?.dni_passport || reg.dni_passport || "";
+                    const email = reg.email || "";
+                    const phone = reg.profiles?.phone || reg.phone || "";
                     
                     // Get values from registration_responses
                     const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
@@ -1657,7 +1657,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
                     const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
                     const country = getResponseValue(reg.id, 'country') || reg.profiles?.country || "";
-                    const birthDate = getResponseValue(reg.id, 'birth_date') || reg.profiles?.birth_date || reg.guest_birth_date || "";
+                    const birthDate = getResponseValue(reg.id, 'birth_date') || reg.profiles?.birth_date || reg.birth_date || "";
                     
                     return (
                       <TableRow key={reg.id} data-state={selectedRows.has(reg.id) ? "selected" : undefined}>
@@ -1910,15 +1910,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <div className="space-y-2">
                 <Label>Nombre *</Label>
                 <Input
-                  value={formData.guest_first_name}
-                  onChange={(e) => setFormData({ ...formData, guest_first_name: e.target.value })}
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Apellidos *</Label>
                 <Input
-                  value={formData.guest_last_name}
-                  onChange={(e) => setFormData({ ...formData, guest_last_name: e.target.value })}
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 />
               </div>
             </div>
@@ -1926,23 +1926,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <Label>Email</Label>
               <Input
                 type="email"
-                value={formData.guest_email}
-                onChange={(e) => setFormData({ ...formData, guest_email: e.target.value })}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Teléfono</Label>
                 <Input
-                  value={formData.guest_phone}
-                  onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>DNI/Pasaporte</Label>
                 <Input
-                  value={formData.guest_dni_passport}
-                  onChange={(e) => setFormData({ ...formData, guest_dni_passport: e.target.value })}
+                  value={formData.dni_passport}
+                  onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
                 />
               </div>
             </div>
@@ -2027,15 +2027,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <div className="space-y-2">
                 <Label>Nombre</Label>
                 <Input
-                  value={formData.guest_first_name}
-                  onChange={(e) => setFormData({ ...formData, guest_first_name: e.target.value })}
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Apellidos</Label>
                 <Input
-                  value={formData.guest_last_name}
-                  onChange={(e) => setFormData({ ...formData, guest_last_name: e.target.value })}
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 />
               </div>
             </div>
@@ -2043,23 +2043,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <Label>Email</Label>
               <Input
                 type="email"
-                value={formData.guest_email}
-                onChange={(e) => setFormData({ ...formData, guest_email: e.target.value })}
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Teléfono</Label>
                 <Input
-                  value={formData.guest_phone}
-                  onChange={(e) => setFormData({ ...formData, guest_phone: e.target.value })}
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>DNI/Pasaporte</Label>
                 <Input
-                  value={formData.guest_dni_passport}
-                  onChange={(e) => setFormData({ ...formData, guest_dni_passport: e.target.value })}
+                  value={formData.dni_passport}
+                  onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
                 />
               </div>
             </div>

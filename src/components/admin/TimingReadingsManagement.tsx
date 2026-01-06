@@ -68,8 +68,8 @@ interface TimingReading {
     name: string;
   };
   registration?: {
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     user_id: string | null;
   };
 }
@@ -269,12 +269,12 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       const bibNumbers = [...new Set((data || []).map(r => r.bib_number))];
       
       // Fetch registrations by bib_number for this race
-      let registrationMap = new Map<number, { guest_first_name: string | null; guest_last_name: string | null; user_id: string | null }>();
+      let registrationMap = new Map<number, { first_name: string | null; last_name: string | null; user_id: string | null }>();
       
       if (bibNumbers.length > 0) {
         const { data: registrations } = await supabase
           .from("registrations")
-          .select("bib_number, guest_first_name, guest_last_name, user_id")
+          .select("bib_number, first_name, last_name, user_id")
           .eq("race_id", filterRaceId)
           .in("bib_number", bibNumbers);
         
@@ -297,8 +297,8 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             if (reg.bib_number !== null) {
               const profile = reg.user_id ? profilesMap.get(reg.user_id) : null;
               registrationMap.set(reg.bib_number, {
-                guest_first_name: profile?.first_name || reg.guest_first_name,
-                guest_last_name: profile?.last_name || reg.guest_last_name,
+                first_name: profile?.first_name || reg.first_name,
+                last_name: profile?.last_name || reg.last_name,
                 user_id: reg.user_id
               });
             }
@@ -318,7 +318,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         enrichedData = enrichedData.filter((r) => {
           const bibMatch = r.bib_number.toString().includes(search);
           const nameMatch = r.registration
-            ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.toLowerCase().includes(search)
+            ? `${r.registration.first_name || ""} ${r.registration.last_name || ""}`.toLowerCase().includes(search)
             : false;
           return bibMatch || nameMatch;
         });
@@ -809,7 +809,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     const headers = ["Dorsal", "Participante", "Evento", "Punto de Crono", "Hora", "Tipo", "Estado", "Vuelta", "Procesado", "Notas"];
     const rows = readings.map((r) => [
       r.bib_number,
-      r.registration ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.trim() : "-",
+      r.registration ? `${r.registration.first_name || ""} ${r.registration.last_name || ""}`.trim() : "-",
       r.race_distance?.name || "-",
       r.timing_point?.name || "-",
       new Date(r.timing_timestamp).toLocaleString("es-ES"),
@@ -1112,7 +1112,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                         <TableCell className="font-medium">{reading.bib_number}</TableCell>
                         <TableCell>
                           {reading.registration
-                            ? `${reading.registration.guest_first_name || ""} ${reading.registration.guest_last_name || ""}`.trim() || "-"
+                            ? `${reading.registration.first_name || ""} ${reading.registration.last_name || ""}`.trim() || "-"
                             : "-"}
                         </TableCell>
                         <TableCell>{reading.race_distance?.name || "-"}</TableCell>

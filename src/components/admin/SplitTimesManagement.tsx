@@ -269,8 +269,8 @@ export function SplitTimesManagement({
         bib_number,
         race_distance_id,
         user_id,
-        guest_first_name,
-        guest_last_name,
+        first_name,
+        last_name,
         race_distances!inner (
           id,
           name
@@ -357,7 +357,7 @@ export function SplitTimesManagement({
       
       const name = profile 
         ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-        : `${reg?.guest_first_name || ''} ${reg?.guest_last_name || ''}`.trim();
+        : `${reg?.first_name || ''} ${reg?.last_name || ''}`.trim();
 
       return {
         id: split.id,
