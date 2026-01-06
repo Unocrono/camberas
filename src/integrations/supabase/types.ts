@@ -362,6 +362,42 @@ export type Database = {
         }
         Relationships: []
       }
+      genders: {
+        Row: {
+          created_at: string
+          gender_code: string
+          gender_code2: string | null
+          gender_code3: string | null
+          gender_id: number
+          gender_name: string
+          gender_name2: string | null
+          gender_name3: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          gender_code: string
+          gender_code2?: string | null
+          gender_code3?: string | null
+          gender_id: number
+          gender_name: string
+          gender_name2?: string | null
+          gender_name3?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          gender_code?: string
+          gender_code2?: string | null
+          gender_code3?: string | null
+          gender_id?: number
+          gender_name?: string
+          gender_name2?: string | null
+          gender_name3?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gps_tracking: {
         Row: {
           accuracy: number | null
