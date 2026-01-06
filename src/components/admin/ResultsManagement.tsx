@@ -28,9 +28,10 @@ interface RaceResult {
   race_distance_id: string;
   registration: {
     bib_number: number | null;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
-    guest_birth_date: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    birth_date: string | null;
+    gender: string | null;
     race: { name: string; organizer_id?: string | null; date: string };
     race_distance: { name: string };
     profiles: { first_name: string | null; last_name: string | null; gender: string | null; birth_date: string | null } | null;
@@ -208,9 +209,10 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
         *,
         registration:registrations (
           bib_number,
-          guest_first_name,
-          guest_last_name,
-          guest_birth_date,
+          first_name,
+          last_name,
+          birth_date,
+          gender,
           race:races (name, organizer_id, date),
           race_distance:race_distances (name),
           profiles (first_name, last_name, gender, birth_date)
@@ -475,14 +477,14 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
   // Helper function to get runner name
   const getRunnerName = (result: RaceResult) => {
-    const firstName = result.registration.profiles?.first_name || result.registration.guest_first_name || '';
-    const lastName = result.registration.profiles?.last_name || result.registration.guest_last_name || '';
+    const firstName = result.registration.first_name || result.registration.profiles?.first_name || '';
+    const lastName = result.registration.last_name || result.registration.profiles?.last_name || '';
     return `${firstName} ${lastName}`.trim() || '-';
   };
 
   // Helper function to get runner gender
   const getRunnerGender = (result: RaceResult) => {
-    const gender = result.registration.profiles?.gender;
+    const gender = result.registration.gender || result.registration.profiles?.gender;
     if (gender === 'Masculino' || gender === 'M' || gender === 'Male') return 'M';
     if (gender === 'Femenino' || gender === 'F' || gender === 'Female') return 'F';
     return '-';
@@ -490,9 +492,9 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
   // Helper function to calculate category
   const getRunnerCategory = (result: RaceResult) => {
-    const birthDate = result.registration.profiles?.birth_date || result.registration.guest_birth_date;
+    const birthDate = result.registration.birth_date || result.registration.profiles?.birth_date;
     const raceDate = result.registration.race?.date;
-    const gender = result.registration.profiles?.gender;
+    const gender = result.registration.gender || result.registration.profiles?.gender;
     
     if (!birthDate || !raceDate) return '-';
     

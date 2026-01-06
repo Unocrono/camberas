@@ -250,11 +250,11 @@ function normalizeGender(value: string): string {
 function rowHasRequiredData(row: CSVRow, mappings: ColumnMapping[]): boolean {
   // Find which CSV columns are mapped to name/email fields
   const nameMapping = mappings.find(m => 
-    m.field === 'guest_first_name' || 
+    m.field === 'first_name' || 
     m.field.includes('first_name')
   );
   const emailMapping = mappings.find(m => 
-    m.field === 'guest_email' || 
+    m.field === 'email' || 
     m.field.includes('email')
   );
   
@@ -567,9 +567,9 @@ export function RegistrationImportDialog({
     }
 
     // At least name or email required
-    if (!mappedData.guest_first_name && !mappedData.guest_email) {
+    if (!mappedData.first_name && !mappedData.email) {
       // Check if row only has bib number (incomplete data)
-      const onlyHasBib = mappedData.bib_number && !mappedData.guest_first_name && !mappedData.guest_last_name && !mappedData.guest_email;
+      const onlyHasBib = mappedData.bib_number && !mappedData.first_name && !mappedData.last_name && !mappedData.email;
       if (onlyHasBib) {
         errors.push("Solo contiene dorsal, falta nombre o email");
       } else {
@@ -578,7 +578,7 @@ export function RegistrationImportDialog({
     }
 
     // Validate email format if provided
-    if (mappedData.guest_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mappedData.guest_email)) {
+    if (mappedData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mappedData.email)) {
       errors.push("Email inválido");
     }
 
@@ -707,12 +707,13 @@ export function RegistrationImportDialog({
             insertData.status = value;
           } else if (key === "payment_status") {
             insertData.payment_status = value;
-          } else if (key.startsWith("guest_")) {
-            // Direct guest field (linked via profile_field)
-            if (key === "guest_birth_date") {
-              insertData[key] = convertDateFormat(value);
+          } else if (PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION]) {
+            // Profile field mapped to registration field
+            const regField = PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION];
+            if (regField === 'birth_date') {
+              insertData[regField] = convertDateFormat(value);
             } else {
-              insertData[key] = value;
+              insertData[regField] = value;
             }
           } else if (key.startsWith("custom_")) {
             // Custom field - store in registration_responses
@@ -750,7 +751,7 @@ export function RegistrationImportDialog({
           
           // Handle category: either from import or calculate automatically
           if (registration && categoryField?.fieldId) {
-            const birthDate = insertData.guest_birth_date;
+            const birthDate = insertData.birth_date;
             
             // Check if a category was directly imported
             const importedCategory = customFieldMappings.find(cf => cf.fieldId === categoryField.fieldId);
