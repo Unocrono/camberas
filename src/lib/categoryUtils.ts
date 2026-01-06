@@ -96,14 +96,19 @@ export function calculateCategoryByAge(
   return null;
 }
 
+export interface CategoryResult {
+  id: string | null;
+  name: string | null;
+}
+
 /**
- * Gets or creates a category for a participant and returns the category ID
+ * Gets or creates a category for a participant and returns the category ID and name
  * Implements hybrid logic (Option 3):
  * 1. If CSV provides category name → use/create that category (age_dependent=false)
  * 2. If no CSV category AND age_dependent categories exist → calculate by age/gender
  * 3. If neither → use "UNICA" default category
  * 
- * @returns The category ID (UUID) to be stored in race_category_id
+ * @returns Object with category ID (UUID) and name
  */
 export async function getOrCreateCategoryId(
   raceId: string,
@@ -112,7 +117,7 @@ export async function getOrCreateCategoryId(
   birthDate: string | null,
   gender: string | null,
   raceDate: string
-): Promise<string | null> {
+): Promise<CategoryResult> {
   // Get existing categories for this event
   const { data: categories } = await supabase
     .from("race_categories")
@@ -124,8 +129,8 @@ export async function getOrCreateCategoryId(
   
   // Scenario 1: CSV provides category name → use or create it
   if (importedCategoryName && importedCategoryName.trim()) {
-    const categoryId = await findOrCreateCategoryByName(raceId, distanceId, importedCategoryName.trim(), typedCategories);
-    return categoryId;
+    const result = await findOrCreateCategoryByName(raceId, distanceId, importedCategoryName.trim(), typedCategories);
+    return result;
   }
   
   // Scenario 2: No CSV category, check for age_dependent categories
@@ -134,14 +139,14 @@ export async function getOrCreateCategoryId(
   if (hasAgeDependentCategories && birthDate) {
     const matchedCategory = calculateCategoryByAge(birthDate, typedCategories, raceDate);
     if (matchedCategory) {
-      return matchedCategory.id;
+      return { id: matchedCategory.id, name: matchedCategory.name };
     }
   }
   
   // Scenario 3: No CSV category, no age match → use "UNICA" default
   const unicaCategory = typedCategories.find(c => c.name === 'UNICA');
   if (unicaCategory) {
-    return unicaCategory.id;
+    return { id: unicaCategory.id, name: unicaCategory.name };
   }
   
   // If "UNICA" doesn't exist (shouldn't happen due to trigger), create it
@@ -158,7 +163,7 @@ export async function getOrCreateCategoryId(
     .select("id")
     .single();
   
-  return newUnica?.id || null;
+  return { id: newUnica?.id || null, name: 'UNICA' };
 }
 
 /**
@@ -170,7 +175,7 @@ async function findOrCreateCategoryByName(
   distanceId: string,
   categoryName: string,
   existingCategories: RaceCategory[]
-): Promise<string | null> {
+): Promise<CategoryResult> {
   // Check if category already exists (by name or short_name)
   const existing = existingCategories.find(
     c => c.name.toLowerCase() === categoryName.toLowerCase() || 
@@ -178,7 +183,7 @@ async function findOrCreateCategoryByName(
   );
   
   if (existing) {
-    return existing.id;
+    return { id: existing.id, name: existing.name };
   }
   
   // Create new category (not age-dependent since it's from import)
@@ -194,10 +199,10 @@ async function findOrCreateCategoryByName(
       age_dependent: false,
       display_order: maxOrder + 1,
     })
-    .select("id")
+    .select("id, name")
     .single();
   
-  return newCategory?.id || null;
+  return { id: newCategory?.id || null, name: newCategory?.name || categoryName };
 }
 
 /**

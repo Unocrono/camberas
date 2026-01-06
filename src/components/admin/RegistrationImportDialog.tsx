@@ -777,8 +777,8 @@ export function RegistrationImportDialog({
               .single();
             
             if (raceData?.date) {
-              // Use the new hybrid category logic
-              const categoryId = await getOrCreateCategoryId(
+              // Use the new hybrid category logic - returns {id, name}
+              const categoryResult = await getOrCreateCategoryId(
                 raceId,
                 selectedDistanceId,
                 importedCategoryName,
@@ -787,12 +787,11 @@ export function RegistrationImportDialog({
                 raceData.date
               );
               
-              // For now, update the category text field
-              // race_category_id FK will be added when migration is approved
-              if (categoryId && importedCategoryName) {
+              // Update the category text field with the resolved category name
+              if (categoryResult.name) {
                 await supabase
                   .from("registrations")
-                  .update({ category: importedCategoryName })
+                  .update({ category: categoryResult.name })
                   .eq("id", registration.id);
               }
             }
