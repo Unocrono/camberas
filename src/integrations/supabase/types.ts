@@ -958,6 +958,7 @@ export type Database = {
           email: string | null
           first_name: string | null
           gender: string | null
+          gender_id: number | null
           id: string
           last_name: string | null
           phone: string | null
@@ -977,6 +978,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
+          gender_id?: number | null
           id: string
           last_name?: string | null
           phone?: string | null
@@ -996,6 +998,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
+          gender_id?: number | null
           id?: string
           last_name?: string | null
           phone?: string | null
@@ -1003,7 +1006,15 @@ export type Database = {
           team?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_gender_id_fkey"
+            columns: ["gender_id"]
+            isOneToOne: false
+            referencedRelation: "genders"
+            referencedColumns: ["gender_id"]
+          },
+        ]
       }
       race_categories: {
         Row: {
@@ -1918,6 +1929,7 @@ export type Database = {
           email: string | null
           first_name: string | null
           gender: string | null
+          gender_id: number | null
           id: string
           last_name: string | null
           payment_status: string
@@ -1946,6 +1958,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
+          gender_id?: number | null
           id?: string
           last_name?: string | null
           payment_status?: string
@@ -1974,6 +1987,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
+          gender_id?: number | null
           id?: string
           last_name?: string | null
           payment_status?: string
@@ -1989,6 +2003,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registrations_gender_id_fkey"
+            columns: ["gender_id"]
+            isOneToOne: false
+            referencedRelation: "genders"
+            referencedColumns: ["gender_id"]
+          },
           {
             foreignKeyName: "registrations_race_category_id_fkey"
             columns: ["race_category_id"]
@@ -2735,6 +2756,10 @@ export type Database = {
         Returns: string
       }
       get_current_user_email: { Args: never; Returns: string }
+      get_gender_id_from_text: {
+        Args: { gender_text: string }
+        Returns: number
+      }
       get_live_gps_positions: {
         Args: { p_distance_id?: string; p_race_id: string }
         Returns: {
