@@ -1888,6 +1888,7 @@ export type Database = {
           payment_status: string
           phone: string | null
           province: string | null
+          race_category_id: string | null
           race_distance_id: string
           race_id: string
           status: string
@@ -1916,6 +1917,7 @@ export type Database = {
           payment_status?: string
           phone?: string | null
           province?: string | null
+          race_category_id?: string | null
           race_distance_id: string
           race_id: string
           status?: string
@@ -1944,6 +1946,7 @@ export type Database = {
           payment_status?: string
           phone?: string | null
           province?: string | null
+          race_category_id?: string | null
           race_distance_id?: string
           race_id?: string
           status?: string
@@ -1953,6 +1956,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registrations_race_category_id_fkey"
+            columns: ["race_category_id"]
+            isOneToOne: false
+            referencedRelation: "race_categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registrations_race_distance_id_fkey"
             columns: ["race_distance_id"]
