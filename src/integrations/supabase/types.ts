@@ -150,6 +150,7 @@ export type Database = {
       }
       category_template_items: {
         Row: {
+          age_dependent: boolean | null
           created_at: string | null
           display_order: number | null
           gender: string | null
@@ -162,6 +163,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          age_dependent?: boolean | null
           created_at?: string | null
           display_order?: number | null
           gender?: string | null
@@ -174,6 +176,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          age_dependent?: boolean | null
           created_at?: string | null
           display_order?: number | null
           gender?: string | null
@@ -969,6 +972,7 @@ export type Database = {
       race_categories: {
         Row: {
           age_calculation_date: string | null
+          age_dependent: boolean | null
           created_at: string
           display_order: number
           gender: string | null
@@ -983,6 +987,7 @@ export type Database = {
         }
         Insert: {
           age_calculation_date?: string | null
+          age_dependent?: boolean | null
           created_at?: string
           display_order?: number
           gender?: string | null
@@ -997,6 +1002,7 @@ export type Database = {
         }
         Update: {
           age_calculation_date?: string | null
+          age_dependent?: boolean | null
           created_at?: string
           display_order?: number
           gender?: string | null

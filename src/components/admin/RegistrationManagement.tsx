@@ -131,6 +131,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [selectedDistance, setSelectedDistance] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Column filters
+  const [filterGender, setFilterGender] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterClub, setFilterClub] = useState<string>("all");
+  const [filterTeam, setFilterTeam] = useState<string>("all");
+  const [filterPayment, setFilterPayment] = useState<string>("all");
 
   // CRUD
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -209,6 +216,43 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   const isAllSelected = paginatedRegistrations.length > 0 && selectedRows.size === paginatedRegistrations.length;
   const isSomeSelected = selectedRows.size > 0 && selectedRows.size < paginatedRegistrations.length;
+
+  // Unique values for column filters
+  const uniqueGenders = useMemo(() => {
+    const genders = new Set<string>();
+    registrations.forEach(reg => {
+      const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
+      if (gender) genders.add(gender);
+    });
+    return Array.from(genders).sort();
+  }, [registrations, registrationResponses]);
+
+  const uniqueCategories = useMemo(() => {
+    const cats = new Set<string>();
+    registrations.forEach(reg => {
+      const category = getResponseValue(reg.id, 'category') || "";
+      if (category) cats.add(category);
+    });
+    return Array.from(cats).sort();
+  }, [registrations, registrationResponses]);
+
+  const uniqueClubs = useMemo(() => {
+    const clubs = new Set<string>();
+    registrations.forEach(reg => {
+      const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
+      if (club) clubs.add(club);
+    });
+    return Array.from(clubs).sort();
+  }, [registrations, registrationResponses]);
+
+  const uniqueTeams = useMemo(() => {
+    const teams = new Set<string>();
+    registrations.forEach(reg => {
+      const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
+      if (team) teams.add(team);
+    });
+    return Array.from(teams).sort();
+  }, [registrations, registrationResponses]);
 
   // Bulk action handlers
   const handleBulkDelete = async () => {
@@ -632,7 +676,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   useEffect(() => {
     applyFilters();
     setSelectedRows(new Set()); // Clear selection when filters change
-  }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm]);
+  }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm, filterGender, filterCategory, filterClub, filterTeam, filterPayment, registrationResponses]);
 
   useEffect(() => {
     if (selectedRace && selectedRace !== "all") {
@@ -774,6 +818,39 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
     if (selectedStatus !== "all") {
       filtered = filtered.filter((reg) => reg.status === selectedStatus);
+    }
+
+    // Column filters
+    if (filterGender !== "all") {
+      filtered = filtered.filter((reg) => {
+        const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
+        return gender.toLowerCase().includes(filterGender.toLowerCase());
+      });
+    }
+
+    if (filterCategory !== "all") {
+      filtered = filtered.filter((reg) => {
+        const category = getResponseValue(reg.id, 'category') || "";
+        return category === filterCategory;
+      });
+    }
+
+    if (filterClub !== "all") {
+      filtered = filtered.filter((reg) => {
+        const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
+        return club === filterClub;
+      });
+    }
+
+    if (filterTeam !== "all") {
+      filtered = filtered.filter((reg) => {
+        const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
+        return team === filterTeam;
+      });
+    }
+
+    if (filterPayment !== "all") {
+      filtered = filtered.filter((reg) => reg.payment_status === filterPayment);
     }
 
     if (searchTerm) {
@@ -1278,16 +1355,150 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   {visibleColumns.has("email") && <TableHead>Email</TableHead>}
                   {visibleColumns.has("dni") && <TableHead>DNI/Pasaporte</TableHead>}
                   {visibleColumns.has("phone") && <TableHead>Teléfono</TableHead>}
-                  {visibleColumns.has("gender") && <TableHead>Género</TableHead>}
+                  {visibleColumns.has("gender") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Género
+                            {filterGender !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">{filterGender}</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => setFilterGender("all")}>
+                            Todos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {uniqueGenders.map(g => (
+                            <DropdownMenuItem key={g} onClick={() => setFilterGender(g)}>
+                              {g}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
                   {visibleColumns.has("birth_date") && <TableHead>F. Nacimiento</TableHead>}
-                  {visibleColumns.has("category") && <TableHead>Categoría</TableHead>}
-                  {visibleColumns.has("club") && <TableHead>Club</TableHead>}
-                  {visibleColumns.has("team") && <TableHead>Equipo</TableHead>}
+                  {visibleColumns.has("category") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Categoría
+                            {filterCategory !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">{filterCategory}</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="max-h-64 overflow-auto">
+                          <DropdownMenuItem onClick={() => setFilterCategory("all")}>
+                            Todas
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {uniqueCategories.map(c => (
+                            <DropdownMenuItem key={c} onClick={() => setFilterCategory(c)}>
+                              {c}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
+                  {visibleColumns.has("club") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Club
+                            {filterClub !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="max-h-64 overflow-auto">
+                          <DropdownMenuItem onClick={() => setFilterClub("all")}>
+                            Todos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {uniqueClubs.map(c => (
+                            <DropdownMenuItem key={c} onClick={() => setFilterClub(c)}>
+                              {c}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
+                  {visibleColumns.has("team") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Equipo
+                            {filterTeam !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="max-h-64 overflow-auto">
+                          <DropdownMenuItem onClick={() => setFilterTeam("all")}>
+                            Todos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {uniqueTeams.map(t => (
+                            <DropdownMenuItem key={t} onClick={() => setFilterTeam(t)}>
+                              {t}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
                   {visibleColumns.has("country") && <TableHead>País</TableHead>}
                   {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
                   {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
-                  {visibleColumns.has("status") && <TableHead>Estado</TableHead>}
-                  {visibleColumns.has("payment") && <TableHead>Pago</TableHead>}
+                  {visibleColumns.has("status") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Estado
+                            {selectedStatus !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => setSelectedStatus("all")}>
+                            Todos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setSelectedStatus("pending")}>Pendiente</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedStatus("confirmed")}>Confirmado</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedStatus("cancelled")}>Cancelado</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
+                  {visibleColumns.has("payment") && (
+                    <TableHead>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 gap-1 -ml-2">
+                            Pago
+                            {filterPayment !== "all" && <Badge variant="secondary" className="ml-1 h-5 px-1 text-xs">1</Badge>}
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          <DropdownMenuItem onClick={() => setFilterPayment("all")}>
+                            Todos
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => setFilterPayment("pending")}>Pendiente</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterPayment("paid")}>Pagado</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setFilterPayment("refunded")}>Reembolsado</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableHead>
+                  )}
                   {visibleColumns.has("actions") && <TableHead>Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
