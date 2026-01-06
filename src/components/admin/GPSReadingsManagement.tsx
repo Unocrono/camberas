@@ -517,7 +517,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
     const headers = ["Dorsal", "Participante", "Evento", "Checkpoint", "KM", "Hora GPS", "Procesado", "Notas"];
     const rows = readings.map((r) => [
       r.bib_number,
-      r.registration ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.trim() : "-",
+      r.registration ? `${r.registration.first_name || ""} ${r.registration.last_name || ""}`.trim() : "-",
       r.race_distance?.name || "-",
       r.checkpoint?.name || "-",
       r.checkpoint?.distance_km?.toFixed(1) || "-",
@@ -962,7 +962,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
                         <TableCell className="font-bold">{reading.bib_number}</TableCell>
                         <TableCell>
                           {reading.registration
-                            ? `${reading.registration.guest_first_name || ""} ${reading.registration.guest_last_name || ""}`.trim()
+                            ? `${reading.registration.first_name || ""} ${reading.registration.last_name || ""}`.trim()
                             : <span className="text-muted-foreground">-</span>}
                         </TableCell>
                         <TableCell>

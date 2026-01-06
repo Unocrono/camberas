@@ -28,8 +28,8 @@ interface SplitResult {
     registration: {
       bib_number: number | null;
       user_id: string | null;
-      guest_first_name: string | null;
-      guest_last_name: string | null;
+      first_name: string | null;
+      last_name: string | null;
       profiles: {
         first_name: string | null;
         last_name: string | null;
@@ -226,8 +226,8 @@ export default function SplitClassification() {
               registration:registrations!inner(
                 bib_number,
                 user_id,
-                guest_first_name,
-                guest_last_name,
+                first_name,
+                last_name,
                 race_distances!inner(id, name, distance_km)
               )
             `)
@@ -283,8 +283,8 @@ export default function SplitClassification() {
     let results = splitResults.filter(result => {
       if (!searchQuery.trim()) return true;
       
-      const firstName = result.race_result?.registration?.profiles?.first_name || result.race_result?.registration?.guest_first_name || "";
-      const lastName = result.race_result?.registration?.profiles?.last_name || result.race_result?.registration?.guest_last_name || "";
+      const firstName = result.race_result?.registration?.profiles?.first_name || result.race_result?.registration?.first_name || "";
+      const lastName = result.race_result?.registration?.profiles?.last_name || result.race_result?.registration?.last_name || "";
       const fullName = `${firstName} ${lastName}`.toLowerCase();
       const bibNumber = result.race_result?.registration?.bib_number?.toString() || "";
       
@@ -321,8 +321,8 @@ export default function SplitClassification() {
   };
 
   const getRunnerName = (result: SplitResult) => {
-    const firstName = result.race_result?.registration?.profiles?.first_name || result.race_result?.registration?.guest_first_name || "";
-    const lastName = result.race_result?.registration?.profiles?.last_name || result.race_result?.registration?.guest_last_name || "";
+    const firstName = result.race_result?.registration?.profiles?.first_name || result.race_result?.registration?.first_name || "";
+    const lastName = result.race_result?.registration?.profiles?.last_name || result.race_result?.registration?.last_name || "";
     return `${firstName} ${lastName}`.trim() || `Dorsal #${result.race_result?.registration?.bib_number}`;
   };
 
