@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users, Radio, Upload, Trash2 } from "lucide-react";
+import { Loader2, Search, Download, RefreshCw, MapPin, Satellite, Clock, Users, Radio, Upload, Trash2, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface GPSTimingReading {
@@ -107,8 +107,15 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   const [filterRaceId, setFilterRaceId] = useState<string>(selectedRaceId || "");
   const [filterDistanceId, setFilterDistanceId] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [filterTimeFrom, setFilterTimeFrom] = useState<string>("");
+  const [filterTimeTo, setFilterTimeTo] = useState<string>("");
   const [isLive, setIsLive] = useState(true);
   const [newReadingsCount, setNewReadingsCount] = useState(0);
+  
+  // Pagination and sorting
+  const [pageSize, setPageSize] = useState<number>(100);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -146,8 +153,9 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   }, [filterRaceId]);
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchReadings();
-  }, [filterRaceId, filterDistanceId, searchTerm]);
+  }, [filterRaceId, filterDistanceId, searchTerm, filterTimeFrom, filterTimeTo, sortOrder]);
 
   // Realtime subscription for GPS readings
   useEffect(() => {
@@ -285,10 +293,18 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
         `)
         .eq("race_id", filterRaceId)
         .eq("reading_type", "gps_geofence")
-        .order("timing_timestamp", { ascending: false });
+        .order("timing_timestamp", { ascending: sortOrder === "asc" });
 
       if (filterDistanceId && filterDistanceId !== "all") {
         query = query.eq("race_distance_id", filterDistanceId);
+      }
+
+      // Apply time range filter
+      if (filterTimeFrom) {
+        query = query.gte("timing_timestamp", filterTimeFrom);
+      }
+      if (filterTimeTo) {
+        query = query.lte("timing_timestamp", filterTimeTo);
       }
 
       const { data, error } = await query;
@@ -826,6 +842,52 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
               </div>
             </div>
           </div>
+          
+          {/* Time range filters */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hora desde</label>
+              <Input
+                type="datetime-local"
+                value={filterTimeFrom}
+                onChange={(e) => setFilterTimeFrom(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Hora hasta</label>
+              <Input
+                type="datetime-local"
+                value={filterTimeTo}
+                onChange={(e) => setFilterTimeTo(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Orden por hora</label>
+              <Select value={sortOrder} onValueChange={(val: "asc" | "desc") => setSortOrder(val)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Más reciente primero</SelectItem>
+                  <SelectItem value="asc">Más antiguo primero</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Registros por página</label>
+              <Select value={pageSize.toString()} onValueChange={(val) => { setPageSize(parseInt(val)); setCurrentPage(1); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                  <SelectItem value="500">500</SelectItem>
+                  <SelectItem value="1000">1000</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -847,65 +909,117 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
               <p>No hay lecturas GPS para esta carrera</p>
               <p className="text-sm mt-2">Las lecturas GPS se generan automáticamente cuando los corredores pasan por checkpoints con geofencing configurado</p>
             </div>
-          ) : (
-            <ScrollArea className="h-[500px]">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background">
-                  <TableRow>
-                    <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={readings.length > 0 && selectedIds.size === readings.length}
-                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                      />
-                    </TableHead>
-                    <TableHead className="w-[80px]">Dorsal</TableHead>
-                    <TableHead>Participante</TableHead>
-                    <TableHead>Evento</TableHead>
-                    <TableHead>Checkpoint</TableHead>
-                    <TableHead>KM</TableHead>
-                    <TableHead>Hora GPS</TableHead>
-                    <TableHead>Estado</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {readings.map((reading) => (
-                    <TableRow key={reading.id} data-state={selectedIds.has(reading.id) ? "selected" : undefined}>
-                      <TableCell>
+          ) : (() => {
+            const totalPages = Math.ceil(readings.length / pageSize);
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const paginatedReadings = readings.slice(startIndex, endIndex);
+            
+            return (
+              <>
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background">
+                    <TableRow>
+                      <TableHead className="w-[50px]">
                         <Checkbox
-                          checked={selectedIds.has(reading.id)}
-                          onCheckedChange={(checked) => handleSelectOne(reading.id, checked as boolean)}
+                          checked={paginatedReadings.length > 0 && paginatedReadings.every(r => selectedIds.has(r.id))}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const newSet = new Set(selectedIds);
+                              paginatedReadings.forEach(r => newSet.add(r.id));
+                              setSelectedIds(newSet);
+                            } else {
+                              const newSet = new Set(selectedIds);
+                              paginatedReadings.forEach(r => newSet.delete(r.id));
+                              setSelectedIds(newSet);
+                            }
+                          }}
                         />
-                      </TableCell>
-                      <TableCell className="font-bold">{reading.bib_number}</TableCell>
-                      <TableCell>
-                        {reading.registration
-                          ? `${reading.registration.guest_first_name || ""} ${reading.registration.guest_last_name || ""}`.trim()
-                          : <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                      <TableCell>
-                        {reading.race_distance?.name || <span className="text-muted-foreground">-</span>}
-                      </TableCell>
-                      <TableCell>
+                      </TableHead>
+                      <TableHead className="w-[80px]">Dorsal</TableHead>
+                      <TableHead>Participante</TableHead>
+                      <TableHead>Evento</TableHead>
+                      <TableHead>Checkpoint</TableHead>
+                      <TableHead>KM</TableHead>
+                      <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}>
                         <div className="flex items-center gap-1">
-                          <MapPin className="h-4 w-4 text-muted-foreground" />
-                          {reading.checkpoint?.name || <span className="text-muted-foreground">-</span>}
+                          Hora GPS
+                          <ArrowUpDown className="h-4 w-4" />
                         </div>
-                      </TableCell>
-                      <TableCell>{reading.checkpoint?.distance_km?.toFixed(1) || "-"}</TableCell>
-                      <TableCell>{formatDateTime(reading.timing_timestamp)}</TableCell>
-                      <TableCell>
-                        {reading.is_processed ? (
-                          <Badge variant="default" className="bg-green-500">Procesado</Badge>
-                        ) : (
-                          <Badge variant="secondary">Pendiente</Badge>
-                        )}
-                      </TableCell>
+                      </TableHead>
+                      <TableHead>Estado</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedReadings.map((reading) => (
+                      <TableRow key={reading.id} data-state={selectedIds.has(reading.id) ? "selected" : undefined}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(reading.id)}
+                            onCheckedChange={(checked) => handleSelectOne(reading.id, checked as boolean)}
+                          />
+                        </TableCell>
+                        <TableCell className="font-bold">{reading.bib_number}</TableCell>
+                        <TableCell>
+                          {reading.registration
+                            ? `${reading.registration.guest_first_name || ""} ${reading.registration.guest_last_name || ""}`.trim()
+                            : <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell>
+                          {reading.race_distance?.name || <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            {reading.checkpoint?.name || <span className="text-muted-foreground">-</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell>{reading.checkpoint?.distance_km?.toFixed(1) || "-"}</TableCell>
+                        <TableCell>{formatDateTime(reading.timing_timestamp)}</TableCell>
+                        <TableCell>
+                          {reading.is_processed ? (
+                            <Badge variant="default" className="bg-green-500">Procesado</Badge>
+                          ) : (
+                            <Badge variant="secondary">Pendiente</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t">
+                  <div className="text-sm text-muted-foreground">
+                    Mostrando {startIndex + 1}-{Math.min(endIndex, readings.length)} de {readings.length} lecturas
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm">
+                      Página {currentPage} de {totalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage >= totalPages}
+                    >
+                      Siguiente
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
