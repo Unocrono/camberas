@@ -1880,12 +1880,6 @@ export type Database = {
           email: string | null
           first_name: string | null
           gender: string | null
-          guest_birth_date: string | null
-          guest_dni_passport: string | null
-          guest_email: string | null
-          guest_first_name: string | null
-          guest_last_name: string | null
-          guest_phone: string | null
           id: string
           last_name: string | null
           payment_status: string
@@ -1914,12 +1908,6 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
-          guest_birth_date?: string | null
-          guest_dni_passport?: string | null
-          guest_email?: string | null
-          guest_first_name?: string | null
-          guest_last_name?: string | null
-          guest_phone?: string | null
           id?: string
           last_name?: string | null
           payment_status?: string
@@ -1948,12 +1936,6 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           gender?: string | null
-          guest_birth_date?: string | null
-          guest_dni_passport?: string | null
-          guest_email?: string | null
-          guest_first_name?: string | null
-          guest_last_name?: string | null
-          guest_phone?: string | null
           id?: string
           last_name?: string | null
           payment_status?: string

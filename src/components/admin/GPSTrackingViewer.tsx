@@ -48,8 +48,8 @@ interface GPSTracking {
   created_at: string;
   registration?: {
     bib_number: number | null;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     user_id: string | null;
     race_distance_id: string;
     race_distance?: {
@@ -260,8 +260,8 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
           *,
           registration:registrations(
             bib_number,
-            guest_first_name,
-            guest_last_name,
+            first_name,
+            last_name,
             user_id,
             race_distance_id,
             race_distance:race_distances(name, distance_km),
@@ -303,11 +303,11 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
         const search = searchTerm.toLowerCase();
         filteredData = filteredData.filter((r) => {
           const bibMatch = r.registration?.bib_number?.toString().includes(search);
-          const guestName = `${r.registration?.guest_first_name || ""} ${r.registration?.guest_last_name || ""}`.toLowerCase();
+          const directName = `${r.registration?.first_name || ""} ${r.registration?.last_name || ""}`.toLowerCase();
           const profileName = r.registration?.profiles 
             ? `${r.registration.profiles.first_name || ""} ${r.registration.profiles.last_name || ""}`.toLowerCase()
             : "";
-          return bibMatch || guestName.includes(search) || profileName.includes(search);
+          return bibMatch || directName.includes(search) || profileName.includes(search);
         });
       }
 
@@ -353,8 +353,8 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     if (reading.registration?.profiles?.first_name) {
       return `${reading.registration.profiles.first_name} ${reading.registration.profiles.last_name || ""}`.trim();
     }
-    if (reading.registration?.guest_first_name) {
-      return `${reading.registration.guest_first_name} ${reading.registration.guest_last_name || ""}`.trim();
+    if (reading.registration?.first_name) {
+      return `${reading.registration.first_name} ${reading.registration.last_name || ""}`.trim();
     }
     return "-";
   };

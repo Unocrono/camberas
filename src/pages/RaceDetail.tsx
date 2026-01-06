@@ -327,7 +327,7 @@ const RaceDetail = () => {
         const { data: existingRegistration, error: checkError } = await supabase
           .from("registrations")
           .select("id")
-          .eq("guest_email", email)
+          .eq("email", email)
           .eq("race_id", raceId)
           .maybeSingle();
 
@@ -351,7 +351,17 @@ const RaceDetail = () => {
           }
         }
 
-        // Create guest registration
+        // Get gender from form data
+        const gender = customFormData.gender || "";
+        
+        // Calculate category if we have birth_date and gender
+        let category: string | null = null;
+        if (birthDate && gender) {
+          // Category will be calculated server-side via trigger or we calculate here
+          // For now, leave it null and let the server calculate via get_race_category
+        }
+
+        // Create guest registration with denormalized fields
         const { data: newRegistration, error: registrationError } = await supabase
           .from("registrations")
           .insert({
@@ -359,12 +369,13 @@ const RaceDetail = () => {
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
-            guest_email: email,
-            guest_first_name: firstName,
-            guest_last_name: lastName,
-            guest_phone: phone,
-            guest_dni_passport: documentNumber,
-            guest_birth_date: birthDate || null,
+            first_name: firstName,
+            last_name: lastName,
+            email: email,
+            phone: phone,
+            dni_passport: documentNumber,
+            birth_date: birthDate || null,
+            gender: gender || null,
             bib_number: assignedBib,
           })
           .select()
