@@ -1873,7 +1873,6 @@ export type Database = {
           autonomous_community: string | null
           bib_number: number | null
           birth_date: string | null
-          category: string | null
           chip_code: string | null
           city: string | null
           club: string | null
@@ -1902,7 +1901,6 @@ export type Database = {
           autonomous_community?: string | null
           bib_number?: number | null
           birth_date?: string | null
-          category?: string | null
           chip_code?: string | null
           city?: string | null
           club?: string | null
@@ -1931,7 +1929,6 @@ export type Database = {
           autonomous_community?: string | null
           bib_number?: number | null
           birth_date?: string | null
-          category?: string | null
           chip_code?: string | null
           city?: string | null
           club?: string | null
