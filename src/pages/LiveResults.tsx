@@ -36,6 +36,12 @@ interface RaceResult {
     user_id: string;
     first_name: string | null;
     last_name: string | null;
+    category: string | null;
+    race_category: {
+      id: string;
+      name: string;
+      short_name: string | null;
+    } | null;
     profiles: {
       first_name: string | null;
       last_name: string | null;
@@ -405,7 +411,7 @@ export default function LiveResults() {
         
         const [regResults, splitResults, respResults, fieldsData] = await Promise.all([
           Promise.all(regBatches.map(batch => 
-            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, race_distance_id").in("id", batch)
+            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, race_distance_id, category, race_category:race_categories(id, name, short_name)").in("id", batch)
           )),
           Promise.all(resultBatches.map(batch => 
             supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km").in("race_result_id", batch).order("checkpoint_order")
@@ -674,14 +680,23 @@ export default function LiveResults() {
   };
 
   const getCategory = (result: RaceResult) => {
-    // First check if category is stored in responses
+    // First priority: race_category FK (new system)
+    if (result.registration.race_category?.name) {
+      return result.registration.race_category.short_name || result.registration.race_category.name;
+    }
+    
+    // Second priority: category text field (legacy)
+    if (result.registration.category) {
+      return result.registration.category;
+    }
+    
+    // Third: check if category is stored in responses
     if (result.registration.responses?.category) {
       return result.registration.responses.category;
     }
     
-    // Get gender from responses first, then profiles
+    // Fallback: calculate from birth_date/gender
     const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
-    // Get birth_date from responses first, then profiles  
     const birthDate = result.registration.responses?.birth_date || result.registration.profiles?.birth_date;
     
     if (!birthDate || !gender) return "-";
@@ -690,7 +705,6 @@ export default function LiveResults() {
     const birth = new Date(birthDate);
     const age = Math.floor((raceDate.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     
-    // Normalize gender
     const normalizedGender = gender?.toLowerCase();
     const genderPrefix = (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino') ? 'M' : 'F';
     
