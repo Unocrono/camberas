@@ -35,6 +35,12 @@ interface RaceResult {
   registration: {
     bib_number: number | null;
     race_distance_id: string;
+    category: string | null;
+    race_category: {
+      id: string;
+      name: string;
+      short_name: string | null;
+    } | null;
     race_distance: {
       id: string;
       name: string;
@@ -145,6 +151,8 @@ const RaceResults = () => {
             user_id,
             first_name,
             last_name,
+            category,
+            race_category:race_categories(id, name, short_name),
             race_distance:race_distances (
               id,
               name,
@@ -253,11 +261,25 @@ const RaceResults = () => {
     return `+${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const getCategory = (birthDate: string | null, gender: string | null, raceDate: string): string => {
+  const getCategory = (result: RaceResult): string => {
+    // First priority: race_category FK (new system)
+    if (result.registration.race_category?.name) {
+      return result.registration.race_category.short_name || result.registration.race_category.name;
+    }
+    
+    // Second priority: category text field (legacy)
+    if (result.registration.category) {
+      return result.registration.category;
+    }
+    
+    // Fallback: calculate from birth_date/gender
+    const birthDate = result.registration.profiles?.birth_date;
+    const gender = result.registration.profiles?.gender;
     if (!birthDate || !gender) return "-";
+    
     const birth = new Date(birthDate);
-    const race = new Date(raceDate);
-    const age = race.getFullYear() - birth.getFullYear();
+    const raceDate = new Date(race?.date || new Date());
+    const age = raceDate.getFullYear() - birth.getFullYear();
     
     const genderPrefix = gender === "male" || gender === "M" ? "M" : "F";
     
@@ -332,8 +354,8 @@ const RaceResults = () => {
     // Sort based on classification type
     if (classificationType === "category") {
       filtered = [...filtered].sort((a, b) => {
-        const catA = getCategory(a.registration.profiles?.birth_date || null, a.registration.profiles?.gender || null, race?.date || "");
-        const catB = getCategory(b.registration.profiles?.birth_date || null, b.registration.profiles?.gender || null, race?.date || "");
+        const catA = getCategory(a);
+        const catB = getCategory(b);
         if (catA !== catB) return catA.localeCompare(catB);
         return (a.category_position || 999) - (b.category_position || 999);
       });
@@ -377,7 +399,7 @@ const RaceResults = () => {
         getRunnerName(result),
         result.registration.profiles?.club || "",
         getGender(result),
-        getCategory(result.registration.profiles?.birth_date || null, result.registration.profiles?.gender || null, race?.date || ""),
+        getCategory(result),
         result.category_position || "",
         ...splits,
         formatTime(result.finish_time),
@@ -669,11 +691,7 @@ const RaceResults = () => {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-xs font-normal">
-                            {getCategory(
-                              result.registration.profiles?.birth_date || null, 
-                              result.registration.profiles?.gender || null, 
-                              race?.date || ""
-                            )}
+                            {getCategory(result)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
