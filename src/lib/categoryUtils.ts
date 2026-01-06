@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getGenderPrefix as getGenderPrefixFromId, getGenderCode, resolveGenderId } from "./genderUtils";
 
 export interface RaceCategory {
   id: string;
@@ -31,19 +32,27 @@ export function calculateAge(birthDate: string, referenceDate: string): number {
 }
 
 /**
- * Gets the gender prefix for category display
- * @param gender - 'male', 'female', 'Masculino', 'Femenino', 'M', 'F'
- * @returns 'M-', 'F-', or 'X-' if unknown
+ * Gets the gender prefix for category display using gender_id
+ * @param genderId - The gender_id from genders table (1=M, 2=F, 3=X)
+ * @returns 'M-', 'F-', or 'X-'
  */
-export function getGenderPrefix(gender: string | null | undefined): string {
+export function getGenderPrefix(genderId: number | null | undefined): string {
+  return getGenderPrefixFromId(genderId);
+}
+
+/**
+ * Legacy: Gets the gender prefix from text (for backward compatibility)
+ * @deprecated Use getGenderPrefix with gender_id instead
+ */
+export function getGenderPrefixFromText(gender: string | null | undefined): string {
   if (!gender) return 'X-';
   
   const normalizedGender = gender.toLowerCase().trim();
   
-  if (normalizedGender === 'male' || normalizedGender === 'masculino' || normalizedGender === 'm') {
+  if (normalizedGender === 'male' || normalizedGender === 'masculino' || normalizedGender === 'm' || normalizedGender === 'hombre' || normalizedGender === 'h') {
     return 'M-';
   }
-  if (normalizedGender === 'female' || normalizedGender === 'femenino' || normalizedGender === 'f') {
+  if (normalizedGender === 'female' || normalizedGender === 'femenino' || normalizedGender === 'f' || normalizedGender === 'mujer') {
     return 'F-';
   }
   
@@ -52,12 +61,23 @@ export function getGenderPrefix(gender: string | null | undefined): string {
 
 /**
  * Formats a category name with gender prefix
+ * Accepts both gender_id (number) and legacy gender text (string)
  * @param categoryName - Base category name (e.g., "Senior", "Junior")
- * @param gender - Gender of the participant
+ * @param genderOrGenderId - Gender ID (1, 2, 3) or gender text ('male', 'Masculino', etc.)
  * @returns Category with prefix (e.g., "M-Senior", "F-Junior")
  */
-export function formatCategoryWithGender(categoryName: string, gender: string | null | undefined): string {
-  const prefix = getGenderPrefix(gender);
+export function formatCategoryWithGender(
+  categoryName: string, 
+  genderOrGenderId: number | string | null | undefined
+): string {
+  // If it's a number, use gender_id lookup
+  if (typeof genderOrGenderId === 'number') {
+    const prefix = getGenderPrefix(genderOrGenderId);
+    return `${prefix}${categoryName}`;
+  }
+  
+  // If it's a string, use legacy text-based lookup
+  const prefix = getGenderPrefixFromText(genderOrGenderId);
   return `${prefix}${categoryName}`;
 }
 

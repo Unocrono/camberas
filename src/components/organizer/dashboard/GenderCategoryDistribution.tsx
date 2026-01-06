@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { getGenderName } from "@/lib/genderUtils";
 
 interface GenderCategoryDistributionProps {
   raceId: string;
@@ -21,59 +22,24 @@ export function GenderCategoryDistribution({ raceId }: GenderCategoryDistributio
     async function fetchData() {
       setLoading(true);
       try {
-        // Get registrations with user profiles
+        // Get registrations with gender_id directly
         const { data: registrations, error } = await supabase
           .from("registrations")
           .select(`
             id,
-            user_id,
-            profiles:user_id(gender)
+            gender_id
           `)
           .eq("race_id", raceId)
           .in("status", ["confirmed", "pending"]);
 
         if (error) throw error;
 
-        // Also get registration responses for gender field
-        const regIds = registrations?.map(r => r.id) || [];
-        
-        const { data: responses, error: respError } = await supabase
-          .from("registration_responses")
-          .select(`
-            registration_id,
-            field_value,
-            field:registration_form_fields!inner(field_name)
-          `)
-          .in("registration_id", regIds);
-
-        if (respError) throw respError;
-
         const genderMap = new Map<string, number>();
 
         registrations?.forEach(reg => {
-          let gender = "Sin especificar";
-          
-          // First check profile
-          if (reg.profiles && (reg.profiles as any).gender) {
-            gender = (reg.profiles as any).gender;
-          } else {
-            // Check responses
-            const genderResponse = responses?.find(
-              r => r.registration_id === reg.id && (r.field as any)?.field_name === "gender"
-            );
-            if (genderResponse) {
-              gender = genderResponse.field_value;
-            }
-          }
-
-          // Normalize gender
-          if (gender === "Masculino" || gender === "M" || gender === "Male") {
-            gender = "Masculino";
-          } else if (gender === "Femenino" || gender === "F" || gender === "Female") {
-            gender = "Femenino";
-          }
-
-          genderMap.set(gender, (genderMap.get(gender) || 0) + 1);
+          // Use gender_id to get the display name
+          const genderName = getGenderName(reg.gender_id);
+          genderMap.set(genderName, (genderMap.get(genderName) || 0) + 1);
         });
 
         const result: GenderData[] = Array.from(genderMap.entries())

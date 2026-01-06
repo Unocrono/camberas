@@ -36,6 +36,7 @@ interface RaceResult {
     user_id: string;
     first_name: string | null;
     last_name: string | null;
+    gender_id: number | null;
     race_category: {
       id: string;
       name: string;
@@ -45,6 +46,7 @@ interface RaceResult {
       first_name: string | null;
       last_name: string | null;
       gender: string | null;
+      gender_id?: number | null;
       club?: string | null;
       team?: string | null;
       birth_date?: string | null;
@@ -410,7 +412,7 @@ export default function LiveResults() {
         
         const [regResults, splitResults, respResults, fieldsData] = await Promise.all([
           Promise.all(regBatches.map(batch => 
-            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, race_distance_id, race_category:race_categories(id, name, short_name)").in("id", batch)
+            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, gender_id, race_distance_id, race_category:race_categories(id, name, short_name)").in("id", batch)
           )),
           Promise.all(resultBatches.map(batch => 
             supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km").in("race_result_id", batch).order("checkpoint_order")
@@ -451,7 +453,7 @@ export default function LiveResults() {
           const batch = userIds.slice(i, i + BATCH_SIZE);
           const { data } = await supabase
             .from("profiles")
-            .select("id, first_name, last_name, gender, club, team, birth_date")
+            .select("id, first_name, last_name, gender, gender_id, club, team, birth_date")
             .in("id", batch);
           if (data) batchedProfiles.push(...data);
         }
@@ -714,7 +716,18 @@ export default function LiveResults() {
   };
 
   const getGender = (result: RaceResult) => {
-    // Get gender from responses first, then profiles
+    // Use gender_id first (new system)
+    const genderId = result.registration.gender_id || result.registration.profiles?.gender_id;
+    if (genderId) {
+      switch (genderId) {
+        case 1: return 'Hombre';
+        case 2: return 'Mujer';
+        case 3: return 'Mixto';
+        default: return '-';
+      }
+    }
+    
+    // Fallback to text (legacy)
     const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
     if (!gender) return '-';
     

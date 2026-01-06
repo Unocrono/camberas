@@ -36,6 +36,7 @@ import {
   normalizeGender as normalizeCategoryGender,
   type RaceCategory 
 } from "@/lib/categoryUtils";
+import { getGenderIdFromText } from "@/lib/genderUtils";
 
 interface RegistrationImportDialogProps {
   open: boolean;
@@ -710,6 +711,10 @@ export function RegistrationImportDialog({
             const regField = PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION];
             if (regField === 'birth_date') {
               insertData[regField] = convertDateFormat(value);
+            } else if (regField === 'gender') {
+              // Store both legacy text and new gender_id
+              insertData[regField] = value;
+              insertData.gender_id = getGenderIdFromText(value);
             } else {
               insertData[regField] = value;
             }
