@@ -133,6 +133,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [pageSize, setPageSize] = useState<number>(100);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   
   // Dialog states
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -178,8 +179,11 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
   useEffect(() => {
     setCurrentPage(1);
-    fetchReadings();
   }, [filterRaceId, filterDistanceId, filterTimingPointId, searchTerm, filterTimeFrom, filterTimeTo, sortOrder]);
+
+  useEffect(() => {
+    fetchReadings();
+  }, [filterRaceId, filterDistanceId, filterTimingPointId, searchTerm, filterTimeFrom, filterTimeTo, sortOrder, currentPage, pageSize]);
 
   const fetchRaces = async () => {
     try {
@@ -236,6 +240,32 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
     setLoading(true);
     try {
+      // First get total count for pagination
+      let countQuery = supabase
+        .from("timing_readings")
+        .select("id", { count: "exact", head: true })
+        .eq("race_id", filterRaceId);
+      
+      if (filterDistanceId) {
+        countQuery = countQuery.eq("race_distance_id", filterDistanceId);
+      }
+      if (filterTimingPointId) {
+        countQuery = countQuery.eq("timing_point_id", filterTimingPointId);
+      }
+      if (filterTimeFrom) {
+        countQuery = countQuery.gte("timing_timestamp", filterTimeFrom);
+      }
+      if (filterTimeTo) {
+        countQuery = countQuery.lte("timing_timestamp", filterTimeTo);
+      }
+      
+      const { count: totalCount } = await countQuery;
+      setTotalRecords(totalCount || 0);
+
+      // Now fetch paginated data - using range for proper pagination
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("timing_readings")
         .select(`
@@ -244,7 +274,8 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
           race_distance:race_distances(name)
         `)
         .eq("race_id", filterRaceId)
-        .order("timing_timestamp", { ascending: sortOrder === "asc" });
+        .order("timing_timestamp", { ascending: sortOrder === "asc" })
+        .range(from, to);
 
       if (filterDistanceId) {
         query = query.eq("race_distance_id", filterDistanceId);
@@ -1058,10 +1089,10 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               No se encontraron lecturas
             </div>
           ) : (() => {
-            const totalPages = Math.ceil(readings.length / pageSize);
+            const totalPages = Math.ceil(totalRecords / pageSize);
             const startIndex = (currentPage - 1) * pageSize;
-            const endIndex = startIndex + pageSize;
-            const paginatedReadings = readings.slice(startIndex, endIndex);
+            const endIndex = Math.min(startIndex + readings.length, totalRecords);
+            // readings is already paginated from server, no need to slice
             
             return (
               <>
@@ -1070,15 +1101,15 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                     <TableRow>
                       <TableHead className="w-[40px]">
                         <Checkbox
-                          checked={paginatedReadings.length > 0 && paginatedReadings.every(r => selectedIds.has(r.id))}
+                          checked={readings.length > 0 && readings.every(r => selectedIds.has(r.id))}
                           onCheckedChange={(checked) => {
                             if (checked) {
                               const newSet = new Set(selectedIds);
-                              paginatedReadings.forEach(r => newSet.add(r.id));
+                              readings.forEach(r => newSet.add(r.id));
                               setSelectedIds(newSet);
                             } else {
                               const newSet = new Set(selectedIds);
-                              paginatedReadings.forEach(r => newSet.delete(r.id));
+                              readings.forEach(r => newSet.delete(r.id));
                               setSelectedIds(newSet);
                             }
                           }}
@@ -1101,7 +1132,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedReadings.map((reading) => (
+                    {readings.map((reading) => (
                       <TableRow key={reading.id} className={selectedIds.has(reading.id) ? "bg-muted/50" : ""}>
                         <TableCell>
                           <Checkbox
@@ -1145,7 +1176,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
                 {/* Pagination */}
                 <div className="flex items-center justify-between px-4 py-3 border-t">
                   <div className="text-sm text-muted-foreground">
-                    Mostrando {startIndex + 1}-{Math.min(endIndex, readings.length)} de {readings.length} lecturas
+                    Mostrando {startIndex + 1}-{endIndex} de {totalRecords} lecturas
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
