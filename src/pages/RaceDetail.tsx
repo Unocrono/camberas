@@ -310,8 +310,6 @@ const RaceDetail = () => {
       const phone = customFormData.phone || "";
       const documentNumber = customFormData.document_number || "";
       const birthDate = customFormData.birth_date || "";
-      const emergencyContact = customFormData.emergency_contact || "";
-      const emergencyPhone = customFormData.emergency_phone || "";
 
       if (isGuestRegistration) {
         // Validate required fields for guest
@@ -367,8 +365,6 @@ const RaceDetail = () => {
             guest_phone: phone,
             guest_dni_passport: documentNumber,
             guest_birth_date: birthDate || null,
-            guest_emergency_contact: emergencyContact,
-            guest_emergency_phone: emergencyPhone,
             bib_number: assignedBib,
           })
           .select()
@@ -446,8 +442,6 @@ const RaceDetail = () => {
             phone: phone || undefined,
             dni_passport: documentNumber || undefined,
             birth_date: birthDate || undefined,
-            emergency_contact: emergencyContact || undefined,
-            emergency_phone: emergencyPhone || undefined,
           })
           .eq("id", user.id);
 

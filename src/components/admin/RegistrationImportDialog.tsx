@@ -75,8 +75,6 @@ const PROFILE_TO_REGISTRATION: Record<string, string> = {
   'phone': 'guest_phone',
   'dni_passport': 'guest_dni_passport',
   'birth_date': 'guest_birth_date',
-  'emergency_contact': 'guest_emergency_contact',
-  'emergency_phone': 'guest_emergency_phone',
 };
 
 // Campos especiales que siempre están disponibles (no dependen de registration_form_fields)

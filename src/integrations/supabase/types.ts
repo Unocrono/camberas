@@ -1872,8 +1872,6 @@ export type Database = {
           guest_birth_date: string | null
           guest_dni_passport: string | null
           guest_email: string | null
-          guest_emergency_contact: string | null
-          guest_emergency_phone: string | null
           guest_first_name: string | null
           guest_last_name: string | null
           guest_phone: string | null
@@ -1892,8 +1890,6 @@ export type Database = {
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
           guest_email?: string | null
-          guest_emergency_contact?: string | null
-          guest_emergency_phone?: string | null
           guest_first_name?: string | null
           guest_last_name?: string | null
           guest_phone?: string | null
@@ -1912,8 +1908,6 @@ export type Database = {
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
           guest_email?: string | null
-          guest_emergency_contact?: string | null
-          guest_emergency_phone?: string | null
           guest_first_name?: string | null
           guest_last_name?: string | null
           guest_phone?: string | null
