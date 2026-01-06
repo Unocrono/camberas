@@ -41,7 +41,8 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Trash2, Users, Download, ArrowUpDown, FileDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Download, ArrowUpDown, FileDown, RefreshCw } from "lucide-react";
+import { calculateCategoryByAge, formatCategoryWithGender, RaceCategory } from "@/lib/categoryUtils";
 import { format } from "date-fns";
 
 interface EventCategory {
@@ -101,6 +102,7 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
   const [raceDate, setRaceDate] = useState<string | null>(null);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [recalculatingCategories, setRecalculatingCategories] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -406,6 +408,176 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     }
   };
 
+  const recalculateCategories = async () => {
+    if (!selectedRaceId || !selectedDistanceId) {
+      toast({
+        title: "Error",
+        description: "Selecciona un evento primero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if there are age-dependent categories
+    const ageDependentCategories = categories.filter(c => c.age_dependent);
+    if (ageDependentCategories.length === 0) {
+      toast({
+        title: "Sin categorías automáticas",
+        description: "No hay categorías dependientes de edad definidas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRecalculatingCategories(true);
+    try {
+      // Get all registrations for this distance
+      const { data: registrations, error: regError } = await supabase
+        .from("registrations")
+        .select("id, race_distance_id")
+        .eq("race_distance_id", selectedDistanceId);
+
+      if (regError) throw regError;
+      if (!registrations || registrations.length === 0) {
+        toast({
+          title: "Sin inscripciones",
+          description: "No hay inscripciones para este evento",
+        });
+        return;
+      }
+
+      // Get form fields for gender and birth_date
+      const { data: formFields } = await supabase
+        .from("registration_form_fields")
+        .select("id, field_name, profile_field, race_distance_id")
+        .eq("race_distance_id", selectedDistanceId);
+
+      const categoryField = formFields?.find(
+        f => f.profile_field === 'category' || f.field_name === 'category'
+      );
+      const birthDateField = formFields?.find(
+        f => f.profile_field === 'birth_date' || f.field_name === 'birth_date'
+      );
+      const genderField = formFields?.find(
+        f => f.profile_field === 'gender' || f.field_name === 'gender'
+      );
+
+      if (!categoryField) {
+        toast({
+          title: "Error de configuración",
+          description: "El evento no tiene un campo de categoría definido",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Get registration responses for birth_date and gender
+      const regIds = registrations.map(r => r.id);
+      const { data: responses } = await supabase
+        .from("registration_responses")
+        .select("registration_id, field_id, field_value")
+        .in("registration_id", regIds);
+
+      // Also get profile data for users
+      const { data: regsWithProfiles } = await supabase
+        .from("registrations")
+        .select(`
+          id,
+          guest_birth_date,
+          profiles:user_id (
+            birth_date,
+            gender
+          )
+        `)
+        .eq("race_distance_id", selectedDistanceId);
+
+      // Build map of registration data
+      const regDataMap = new Map<string, { birthDate: string | null; gender: string | null }>();
+      
+      regsWithProfiles?.forEach(reg => {
+        const profileData = reg.profiles as { birth_date: string | null; gender: string | null } | null;
+        let birthDate = reg.guest_birth_date || profileData?.birth_date || null;
+        let gender = profileData?.gender || null;
+
+        // Override with responses if available
+        const regResponses = responses?.filter(r => r.registration_id === reg.id) || [];
+        regResponses.forEach(resp => {
+          if (birthDateField && resp.field_id === birthDateField.id) {
+            birthDate = resp.field_value;
+          }
+          if (genderField && resp.field_id === genderField.id) {
+            gender = resp.field_value;
+          }
+        });
+
+        regDataMap.set(reg.id, { birthDate, gender });
+      });
+
+      // Convert categories to RaceCategory format
+      const raceCategoriesForCalc: RaceCategory[] = categories.map(c => ({
+        id: c.id,
+        name: c.name,
+        short_name: c.short_name,
+        min_age: c.min_age,
+        max_age: c.max_age,
+        age_dependent: c.age_dependent,
+        age_calculation_date: c.age_calculation_date,
+        display_order: c.display_order,
+        race_distance_id: c.race_distance_id,
+      }));
+
+      let updated = 0;
+      let skipped = 0;
+
+      for (const reg of registrations) {
+        const regData = regDataMap.get(reg.id);
+        if (!regData?.birthDate) {
+          skipped++;
+          continue;
+        }
+
+        const referenceDate = raceDate || new Date().toISOString().split('T')[0];
+        const matchedCategory = calculateCategoryByAge(
+          regData.birthDate,
+          raceCategoriesForCalc,
+          referenceDate
+        );
+
+        if (matchedCategory) {
+          const categoryName = formatCategoryWithGender(
+            matchedCategory.short_name || matchedCategory.name,
+            regData.gender
+          );
+
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: reg.id,
+              field_id: categoryField.id,
+              field_value: categoryName
+            }, { onConflict: 'registration_id,field_id' });
+          
+          updated++;
+        } else {
+          skipped++;
+        }
+      }
+
+      toast({
+        title: "Categorías recalculadas",
+        description: `${updated} actualizadas, ${skipped} sin fecha nacimiento o categoría`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setRecalculatingCategories(false);
+    }
+  };
+
   const getAgeDependentLabel = (ageDependent: boolean) => {
     return ageDependent ? "Automática" : "Manual";
   };
@@ -495,7 +667,17 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
                 Define las categorías de edad y género para clasificaciones
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              {categories.length > 0 && categories.some(c => c.age_dependent) && selectedDistanceId && (
+                <Button
+                  variant="outline"
+                  onClick={recalculateCategories}
+                  disabled={recalculatingCategories}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${recalculatingCategories ? 'animate-spin' : ''}`} />
+                  {recalculatingCategories ? "Recalculando..." : "Recalcular categorías"}
+                </Button>
+              )}
               {categories.length === 0 && templates.length > 0 && selectedDistanceId && (
                 <Button variant="outline" onClick={() => setTemplateDialogOpen(true)}>
                   <Download className="h-4 w-4 mr-2" />
