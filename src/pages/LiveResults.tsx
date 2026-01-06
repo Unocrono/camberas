@@ -661,8 +661,8 @@ export default function LiveResults() {
   };
 
   const getRunnerName = (result: RaceResult) => {
-    const firstName = result.registration.profiles?.first_name || result.registration.guest_first_name || "";
-    const lastName = result.registration.profiles?.last_name || result.registration.guest_last_name || "";
+    const firstName = result.registration.first_name || result.registration.profiles?.first_name || "";
+    const lastName = result.registration.last_name || result.registration.profiles?.last_name || "";
     return `${firstName} ${lastName}`.trim() || `Dorsal #${result.registration.bib_number}`;
   };
 
@@ -716,8 +716,8 @@ export default function LiveResults() {
   };
 
   const getReadingRunnerName = (reading: TimingReading) => {
-    const firstName = reading.registration?.profiles?.first_name || reading.registration?.guest_first_name || "";
-    const lastName = reading.registration?.profiles?.last_name || reading.registration?.guest_last_name || "";
+    const firstName = reading.registration?.first_name || "";
+    const lastName = reading.registration?.last_name || "";
     return `${firstName} ${lastName}`.trim();
   };
 
