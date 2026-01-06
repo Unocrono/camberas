@@ -973,6 +973,7 @@ export type Database = {
         Row: {
           age_calculation_date: string | null
           age_dependent: boolean | null
+          category_number: number | null
           created_at: string
           display_order: number
           gender: string | null
@@ -988,6 +989,7 @@ export type Database = {
         Insert: {
           age_calculation_date?: string | null
           age_dependent?: boolean | null
+          category_number?: number | null
           created_at?: string
           display_order?: number
           gender?: string | null
@@ -1003,6 +1005,7 @@ export type Database = {
         Update: {
           age_calculation_date?: string | null
           age_dependent?: boolean | null
+          category_number?: number | null
           created_at?: string
           display_order?: number
           gender?: string | null
