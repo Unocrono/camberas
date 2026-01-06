@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -49,9 +50,9 @@ interface EventCategory {
   race_distance_id: string | null;
   name: string;
   short_name: string | null;
-  gender: string | null;
   min_age: number | null;
   max_age: number | null;
+  age_dependent: boolean;
   age_calculation_date: string | null;
   display_order: number;
 }
@@ -68,9 +69,9 @@ interface CategoryTemplateItem {
   template_id: string;
   name: string;
   short_name: string | null;
-  gender: string | null;
   min_age: number | null;
   max_age: number | null;
+  age_dependent: boolean;
   display_order: number;
 }
 
@@ -104,9 +105,9 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
   const [formData, setFormData] = useState({
     name: "",
     short_name: "",
-    gender: "",
     min_age: "",
     max_age: "",
+    age_dependent: true,
     age_calculation_date: "",
     display_order: "0",
   });
@@ -219,9 +220,9 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     setFormData({
       name: "",
       short_name: "",
-      gender: "",
       min_age: "",
       max_age: "",
+      age_dependent: true,
       age_calculation_date: raceDate || "",
       display_order: String(categories.length + 1),
     });
@@ -233,9 +234,9 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     setFormData({
       name: category.name,
       short_name: category.short_name || "",
-      gender: category.gender || "",
       min_age: category.min_age?.toString() || "",
       max_age: category.max_age?.toString() || "",
+      age_dependent: category.age_dependent ?? true,
       age_calculation_date: category.age_calculation_date || raceDate || "",
       display_order: category.display_order.toString(),
     });
@@ -258,9 +259,9 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         race_distance_id: selectedDistanceId || null,
         name: formData.name.trim(),
         short_name: formData.short_name.trim() || formData.name.trim().substring(0, 6).toUpperCase(),
-        gender: formData.gender === "all" ? null : formData.gender || null,
         min_age: formData.min_age ? parseInt(formData.min_age) : null,
         max_age: formData.max_age ? parseInt(formData.max_age) : null,
+        age_dependent: formData.age_dependent,
         age_calculation_date: formData.age_calculation_date || null,
         display_order: parseInt(formData.display_order) || 0,
       };
@@ -346,9 +347,9 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         race_distance_id: selectedDistanceId || null,
         name: item.name,
         short_name: item.short_name,
-        gender: item.gender,
         min_age: item.min_age,
         max_age: item.max_age,
+        age_dependent: item.age_dependent ?? true,
         age_calculation_date: raceDate,
         display_order: item.display_order,
       }));
@@ -405,14 +406,12 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     }
   };
 
-  const getGenderLabel = (gender: string | null) => {
-    if (!gender) return "Mixto";
-    return gender === "M" ? "Masculino" : "Femenino";
+  const getAgeDependentLabel = (ageDependent: boolean) => {
+    return ageDependent ? "Automática" : "Manual";
   };
 
-  const getGenderBadgeVariant = (gender: string | null) => {
-    if (!gender) return "outline";
-    return gender === "M" ? "default" : "secondary";
+  const getAgeDependentBadgeVariant = (ageDependent: boolean) => {
+    return ageDependent ? "default" : "outline";
   };
 
   const getAgeRange = (min: number | null, max: number | null) => {
@@ -535,13 +534,13 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
             <>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                <TableRow>
                     <TableHead className="w-[60px]">
                       <ArrowUpDown className="h-4 w-4" />
                     </TableHead>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Corto</TableHead>
-                    <TableHead>Género</TableHead>
+                    <TableHead>Cálculo Edad</TableHead>
                     <TableHead>Rango de Edad</TableHead>
                     <TableHead>Fecha Cálculo</TableHead>
                     <TableHead className="w-[100px]">Acciones</TableHead>
@@ -560,8 +559,8 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
                         {category.short_name || "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getGenderBadgeVariant(category.gender)}>
-                          {getGenderLabel(category.gender)}
+                        <Badge variant={getAgeDependentBadgeVariant(category.age_dependent)}>
+                          {getAgeDependentLabel(category.age_dependent)}
                         </Badge>
                       </TableCell>
                       <TableCell>{getAgeRange(category.min_age, category.max_age)}</TableCell>
@@ -652,22 +651,19 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="gender">Género</Label>
-              <Select
-                value={formData.gender}
-                onValueChange={(value) => setFormData({ ...formData, gender: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Mixto (todos)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Mixto (todos)</SelectItem>
-                  <SelectItem value="M">Masculino</SelectItem>
-                  <SelectItem value="F">Femenino</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox
+                id="age_dependent"
+                checked={formData.age_dependent}
+                onCheckedChange={(checked) => setFormData({ ...formData, age_dependent: checked as boolean })}
+              />
+              <Label htmlFor="age_dependent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Dependiente de la edad
+              </Label>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Si está activado, la categoría se asignará automáticamente según la edad del corredor
+            </p>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="min_age">Edad mínima</Label>

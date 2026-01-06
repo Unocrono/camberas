@@ -65,9 +65,9 @@ interface CategoryTemplateItem {
   template_id: string;
   name: string;
   short_name: string | null;
-  gender: string | null;
   min_age: number | null;
   max_age: number | null;
+  age_dependent: boolean;
   display_order: number;
 }
 
@@ -101,9 +101,9 @@ export function CategoryTemplatesManagement() {
   const [itemFormData, setItemFormData] = useState({
     name: "",
     short_name: "",
-    gender: "",
     min_age: "",
     max_age: "",
+    age_dependent: true,
     display_order: "0",
   });
 
@@ -323,9 +323,9 @@ export function CategoryTemplatesManagement() {
     setItemFormData({
       name: "",
       short_name: "",
-      gender: "",
       min_age: "",
       max_age: "",
+      age_dependent: true,
       display_order: String(templateItems.length + 1),
     });
     setItemDialogOpen(true);
@@ -336,9 +336,9 @@ export function CategoryTemplatesManagement() {
     setItemFormData({
       name: item.name,
       short_name: item.short_name || "",
-      gender: item.gender || "",
       min_age: item.min_age?.toString() || "",
       max_age: item.max_age?.toString() || "",
+      age_dependent: item.age_dependent ?? true,
       display_order: item.display_order.toString(),
     });
     setItemDialogOpen(true);
@@ -359,9 +359,9 @@ export function CategoryTemplatesManagement() {
         template_id: expandedTemplateId,
         name: itemFormData.name.trim(),
         short_name: itemFormData.short_name.trim() || itemFormData.name.trim().substring(0, 6).toUpperCase(),
-        gender: itemFormData.gender === "all" ? null : itemFormData.gender || null,
         min_age: itemFormData.min_age ? parseInt(itemFormData.min_age) : null,
         max_age: itemFormData.max_age ? parseInt(itemFormData.max_age) : null,
+        age_dependent: itemFormData.age_dependent,
         display_order: parseInt(itemFormData.display_order) || 0,
       };
 
@@ -419,9 +419,8 @@ export function CategoryTemplatesManagement() {
     }
   };
 
-  const getGenderLabel = (gender: string | null) => {
-    if (!gender) return "Mixto";
-    return gender === "M" ? "Masculino" : "Femenino";
+  const getAgeDependentLabel = (ageDependent: boolean) => {
+    return ageDependent ? "Automática" : "Manual";
   };
 
   const getAgeRange = (min: number | null, max: number | null) => {
@@ -551,8 +550,8 @@ export function CategoryTemplatesManagement() {
                               <TableHead>Orden</TableHead>
                               <TableHead>Nombre</TableHead>
                               <TableHead>Abrev.</TableHead>
-                              <TableHead>Género</TableHead>
-                              <TableHead>Edad</TableHead>
+                              <TableHead>Cálculo Edad</TableHead>
+                              <TableHead>Rango Edad</TableHead>
                               <TableHead className="w-24">Acciones</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -564,7 +563,11 @@ export function CategoryTemplatesManagement() {
                                 <TableCell>
                                   <Badge variant="outline">{item.short_name || "-"}</Badge>
                                 </TableCell>
-                                <TableCell>{getGenderLabel(item.gender)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={item.age_dependent ? "default" : "outline"}>
+                                    {getAgeDependentLabel(item.age_dependent)}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell>{getAgeRange(item.min_age, item.max_age)}</TableCell>
                                 <TableCell>
                                   <div className="flex gap-1">
@@ -719,24 +722,21 @@ export function CategoryTemplatesManagement() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="item-gender">Género</Label>
-              <Select
-                value={itemFormData.gender}
-                onValueChange={(value) =>
-                  setItemFormData({ ...itemFormData, gender: value })
+            <div className="flex items-center space-x-2 py-2">
+              <Checkbox
+                id="item-age-dependent"
+                checked={itemFormData.age_dependent}
+                onCheckedChange={(checked) =>
+                  setItemFormData({ ...itemFormData, age_dependent: checked as boolean })
                 }
-              >
-                <SelectTrigger id="item-gender">
-                  <SelectValue placeholder="Seleccionar género" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Mixto (todos)</SelectItem>
-                  <SelectItem value="M">Masculino</SelectItem>
-                  <SelectItem value="F">Femenino</SelectItem>
-                </SelectContent>
-              </Select>
+              />
+              <Label htmlFor="item-age-dependent" className="cursor-pointer">
+                Dependiente de la edad
+              </Label>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Si está activado, la categoría se asignará según la edad del corredor
+            </p>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
