@@ -32,9 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Plus, Download } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
-  createCategoryIfNotExists, 
-  calculateCategoryByAge, 
-  formatCategoryWithGender,
+  getOrCreateCategoryId,
   normalizeGender as normalizeCategoryGender,
   type RaceCategory 
 } from "@/lib/categoryUtils";
@@ -749,62 +747,52 @@ export function RegistrationImportDialog({
             await supabase.from("registration_responses").insert(responses);
           }
           
-          // Handle category: either from import or calculate automatically
-          if (registration && categoryField?.fieldId) {
+          // Handle category assignment using hybrid logic (Option 3):
+          // 1. If CSV has category → use/create it
+          // 2. If no CSV category AND age_dependent categories exist → calculate by age
+          // 3. If neither → use "UNICA" default category
+          if (registration) {
             const birthDate = insertData.birth_date;
             
             // Check if a category was directly imported
-            const importedCategory = customFieldMappings.find(cf => cf.fieldId === categoryField.fieldId);
+            const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
+            const importedCategory = customFieldMappings.find(cf => cf.fieldId === categoryField?.fieldId);
+            const importedCategoryName = importedCategory?.value || null;
             
-            if (importedCategory?.value) {
-              // Category was imported - ensure it exists in race_categories
-              await createCategoryIfNotExists(raceId, selectedDistanceId, importedCategory.value);
-              // The category value is already saved in customFieldMappings above
-            } else if (birthDate) {
-              // No category imported, try to calculate from age
-              // Gender comes from customFieldMappings (since it's stored in registration_responses)
+            // Get gender from registration data or custom field
+            let gender: string | null = insertData.gender || null;
+            if (!gender) {
               const genderField = customFieldMappings.find(cf => {
                 const field = availableFields.find(f => f.fieldId === cf.fieldId);
                 return field?.profileField === 'gender';
               });
-              const gender = genderField?.value ? normalizeCategoryGender(genderField.value) : null;
+              gender = genderField?.value ? normalizeCategoryGender(genderField.value) : null;
+            }
+            
+            // Get race date for age calculation
+            const { data: raceData } = await supabase
+              .from("races")
+              .select("date")
+              .eq("id", raceId)
+              .single();
+            
+            if (raceData?.date) {
+              // Use the new hybrid category logic
+              const categoryId = await getOrCreateCategoryId(
+                raceId,
+                selectedDistanceId,
+                importedCategoryName,
+                birthDate,
+                gender,
+                raceData.date
+              );
               
-              // Get race date for age calculation
-              const { data: raceData } = await supabase
-                .from("races")
-                .select("date")
-                .eq("id", raceId)
-                .single();
-              
-              if (raceData?.date) {
-                // Get categories for this distance
-                const { data: categories } = await supabase
-                  .from("race_categories")
-                  .select("*")
-                  .eq("race_distance_id", selectedDistanceId)
-                  .order("display_order");
-                
-                if (categories && categories.length > 0) {
-                  const matchedCategory = calculateCategoryByAge(
-                    birthDate, 
-                    categories as RaceCategory[], 
-                    raceData.date
-                  );
-                  
-                  if (matchedCategory) {
-                    // Format category with gender prefix
-                    const categoryName = formatCategoryWithGender(
-                      matchedCategory.short_name || matchedCategory.name,
-                      gender
-                    );
-                    
-                    await supabase.from("registration_responses").insert({
-                      registration_id: registration.id,
-                      field_id: categoryField.fieldId,
-                      field_value: categoryName,
-                    });
-                  }
-                }
+              // Update registration with the category FK
+              if (categoryId) {
+                await supabase
+                  .from("registrations")
+                  .update({ race_category_id: categoryId })
+                  .eq("id", registration.id);
               }
             }
           }
