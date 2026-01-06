@@ -42,7 +42,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Users, Download, ArrowUpDown, FileDown, RefreshCw } from "lucide-react";
-import { calculateCategoryByAge, formatCategoryWithGender, RaceCategory } from "@/lib/categoryUtils";
+import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { format } from "date-fns";
 
 interface EventCategory {
@@ -431,10 +431,10 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
 
     setRecalculatingCategories(true);
     try {
-      // Get all registrations for this distance
+      // Get all registrations for this distance with birth_date
       const { data: registrations, error: regError } = await supabase
         .from("registrations")
-        .select("id, race_distance_id")
+        .select("id, birth_date, gender, race_category_id")
         .eq("race_distance_id", selectedDistanceId);
 
       if (regError) throw regError;
@@ -445,69 +445,6 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         });
         return;
       }
-
-      // Get form fields for gender and birth_date
-      const { data: formFields } = await supabase
-        .from("registration_form_fields")
-        .select("id, field_name, profile_field, race_distance_id")
-        .eq("race_distance_id", selectedDistanceId);
-
-      const categoryField = formFields?.find(
-        f => f.profile_field === 'category' || f.field_name === 'category'
-      );
-      const birthDateField = formFields?.find(
-        f => f.profile_field === 'birth_date' || f.field_name === 'birth_date'
-      );
-      const genderField = formFields?.find(
-        f => f.profile_field === 'gender' || f.field_name === 'gender'
-      );
-
-      if (!categoryField) {
-        toast({
-          title: "Error de configuración",
-          description: "El evento no tiene un campo de categoría definido",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Get registration responses for birth_date and gender
-      const regIds = registrations.map(r => r.id);
-      const { data: responses } = await supabase
-        .from("registration_responses")
-        .select("registration_id, field_id, field_value")
-        .in("registration_id", regIds);
-
-      // Also get profile data for users
-      const { data: regsWithData } = await supabase
-        .from("registrations")
-        .select(`
-          id,
-          birth_date,
-          gender
-        `)
-        .eq("race_distance_id", selectedDistanceId);
-
-      // Build map of registration data
-      const regDataMap = new Map<string, { birthDate: string | null; gender: string | null }>();
-      
-      regsWithData?.forEach(reg => {
-        let birthDate = reg.birth_date || null;
-        let gender = reg.gender || null;
-
-        // Override with responses if available (for backwards compatibility)
-        const regResponses = responses?.filter(r => r.registration_id === reg.id) || [];
-        regResponses.forEach(resp => {
-          if (birthDateField && resp.field_id === birthDateField.id && !birthDate) {
-            birthDate = resp.field_value;
-          }
-          if (genderField && resp.field_id === genderField.id && !gender) {
-            gender = resp.field_value;
-          }
-        });
-
-        regDataMap.set(reg.id, { birthDate, gender });
-      });
 
       // Convert categories to RaceCategory format
       const raceCategoriesForCalc: RaceCategory[] = categories.map(c => ({
@@ -526,34 +463,31 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
       let skipped = 0;
 
       for (const reg of registrations) {
-        const regData = regDataMap.get(reg.id);
-        if (!regData?.birthDate) {
+        if (!reg.birth_date) {
           skipped++;
           continue;
         }
 
         const referenceDate = raceDate || new Date().toISOString().split('T')[0];
         const matchedCategory = calculateCategoryByAge(
-          regData.birthDate,
+          reg.birth_date,
           raceCategoriesForCalc,
           referenceDate
         );
 
         if (matchedCategory) {
-          const categoryName = formatCategoryWithGender(
-            matchedCategory.short_name || matchedCategory.name,
-            regData.gender
-          );
+          // Update race_category_id directly in registrations table
+          const { error: updateError } = await supabase
+            .from("registrations")
+            .update({ race_category_id: matchedCategory.id })
+            .eq("id", reg.id);
 
-          await supabase
-            .from("registration_responses")
-            .upsert({
-              registration_id: reg.id,
-              field_id: categoryField.id,
-              field_value: categoryName
-            }, { onConflict: 'registration_id,field_id' });
-          
-          updated++;
+          if (updateError) {
+            console.error("Error updating registration:", updateError);
+            skipped++;
+          } else {
+            updated++;
+          }
         } else {
           skipped++;
         }
