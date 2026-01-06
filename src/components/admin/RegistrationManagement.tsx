@@ -2290,9 +2290,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
-                  ))}
+                  {categories
+                    .filter((cat) => cat.race_distance_id === selectedDistance || (!cat.race_distance_id && selectedDistance !== "all"))
+                    .map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
