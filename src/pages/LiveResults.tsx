@@ -34,8 +34,8 @@ interface RaceResult {
     id: string;
     bib_number: number | null;
     user_id: string;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     profiles: {
       first_name: string | null;
       last_name: string | null;
@@ -119,12 +119,8 @@ interface TimingReading {
     distance_km: number;
   } | null;
   registration: {
-    profiles: {
-      first_name: string | null;
-      last_name: string | null;
-    } | null;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     race_distances: {
       name: string;
     };
@@ -210,8 +206,8 @@ export default function LiveResults() {
       
       if (!searchQuery.trim()) return true;
       
-      const firstName = result.registration.profiles?.first_name || result.registration.guest_first_name || "";
-      const lastName = result.registration.profiles?.last_name || result.registration.guest_last_name || "";
+      const firstName = result.registration.first_name || result.registration.profiles?.first_name || "";
+      const lastName = result.registration.last_name || result.registration.profiles?.last_name || "";
       const fullName = `${firstName} ${lastName}`.toLowerCase();
       const bibNumber = result.registration.bib_number?.toString() || "";
       
@@ -409,7 +405,7 @@ export default function LiveResults() {
         
         const [regResults, splitResults, respResults, fieldsData] = await Promise.all([
           Promise.all(regBatches.map(batch => 
-            supabase.from("registrations").select("id, bib_number, user_id, guest_first_name, guest_last_name, race_distance_id").in("id", batch)
+            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, race_distance_id").in("id", batch)
           )),
           Promise.all(resultBatches.map(batch => 
             supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km").in("race_result_id", batch).order("checkpoint_order")

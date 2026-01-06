@@ -48,8 +48,8 @@ interface RaceResult {
       club: string | null;
       birth_date: string | null;
     } | null;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
   };
   split_times?: SplitTime[];
 }
@@ -143,8 +143,8 @@ const RaceResults = () => {
             bib_number,
             race_distance_id,
             user_id,
-            guest_first_name,
-            guest_last_name,
+            first_name,
+            last_name,
             race_distance:race_distances (
               id,
               name,
@@ -274,10 +274,9 @@ const RaceResults = () => {
   };
 
   const getRunnerName = (result: RaceResult): string => {
-    if (result.registration.profiles) {
-      return `${result.registration.profiles.first_name || ''} ${result.registration.profiles.last_name || ''}`.trim();
-    }
-    return `${result.registration.guest_first_name || ''} ${result.registration.guest_last_name || ''}`.trim() || 'Sin nombre';
+    const firstName = result.registration.first_name || result.registration.profiles?.first_name || '';
+    const lastName = result.registration.last_name || result.registration.profiles?.last_name || '';
+    return `${firstName} ${lastName}`.trim() || 'Sin nombre';
   };
 
   const getGender = (result: RaceResult): string => {
