@@ -508,7 +508,7 @@ export default function LiveResults() {
         if (registrationIds.length > 0) {
           const { data: regsData } = await supabase
             .from("registrations")
-            .select("id, user_id, guest_first_name, guest_last_name, race_distance_id")
+            .select("id, user_id, first_name, last_name, race_distance_id")
             .in("id", registrationIds);
           
           const regsMap = new Map((regsData || []).map((r: any) => [r.id, r]));
@@ -533,11 +533,9 @@ export default function LiveResults() {
             return {
               ...r,
               registration: reg ? {
-                user_id: reg.user_id,
-                guest_first_name: reg.guest_first_name,
-                guest_last_name: reg.guest_last_name,
+                first_name: reg.first_name,
+                last_name: reg.last_name,
                 race_distances: dist ? { name: dist.name } : null,
-                profiles: reg.user_id ? profilesMap.get(reg.user_id) || null : null
               } : null
             };
           });
