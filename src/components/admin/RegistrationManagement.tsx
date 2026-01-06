@@ -18,6 +18,7 @@ import { calculateCategoryByAge, formatCategoryWithGender, RaceCategory } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
+import { DynamicEditRegistrationForm } from "./DynamicEditRegistrationForm";
 
 interface Registration {
   id: string;
@@ -32,6 +33,17 @@ interface Registration {
   phone: string | null;
   dni_passport: string | null;
   birth_date: string | null;
+  gender: string | null;
+  gender_id: number | null;
+  address: string | null;
+  city: string | null;
+  province: string | null;
+  country: string | null;
+  club: string | null;
+  team: string | null;
+  tshirt_size: string | null;
+  race_category_id: string | null;
+  autonomous_community: string | null;
   race_id: string;
   race_distance_id: string;
   race: {
@@ -51,6 +63,7 @@ interface Registration {
     phone: string | null;
     dni_passport: string | null;
     gender: string | null;
+    gender_id: number | null;
     birth_date: string | null;
     club: string | null;
     team: string | null;
@@ -145,6 +158,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingRegistration, setEditingRegistration] = useState<Registration | null>(null);
   const [formData, setFormData] = useState<RegistrationFormData>(emptyFormData);
+  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
   const [formDistances, setFormDistances] = useState<RaceDistance[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -1072,16 +1086,29 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     if (!editingRegistration) return;
     setSaving(true);
     try {
+      // Build update data for registrations table from editFormData
       const updateData: any = {
-        first_name: formData.first_name || null,
-        last_name: formData.last_name || null,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        dni_passport: formData.dni_passport || null,
-        status: formData.status,
-        payment_status: formData.payment_status,
-        bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
-        race_distance_id: formData.race_distance_id,
+        first_name: editFormData.first_name || null,
+        last_name: editFormData.last_name || null,
+        email: editFormData.email || null,
+        phone: editFormData.phone || null,
+        dni_passport: editFormData.dni_passport || null,
+        birth_date: editFormData.birth_date || null,
+        gender: editFormData.gender || null,
+        gender_id: editFormData.gender_id || null,
+        address: editFormData.address || null,
+        city: editFormData.city || null,
+        province: editFormData.province || null,
+        country: editFormData.country || null,
+        club: editFormData.club || null,
+        team: editFormData.team || null,
+        tshirt_size: editFormData.tshirt_size || null,
+        race_category_id: editFormData.race_category_id || null,
+        autonomous_community: editFormData.autonomous_community || null,
+        status: editFormData.status,
+        payment_status: editFormData.payment_status,
+        bib_number: editFormData.bib_number ? parseInt(editFormData.bib_number) : null,
+        race_distance_id: editFormData.race_distance_id,
       };
 
       const { error } = await supabase
@@ -1090,12 +1117,56 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         .eq("id", editingRegistration.id);
       if (error) throw error;
 
+      // Now update registration_responses for custom fields
+      // Fetch fields for this distance to know which fields go to responses
+      const { data: fieldsData } = await supabase
+        .from("registration_form_fields")
+        .select("id, field_name, profile_field, race_distance_id")
+        .or(`race_distance_id.eq.${editFormData.race_distance_id},race_distance_id.is.null`)
+        .eq("is_visible", true);
+
+      const denormalizedFields = [
+        'first_name', 'last_name', 'email', 'phone', 'dni_passport', 
+        'birth_date', 'gender', 'gender_id', 'address', 'city', 
+        'province', 'country', 'club', 'team', 'autonomous_community',
+        'tshirt_size', 'race_category_id'
+      ];
+
+      // Upsert responses for fields that are not denormalized
+      for (const field of (fieldsData || [])) {
+        const fieldKey = field.profile_field || field.field_name;
+        // Skip denormalized fields and system fields
+        if (denormalizedFields.includes(fieldKey) || 
+            fieldKey === 'bib_number' || 
+            fieldKey === 'status' || 
+            fieldKey === 'payment_status' ||
+            fieldKey === 'race_distance_id') {
+          continue;
+        }
+        
+        const value = editFormData[fieldKey] || editFormData[field.field_name];
+        if (value !== undefined && value !== null && value !== '') {
+          await supabase
+            .from("registration_responses")
+            .upsert({
+              registration_id: editingRegistration.id,
+              field_id: field.id,
+              field_value: String(value)
+            }, { onConflict: 'registration_id,field_id' });
+        }
+      }
+
       toast({ title: "Inscripción actualizada" });
       setIsEditOpen(false);
       setEditingRegistration(null);
-      setFormData(emptyFormData);
+      setEditFormData({});
       fetchData();
       triggerRefresh("registrations");
+      // Refresh responses
+      const raceId = selectedRaceId || selectedRace;
+      if (raceId && raceId !== 'all') {
+        fetchFormFieldsAndResponses(raceId);
+      }
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -1136,18 +1207,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   const openEditDialog = (reg: Registration) => {
     setEditingRegistration(reg);
-    setFormData({
-      first_name: reg.first_name || reg.profiles?.first_name || "",
-      last_name: reg.last_name || reg.profiles?.last_name || "",
-      email: reg.email || "",
-      phone: reg.phone || reg.profiles?.phone || "",
-      dni_passport: reg.dni_passport || reg.profiles?.dni_passport || "",
-      race_id: reg.race_id,
-      race_distance_id: reg.race_distance_id,
-      status: reg.status,
-      payment_status: reg.payment_status,
-      bib_number: reg.bib_number?.toString() || "",
-    });
+    setEditFormData({}); // Will be populated by DynamicEditRegistrationForm
     setIsEditOpen(true);
   };
 
@@ -2018,100 +2078,27 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Inscripción</DialogTitle>
+            <DialogDescription>
+              {editingRegistration && (
+                <>
+                  {editingRegistration.first_name} {editingRegistration.last_name} - {editingRegistration.race_distance?.name}
+                </>
+              )}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nombre</Label>
-                <Input
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Apellidos</Label>
-                <Input
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          <div className="max-h-[65vh] overflow-y-auto pr-2">
+            {editingRegistration && (
+              <DynamicEditRegistrationForm
+                registration={editingRegistration}
+                distances={formDistances}
+                categories={categories}
+                formData={editFormData}
+                onFormDataChange={setEditFormData}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Teléfono</Label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>DNI/Pasaporte</Label>
-                <Input
-                  value={formData.dni_passport}
-                  onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Recorrido</Label>
-              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {formDistances.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name} ({d.distance_km}km)</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="confirmed">Confirmada</SelectItem>
-                    <SelectItem value="cancelled">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Pago</Label>
-                <Select value={formData.payment_status} onValueChange={(v) => setFormData({ ...formData, payment_status: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="paid">Pagado</SelectItem>
-                    <SelectItem value="refunded">Reembolsado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Dorsal</Label>
-                <Input
-                  type="number"
-                  value={formData.bib_number}
-                  onChange={(e) => setFormData({ ...formData, bib_number: e.target.value })}
-                />
-              </div>
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
