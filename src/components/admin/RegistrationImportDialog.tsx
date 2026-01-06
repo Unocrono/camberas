@@ -787,11 +787,12 @@ export function RegistrationImportDialog({
                 raceData.date
               );
               
-              // Update registration with the category FK
-              if (categoryId) {
+              // For now, update the category text field
+              // race_category_id FK will be added when migration is approved
+              if (categoryId && importedCategoryName) {
                 await supabase
                   .from("registrations")
-                  .update({ race_category_id: categoryId })
+                  .update({ category: importedCategoryName })
                   .eq("id", registration.id);
               }
             }
