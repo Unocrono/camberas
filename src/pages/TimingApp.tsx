@@ -449,8 +449,8 @@ const TimingApp = () => {
           id,
           bib_number,
           race_distance_id,
-          guest_first_name,
-          guest_last_name,
+          first_name,
+          last_name,
           user_id,
           status,
           race_distances!inner(name)
@@ -463,34 +463,14 @@ const TimingApp = () => {
       console.log("Registrations found:", data?.length, data);
 
       // Fetch profiles for registered users
-      const runnersData: Runner[] = await Promise.all(
-        (data || []).map(async (reg: any) => {
-          let firstName = reg.guest_first_name;
-          let lastName = reg.guest_last_name;
-
-          if (reg.user_id && !firstName) {
-            const { data: profile } = await supabase
-              .from("profiles")
-              .select("first_name, last_name")
-              .eq("id", reg.user_id)
-              .single();
-
-            if (profile) {
-              firstName = profile.first_name;
-              lastName = profile.last_name;
-            }
-          }
-
-          return {
-            bib_number: reg.bib_number,
-            first_name: firstName || "",
-            last_name: lastName || "",
-            event_name: reg.race_distances?.name || "",
-            registration_id: reg.id,
-            race_distance_id: reg.race_distance_id,
-          };
-        })
-      );
+      const runnersData: Runner[] = (data || []).map((reg: any) => ({
+        bib_number: reg.bib_number,
+        first_name: reg.first_name || "",
+        last_name: reg.last_name || "",
+        event_name: reg.race_distances?.name || "",
+        registration_id: reg.id,
+        race_distance_id: reg.race_distance_id,
+      }));
 
       console.log("Runners loaded:", runnersData.length);
       setRunners(runnersData);

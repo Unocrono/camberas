@@ -26,13 +26,9 @@ interface Registration {
     name: string;
     price: number;
   } | null;
-  profile: {
-    first_name: string | null;
-    last_name: string | null;
-    gender: string | null;
-  } | null;
-  guest_first_name: string | null;
-  guest_last_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  gender: string | null;
 }
 
 export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
@@ -49,10 +45,10 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
             id,
             bib_number,
             created_at,
-            guest_first_name,
-            guest_last_name,
-            race_distance:race_distances(name, price),
-            profile:profiles(first_name, last_name, gender)
+            first_name,
+            last_name,
+            gender,
+            race_distance:race_distances(name, price)
           `)
           .eq("race_id", raceId)
           .in("status", ["confirmed", "pending"])
@@ -74,17 +70,11 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
   }, [raceId]);
 
   const getName = (reg: Registration) => {
-    if (reg.profile?.first_name || reg.profile?.last_name) {
-      return `${reg.profile.first_name || ""} ${reg.profile.last_name || ""}`.trim();
-    }
-    if (reg.guest_first_name || reg.guest_last_name) {
-      return `${reg.guest_first_name || ""} ${reg.guest_last_name || ""}`.trim();
-    }
-    return "Sin nombre";
+    return `${reg.first_name || ""} ${reg.last_name || ""}`.trim() || "Sin nombre";
   };
 
   const getGenderBadge = (reg: Registration) => {
-    const gender = reg.profile?.gender;
+    const gender = reg.gender;
     if (!gender) return <Badge variant="outline">-</Badge>;
     
     if (gender === "Masculino" || gender === "M" || gender === "Male") {
