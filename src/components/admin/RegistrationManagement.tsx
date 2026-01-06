@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag } from "lucide-react";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw } from "lucide-react";
+import { calculateCategoryByAge, formatCategoryWithGender, RaceCategory } from "@/lib/categoryUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
@@ -567,6 +568,133 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       toast({ title: `Equipo actualizado en ${ids.length} inscripciones` });
       setSelectedRows(new Set());
       setBulkTeamDialog(false);
+      if (raceId) fetchFormFieldsAndResponses(raceId);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleRecalculateCategories = async () => {
+    const raceId = selectedRaceId || selectedRace;
+    if (!raceId || raceId === "all") {
+      toast({
+        title: "Error",
+        description: "Selecciona una carrera primero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get all age-dependent categories for this race
+    const { data: raceCategories } = await supabase
+      .from("race_categories")
+      .select("*")
+      .eq("race_id", raceId)
+      .eq("age_dependent", true);
+
+    if (!raceCategories || raceCategories.length === 0) {
+      toast({
+        title: "Sin categorías automáticas",
+        description: "No hay categorías dependientes de edad definidas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get race date for age calculation
+    const { data: raceData } = await supabase
+      .from("races")
+      .select("date")
+      .eq("id", raceId)
+      .single();
+
+    const raceDate = raceData?.date || new Date().toISOString().split('T')[0];
+
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedRows);
+      let updated = 0;
+      let skipped = 0;
+
+      for (const regId of ids) {
+        const reg = filteredRegistrations.find(r => r.id === regId);
+        if (!reg) continue;
+
+        // Get categories for this distance
+        const distanceCategories = raceCategories.filter(
+          c => c.race_distance_id === reg.race_distance_id
+        );
+        if (distanceCategories.length === 0) {
+          skipped++;
+          continue;
+        }
+
+        // Get birth date from responses or profile
+        let birthDate = getResponseValue(regId, 'birth_date') || 
+                        reg.guest_birth_date || 
+                        reg.profiles?.birth_date || null;
+        
+        // Get gender from responses or profile
+        let gender = getResponseValue(regId, 'gender') || 
+                     reg.profiles?.gender || null;
+
+        if (!birthDate) {
+          skipped++;
+          continue;
+        }
+
+        // Convert categories to RaceCategory format
+        const raceCategoriesForCalc: RaceCategory[] = distanceCategories.map(c => ({
+          id: c.id,
+          name: c.name,
+          short_name: c.short_name,
+          min_age: c.min_age,
+          max_age: c.max_age,
+          age_dependent: c.age_dependent,
+          age_calculation_date: c.age_calculation_date,
+          display_order: c.display_order,
+          race_distance_id: c.race_distance_id,
+        }));
+
+        const matchedCategory = calculateCategoryByAge(birthDate, raceCategoriesForCalc, raceDate);
+        
+        if (matchedCategory) {
+          const categoryName = formatCategoryWithGender(
+            matchedCategory.short_name || matchedCategory.name,
+            gender
+          );
+
+          // Find category field for this distance
+          const categoryField = formFields.find(
+            f => f.race_distance_id === reg.race_distance_id && 
+                 (f.profile_field === 'category' || f.field_name === 'category')
+          );
+
+          if (categoryField) {
+            await supabase
+              .from("registration_responses")
+              .upsert({
+                registration_id: regId,
+                field_id: categoryField.id,
+                field_value: categoryName
+              }, { onConflict: 'registration_id,field_id' });
+            updated++;
+          } else {
+            skipped++;
+          }
+        } else {
+          skipped++;
+        }
+      }
+
+      toast({
+        title: "Categorías recalculadas",
+        description: `${updated} actualizadas, ${skipped} sin datos o sin categoría`,
+      });
+      
+      setSelectedRows(new Set());
       if (raceId) fetchFormFieldsAndResponses(raceId);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -1277,6 +1405,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <DropdownMenuItem onClick={() => setBulkTeamDialog(true)}>
                 <Users className="h-4 w-4 mr-2" />
                 Cambiar equipo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleRecalculateCategories}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Recalcular categorías por edad
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setBulkDeleteDialog(true)} className="text-destructive focus:text-destructive">
