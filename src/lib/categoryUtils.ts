@@ -10,6 +10,7 @@ export interface RaceCategory {
   age_calculation_date: string | null;
   display_order: number;
   race_distance_id: string | null;
+  category_number?: number | null;
 }
 
 /**
@@ -96,14 +97,18 @@ export function calculateCategoryByAge(
 }
 
 /**
- * Gets or creates a category for a participant
- * If the category is age-dependent and we have birth date, calculate it
- * Otherwise, use the provided category name
+ * Gets or creates a category for a participant and returns the category ID
+ * Implements hybrid logic (Option 3):
+ * 1. If CSV provides category name → use/create that category (age_dependent=false)
+ * 2. If no CSV category AND age_dependent categories exist → calculate by age/gender
+ * 3. If neither → use "UNICA" default category
+ * 
+ * @returns The category ID (UUID) to be stored in race_category_id
  */
-export async function getOrCreateCategory(
+export async function getOrCreateCategoryId(
   raceId: string,
   distanceId: string,
-  categoryName: string | null,
+  importedCategoryName: string | null,
   birthDate: string | null,
   gender: string | null,
   raceDate: string
@@ -115,39 +120,89 @@ export async function getOrCreateCategory(
     .eq("race_distance_id", distanceId)
     .order("display_order");
   
-  if (!categories || categories.length === 0) {
-    // No categories defined - if we have a category name from import, create it
-    if (categoryName) {
-      await createCategoryIfNotExists(raceId, distanceId, categoryName);
-      return categoryName;
-    }
-    return null;
+  const typedCategories = (categories || []) as RaceCategory[];
+  
+  // Scenario 1: CSV provides category name → use or create it
+  if (importedCategoryName && importedCategoryName.trim()) {
+    const categoryId = await findOrCreateCategoryByName(raceId, distanceId, importedCategoryName.trim(), typedCategories);
+    return categoryId;
   }
   
-  // Check if we should auto-calculate based on age
-  const hasAgeDependentCategories = categories.some(c => c.age_dependent);
+  // Scenario 2: No CSV category, check for age_dependent categories
+  const hasAgeDependentCategories = typedCategories.some(c => c.age_dependent);
   
   if (hasAgeDependentCategories && birthDate) {
-    const matchedCategory = calculateCategoryByAge(birthDate, categories as RaceCategory[], raceDate);
+    const matchedCategory = calculateCategoryByAge(birthDate, typedCategories, raceDate);
     if (matchedCategory) {
-      // Return category name with gender prefix for display
-      const displayName = formatCategoryWithGender(matchedCategory.short_name || matchedCategory.name, gender);
-      return displayName;
+      return matchedCategory.id;
     }
   }
   
-  // If we have a category name from import, use it and ensure it exists
-  if (categoryName) {
-    await createCategoryIfNotExists(raceId, distanceId, categoryName);
-    return categoryName;
+  // Scenario 3: No CSV category, no age match → use "UNICA" default
+  const unicaCategory = typedCategories.find(c => c.name === 'UNICA');
+  if (unicaCategory) {
+    return unicaCategory.id;
   }
   
-  return null;
+  // If "UNICA" doesn't exist (shouldn't happen due to trigger), create it
+  const { data: newUnica } = await supabase
+    .from("race_categories")
+    .insert({
+      race_id: raceId,
+      race_distance_id: distanceId,
+      name: 'UNICA',
+      short_name: 'UNICA',
+      age_dependent: false,
+      display_order: 1,
+    })
+    .select("id")
+    .single();
+  
+  return newUnica?.id || null;
 }
 
 /**
- * Creates a category if it doesn't already exist
- * Categories created this way are NOT age-dependent
+ * Finds a category by name or creates a new one if it doesn't exist
+ * New categories are created with age_dependent=false (imported categories)
+ */
+async function findOrCreateCategoryByName(
+  raceId: string,
+  distanceId: string,
+  categoryName: string,
+  existingCategories: RaceCategory[]
+): Promise<string | null> {
+  // Check if category already exists (by name or short_name)
+  const existing = existingCategories.find(
+    c => c.name.toLowerCase() === categoryName.toLowerCase() || 
+         c.short_name?.toLowerCase() === categoryName.toLowerCase()
+  );
+  
+  if (existing) {
+    return existing.id;
+  }
+  
+  // Create new category (not age-dependent since it's from import)
+  const maxOrder = existingCategories.reduce((max, c) => Math.max(max, c.display_order), 0);
+  
+  const { data: newCategory } = await supabase
+    .from("race_categories")
+    .insert({
+      race_id: raceId,
+      race_distance_id: distanceId,
+      name: categoryName,
+      short_name: categoryName.substring(0, 10).toUpperCase(),
+      age_dependent: false,
+      display_order: maxOrder + 1,
+    })
+    .select("id")
+    .single();
+  
+  return newCategory?.id || null;
+}
+
+/**
+ * Legacy function - Creates a category if it doesn't already exist
+ * @deprecated Use getOrCreateCategoryId instead
  */
 export async function createCategoryIfNotExists(
   raceId: string,
