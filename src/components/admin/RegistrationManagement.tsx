@@ -116,7 +116,7 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "actions", label: "Acciones" },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "email", "dni", "distance", "status", "payment", "actions"];
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "status", "payment", "actions"];
 
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   const { toast } = useToast();
