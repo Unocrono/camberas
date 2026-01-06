@@ -2688,6 +2688,7 @@ export type Database = {
         Args: { p_birth_date: string; p_gender: string; p_race_date: string }
         Returns: string
       }
+      get_current_user_email: { Args: never; Returns: string }
       get_live_gps_positions: {
         Args: { p_distance_id?: string; p_race_id: string }
         Returns: {
