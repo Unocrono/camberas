@@ -1327,114 +1327,224 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         return;
       }
 
-      // Get max checkpoint_order for the ENTIRE race to avoid unique constraint violation
-      const { data: maxOrderData } = await supabase
+      // Get existing checkpoints for this distance to check for START/FINISH
+      const { data: existingCheckpoints } = await supabase
         .from("race_checkpoints")
-        .select("checkpoint_order")
-        .eq("race_id", selectedRaceId)
-        .order("checkpoint_order", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select("id, checkpoint_type, timing_point_id")
+        .eq("race_distance_id", selectedDistanceId)
+        .in("checkpoint_type", ["START", "FINISH"]);
 
-      const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
+      const existingStartCheckpoint = existingCheckpoints?.find(cp => cp.checkpoint_type === "START");
+      const existingFinishCheckpoint = existingCheckpoints?.find(cp => cp.checkpoint_type === "FINISH");
 
-      // Get max timing_point order
-      const maxTpOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
+      // Warn if multiple START or FINISH checkpoints exist
+      const startCount = existingCheckpoints?.filter(cp => cp.checkpoint_type === "START").length || 0;
+      const finishCount = existingCheckpoints?.filter(cp => cp.checkpoint_type === "FINISH").length || 0;
+      
+      if (startCount > 1) {
+        toast.warning("Existen múltiples checkpoints START. Se actualizará solo el primero.");
+      }
+      if (finishCount > 1) {
+        toast.warning("Existen múltiples checkpoints FINISH. Se actualizará solo el primero.");
+      }
 
-      // Fetch existing timing_points for this race to avoid duplicates
-      const { data: existingTps } = await supabase
-        .from("timing_points")
-        .select("id, name, notes")
-        .eq("race_id", selectedRaceId);
+      // Get first and last roadbook items for START/FINISH coordinates
+      const firstItem = roadbookItems[0];
+      const lastItem = roadbookItems[roadbookItems.length - 1];
 
-      const existingTpNames = new Set((existingTps || []).map(tp => tp.name));
-      const existingTpMap = new Map<string, string>();
-      (existingTps || []).forEach(tp => {
-        if (tp.notes) existingTpMap.set(tp.notes, tp.id);
-        existingTpMap.set(tp.name, tp.id);
-      });
+      // Get the total distance for FINISH checkpoint
+      const selectedDistance = allDistances.find(d => d.id === selectedDistanceId);
+      const totalDistanceKm = selectedDistance?.distance_km || lastItem.km_total;
 
-      // Prepare timing_points, filtering out duplicates
-      const timingPointCandidates = roadbookItems
-        .filter(item => item.latitude && item.longitude)
-        .map((item, index) => {
-          const isFirst = index === 0;
-          const isLast = index === roadbookItems.length - 1;
+      // Track which items will be updated vs inserted
+      const itemsToInsert: typeof roadbookItems = [];
+      let updatedStartCheckpoint = false;
+      let updatedFinishCheckpoint = false;
+
+      // Update existing START checkpoint if present
+      if (existingStartCheckpoint && firstItem) {
+        const { error: updateError } = await supabase
+          .from("race_checkpoints")
+          .update({
+            latitude: firstItem.latitude,
+            longitude: firstItem.longitude,
+            distance_km: 0,
+          })
+          .eq("id", existingStartCheckpoint.id);
+
+        if (updateError) {
+          console.error("Error updating START checkpoint:", updateError);
+        } else {
+          updatedStartCheckpoint = true;
           
-          let tpName = `${item.description} PC`;
-          if (isFirst) tpName = "START";
-          else if (isLast) tpName = "FINISH";
+          // Update associated timing_point coordinates if exists
+          if (existingStartCheckpoint.timing_point_id && firstItem.latitude && firstItem.longitude) {
+            await supabase
+              .from("timing_points")
+              .update({
+                latitude: firstItem.latitude,
+                longitude: firstItem.longitude,
+              })
+              .eq("id", existingStartCheckpoint.timing_point_id);
+          }
+        }
+      } else {
+        // No existing START, add first item to insert list
+        itemsToInsert.push(firstItem);
+      }
+
+      // Update existing FINISH checkpoint if present
+      if (existingFinishCheckpoint && lastItem && roadbookItems.length > 1) {
+        const { error: updateError } = await supabase
+          .from("race_checkpoints")
+          .update({
+            latitude: lastItem.latitude,
+            longitude: lastItem.longitude,
+            distance_km: totalDistanceKm,
+          })
+          .eq("id", existingFinishCheckpoint.id);
+
+        if (updateError) {
+          console.error("Error updating FINISH checkpoint:", updateError);
+        } else {
+          updatedFinishCheckpoint = true;
+          
+          // Update associated timing_point coordinates if exists
+          if (existingFinishCheckpoint.timing_point_id && lastItem.latitude && lastItem.longitude) {
+            await supabase
+              .from("timing_points")
+              .update({
+                latitude: lastItem.latitude,
+                longitude: lastItem.longitude,
+              })
+              .eq("id", existingFinishCheckpoint.timing_point_id);
+          }
+        }
+      } else if (roadbookItems.length > 1) {
+        // No existing FINISH and there's more than one item, add last item to insert list
+        itemsToInsert.push(lastItem);
+      }
+
+      // Add intermediate items to insert list
+      for (let i = 1; i < roadbookItems.length - 1; i++) {
+        itemsToInsert.push(roadbookItems[i]);
+      }
+
+      // If there are items to insert, proceed with insertion logic
+      if (itemsToInsert.length > 0) {
+        // Get max checkpoint_order for the ENTIRE race to avoid unique constraint violation
+        const { data: maxOrderData } = await supabase
+          .from("race_checkpoints")
+          .select("checkpoint_order")
+          .eq("race_id", selectedRaceId)
+          .order("checkpoint_order", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const startOrder = (maxOrderData?.checkpoint_order || 0) + 1;
+
+        // Get max timing_point order
+        const maxTpOrder = timingPoints.reduce((max, tp) => Math.max(max, tp.point_order || 0), 0);
+
+        // Fetch existing timing_points for this race to avoid duplicates
+        const { data: existingTps } = await supabase
+          .from("timing_points")
+          .select("id, name, notes")
+          .eq("race_id", selectedRaceId);
+
+        const existingTpNames = new Set((existingTps || []).map(tp => tp.name));
+        const existingTpMap = new Map<string, string>();
+        (existingTps || []).forEach(tp => {
+          if (tp.notes) existingTpMap.set(tp.notes, tp.id);
+          existingTpMap.set(tp.name, tp.id);
+        });
+
+        // Prepare timing_points, filtering out duplicates
+        const timingPointCandidates = itemsToInsert
+          .filter(item => item.latitude && item.longitude)
+          .map((item, index) => {
+            const isFirst = item === firstItem && !existingStartCheckpoint;
+            const isLast = item === lastItem && !existingFinishCheckpoint;
+            
+            let tpName = `${item.description} PC`;
+            if (isFirst) tpName = "START";
+            else if (isLast) tpName = "FINISH";
+            
+            return {
+              race_id: selectedRaceId,
+              name: tpName,
+              notes: item.description,
+              point_order: maxTpOrder + index + 1,
+              latitude: item.latitude,
+              longitude: item.longitude,
+            };
+          });
+
+        // Only insert timing_points that don't already exist
+        const timingPointsToInsert = timingPointCandidates.filter(tp => !existingTpNames.has(tp.name));
+
+        let createdTimingPoints: TimingPoint[] = [];
+        if (timingPointsToInsert.length > 0) {
+          const { data: tpData, error: tpError } = await supabase
+            .from("timing_points")
+            .insert(timingPointsToInsert)
+            .select();
+
+          if (tpError) {
+            console.error("Error creating timing points:", tpError);
+          } else {
+            createdTimingPoints = tpData || [];
+          }
+        }
+
+        // Create a map from description to timing_point_id (existing + new)
+        const tpMap = new Map<string, string>(existingTpMap);
+        createdTimingPoints.forEach(tp => {
+          if (tp.notes) tpMap.set(tp.notes, tp.id);
+          tpMap.set(tp.name, tp.id);
+        });
+
+        // Create checkpoints from items to insert with timing_point_id and checkpoint_type assigned
+        const checkpointsToInsert = itemsToInsert.map((item, index) => {
+          const isFirst = item === firstItem && !existingStartCheckpoint;
+          const isLast = item === lastItem && !existingFinishCheckpoint;
+          
+          // Tipo de checkpoint: START, FINISH o CONTROL
+          let checkpointType = "CONTROL";
+          if (isFirst) checkpointType = "START";
+          else if (isLast) checkpointType = "FINISH";
           
           return {
             race_id: selectedRaceId,
-            name: tpName,
-            notes: item.description,
-            point_order: maxTpOrder + index + 1,
+            race_distance_id: selectedDistanceId,
+            name: item.description,
+            lugar: item.via || null,
+            checkpoint_order: startOrder + index,
+            distance_km: item.km_total,
             latitude: item.latitude,
             longitude: item.longitude,
+            timing_point_id: tpMap.get(item.description) || null,
+            checkpoint_type: checkpointType,
           };
         });
 
-      // Only insert timing_points that don't already exist
-      const timingPointsToInsert = timingPointCandidates.filter(tp => !existingTpNames.has(tp.name));
+        const { error: insertError } = await supabase
+          .from("race_checkpoints")
+          .insert(checkpointsToInsert);
 
-      let createdTimingPoints: TimingPoint[] = [];
-      if (timingPointsToInsert.length > 0) {
-        const { data: tpData, error: tpError } = await supabase
-          .from("timing_points")
-          .insert(timingPointsToInsert)
-          .select();
-
-        if (tpError) {
-          console.error("Error creating timing points:", tpError);
-        } else {
-          createdTimingPoints = tpData || [];
-        }
+        if (insertError) throw insertError;
       }
-
-      // Create a map from description to timing_point_id (existing + new)
-      const tpMap = new Map<string, string>(existingTpMap);
-      createdTimingPoints.forEach(tp => {
-        if (tp.notes) tpMap.set(tp.notes, tp.id);
-        tpMap.set(tp.name, tp.id);
-      });
-
-      // Create checkpoints from roadbook items with timing_point_id and checkpoint_type assigned
-      const checkpointsToInsert = roadbookItems.map((item, index) => {
-        const isFirst = index === 0;
-        const isLast = index === roadbookItems.length - 1;
-        
-        // Tipo de checkpoint: START, FINISH o CONTROL
-        let checkpointType = "CONTROL";
-        if (isFirst) checkpointType = "START";
-        else if (isLast) checkpointType = "FINISH";
-        
-        return {
-          race_id: selectedRaceId,
-          race_distance_id: selectedDistanceId,
-          name: item.description,
-          lugar: item.via || null,
-          checkpoint_order: startOrder + index,
-          distance_km: item.km_total,
-          latitude: item.latitude,
-          longitude: item.longitude,
-          timing_point_id: tpMap.get(item.description) || null,
-          checkpoint_type: checkpointType,
-        };
-      });
-
-      const { error: insertError } = await supabase
-        .from("race_checkpoints")
-        .insert(checkpointsToInsert);
-
-      if (insertError) throw insertError;
 
       // Refresh timing points list
       await fetchTimingPoints();
 
-      const tpCount = createdTimingPoints.length;
-      const tpMsg = tpCount > 0 ? ` y ${tpCount} puntos de cronometraje` : "";
-      toast.success(`${roadbookItems.length} puntos de control${tpMsg} importados desde el rutómetro`);
+      // Build success message
+      const messages: string[] = [];
+      if (updatedStartCheckpoint) messages.push("START actualizado");
+      if (updatedFinishCheckpoint) messages.push("META actualizada");
+      if (itemsToInsert.length > 0) messages.push(`${itemsToInsert.length} checkpoint(s) importado(s)`);
+      
+      toast.success(messages.join(", ") || "Importación completada");
       fetchCheckpoints();
     } catch (error: any) {
       console.error("Error importing from roadbook:", error);
