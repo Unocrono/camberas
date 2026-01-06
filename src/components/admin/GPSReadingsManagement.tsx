@@ -64,8 +64,8 @@ interface GPSTimingReading {
     name: string;
   };
   registration?: {
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     user_id: string | null;
   };
 }
@@ -193,7 +193,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
               *,
               checkpoint:race_checkpoints(name, distance_km),
               race_distance:race_distances(name),
-              registration:registrations(guest_first_name, guest_last_name, user_id)
+              registration:registrations(first_name, last_name, user_id)
             `)
             .eq("id", payload.new.id)
             .maybeSingle();
@@ -209,7 +209,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
               const search = searchTerm.toLowerCase();
               const bibMatch = enrichedReading.bib_number.toString().includes(search);
               const nameMatch = enrichedReading.registration
-                ? `${enrichedReading.registration.guest_first_name || ""} ${enrichedReading.registration.guest_last_name || ""}`.toLowerCase().includes(search)
+                ? `${enrichedReading.registration.first_name || ""} ${enrichedReading.registration.last_name || ""}`.toLowerCase().includes(search)
                 : false;
               if (!bibMatch && !nameMatch) return;
             }
@@ -289,7 +289,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           *,
           checkpoint:race_checkpoints(name, distance_km),
           race_distance:race_distances(name),
-          registration:registrations(guest_first_name, guest_last_name, user_id)
+          registration:registrations(first_name, last_name, user_id)
         `)
         .eq("race_id", filterRaceId)
         .eq("reading_type", "gps_geofence")
@@ -318,7 +318,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
         filteredData = filteredData.filter((r) => {
           const bibMatch = r.bib_number.toString().includes(search);
           const nameMatch = r.registration
-            ? `${r.registration.guest_first_name || ""} ${r.registration.guest_last_name || ""}`.toLowerCase().includes(search)
+            ? `${r.registration.first_name || ""} ${r.registration.last_name || ""}`.toLowerCase().includes(search)
             : false;
           return bibMatch || nameMatch;
         });

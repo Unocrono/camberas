@@ -222,9 +222,8 @@ export function SplitTimesManagement({
         id,
         bib_number,
         race_distance_id,
-        user_id,
-        guest_first_name,
-        guest_last_name
+        first_name,
+        last_name
       `)
       .eq("race_id", propSelectedRaceId)
       .eq("status", "confirmed");
@@ -232,19 +231,6 @@ export function SplitTimesManagement({
     if (error) {
       toast.error("Error al cargar inscripciones");
       return;
-    }
-
-    // Fetch profiles for registered users
-    const userIds = data?.filter(r => r.user_id).map(r => r.user_id) || [];
-    let profilesMap = new Map();
-    
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name")
-        .in("id", userIds);
-      
-      profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
     }
 
     // Fetch race_results to get race_result_id for each registration
@@ -256,10 +242,7 @@ export function SplitTimesManagement({
     const resultsMap = new Map(results?.map(r => [r.registration_id, r.id]) || []);
 
     const enrichedData: Registration[] = (data || []).map(r => {
-      const profile = profilesMap.get(r.user_id);
-      const name = profile 
-        ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
-        : `${r.guest_first_name || ''} ${r.guest_last_name || ''}`.trim();
+      const name = `${r.first_name || ''} ${r.last_name || ''}`.trim();
       
       return {
         id: r.id,

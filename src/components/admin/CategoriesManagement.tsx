@@ -479,33 +479,29 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         .in("registration_id", regIds);
 
       // Also get profile data for users
-      const { data: regsWithProfiles } = await supabase
+      const { data: regsWithData } = await supabase
         .from("registrations")
         .select(`
           id,
-          guest_birth_date,
-          profiles:user_id (
-            birth_date,
-            gender
-          )
+          birth_date,
+          gender
         `)
         .eq("race_distance_id", selectedDistanceId);
 
       // Build map of registration data
       const regDataMap = new Map<string, { birthDate: string | null; gender: string | null }>();
       
-      regsWithProfiles?.forEach(reg => {
-        const profileData = reg.profiles as { birth_date: string | null; gender: string | null } | null;
-        let birthDate = reg.guest_birth_date || profileData?.birth_date || null;
-        let gender = profileData?.gender || null;
+      regsWithData?.forEach(reg => {
+        let birthDate = reg.birth_date || null;
+        let gender = reg.gender || null;
 
-        // Override with responses if available
+        // Override with responses if available (for backwards compatibility)
         const regResponses = responses?.filter(r => r.registration_id === reg.id) || [];
         regResponses.forEach(resp => {
-          if (birthDateField && resp.field_id === birthDateField.id) {
+          if (birthDateField && resp.field_id === birthDateField.id && !birthDate) {
             birthDate = resp.field_value;
           }
-          if (genderField && resp.field_id === genderField.id) {
+          if (genderField && resp.field_id === genderField.id && !gender) {
             gender = resp.field_value;
           }
         });

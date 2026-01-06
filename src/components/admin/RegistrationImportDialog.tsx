@@ -65,16 +65,22 @@ interface FormField {
   registrationField?: string; // Campo equivalente en registrations
 }
 
-// Mapeo de profile_field a campo de registrations
-// NOTA: 'gender' NO está aquí porque no existe guest_gender en registrations
-// El género se guarda en registration_responses como campo personalizado
+// Mapeo de profile_field a campo de registrations (ahora campos directos, no guest_*)
 const PROFILE_TO_REGISTRATION: Record<string, string> = {
-  'first_name': 'guest_first_name',
-  'last_name': 'guest_last_name',
-  'email': 'guest_email',
-  'phone': 'guest_phone',
-  'dni_passport': 'guest_dni_passport',
-  'birth_date': 'guest_birth_date',
+  'first_name': 'first_name',
+  'last_name': 'last_name',
+  'email': 'email',
+  'phone': 'phone',
+  'dni_passport': 'dni_passport',
+  'birth_date': 'birth_date',
+  'gender': 'gender',
+  'club': 'club',
+  'team': 'team',
+  'address': 'address',
+  'city': 'city',
+  'province': 'province',
+  'autonomous_community': 'autonomous_community',
+  'country': 'country',
 };
 
 // Campos especiales que siempre están disponibles (no dependen de registration_form_fields)
