@@ -35,7 +35,6 @@ interface RaceResult {
   registration: {
     bib_number: number | null;
     race_distance_id: string;
-    category: string | null;
     race_category: {
       id: string;
       name: string;
@@ -151,7 +150,6 @@ const RaceResults = () => {
             user_id,
             first_name,
             last_name,
-            category,
             race_category:race_categories(id, name, short_name),
             race_distance:race_distances (
               id,
@@ -262,14 +260,9 @@ const RaceResults = () => {
   };
 
   const getCategory = (result: RaceResult): string => {
-    // First priority: race_category FK (new system)
+    // First priority: race_category FK
     if (result.registration.race_category?.name) {
       return result.registration.race_category.short_name || result.registration.race_category.name;
-    }
-    
-    // Second priority: category text field (legacy)
-    if (result.registration.category) {
-      return result.registration.category;
     }
     
     // Fallback: calculate from birth_date/gender

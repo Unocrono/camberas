@@ -787,14 +787,11 @@ export function RegistrationImportDialog({
                 raceData.date
               );
               
-              // Update both race_category_id (FK) and category (text) for compatibility
+              // Update race_category_id FK
               if (categoryResult.id) {
                 await supabase
                   .from("registrations")
-                  .update({ 
-                    race_category_id: categoryResult.id,
-                    category: categoryResult.name 
-                  })
+                  .update({ race_category_id: categoryResult.id })
                   .eq("id", registration.id);
               }
             }

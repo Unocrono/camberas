@@ -30,7 +30,6 @@ interface SplitResult {
       user_id: string | null;
       first_name: string | null;
       last_name: string | null;
-      category: string | null;
       race_category: {
         id: string;
         name: string;
@@ -234,7 +233,6 @@ export default function SplitClassification() {
                 user_id,
                 first_name,
                 last_name,
-                category,
                 race_category:race_categories(id, name, short_name),
                 race_distances!inner(id, name, distance_km)
               )
@@ -339,15 +337,10 @@ export default function SplitClassification() {
   };
 
   const getCategory = (result: SplitResult) => {
-    // First priority: race_category FK (new system)
+    // First priority: race_category FK
     if (result.race_result?.registration?.race_category?.name) {
       return result.race_result.registration.race_category.short_name || 
              result.race_result.registration.race_category.name;
-    }
-    
-    // Second priority: category text field (legacy)
-    if (result.race_result?.registration?.category) {
-      return result.race_result.registration.category;
     }
     
     // Fallback: calculate from birth_date/gender
