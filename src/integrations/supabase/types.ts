@@ -1866,9 +1866,20 @@ export type Database = {
       }
       registrations: {
         Row: {
+          address: string | null
+          autonomous_community: string | null
           bib_number: number | null
+          birth_date: string | null
+          category: string | null
           chip_code: string | null
+          city: string | null
+          club: string | null
+          country: string | null
           created_at: string
+          dni_passport: string | null
+          email: string | null
+          first_name: string | null
+          gender: string | null
           guest_birth_date: string | null
           guest_dni_passport: string | null
           guest_email: string | null
@@ -1876,17 +1887,33 @@ export type Database = {
           guest_last_name: string | null
           guest_phone: string | null
           id: string
+          last_name: string | null
           payment_status: string
+          phone: string | null
+          province: string | null
           race_distance_id: string
           race_id: string
           status: string
+          team: string | null
+          tshirt_size: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          address?: string | null
+          autonomous_community?: string | null
           bib_number?: number | null
+          birth_date?: string | null
+          category?: string | null
           chip_code?: string | null
+          city?: string | null
+          club?: string | null
+          country?: string | null
           created_at?: string
+          dni_passport?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
           guest_email?: string | null
@@ -1894,17 +1921,33 @@ export type Database = {
           guest_last_name?: string | null
           guest_phone?: string | null
           id?: string
+          last_name?: string | null
           payment_status?: string
+          phone?: string | null
+          province?: string | null
           race_distance_id: string
           race_id: string
           status?: string
+          team?: string | null
+          tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          address?: string | null
+          autonomous_community?: string | null
           bib_number?: number | null
+          birth_date?: string | null
+          category?: string | null
           chip_code?: string | null
+          city?: string | null
+          club?: string | null
+          country?: string | null
           created_at?: string
+          dni_passport?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
           guest_birth_date?: string | null
           guest_dni_passport?: string | null
           guest_email?: string | null
@@ -1912,10 +1955,15 @@ export type Database = {
           guest_last_name?: string | null
           guest_phone?: string | null
           id?: string
+          last_name?: string | null
           payment_status?: string
+          phone?: string | null
+          province?: string | null
           race_distance_id?: string
           race_id?: string
           status?: string
+          team?: string | null
+          tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
         }
