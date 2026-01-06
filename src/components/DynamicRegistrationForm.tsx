@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
-
+import { getGenderCode, getGenderIdFromText } from "@/lib/genderUtils";
 interface FormField {
   id: string;
   field_name: string;
@@ -51,24 +51,36 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
     }
   }, [user, fields, profileLoaded]);
 
-  // Calculate category when birth_date or gender changes
+  // Calculate category when birth_date or gender_id changes
   useEffect(() => {
     const birthDate = formData.birth_date;
-    const gender = formData.gender;
+    // Support both gender_id (new) and gender (legacy)
+    const genderId = formData.gender_id;
+    const genderText = formData.gender;
     
-    if (birthDate && gender && raceId) {
-      calculateCategory(birthDate, gender);
+    if (birthDate && (genderId || genderText) && raceId) {
+      calculateCategory(birthDate, genderId, genderText);
     } else {
       setCalculatedCategory(null);
     }
-  }, [formData.birth_date, formData.gender, raceId]);
+  }, [formData.birth_date, formData.gender_id, formData.gender, raceId]);
 
-  const calculateCategory = async (birthDate: string, gender: string) => {
+  const calculateCategory = async (birthDate: string, genderId?: number, genderText?: string) => {
     try {
+      // Resolve gender_id from either source
+      let resolvedGenderId = genderId;
+      if (!resolvedGenderId && genderText) {
+        resolvedGenderId = getGenderIdFromText(genderText) ?? undefined;
+      }
+      
+      // Get gender code for RPC call
+      const genderCode = resolvedGenderId ? getGenderCode(resolvedGenderId) : null;
+      if (!genderCode) return;
+
       const { data, error } = await supabase.rpc('get_race_category', {
         p_race_id: raceId,
         p_birth_date: birthDate,
-        p_gender: gender
+        p_gender: genderCode
       });
       
       if (!error && data) {
@@ -362,7 +374,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
                   </Badge>
                 ) : (
                   <span className="text-muted-foreground text-sm">
-                    Introduce fecha de nacimiento y género
+                    Introduce fecha de nacimiento y sexo
                   </span>
                 )}
               </div>

@@ -68,7 +68,7 @@ const PROFILE_FIELDS = [
   { value: 'first_name', label: 'Nombre' },
   { value: 'last_name', label: 'Apellidos' },
   { value: 'phone', label: 'Teléfono' },
-  { value: 'gender', label: 'Género' },
+  { value: 'gender_id', label: 'Género' },
   { value: 'birth_date', label: 'Fecha de Nacimiento' },
   { value: 'dni_passport', label: 'DNI/Pasaporte' },
   { value: 'address', label: 'Dirección' },
