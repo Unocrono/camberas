@@ -19,8 +19,8 @@ interface RaceResult {
   status: string;
   registration: {
     bib_number: number | null;
-    guest_first_name: string | null;
-    guest_last_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
     profiles: {
       first_name: string | null;
       last_name: string | null;
@@ -49,8 +49,8 @@ export function ExportResultsButton({
   const [exporting, setExporting] = useState(false);
 
   const getRunnerName = (result: RaceResult) => {
-    const firstName = result.registration.profiles?.first_name || result.registration.guest_first_name || "";
-    const lastName = result.registration.profiles?.last_name || result.registration.guest_last_name || "";
+    const firstName = result.registration.first_name || result.registration.profiles?.first_name || "";
+    const lastName = result.registration.last_name || result.registration.profiles?.last_name || "";
     return `${firstName} ${lastName}`.trim() || `Dorsal #${result.registration.bib_number}`;
   };
 
