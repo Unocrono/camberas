@@ -1449,12 +1449,12 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                       <TableHead className="w-12">Pos</TableHead>
                       <TableHead className="w-16">Dorsal</TableHead>
                       <TableHead>Nombre</TableHead>
+                      <TableHead className="w-16">Pos G</TableHead>
                       <TableHead>Género</TableHead>
+                      <TableHead className="w-16">Pos C</TableHead>
                       <TableHead>Categoría</TableHead>
                       <TableHead>Último Paso</TableHead>
                       <TableHead>Tiempo</TableHead>
-                      <TableHead className="w-16">Pos G</TableHead>
-                      <TableHead className="w-16">Pos C</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="w-20">Acciones</TableHead>
                     </TableRow>
@@ -1488,9 +1488,11 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                           <TableCell>
                             {getRunnerName(result)}
                           </TableCell>
+                          <TableCell>{result.gender_position || '-'}</TableCell>
                           <TableCell>
                             {getRunnerGender(result)}
                           </TableCell>
+                          <TableCell>{result.category_position || '-'}</TableCell>
                           <TableCell>
                             <Badge variant="secondary">{getRunnerCategory(result)}</Badge>
                           </TableCell>
@@ -1509,8 +1511,6 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                           <TableCell className="font-mono">
                             {formatTime(result.finish_time)}
                           </TableCell>
-                          <TableCell>{result.gender_position || '-'}</TableCell>
-                          <TableCell>{result.category_position || '-'}</TableCell>
                           <TableCell>{getStatusBadge(result.status)}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
