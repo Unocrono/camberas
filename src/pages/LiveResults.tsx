@@ -266,8 +266,18 @@ export default function LiveResults() {
   // Checkpoints filtered by selected distance
   const filteredCheckpoints = useMemo(() => {
     if (selectedDistance === "all") return checkpoints;
-    // Include checkpoints that belong to the selected distance OR have no distance assigned (shared)
-    return checkpoints.filter(cp => cp.race_distance_id === selectedDistance || cp.race_distance_id === null);
+    
+    // First, try to find checkpoints for the selected distance
+    const distanceCheckpoints = checkpoints.filter(cp => cp.race_distance_id === selectedDistance);
+    
+    // If there are checkpoints for this distance, return them plus shared ones (null)
+    if (distanceCheckpoints.length > 0) {
+      const sharedCheckpoints = checkpoints.filter(cp => cp.race_distance_id === null);
+      return [...distanceCheckpoints, ...sharedCheckpoints].sort((a, b) => a.checkpoint_order - b.checkpoint_order);
+    }
+    
+    // If no specific checkpoints for this distance, return all checkpoints (they might be shared across all distances)
+    return checkpoints;
   }, [checkpoints, selectedDistance]);
 
   // Results filtered by checkpoint for Intermedios tab - classification at that checkpoint
