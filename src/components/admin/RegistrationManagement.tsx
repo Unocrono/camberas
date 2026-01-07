@@ -143,7 +143,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   
   // Filters
   const [selectedRace, setSelectedRace] = useState<string>("all");
-  const [selectedDistance, setSelectedDistance] = useState<string>("all");
+  const [selectedDistance, setSelectedDistance] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -808,25 +808,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
   };
 
-  const fetchCategories = async (raceId: string) => {
-    // Fetch all race_distance_ids for this race
-    const { data: distancesData } = await supabase
-      .from("race_distances")
-      .select("id")
-      .eq("race_id", raceId);
-    
-    if (!distancesData || distancesData.length === 0) {
-      setCategories([]);
-      return;
-    }
-
-    const distanceIds = distancesData.map(d => d.id);
-    
+  const fetchCategories = async (distanceId: string) => {
     // Fetch categories by race_distance_id (categories are per event, not per race)
     const { data } = await supabase
       .from("race_categories")
       .select("*")
-      .in("race_distance_id", distanceIds)
+      .eq("race_distance_id", distanceId)
       .order("display_order");
     setCategories(data || []);
   };
@@ -849,14 +836,22 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   useEffect(() => {
     if (selectedRace && selectedRace !== "all") {
       fetchDistancesForRace(selectedRace);
-      fetchCategories(selectedRace);
       fetchFormFieldsAndResponses(selectedRace);
     } else {
       setDistances([]);
-      setSelectedDistance("all");
+      setSelectedDistance("");
       setCategories([]);
     }
   }, [selectedRace]);
+
+  // Load categories when distance changes
+  useEffect(() => {
+    if (selectedDistance) {
+      fetchCategories(selectedDistance);
+    } else {
+      setCategories([]);
+    }
+  }, [selectedDistance]);
 
   useEffect(() => {
     if (formData.race_id) {
@@ -871,8 +866,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       .from("race_distances")
       .select("id, name, distance_km, race_id")
       .eq("race_id", raceId)
-      .order("distance_km");
+      .order("display_order");
     setDistances(data || []);
+    // Auto-select first distance
+    if (data && data.length > 0) {
+      setSelectedDistance(data[0].id);
+    }
   };
 
   const fetchFormDistances = async (raceId: string) => {
@@ -994,7 +993,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       filtered = filtered.filter((reg) => reg.race.id === selectedRace);
     }
 
-    if (selectedDistance !== "all") {
+    if (selectedDistance) {
       filtered = filtered.filter((reg) => reg.race_distance.id === selectedDistance);
     }
 
@@ -1399,7 +1398,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         raceId={selectedRaceId || (selectedRace !== "all" ? selectedRace : "")}
-        distanceId={selectedDistance !== "all" ? selectedDistance : undefined}
+        distanceId={selectedDistance || undefined}
         onImportComplete={fetchData}
       />
 
@@ -1417,10 +1416,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               <Label>Recorrido</Label>
               <Select value={selectedDistance} onValueChange={setSelectedDistance} disabled={!selectedRace || selectedRace === "all"}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Todos los recorridos" />
+                  <SelectValue placeholder="Selecciona un recorrido" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Todos los recorridos</SelectItem>
                   {distances.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
                       {d.name} ({d.distance_km}km)
@@ -2316,9 +2314,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories
-                    .filter((cat) => cat.race_distance_id === selectedDistance || (!cat.race_distance_id && selectedDistance !== "all"))
-                    .map((cat) => (
+                  {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
                     ))}
                 </SelectContent>
