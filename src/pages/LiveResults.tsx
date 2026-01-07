@@ -266,7 +266,8 @@ export default function LiveResults() {
   // Checkpoints filtered by selected distance
   const filteredCheckpoints = useMemo(() => {
     if (selectedDistance === "all") return checkpoints;
-    return checkpoints.filter(cp => cp.race_distance_id === selectedDistance);
+    // Include checkpoints that belong to the selected distance OR have no distance assigned (shared)
+    return checkpoints.filter(cp => cp.race_distance_id === selectedDistance || cp.race_distance_id === null);
   }, [checkpoints, selectedDistance]);
 
   // Results filtered by checkpoint for Intermedios tab - classification at that checkpoint
