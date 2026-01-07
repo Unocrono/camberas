@@ -19,7 +19,7 @@ Este documento define la terminología profesional de cronometraje deportivo y l
 | **Split / Paso** | `split_times` | Tiempo intermedio en un punto de control |
 | **Checkpoint / Control** | `race_checkpoints` | Punto de medición de tiempos intermedios |
 | **Resultado** | `race_results` | Tiempo final y clasificación del participante |
-| **Categoría** | - (calculado) | Grupo de edad/género para clasificación |
+| **Categoría** | `race_categories` (por evento) | Grupo de edad/género para clasificación, referenciado por `race_distance_id` |
 | **Sexo** | - (calculado) | Grupo de  género para clasificación |
 | **Clasificación** | `overall_position`, `category_position` , `gender_position`| Posición en general, por categoría o por sexo |
 | **DNF** | Did Not Finish | No terminó - Abandonó durante la carrera |
@@ -39,6 +39,7 @@ Este documento define la terminología profesional de cronometraje deportivo y l
   - Límite de participantes
   - Rango de dorsales asignados
   - Puntos de control específicos
+  - **Categorías propias** (`race_categories.race_distance_id`)
 
 #### 2. **Dorsales (Bib Numbers)**
 - Identificador único visual del corredor
