@@ -21,6 +21,7 @@ import { ShareResultsButton } from "@/components/results/ShareResultsButton";
 import { ExportResultsButton } from "@/components/results/ExportResultsButton";
 import { ResultCard } from "@/components/results/ResultCard";
 import { YouTubeVideoModal } from "@/components/YouTubeVideoModal";
+import { RunnerDetailModal } from "@/components/results/RunnerDetailModal";
 
 interface RaceResult {
   id: string;
@@ -37,6 +38,8 @@ interface RaceResult {
     first_name: string | null;
     last_name: string | null;
     gender_id: number | null;
+    club: string | null;
+    team: string | null;
     race_category: {
       id: string;
       name: string;
@@ -112,6 +115,9 @@ interface SplitTime {
   checkpoint_order: number;
   split_time: string;
   distance_km: number;
+  overall_position?: number | null;
+  gender_position?: number | null;
+  category_position?: number | null;
 }
 
 interface TimingReading {
@@ -170,6 +176,10 @@ export default function LiveResults() {
     formattedTime: string;
     errorText: string;
   } | null>(null);
+
+  // Runner detail modal state
+  const [runnerModalOpen, setRunnerModalOpen] = useState(false);
+  const [selectedRunner, setSelectedRunner] = useState<RaceResult | null>(null);
 
   // Resolve race ID from slug or direct ID
   useEffect(() => {
@@ -425,10 +435,10 @@ export default function LiveResults() {
         
         const [regResults, splitResults, respResults, fieldsData] = await Promise.all([
           Promise.all(regBatches.map(batch => 
-            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, gender_id, race_distance_id, race_category:race_categories(id, name, short_name)").in("id", batch)
+            supabase.from("registrations").select("id, bib_number, user_id, first_name, last_name, gender_id, race_distance_id, club, team, race_category:race_categories(id, name, short_name)").in("id", batch)
           )),
           Promise.all(resultBatches.map(batch => 
-            supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km").in("race_result_id", batch).order("checkpoint_order")
+            supabase.from("split_times").select("id, race_result_id, checkpoint_id, checkpoint_name, checkpoint_order, split_time, distance_km, overall_position, gender_position, category_position").in("race_result_id", batch).order("checkpoint_order")
           )),
           Promise.all(regBatches.map(batch => 
             supabase.from("registration_responses").select("registration_id, field_id, field_value").in("registration_id", batch)
@@ -685,10 +695,17 @@ export default function LiveResults() {
   };
 
   const getClub = (result: RaceResult) => {
-    // First check responses (custom form fields), then profiles
-    return result.registration.responses?.club || 
-           result.registration.responses?.team ||
+    // First check registration direct fields, then responses, then profiles
+    return result.registration.club || 
+           result.registration.responses?.club || 
            result.registration.profiles?.club || 
+           "";
+  };
+
+  const getTeam = (result: RaceResult) => {
+    // First check registration direct fields, then responses, then profiles
+    return result.registration.team || 
+           result.registration.responses?.team ||
            result.registration.profiles?.team || 
            "";
   };
@@ -1002,10 +1019,16 @@ export default function LiveResults() {
                           </TableCell>
                           <TableCell className="hidden md:table-cell text-center font-mono">{result.registration.bib_number}</TableCell>
                           <TableCell>
-                            <div className="font-medium">
+                            <button 
+                              className="text-left font-medium hover:text-primary hover:underline cursor-pointer transition-colors"
+                              onClick={() => {
+                                setSelectedRunner(result);
+                                setRunnerModalOpen(true);
+                              }}
+                            >
                               {getRunnerName(result)} 
                               <span className="md:hidden text-muted-foreground"> #{result.registration.bib_number}</span>
-                            </div>
+                            </button>
                             <div className="text-xs text-muted-foreground md:hidden">
                               {getCategory(result)}
                             </div>
@@ -1554,6 +1577,41 @@ export default function LiveResults() {
         checkpointName={youtubeVideoData?.checkpointName}
         formattedTime={youtubeVideoData?.formattedTime}
         errorText={youtubeVideoData?.errorText}
+      />
+
+      {/* Runner Detail Modal */}
+      <RunnerDetailModal
+        open={runnerModalOpen}
+        onOpenChange={setRunnerModalOpen}
+        runner={selectedRunner ? {
+          bibNumber: selectedRunner.registration.bib_number,
+          name: getRunnerName(selectedRunner),
+          category: getCategory(selectedRunner),
+          gender: getGender(selectedRunner),
+          club: getClub(selectedRunner),
+          team: getTeam(selectedRunner),
+          status: selectedRunner.status,
+          finishTime: selectedRunner.finish_time,
+          overallPosition: selectedRunner.overall_position,
+          categoryPosition: selectedRunner.category_position,
+          genderPosition: selectedRunner.gender_position,
+          distanceName: selectedRunner.registration.race_distances?.name || '',
+          splitTimes: selectedRunner.split_times || []
+        } : null}
+        totals={{
+          finishers: sortedResults.filter(r => r.status === 'FIN').length,
+          categoryFinishers: sortedResults.filter(r => 
+            r.status === 'FIN' && 
+            r.registration.race_category?.id === selectedRunner?.registration.race_category?.id
+          ).length,
+          genderFinishers: sortedResults.filter(r => 
+            r.status === 'FIN' && 
+            getGender(r) === (selectedRunner ? getGender(selectedRunner) : '')
+          ).length
+        }}
+        checkpoints={filteredCheckpoints}
+        wave={selectedRunner ? waves.find(w => w.race_distance_id === selectedRunner.registration.race_distances?.id) || null : null}
+        onYoutubeClick={handleYoutubeClick}
       />
     </div>
   );
