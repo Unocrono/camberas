@@ -681,38 +681,11 @@ export default function LiveResults() {
   };
 
   const getCategory = (result: RaceResult) => {
-    // First priority: race_category FK
+    // Use race_category FK - this is the source of truth
     if (result.registration.race_category?.name) {
       return result.registration.race_category.short_name || result.registration.race_category.name;
     }
-    
-    // Second: check if category is stored in responses
-    if (result.registration.responses?.category) {
-      return result.registration.responses.category;
-    }
-    if (result.registration.responses?.category) {
-      return result.registration.responses.category;
-    }
-    
-    // Fallback: calculate from birth_date/gender
-    const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
-    const birthDate = result.registration.responses?.birth_date || result.registration.profiles?.birth_date;
-    
-    if (!birthDate || !gender) return "-";
-    
-    const raceDate = race?.date ? new Date(race.date) : new Date();
-    const birth = new Date(birthDate);
-    const age = Math.floor((raceDate.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    
-    const normalizedGender = gender?.toLowerCase();
-    const genderPrefix = (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino') ? 'M' : 'F';
-    
-    if (age < 20) return `${genderPrefix}-JUN`;
-    if (age < 35) return `${genderPrefix}-SEN`;
-    if (age < 45) return `${genderPrefix}-VA`;
-    if (age < 55) return `${genderPrefix}-VB`;
-    if (age < 65) return `${genderPrefix}-VC`;
-    return `${genderPrefix}-VD`;
+    return "-";
   };
 
   const getGender = (result: RaceResult) => {

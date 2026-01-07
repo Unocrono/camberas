@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw } from "lucide-react";
-import { calculateCategoryByAge, formatCategoryWithGender, RaceCategory } from "@/lib/categoryUtils";
+import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
@@ -692,29 +692,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         const matchedCategory = calculateCategoryByAge(birthDate, raceCategoriesForCalc, raceDate);
         
         if (matchedCategory) {
-          const categoryName = formatCategoryWithGender(
-            matchedCategory.short_name || matchedCategory.name,
-            gender
-          );
-
-          // Find category field for this distance
-          const categoryField = formFields.find(
-            f => f.race_distance_id === reg.race_distance_id && 
-                 (f.profile_field === 'category' || f.field_name === 'category')
-          );
-
-          if (categoryField) {
-            await supabase
-              .from("registration_responses")
-              .upsert({
-                registration_id: regId,
-                field_id: categoryField.id,
-                field_value: categoryName
-              }, { onConflict: 'registration_id,field_id' });
-            updated++;
-          } else {
-            skipped++;
-          }
+          // Update race_category_id directly on registrations table
+          await supabase
+            .from("registrations")
+            .update({ race_category_id: matchedCategory.id })
+            .eq("id", regId);
+          updated++;
         } else {
           skipped++;
         }
