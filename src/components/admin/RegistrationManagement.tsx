@@ -237,6 +237,18 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const isAllSelected = paginatedRegistrations.length > 0 && selectedRows.size === paginatedRegistrations.length;
   const isSomeSelected = selectedRows.size > 0 && selectedRows.size < paginatedRegistrations.length;
 
+  // Helper to get category short_name from race_category_id
+  const getCategoryShortName = (reg: Registration): string => {
+    if (reg.race_category_id) {
+      const cat = categories.find(c => c.id === reg.race_category_id);
+      if (cat) {
+        return cat.short_name || cat.name || "";
+      }
+    }
+    // Fallback to registration_responses
+    return getResponseValue(reg.id, 'category') || "";
+  };
+
   // Unique values for column filters
   const uniqueGenders = useMemo(() => {
     const genders = new Set<string>();
@@ -250,11 +262,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
     registrations.forEach(reg => {
-      const category = getResponseValue(reg.id, 'category') || "";
+      const category = getCategoryShortName(reg);
       if (category) cats.add(category);
     });
     return Array.from(cats).sort();
-  }, [registrations, registrationResponses]);
+  }, [registrations, registrationResponses, categories]);
 
   const uniqueClubs = useMemo(() => {
     const clubs = new Set<string>();
@@ -973,7 +985,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
     if (filterCategory !== "all") {
       filtered = filtered.filter((reg) => {
-        const category = getResponseValue(reg.id, 'category') || "";
+        const category = getCategoryShortName(reg);
         return category === filterCategory;
       });
     }
@@ -1713,7 +1725,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     
                     // Get values from registration_responses
                     const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
-                    const category = getResponseValue(reg.id, 'category') || "";
+                    const category = getCategoryShortName(reg);
                     const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
                     const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
                     const country = getResponseValue(reg.id, 'country') || reg.profiles?.country || "";
