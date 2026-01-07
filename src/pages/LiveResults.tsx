@@ -265,18 +265,25 @@ export default function LiveResults() {
 
   // Checkpoints filtered by selected distance
   const filteredCheckpoints = useMemo(() => {
+    console.log('[DEBUG] filteredCheckpoints - selectedDistance:', selectedDistance);
+    console.log('[DEBUG] filteredCheckpoints - all checkpoints:', checkpoints.map(cp => ({ id: cp.id, name: cp.name, race_distance_id: cp.race_distance_id })));
+    
     if (selectedDistance === "all") return checkpoints;
     
     // First, try to find checkpoints for the selected distance
     const distanceCheckpoints = checkpoints.filter(cp => cp.race_distance_id === selectedDistance);
+    console.log('[DEBUG] filteredCheckpoints - distanceCheckpoints found:', distanceCheckpoints.length);
     
     // If there are checkpoints for this distance, return them plus shared ones (null)
     if (distanceCheckpoints.length > 0) {
       const sharedCheckpoints = checkpoints.filter(cp => cp.race_distance_id === null);
-      return [...distanceCheckpoints, ...sharedCheckpoints].sort((a, b) => a.checkpoint_order - b.checkpoint_order);
+      const result = [...distanceCheckpoints, ...sharedCheckpoints].sort((a, b) => a.checkpoint_order - b.checkpoint_order);
+      console.log('[DEBUG] filteredCheckpoints - returning:', result.map(cp => cp.name));
+      return result;
     }
     
     // If no specific checkpoints for this distance, return all checkpoints (they might be shared across all distances)
+    console.log('[DEBUG] filteredCheckpoints - no specific checkpoints, returning all');
     return checkpoints;
   }, [checkpoints, selectedDistance]);
 
