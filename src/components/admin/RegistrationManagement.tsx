@@ -634,11 +634,20 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       return;
     }
 
-    // Get all age-dependent categories for this race
+    if (!selectedDistance) {
+      toast({
+        title: "Error",
+        description: "Selecciona un recorrido primero",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Get all age-dependent categories for this distance (categories are per event)
     const { data: raceCategories } = await supabase
       .from("race_categories")
       .select("*")
-      .eq("race_id", raceId)
+      .eq("race_distance_id", selectedDistance)
       .eq("age_dependent", true);
 
     if (!raceCategories || raceCategories.length === 0) {
