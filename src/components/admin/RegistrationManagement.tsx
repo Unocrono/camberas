@@ -245,8 +245,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         return cat.short_name || cat.name || "";
       }
     }
-    // Fallback to registration_responses
-    return getResponseValue(reg.id, 'category') || "";
+    // No fallback to registration_responses - use only race_category_id
+    return "";
   };
 
   // Unique values for column filters
