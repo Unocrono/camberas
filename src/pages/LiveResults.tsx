@@ -291,10 +291,7 @@ export default function LiveResults() {
     // Use checkpoint_id first, then fall back to checkpoint_order for legacy data
     const resultsWithSplit = sortedResults
       .map(result => {
-        const split = result.split_times?.find(s => 
-          s.checkpoint_id === checkpoint.id || 
-          (!s.checkpoint_id && s.checkpoint_order === checkpoint.checkpoint_order)
-        );
+        const split = result.split_times?.find(s => s.checkpoint_id === checkpoint.id);
         return split ? { ...result, splitTime: split.split_time, splitOrder: split.checkpoint_order } : null;
       })
       .filter((r): r is RaceResult & { splitTime: string; splitOrder: number } => r !== null)
@@ -331,10 +328,7 @@ export default function LiveResults() {
       // Use checkpoint_id first, then fall back to checkpoint_order for legacy data
       return sortedResults
         .map(result => {
-          const split = result.split_times?.find(s => 
-            s.checkpoint_id === checkpoint.id || 
-            (!s.checkpoint_id && s.checkpoint_order === checkpoint.checkpoint_order)
-          );
+          const split = result.split_times?.find(s => s.checkpoint_id === checkpoint.id);
           return split ? { ...result, splitTime: split.split_time, splitOrder: split.checkpoint_order } : null;
         })
         .filter((r): r is RaceResult & { splitTime: string; splitOrder: number } => r !== null)
