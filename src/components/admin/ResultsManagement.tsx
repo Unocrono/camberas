@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff, MapPin } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import jsPDF from "jspdf";
+import { getGenderCode } from "@/lib/genderUtils";
 
 interface RaceResult {
   id: string;
@@ -27,14 +28,17 @@ interface RaceResult {
   notes: string | null;
   race_distance_id: string;
   registration: {
+    id: string;
     bib_number: number | null;
     first_name: string | null;
     last_name: string | null;
     birth_date: string | null;
     gender: string | null;
+    gender_id: number | null;
     race: { name: string; organizer_id?: string | null; date: string };
     race_distance: { name: string };
-    profiles: { first_name: string | null; last_name: string | null; gender: string | null; birth_date: string | null } | null;
+    race_category: { short_name: string | null; name: string } | null;
+    profiles: { first_name: string | null; last_name: string | null; gender: string | null; gender_id: number | null; birth_date: string | null } | null;
   };
 }
 
@@ -93,6 +97,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [splitTimesCache, setSplitTimesCache] = useState<Record<string, SplitTime[]>>({});
   const [realtimeEnabled, setRealtimeEnabled] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [lastSplitsCache, setLastSplitsCache] = useState<Record<string, { checkpoint_name: string; split_time: string } | null>>({});
   
   const [formData, setFormData] = useState({
     registration_id: "",
@@ -208,14 +213,17 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       .select(`
         *,
         registration:registrations (
+          id,
           bib_number,
           first_name,
           last_name,
           birth_date,
           gender,
+          gender_id,
           race:races (name, organizer_id, date),
           race_distance:race_distances (name),
-          profiles (first_name, last_name, gender, birth_date)
+          race_category:race_categories (short_name, name),
+          profiles (first_name, last_name, gender, gender_id, birth_date)
         )
       `)
       .eq("race_distance_id", selectedDistance)
@@ -226,7 +234,30 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     if (error) {
       toast({ title: "Error cargando resultados", description: error.message, variant: "destructive" });
     } else {
-      setResults(data as any || []);
+      const resultsData = data as any || [];
+      setResults(resultsData);
+      
+      // Fetch last split for each result
+      if (resultsData.length > 0) {
+        const resultIds = resultsData.map((r: any) => r.id);
+        const { data: splitsData } = await supabase
+          .from('split_times')
+          .select('race_result_id, checkpoint_name, split_time, checkpoint_order')
+          .in('race_result_id', resultIds)
+          .order('checkpoint_order', { ascending: false });
+        
+        if (splitsData) {
+          const lastSplits: Record<string, { checkpoint_name: string; split_time: string } | null> = {};
+          resultsData.forEach((r: any) => {
+            const lastSplit = splitsData.find(s => s.race_result_id === r.id);
+            lastSplits[r.id] = lastSplit ? { 
+              checkpoint_name: lastSplit.checkpoint_name, 
+              split_time: String(lastSplit.split_time || '') 
+            } : null;
+          });
+          setLastSplitsCache(lastSplits);
+        }
+      }
     }
     setLoading(false);
   };
@@ -482,39 +513,31 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     return `${firstName} ${lastName}`.trim() || '-';
   };
 
-  // Helper function to get runner gender
+  // Helper function to get runner gender code (M/F)
   const getRunnerGender = (result: RaceResult) => {
+    const genderId = result.registration.gender_id || result.registration.profiles?.gender_id;
+    if (genderId) {
+      return getGenderCode(genderId);
+    }
+    // Fallback to text field
     const gender = result.registration.gender || result.registration.profiles?.gender;
-    if (gender === 'Masculino' || gender === 'M' || gender === 'Male') return 'M';
-    if (gender === 'Femenino' || gender === 'F' || gender === 'Female') return 'F';
+    if (gender === 'Masculino' || gender === 'M' || gender === 'Male' || gender === 'Hombre') return 'M';
+    if (gender === 'Femenino' || gender === 'F' || gender === 'Female' || gender === 'Mujer') return 'F';
     return '-';
   };
 
-  // Helper function to calculate category
+  // Helper function to get runner category short_name
   const getRunnerCategory = (result: RaceResult) => {
-    const birthDate = result.registration.birth_date || result.registration.profiles?.birth_date;
-    const raceDate = result.registration.race?.date;
-    const gender = result.registration.gender || result.registration.profiles?.gender;
-    
-    if (!birthDate || !raceDate) return '-';
-    
-    const birth = new Date(birthDate);
-    const race = new Date(raceDate);
-    const age = Math.floor((race.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    
-    let genderPrefix = 'X';
-    if (gender === 'Masculino' || gender === 'M' || gender === 'Male') genderPrefix = 'M';
-    else if (gender === 'Femenino' || gender === 'F' || gender === 'Female') genderPrefix = 'F';
-    
-    let category = '';
-    if (age < 20) category = 'Junior';
-    else if (age <= 34) category = 'Senior';
-    else if (age <= 44) category = 'VetA';
-    else if (age <= 54) category = 'VetB';
-    else if (age <= 64) category = 'VetC';
-    else category = 'VetD';
-    
-    return `${genderPrefix}-${category}`;
+    const category = result.registration.race_category;
+    if (category) {
+      return category.short_name || category.name || '-';
+    }
+    return '-';
+  };
+
+  // Helper function to get last checkpoint info
+  const getLastCheckpoint = (resultId: string) => {
+    return lastSplitsCache[resultId] || null;
   };
 
   const filteredResults = results.filter(result => {
@@ -1428,6 +1451,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                       <TableHead>Nombre</TableHead>
                       <TableHead>Género</TableHead>
                       <TableHead>Categoría</TableHead>
+                      <TableHead>Último Paso</TableHead>
                       <TableHead>Tiempo</TableHead>
                       <TableHead className="w-16">Pos G</TableHead>
                       <TableHead className="w-16">Pos C</TableHead>
@@ -1436,7 +1460,9 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredResults.map((result) => (
+                    {filteredResults.map((result) => {
+                      const lastCheckpoint = getLastCheckpoint(result.id);
+                      return (
                       <>
                         <TableRow key={result.id} className="cursor-pointer hover:bg-muted/50">
                           <TableCell className="p-0">
@@ -1468,6 +1494,18 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                           <TableCell>
                             <Badge variant="secondary">{getRunnerCategory(result)}</Badge>
                           </TableCell>
+                          <TableCell>
+                            {lastCheckpoint ? (
+                              <div className="flex items-center gap-1 text-sm">
+                                <MapPin className="h-3 w-3 text-muted-foreground" />
+                                <span className="truncate max-w-24" title={lastCheckpoint.checkpoint_name}>
+                                  {lastCheckpoint.checkpoint_name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
+                          </TableCell>
                           <TableCell className="font-mono">
                             {formatTime(result.finish_time)}
                           </TableCell>
@@ -1497,7 +1535,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                           <SplitTimesRow resultId={result.id} />
                         )}
                       </>
-                    ))}
+                    );})}
                   </TableBody>
                 </Table>
               </div>
