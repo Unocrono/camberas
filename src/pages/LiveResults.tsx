@@ -716,25 +716,25 @@ export default function LiveResults() {
   };
 
   const getGender = (result: RaceResult) => {
-    // Use gender_id first (new system)
+    // Use gender_id first (new system) - always return M/F/X
     const genderId = result.registration.gender_id || result.registration.profiles?.gender_id;
     if (genderId) {
       switch (genderId) {
-        case 1: return 'Hombre';
-        case 2: return 'Mujer';
-        case 3: return 'Mixto';
+        case 1: return 'M';
+        case 2: return 'F';
+        case 3: return 'X';
         default: return '-';
       }
     }
     
-    // Fallback to text (legacy)
+    // Fallback to text (legacy) - normalize to M/F
     const gender = result.registration.responses?.gender || result.registration.profiles?.gender;
     if (!gender) return '-';
     
     const normalizedGender = gender?.toLowerCase();
-    if (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino') return 'Hombre';
-    if (normalizedGender === 'f' || normalizedGender === 'female' || normalizedGender === 'femenino') return 'Mujer';
-    return gender;
+    if (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino' || normalizedGender === 'hombre') return 'M';
+    if (normalizedGender === 'f' || normalizedGender === 'female' || normalizedGender === 'femenino' || normalizedGender === 'mujer') return 'F';
+    return '-';
   };
 
   const getReadingRunnerName = (reading: TimingReading) => {

@@ -30,6 +30,7 @@ interface SplitResult {
       user_id: string | null;
       first_name: string | null;
       last_name: string | null;
+      gender_id: number | null;
       race_category: {
         id: string;
         name: string;
@@ -39,6 +40,7 @@ interface SplitResult {
         first_name: string | null;
         last_name: string | null;
         gender: string | null;
+        gender_id: number | null;
         club: string | null;
         team: string | null;
         birth_date: string | null;
@@ -233,6 +235,7 @@ export default function SplitClassification() {
                 user_id,
                 first_name,
                 last_name,
+                gender_id,
                 race_category:race_categories(id, name, short_name),
                 race_distances!inner(id, name, distance_km)
               )
@@ -248,7 +251,7 @@ export default function SplitClassification() {
           if (userIds.length > 0) {
             const { data: profilesData } = await supabase
               .from("profiles")
-              .select("id, first_name, last_name, gender, club, team, birth_date")
+              .select("id, first_name, last_name, gender, gender_id, club, team, birth_date")
               .in("id", userIds);
             profilesMap = new Map(profilesData?.map(p => [p.id, p]));
           }
@@ -362,9 +365,22 @@ export default function SplitClassification() {
   };
 
   const getGender = (result: SplitResult) => {
+    // Use gender_id first if available
+    const genderId = result.race_result?.registration?.gender_id || result.race_result?.registration?.profiles?.gender_id;
+    if (genderId) {
+      switch (genderId) {
+        case 1: return 'M';
+        case 2: return 'F';
+        case 3: return 'X';
+        default: return '-';
+      }
+    }
+    // Fallback to text
     const g = result.race_result?.registration?.profiles?.gender;
-    if (g === 'Masculino' || g === 'M') return 'H';
-    if (g === 'Femenino' || g === 'F') return 'M';
+    if (!g) return '-';
+    const normalized = g.toLowerCase();
+    if (normalized === 'm' || normalized === 'masculino' || normalized === 'male' || normalized === 'hombre') return 'M';
+    if (normalized === 'f' || normalized === 'femenino' || normalized === 'female' || normalized === 'mujer') return 'F';
     return '-';
   };
 

@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { getGenderName } from "@/lib/genderUtils";
+import { getGenderCode } from "@/lib/genderUtils";
 
 interface GenderCategoryDistributionProps {
   raceId: string;
@@ -37,9 +37,9 @@ export function GenderCategoryDistribution({ raceId }: GenderCategoryDistributio
         const genderMap = new Map<string, number>();
 
         registrations?.forEach(reg => {
-          // Use gender_id to get the display name
-          const genderName = getGenderName(reg.gender_id);
-          genderMap.set(genderName, (genderMap.get(genderName) || 0) + 1);
+          // Use gender_id to get the code (M/F/X)
+          const genderCode = getGenderCode(reg.gender_id);
+          genderMap.set(genderCode, (genderMap.get(genderCode) || 0) + 1);
         });
 
         const result: GenderData[] = Array.from(genderMap.entries())
@@ -75,8 +75,8 @@ export function GenderCategoryDistribution({ raceId }: GenderCategoryDistributio
   const total = genderData.reduce((sum, d) => sum + d.count, 0);
 
   const getGenderColor = (gender: string) => {
-    if (gender === "Masculino") return "bg-blue-500/10 text-blue-700 border-blue-200";
-    if (gender === "Femenino") return "bg-pink-500/10 text-pink-700 border-pink-200";
+    if (gender === "M") return "bg-blue-500/10 text-blue-700 border-blue-200";
+    if (gender === "F") return "bg-pink-500/10 text-pink-700 border-pink-200";
     return "bg-muted text-muted-foreground";
   };
 
