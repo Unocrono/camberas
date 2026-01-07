@@ -17,12 +17,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import jsPDF from "jspdf";
+import { RunnerDetailModal } from "@/components/results/RunnerDetailModal";
 
 interface SplitTime {
   checkpoint_name: string;
   checkpoint_order: number;
   split_time: string;
   distance_km: number;
+  overall_position?: number | null;
+  gender_position?: number | null;
+  category_position?: number | null;
 }
 
 interface RaceResult {
@@ -36,6 +40,8 @@ interface RaceResult {
     bib_number: number | null;
     race_distance_id: string;
     gender_id: number | null;
+    club: string | null;
+    team: string | null;
     race_category: {
       id: string;
       name: string;
@@ -82,6 +88,8 @@ const RaceResults = () => {
   const [distances, setDistances] = useState<any[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [runnerModalOpen, setRunnerModalOpen] = useState(false);
+  const [selectedRunner, setSelectedRunner] = useState<RaceResult | null>(null);
   
   // Filters from URL params
   const selectedDistance = searchParams.get("event") || "all";
@@ -153,6 +161,8 @@ const RaceResults = () => {
             first_name,
             last_name,
             gender_id,
+            club,
+            team,
             race_category:race_categories(id, name, short_name),
             race_distance:race_distances (
               id,
@@ -182,7 +192,7 @@ const RaceResults = () => {
       if (resultIds.length > 0) {
         const { data: splitsData } = await supabase
           .from("split_times")
-          .select("race_result_id, checkpoint_name, checkpoint_order, split_time, distance_km")
+          .select("race_result_id, checkpoint_name, checkpoint_order, split_time, distance_km, overall_position, gender_position, category_position")
           .in("race_result_id", resultIds)
           .order("checkpoint_order", { ascending: true });
 
@@ -666,8 +676,16 @@ const RaceResults = () => {
                         <TableCell className="font-mono">
                           {result.registration.bib_number}
                         </TableCell>
-                        <TableCell className="font-medium text-primary">
-                          {getRunnerName(result)}
+                        <TableCell className="font-medium">
+                          <button
+                            onClick={() => {
+                              setSelectedRunner(result);
+                              setRunnerModalOpen(true);
+                            }}
+                            className="text-primary hover:underline text-left"
+                          >
+                            {getRunnerName(result)}
+                          </button>
                         </TableCell>
                         <TableCell className="text-sm">
                           {result.registration.profiles?.club || "-"}
@@ -766,6 +784,54 @@ const RaceResults = () => {
       </div>
 
       <Footer />
+
+      {/* Runner Detail Modal */}
+      <RunnerDetailModal
+        open={runnerModalOpen}
+        onOpenChange={(open) => {
+          setRunnerModalOpen(open);
+          if (!open) setSelectedRunner(null);
+        }}
+        runner={selectedRunner ? {
+          bibNumber: selectedRunner.registration.bib_number,
+          name: getRunnerName(selectedRunner),
+          distanceName: selectedRunner.registration.race_distance?.name || '',
+          category: selectedRunner.registration.race_category?.short_name || selectedRunner.registration.race_category?.name || '-',
+          gender: getGender(selectedRunner),
+          club: selectedRunner.registration.club || selectedRunner.registration.profiles?.club || '-',
+          team: selectedRunner.registration.team || '-',
+          status: selectedRunner.status,
+          finishTime: selectedRunner.finish_time,
+          overallPosition: selectedRunner.overall_position,
+          categoryPosition: selectedRunner.category_position,
+          genderPosition: selectedRunner.gender_position,
+          splitTimes: selectedRunner.split_times?.map(st => ({
+            id: st.checkpoint_name,
+            checkpoint_name: st.checkpoint_name,
+            checkpoint_order: st.checkpoint_order,
+            distance_km: st.distance_km,
+            split_time: st.split_time,
+            overall_position: st.overall_position,
+            gender_position: st.gender_position,
+            category_position: st.category_position,
+          })) || [],
+        } : null}
+        checkpoints={checkpoints.map(cp => ({
+          ...cp,
+          checkpoint_type: 'intermediate',
+          youtube_video_id: null,
+          youtube_enabled: false,
+        }))}
+        totals={{
+          finishers: filteredResults.filter(r => r.status === 'finished').length,
+          categoryFinishers: selectedRunner ? filteredResults.filter(r => r.status === 'finished' && 
+            (r.registration.race_category?.short_name || r.registration.race_category?.name) === 
+            (selectedRunner.registration.race_category?.short_name || selectedRunner.registration.race_category?.name)
+          ).length : 0,
+          genderFinishers: selectedRunner ? filteredResults.filter(r => r.status === 'finished' && getGender(r) === getGender(selectedRunner)).length : 0,
+        }}
+        wave={null}
+      />
     </div>
   );
 };
