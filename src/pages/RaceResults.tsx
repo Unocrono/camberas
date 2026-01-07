@@ -35,6 +35,7 @@ interface RaceResult {
   registration: {
     bib_number: number | null;
     race_distance_id: string;
+    gender_id: number | null;
     race_category: {
       id: string;
       name: string;
@@ -50,6 +51,7 @@ interface RaceResult {
       first_name: string | null;
       last_name: string | null;
       gender: string | null;
+      gender_id: number | null;
       club: string | null;
       birth_date: string | null;
     } | null;
@@ -150,6 +152,7 @@ const RaceResults = () => {
             user_id,
             first_name,
             last_name,
+            gender_id,
             race_category:race_categories(id, name, short_name),
             race_distance:race_distances (
               id,
@@ -160,6 +163,7 @@ const RaceResults = () => {
               first_name,
               last_name,
               gender,
+              gender_id,
               club,
               birth_date
             )
@@ -295,11 +299,23 @@ const RaceResults = () => {
   };
 
   const getGender = (result: RaceResult): string => {
+    // Use gender_id first if available
+    const genderId = result.registration.gender_id || result.registration.profiles?.gender_id;
+    if (genderId) {
+      switch (genderId) {
+        case 1: return 'M';
+        case 2: return 'F';
+        case 3: return 'X';
+        default: return '-';
+      }
+    }
+    // Fallback to text
     const gender = result.registration.profiles?.gender;
     if (!gender) return "-";
-    if (gender === "male" || gender === "M") return "H";
-    if (gender === "female" || gender === "F") return "M";
-    return gender;
+    const normalizedGender = gender.toLowerCase();
+    if (normalizedGender === 'm' || normalizedGender === 'male' || normalizedGender === 'masculino' || normalizedGender === 'hombre') return 'M';
+    if (normalizedGender === 'f' || normalizedGender === 'female' || normalizedGender === 'femenino' || normalizedGender === 'mujer') return 'F';
+    return '-';
   };
 
   // Get unique checkpoints for the selected distance (excluding Meta/finish checkpoints)
@@ -678,7 +694,7 @@ const RaceResults = () => {
                           {result.registration.profiles?.club || "-"}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className={getGender(result) === "H" ? "text-blue-600" : "text-pink-600"}>
+                          <span className={getGender(result) === "M" ? "text-blue-600" : "text-pink-600"}>
                             {getGender(result)}
                           </span>
                         </TableCell>
