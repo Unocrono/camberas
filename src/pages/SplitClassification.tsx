@@ -153,7 +153,7 @@ export default function SplitClassification() {
       try {
         const [raceRes, distancesRes, checkpointsRes, wavesRes] = await Promise.all([
           supabase.from("races").select("id, name, date, location, logo_url").eq("id", raceId).single(),
-          supabase.from("race_distances").select("id, name, distance_km").eq("race_id", raceId).eq("is_visible", true).order("distance_km"),
+          supabase.from("race_distances").select("id, name, distance_km, display_order").eq("race_id", raceId).eq("is_visible", true).order("display_order", { nullsFirst: false }).order("distance_km"),
           supabase.from("race_checkpoints").select("id, name, distance_km, checkpoint_order, checkpoint_type, race_distance_id, youtube_video_id, youtube_video_start_time, youtube_seconds_before, youtube_seconds_after, youtube_error_text, youtube_enabled").eq("race_id", raceId).order("checkpoint_order"),
           supabase.from("race_waves").select("id, race_distance_id, start_time").eq("race_id", raceId)
         ]);

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff, AlertTriangle, CheckCircle, Euro, Navigation } from "lucide-react";
+import { Plus, Pencil, Trash2, Route, TrendingUp, Users, Clock, MapPin, Upload, Eye, EyeOff, AlertTriangle, CheckCircle, Euro, Navigation, ArrowUp, ArrowDown, GripVertical } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
@@ -62,6 +62,7 @@ interface Distance {
   show_route_map: boolean | null;
   registration_opens: string | null;
   registration_closes: string | null;
+  display_order: number | null;
   // From race_waves join
   wave_start_time: string | null;
 }
@@ -163,6 +164,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           *,
           race_waves!race_waves_race_distance_id_fkey(start_time)
         `)
+        .order("display_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
 
       // Filter by selected race if provided
@@ -594,6 +596,52 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     } catch (error: any) {
       toast({
         title: "Error al eliminar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleMoveOrder = async (distanceId: string, direction: 'up' | 'down') => {
+    const index = distances.findIndex(d => d.id === distanceId);
+    if (index === -1) return;
+    
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= distances.length) return;
+    
+    const currentDistance = distances[index];
+    const targetDistance = distances[targetIndex];
+    
+    // Swap display_order values
+    const currentOrder = currentDistance.display_order ?? index + 1;
+    const targetOrder = targetDistance.display_order ?? targetIndex + 1;
+    
+    try {
+      // Update both distances
+      const { error: error1 } = await supabase
+        .from("race_distances")
+        .update({ display_order: targetOrder })
+        .eq("id", currentDistance.id);
+      
+      if (error1) throw error1;
+      
+      const { error: error2 } = await supabase
+        .from("race_distances")
+        .update({ display_order: currentOrder })
+        .eq("id", targetDistance.id);
+      
+      if (error2) throw error2;
+      
+      toast({
+        title: "Orden actualizado",
+        description: "El orden de los recorridos se ha actualizado",
+      });
+      
+      fetchDistances();
+      triggerRefresh('distances');
+    } catch (error: any) {
+      toast({
+        title: "Error al reordenar",
         description: error.message,
         variant: "destructive",
       });
@@ -1164,19 +1212,47 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
             <Card key={distance.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-2xl">{distance.name}</CardTitle>
-                      {!distance.is_visible && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
-                          <EyeOff className="h-3 w-3" />
-                          Oculto
-                        </span>
-                      )}
+                  <div className="flex items-start gap-3">
+                    {/* Orden buttons */}
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleMoveOrder(distance.id, 'up')}
+                        disabled={distances.indexOf(distance) === 0}
+                        title="Subir"
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleMoveOrder(distance.id, 'down')}
+                        disabled={distances.indexOf(distance) === distances.length - 1}
+                        title="Bajar"
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <CardDescription className="mt-1 text-base font-medium">
-                      {getRaceName(distance.race_id)}
-                    </CardDescription>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground font-mono">
+                          #{distance.display_order ?? '-'}
+                        </span>
+                        <CardTitle className="text-2xl">{distance.name}</CardTitle>
+                        {!distance.is_visible && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">
+                            <EyeOff className="h-3 w-3" />
+                            Oculto
+                          </span>
+                        )}
+                      </div>
+                      <CardDescription className="mt-1 text-base font-medium">
+                        {getRaceName(distance.race_id)}
+                      </CardDescription>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="icon" onClick={() => handleOpenDialog(distance)}>
