@@ -111,6 +111,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     registration_opens_time: "",
     registration_closes_date: "",
     registration_closes_time: "",
+    display_order: "",
   });
 
   const [priceRanges, setPriceRanges] = useState<PriceRange[]>([]);
@@ -274,6 +275,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         registration_opens_time: regOpens.time,
         registration_closes_date: regCloses.date,
         registration_closes_time: regCloses.time,
+        display_order: distance.display_order?.toString() || "",
       });
       setCurrentImageUrl(distance.image_url);
       setCurrentGpxUrl(distance.gpx_file_url);
@@ -306,6 +308,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         registration_opens_time: "",
         registration_closes_date: "",
         registration_closes_time: "",
+        display_order: "",
       });
       setCurrentImageUrl(null);
       setCurrentGpxUrl(null);
@@ -456,6 +459,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         show_route_map: formData.show_route_map,
         registration_opens: registrationOpens,
         registration_closes: registrationCloses,
+        display_order: formData.display_order ? parseInt(formData.display_order) : null,
       };
 
       let distanceId = editingDistance?.id;
@@ -731,17 +735,29 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   </TabsTrigger>
                 </TabsList>
 
-                {/* TAB: General */}
                 <TabsContent value="general" className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nombre del Recorrido *</Label>
-                    <Input
-                      id="name"
-                      placeholder="ej: Ultra Trail 100K"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="md:col-span-3 space-y-2">
+                      <Label htmlFor="name">Nombre del Recorrido *</Label>
+                      <Input
+                        id="name"
+                        placeholder="ej: Ultra Trail 100K"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="display_order">Orden</Label>
+                      <Input
+                        id="display_order"
+                        type="number"
+                        min="1"
+                        placeholder="1"
+                        value={formData.display_order}
+                        onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
