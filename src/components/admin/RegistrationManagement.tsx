@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw } from "lucide-react";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
+import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
@@ -249,15 +250,30 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     return "";
   };
 
+  // Helper to get gender code (M/F/X) from gender_id
+  const getGenderDisplay = (reg: Registration): string => {
+    const genderId = reg.gender_id || reg.profiles?.gender_id;
+    if (genderId) {
+      return getGenderCode(genderId);
+    }
+    // Fallback to text if no gender_id
+    const genderText = reg.gender || reg.profiles?.gender;
+    if (genderText) {
+      const resolvedId = resolveGenderId(null, genderText);
+      return resolvedId ? getGenderCode(resolvedId) : genderText;
+    }
+    return "";
+  };
+
   // Unique values for column filters
   const uniqueGenders = useMemo(() => {
     const genders = new Set<string>();
     registrations.forEach(reg => {
-      const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
+      const gender = getGenderDisplay(reg);
       if (gender) genders.add(gender);
     });
     return Array.from(genders).sort();
-  }, [registrations, registrationResponses]);
+  }, [registrations]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -271,20 +287,20 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const uniqueClubs = useMemo(() => {
     const clubs = new Set<string>();
     registrations.forEach(reg => {
-      const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
+      const club = reg.club || reg.profiles?.club || "";
       if (club) clubs.add(club);
     });
     return Array.from(clubs).sort();
-  }, [registrations, registrationResponses]);
+  }, [registrations]);
 
   const uniqueTeams = useMemo(() => {
     const teams = new Set<string>();
     registrations.forEach(reg => {
-      const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
+      const team = reg.team || reg.profiles?.team || "";
       if (team) teams.add(team);
     });
     return Array.from(teams).sort();
-  }, [registrations, registrationResponses]);
+  }, [registrations]);
 
   // Bulk action handlers
   const handleBulkDelete = async () => {
@@ -972,8 +988,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     // Column filters
     if (filterGender !== "all") {
       filtered = filtered.filter((reg) => {
-        const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
-        return gender.toLowerCase().includes(filterGender.toLowerCase());
+        const gender = getGenderDisplay(reg);
+        return gender === filterGender;
       });
     }
 
@@ -986,14 +1002,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
     if (filterClub !== "all") {
       filtered = filtered.filter((reg) => {
-        const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
+        const club = reg.club || reg.profiles?.club || "";
         return club === filterClub;
       });
     }
 
     if (filterTeam !== "all") {
       filtered = filtered.filter((reg) => {
-        const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
+        const team = reg.team || reg.profiles?.team || "";
         return team === filterTeam;
       });
     }
@@ -1717,13 +1733,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     const email = reg.email || "";
                     const phone = reg.profiles?.phone || reg.phone || "";
                     
-                    // Get values from registration_responses
-                    const gender = getResponseValue(reg.id, 'gender') || reg.profiles?.gender || "";
+                    // Get display values
+                    const gender = getGenderDisplay(reg);
                     const category = getCategoryShortName(reg);
-                    const club = getResponseValue(reg.id, 'club') || reg.profiles?.club || "";
-                    const team = getResponseValue(reg.id, 'team') || reg.profiles?.team || "";
-                    const country = getResponseValue(reg.id, 'country') || reg.profiles?.country || "";
-                    const birthDate = getResponseValue(reg.id, 'birth_date') || reg.profiles?.birth_date || reg.birth_date || "";
+                    const club = reg.club || reg.profiles?.club || "";
+                    const team = reg.team || reg.profiles?.team || "";
+                    const country = reg.country || reg.profiles?.country || "";
+                    const birthDate = reg.birth_date || reg.profiles?.birth_date || "";
                     
                     return (
                       <TableRow key={reg.id} data-state={selectedRows.has(reg.id) ? "selected" : undefined}>
