@@ -264,32 +264,11 @@ const RaceResults = () => {
   };
 
   const getCategory = (result: RaceResult): string => {
-    // First priority: race_category FK
+    // Use race_category FK - this is the source of truth
     if (result.registration.race_category?.name) {
       return result.registration.race_category.short_name || result.registration.race_category.name;
     }
-    
-    // Fallback: calculate from birth_date/gender
-    const birthDate = result.registration.profiles?.birth_date;
-    const gender = result.registration.profiles?.gender;
-    if (!birthDate || !gender) return "-";
-    
-    const birth = new Date(birthDate);
-    const raceDate = new Date(race?.date || new Date());
-    const age = raceDate.getFullYear() - birth.getFullYear();
-    
-    const genderPrefix = gender === "male" || gender === "M" ? "M" : "F";
-    
-    if (age < 20) return `${genderPrefix}-JUN`;
-    if (age < 23) return `${genderPrefix}-SUB23`;
-    if (age < 35) return `${genderPrefix}-SEN`;
-    if (age < 40) return `${genderPrefix}-M35`;
-    if (age < 45) return `${genderPrefix}-M40`;
-    if (age < 50) return `${genderPrefix}-M45`;
-    if (age < 55) return `${genderPrefix}-M50`;
-    if (age < 60) return `${genderPrefix}-M55`;
-    if (age < 65) return `${genderPrefix}-M60`;
-    return `${genderPrefix}-M65`;
+    return "-";
   };
 
   const getRunnerName = (result: RaceResult): string => {

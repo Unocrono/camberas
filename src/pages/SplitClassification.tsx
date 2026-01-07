@@ -340,28 +340,12 @@ export default function SplitClassification() {
   };
 
   const getCategory = (result: SplitResult) => {
-    // First priority: race_category FK
+    // Use race_category FK - this is the source of truth
     if (result.race_result?.registration?.race_category?.name) {
       return result.race_result.registration.race_category.short_name || 
              result.race_result.registration.race_category.name;
     }
-    
-    // Fallback: calculate from birth_date/gender
-    const gender = result.race_result?.registration?.profiles?.gender;
-    const birthDate = result.race_result?.registration?.profiles?.birth_date;
-    if (!birthDate || !gender) return "-";
-    
-    const raceDate = race?.date ? new Date(race.date) : new Date();
-    const birth = new Date(birthDate);
-    const age = Math.floor((raceDate.getTime() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
-    
-    const genderPrefix = gender === 'M' || gender === 'Masculino' ? 'M' : 'F';
-    if (age < 20) return `${genderPrefix}-JUN`;
-    if (age < 35) return `${genderPrefix}-SEN`;
-    if (age < 45) return `${genderPrefix}-VA`;
-    if (age < 55) return `${genderPrefix}-VB`;
-    if (age < 65) return `${genderPrefix}-VC`;
-    return `${genderPrefix}-VD`;
+    return "-";
   };
 
   const getGender = (result: SplitResult) => {
