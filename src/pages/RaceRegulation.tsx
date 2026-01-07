@@ -23,6 +23,11 @@ interface Race {
   location: string;
 }
 
+const isValidUUID = (str: string) => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+};
+
 const RaceRegulation = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,18 +36,54 @@ const RaceRegulation = () => {
   const [race, setRace] = useState<Race | null>(null);
   const [sections, setSections] = useState<RegulationSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [raceId, setRaceId] = useState<string | null>(null);
 
+  // Resolve race ID from slug or UUID
   useEffect(() => {
-    fetchRegulation();
+    const resolveRaceId = async () => {
+      if (!id) return;
+      
+      if (isValidUUID(id)) {
+        setRaceId(id);
+      } else {
+        // Try to find race by slug
+        const { data, error } = await supabase
+          .from("races")
+          .select("id")
+          .eq("slug", id)
+          .maybeSingle();
+        
+        if (error || !data) {
+          toast({
+            title: "Error",
+            description: "Carrera no encontrada",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+        setRaceId(data.id);
+      }
+    };
+    
+    resolveRaceId();
   }, [id]);
 
+  useEffect(() => {
+    if (raceId) {
+      fetchRegulation();
+    }
+  }, [raceId]);
+
   const fetchRegulation = async () => {
+    if (!raceId) return;
+    
     try {
       // Fetch race info
       const { data: raceData, error: raceError } = await supabase
         .from("races")
         .select("id, name, date, location")
-        .eq("id", id)
+        .eq("id", raceId)
         .single();
 
       if (raceError) throw raceError;
@@ -52,7 +93,7 @@ const RaceRegulation = () => {
       const { data: regulationData, error: regulationError } = await supabase
         .from("race_regulations")
         .select("id")
-        .eq("race_id", id)
+        .eq("race_id", raceId)
         .eq("published", true)
         .maybeSingle();
 
