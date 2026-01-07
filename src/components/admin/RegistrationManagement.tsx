@@ -849,9 +849,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   useEffect(() => {
     if (selectedRace && selectedRace !== "all") {
       fetchDistancesForRace(selectedRace);
+      fetchCategories(selectedRace);
+      fetchFormFieldsAndResponses(selectedRace);
     } else {
       setDistances([]);
       setSelectedDistance("all");
+      setCategories([]);
     }
   }, [selectedRace]);
 
