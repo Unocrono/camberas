@@ -809,10 +809,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   };
 
   const fetchCategories = async (raceId: string) => {
+    // Fetch all race_distance_ids for this race
+    const { data: distancesData } = await supabase
+      .from("race_distances")
+      .select("id")
+      .eq("race_id", raceId);
+    
+    if (!distancesData || distancesData.length === 0) {
+      setCategories([]);
+      return;
+    }
+
+    const distanceIds = distancesData.map(d => d.id);
+    
+    // Fetch categories by race_distance_id (categories are per event, not per race)
     const { data } = await supabase
       .from("race_categories")
       .select("*")
-      .eq("race_id", raceId)
+      .in("race_distance_id", distanceIds)
       .order("display_order");
     setCategories(data || []);
   };
