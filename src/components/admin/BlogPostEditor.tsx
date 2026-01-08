@@ -339,6 +339,34 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
         </div>
       )}
 
+      {/* SEO */}
+      <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+        <h3 className="font-medium text-sm text-muted-foreground">🔍 SEO (Opcional)</h3>
+        <div className="space-y-2">
+          <Label htmlFor="meta_title">Meta título (máx. 60 caracteres)</Label>
+          <Input
+            id="meta_title"
+            value={formData.meta_title}
+            onChange={(e) => setFormData({ ...formData, meta_title: e.target.value })}
+            placeholder="Título para buscadores (si vacío, usa el título del artículo)"
+            maxLength={60}
+          />
+          <p className="text-xs text-muted-foreground">{formData.meta_title.length}/60</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="meta_description">Meta descripción (máx. 160 caracteres)</Label>
+          <Textarea
+            id="meta_description"
+            value={formData.meta_description}
+            onChange={(e) => setFormData({ ...formData, meta_description: e.target.value })}
+            placeholder="Descripción para buscadores (si vacío, usa el extracto)"
+            maxLength={160}
+            rows={2}
+          />
+          <p className="text-xs text-muted-foreground">{formData.meta_description.length}/160</p>
+        </div>
+      </div>
+
       {/* Contenido */}
       <div className="space-y-2">
         <Label>Contenido (Markdown)</Label>
