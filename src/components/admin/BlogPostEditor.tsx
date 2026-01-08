@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { Json } from "@/integrations/supabase/types";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Save, Eye } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Eye, Upload, X, Image as ImageIcon } from "lucide-react";
 
 interface BlogPostEditorProps {
   postId?: string;
@@ -24,6 +24,8 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     title: "",
@@ -140,6 +142,53 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
     setTimestamps(updated);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      toast.error("Solo se permiten imágenes");
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("La imagen no puede superar 5MB");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // Generar nombre único
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `covers/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // Obtener URL pública
+      const { data: { publicUrl } } = supabase.storage
+        .from('blog-images')
+        .getPublicUrl(filePath);
+
+      setFormData({ ...formData, cover_image_url: publicUrl });
+      toast.success("Imagen subida correctamente");
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      toast.error(error.message || "Error al subir la imagen");
+    } finally {
+      setUploading(false);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -189,12 +238,69 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
 
       {/* Imagen de portada */}
       <div className="space-y-2">
-        <Label>URL Imagen de portada (1200x630px recomendado)</Label>
-        <Input
-          value={formData.cover_image_url}
-          onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-          placeholder="https://..."
-        />
+        <Label>Imagen de portada (1200x630px recomendado)</Label>
+        
+        {/* Preview de imagen */}
+        {formData.cover_image_url && (
+          <div className="relative w-full max-w-md rounded-lg overflow-hidden border border-border">
+            <img 
+              src={formData.cover_image_url} 
+              alt="Portada" 
+              className="w-full h-40 object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <Button 
+              variant="destructive" 
+              size="icon" 
+              className="absolute top-2 right-2 h-7 w-7"
+              onClick={() => setFormData({ ...formData, cover_image_url: "" })}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        
+        {/* Botón de subir + Input URL */}
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="shrink-0"
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            Subir imagen
+          </Button>
+          <Input
+            value={formData.cover_image_url}
+            onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
+            placeholder="O pega una URL..."
+            className="flex-1"
+          />
+        </div>
+        
+        {!formData.cover_image_url && (
+          <div className="flex items-center justify-center w-full max-w-md h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+            <div className="text-center text-muted-foreground">
+              <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm">Sin imagen de portada</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Extracto */}
