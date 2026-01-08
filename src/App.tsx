@@ -47,6 +47,8 @@ import MotoOverlay from "./pages/overlays/MotoOverlay";
 import RouteMapOverlay from "./pages/overlays/RouteMapOverlay";
 import ElevationOverlay from "./pages/overlays/ElevationOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 
 const queryClient = new QueryClient();
 
@@ -93,6 +95,8 @@ const App = () => (
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/start" element={<StartControl />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />
+          <Route path="/noticias" element={<Blog />} />
+          <Route path="/noticias/:slug" element={<BlogPost />} />
           
           {/* Overlay Manager y Overlays PRO */}
           <Route path="/overlays" element={<OverlayManager />} />
