@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import type { Json } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -95,7 +96,7 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
         youtube_video_id: formData.youtube_video_id || null,
         meta_title: formData.meta_title || null,
         meta_description: formData.meta_description || null,
-        youtube_timestamps: timestamps as unknown as Record<string, unknown>[],
+        youtube_timestamps: timestamps as unknown as Json,
         author_id: user?.id,
         status: publish ? "published" : formData.status,
         published_at: publish ? new Date().toISOString() : null,
