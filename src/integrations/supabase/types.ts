@@ -148,6 +148,151 @@ export type Database = {
           },
         ]
       }
+      blog_post_tags: {
+        Row: {
+          post_id: string
+          tag_id: string
+        }
+        Insert: {
+          post_id: string
+          tag_id: string
+        }
+        Update: {
+          post_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_post_tags_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_post_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "blog_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_posts: {
+        Row: {
+          author_id: string | null
+          category: string
+          content: string
+          cover_image_url: string | null
+          created_at: string | null
+          excerpt: string | null
+          id: string
+          interviewed_profile_id: string | null
+          meta_description: string | null
+          meta_title: string | null
+          og_image_url: string | null
+          published_at: string | null
+          race_id: string | null
+          reading_time_minutes: number | null
+          slug: string
+          status: string | null
+          title: string
+          updated_at: string | null
+          view_count: number | null
+          youtube_timestamps: Json | null
+          youtube_video_id: string | null
+        }
+        Insert: {
+          author_id?: string | null
+          category: string
+          content?: string
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          interviewed_profile_id?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          published_at?: string | null
+          race_id?: string | null
+          reading_time_minutes?: number | null
+          slug?: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          view_count?: number | null
+          youtube_timestamps?: Json | null
+          youtube_video_id?: string | null
+        }
+        Update: {
+          author_id?: string | null
+          category?: string
+          content?: string
+          cover_image_url?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          interviewed_profile_id?: string | null
+          meta_description?: string | null
+          meta_title?: string | null
+          og_image_url?: string | null
+          published_at?: string | null
+          race_id?: string | null
+          reading_time_minutes?: number | null
+          slug?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          view_count?: number | null
+          youtube_timestamps?: Json | null
+          youtube_video_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_interviewed_profile_id_fkey"
+            columns: ["interviewed_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blog_posts_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      blog_tags: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       category_template_items: {
         Row: {
           age_dependent: boolean | null
