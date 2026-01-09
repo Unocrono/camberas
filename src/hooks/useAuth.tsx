@@ -89,19 +89,21 @@ export const useAuth = () => {
   }, [checkUserRoles]);
 
   const signOut = async () => {
+    // Clear local state first to ensure UI updates immediately
     rolesCheckedForUserId.current = null;
     setIsAdmin(false);
     setIsOrganizer(false);
     setRolesLoaded(false);
-    try {
-      await supabase.auth.signOut();
-    } catch (error) {
-      // Even if server logout fails (session_not_found), clear local state
-      console.warn("Server logout failed, clearing local session:", error);
-    }
-    // Always clear local state regardless of server response
     setUser(null);
     setSession(null);
+    
+    try {
+      // Try server logout, but don't block on failure
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (error) {
+      // Even if server logout fails (session_not_found), we've already cleared local state
+      console.warn("Server logout failed, local session already cleared:", error);
+    }
   };
 
   return { user, session, loading, signOut, isAdmin, isOrganizer, rolesLoaded };
