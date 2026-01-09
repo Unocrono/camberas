@@ -30,7 +30,7 @@ interface ProfileData {
 }
 
 const OrganizerProfile = () => {
-  const { user, isOrganizer, isAdmin, loading: authLoading } = useAuth();
+  const { user, isOrganizer, isAdmin, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -129,6 +129,17 @@ const OrganizerProfile = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate("/", { replace: true });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      // Force navigation even if there's an error
+      navigate("/", { replace: true });
     }
   };
 
@@ -370,13 +381,21 @@ const OrganizerProfile = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-4 pt-4">
+              <div className="flex justify-between pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => navigate("/organizer")}
+                  onClick={handleSignOut}
+                  className="text-destructive hover:text-destructive"
                 >
-                  Cancelar
+                  Cerrar Sesión
                 </Button>
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/organizer")}
+                  >
+                    Cancelar
+                  </Button>
                 <Button
                   onClick={handleSave}
                   disabled={saving}
@@ -390,6 +409,7 @@ const OrganizerProfile = () => {
                     "Guardar Cambios"
                   )}
                 </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
