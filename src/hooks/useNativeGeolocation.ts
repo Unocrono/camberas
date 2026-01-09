@@ -140,11 +140,13 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
       try {
         const watcherId = await BackgroundGeolocation.addWatcher(
           {
-            backgroundMessage: 'GPS activo para seguimiento de carrera',
-            backgroundTitle: 'GPS Camberas',
+            // Foreground Service configuration for Android
+            // This creates a persistent notification that prevents the OS from killing the app
+            backgroundTitle: 'Tracking Activo',
+            backgroundMessage: 'Camberas GPS está compartiendo tu ubicación en tiempo real.',
             requestPermissions: true,
-            stale: false,
-            distanceFilter: 10, // meters
+            stale: false,           // Only use fresh GPS readings, not cached
+            distanceFilter: 5,      // Update every 5 meters for better accuracy
           },
           (location, error) => {
             if (error) {
