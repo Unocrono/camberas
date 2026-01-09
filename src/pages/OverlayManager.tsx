@@ -236,7 +236,8 @@ const OverlayManager = () => {
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<OverlayConfig | null>(null);
 
-  const baseUrl = window.location.origin;
+  // Always use production URL for overlay URLs (no auth required on production)
+  const baseUrl = "https://camberas.com";
 
   // Check authentication
   useEffect(() => {
