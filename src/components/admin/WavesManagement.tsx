@@ -20,8 +20,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Loader2, Pencil, Clock } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 interface Wave {
   id: string;
@@ -97,9 +95,11 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     
     if (wave.start_time) {
       // Convert UTC to local time for display
-      const utcDate = new Date(wave.start_time);
-      startDate = format(utcDate, "yyyy-MM-dd");
-      startTime = format(utcDate, "HH:mm:ss");
+      const localDate = new Date(wave.start_time);
+      // Format date as YYYY-MM-DD for date input
+      startDate = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
+      // Format time as HH:mm:ss for time input
+      startTime = `${String(localDate.getHours()).padStart(2, '0')}:${String(localDate.getMinutes()).padStart(2, '0')}:${String(localDate.getSeconds()).padStart(2, '0')}`;
     }
     
     setFormData({
@@ -162,8 +162,14 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     if (!startTime) return "Sin configurar";
     try {
       // Convert UTC to local time for display
-      const utcDate = new Date(startTime);
-      return format(utcDate, "dd/MM/yyyy HH:mm", { locale: es });
+      const localDate = new Date(startTime);
+      return localDate.toLocaleString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch {
       return "Fecha inválida";
     }
