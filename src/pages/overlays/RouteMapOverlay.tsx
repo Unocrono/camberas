@@ -262,9 +262,22 @@ const RouteMapOverlay = () => {
     
     mapboxgl.accessToken = mapToken;
     
+    // Use a minimal style that supports line rendering
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/empty-v9', // Empty style for transparent background
+      style: {
+        version: 8,
+        sources: {},
+        layers: [
+          {
+            id: 'background',
+            type: 'background',
+            paint: {
+              'background-color': 'rgba(0,0,0,0)'
+            }
+          }
+        ]
+      },
       center: [0, 0],
       zoom: 10,
       attributionControl: false
