@@ -32,3 +32,12 @@ verify_jwt = false
 
 [functions.process-moto-gps]
 verify_jwt = false
+
+[functions.newsletter-subscribe]
+verify_jwt = false
+
+[functions.newsletter-confirm]
+verify_jwt = false
+
+[functions.newsletter-unsubscribe]
+verify_jwt = false
