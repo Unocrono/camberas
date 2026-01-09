@@ -1096,14 +1096,7 @@ const RaceTimeDisplay = ({ startTime }: { startTime: Date | null }) => {
   }, [startTime]);
   
   return (
-    <motion.span
-      key={elapsed}
-      initial={{ opacity: 0.8 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
-    >
-      {elapsed}
-    </motion.span>
+    <span>{elapsed}</span>
   );
 };
 
