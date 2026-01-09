@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Newspaper } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,6 +38,10 @@ const Navbar = () => {
                   <NavLink to="/races?filter=past" className="flex items-center gap-2">
                     <Trophy className="h-4 w-4" />
                     Clasificaciones
+                  </NavLink>
+                  <NavLink to="/noticias" className="flex items-center gap-2">
+                    <Newspaper className="h-4 w-4" />
+                    Noticias
                   </NavLink>
                   <NavLink to="/ayuda">
                     <HelpCircle className="h-4 w-4" />
@@ -86,6 +90,7 @@ const Navbar = () => {
             <NavLink to="/races">Carreras</NavLink>
             <NavLink to="/races?filter=upcoming">Inscripciones</NavLink>
             <NavLink to="/races?filter=past">Clasificaciones</NavLink>
+            <NavLink to="/noticias">Noticias</NavLink>
             <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
