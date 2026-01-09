@@ -800,6 +800,154 @@ export type Database = {
           },
         ]
       }
+      newsletter_campaigns: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          preview_text: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          target_segments: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          target_segments?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          preview_text?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          target_segments?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      newsletter_sends: {
+        Row: {
+          bounced: boolean | null
+          campaign_id: string
+          clicked_at: string | null
+          id: string
+          opened_at: string | null
+          sent_at: string | null
+          subscriber_id: string
+        }
+        Insert: {
+          bounced?: boolean | null
+          campaign_id: string
+          clicked_at?: string | null
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          subscriber_id: string
+        }
+        Update: {
+          bounced?: boolean | null
+          campaign_id?: string
+          clicked_at?: string | null
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          subscriber_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "newsletter_sends_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "newsletter_subscribers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      newsletter_subscribers: {
+        Row: {
+          confirmation_token: string | null
+          confirmed_at: string | null
+          created_at: string | null
+          email: string
+          first_name: string | null
+          id: string
+          segments: string[] | null
+          source: string | null
+          status: string
+          unsubscribed_at: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          email: string
+          first_name?: string | null
+          id?: string
+          segments?: string[] | null
+          source?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          confirmation_token?: string | null
+          confirmed_at?: string | null
+          created_at?: string | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          segments?: string[] | null
+          source?: string | null
+          status?: string
+          unsubscribed_at?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "newsletter_subscribers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizer_faqs: {
         Row: {
           answer: string

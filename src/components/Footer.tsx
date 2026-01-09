@@ -1,5 +1,6 @@
 import { Mountain } from "lucide-react";
 import { Link } from "react-router-dom";
+import NewsletterForm from "./NewsletterForm";
 
 const Footer = () => {
   return (
@@ -11,9 +12,14 @@ const Footer = () => {
               <Mountain className="h-6 w-6" />
               Camberas
             </div>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm mb-4">
               Tu plataforma de carreras de montaña y trail
             </p>
+            {/* Newsletter */}
+            <div className="mt-4">
+              <h4 className="font-medium text-sm mb-2">Suscríbete al newsletter</h4>
+              <NewsletterForm className="max-w-xs" />
+            </div>
           </div>
           
           <div>
@@ -27,6 +33,11 @@ const Footer = () => {
               <li>
                 <Link to="/races" className="text-muted-foreground hover:text-primary transition-colors">
                   Resultados
+                </Link>
+              </li>
+              <li>
+                <Link to="/noticias" className="text-muted-foreground hover:text-primary transition-colors">
+                  Noticias
                 </Link>
               </li>
             </ul>
