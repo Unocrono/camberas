@@ -8,9 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Save, Eye, Upload, X, Image as ImageIcon, FileText, Monitor } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import ReactMarkdown from "react-markdown";
+import { Loader2, Plus, Trash2, Save, Eye, Upload, X, Image as ImageIcon } from "lucide-react";
+import SimpleMarkdownEditor from "./SimpleMarkdownEditor";
 
 interface BlogPostEditorProps {
   postId?: string;
@@ -372,36 +371,12 @@ export default function BlogPostEditor({ postId, onClose }: BlogPostEditorProps)
       {/* Contenido con vista previa */}
       <div className="space-y-2">
         <Label>Contenido (Markdown)</Label>
-        <Tabs defaultValue="edit" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-2">
-            <TabsTrigger value="edit" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Editar
-            </TabsTrigger>
-            <TabsTrigger value="preview" className="flex items-center gap-2">
-              <Monitor className="h-4 w-4" />
-              Vista previa
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="edit" className="mt-0">
-            <Textarea
-              value={formData.content}
-              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-              placeholder="Escribe el contenido usando Markdown..."
-              rows={16}
-              className="font-mono text-sm"
-            />
-          </TabsContent>
-          <TabsContent value="preview" className="mt-0">
-            <div className="min-h-[400px] max-h-[600px] overflow-y-auto p-4 border rounded-md bg-background prose prose-sm dark:prose-invert max-w-none">
-              {formData.content ? (
-                <ReactMarkdown>{formData.content}</ReactMarkdown>
-              ) : (
-                <p className="text-muted-foreground italic">Sin contenido para previsualizar...</p>
-              )}
-            </div>
-          </TabsContent>
-        </Tabs>
+        <SimpleMarkdownEditor
+          value={formData.content}
+          onChange={(content) => setFormData({ ...formData, content })}
+          placeholder="Escribe el contenido usando Markdown..."
+          rows={16}
+        />
       </div>
 
       {/* Botones */}

@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -11,12 +10,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Plus, Search, Edit, Trash2, Send, Eye, Loader2, Mail, FileText, Users } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ReactMarkdown from "react-markdown";
+import SimpleMarkdownEditor from "./SimpleMarkdownEditor";
 
 interface Campaign {
   id: string;
@@ -431,34 +430,15 @@ export default function NewsletterCampaignsManagement() {
 
             <div>
               <Label>Contenido *</Label>
-              <Tabs defaultValue="edit" className="mt-2">
-                <TabsList>
-                  <TabsTrigger value="edit">Editar</TabsTrigger>
-                  <TabsTrigger value="preview">Vista previa</TabsTrigger>
-                </TabsList>
-                <TabsContent value="edit" className="mt-2">
-                  <Textarea
-                    id="content"
-                    value={formData.content}
-                    onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                    placeholder="Escribe el contenido en Markdown o HTML..."
-                    rows={14}
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Soporta Markdown y HTML. Usa {"{{name}}"} para insertar el nombre del suscriptor.
-                  </p>
-                </TabsContent>
-                <TabsContent value="preview" className="mt-2">
-                  <div className="border rounded-md p-4 min-h-[300px] bg-background prose prose-sm max-w-none dark:prose-invert">
-                    {formData.content ? (
-                      <ReactMarkdown>{formData.content.replace(/\{\{name\}\}/g, "Juan")}</ReactMarkdown>
-                    ) : (
-                      <p className="text-muted-foreground italic">Sin contenido para previsualizar</p>
-                    )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+              <p className="text-xs text-muted-foreground mb-2">
+                Soporta Markdown y HTML. Usa {"{{name}}"} para insertar el nombre del suscriptor.
+              </p>
+              <SimpleMarkdownEditor
+                value={formData.content}
+                onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                placeholder="Escribe el contenido en Markdown o HTML..."
+                rows={14}
+              />
             </div>
 
             <div>
