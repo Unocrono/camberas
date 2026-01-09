@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical, UserPlus, User, Loader2 } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import GpxParser from "gpxparser";
 import {
   DndContext,
   closestCenter,
@@ -191,6 +192,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
   const [newTimerEmail, setNewTimerEmail] = useState("");
   const [addingRole, setAddingRole] = useState(false);
   const [selectedTimerUserId, setSelectedTimerUserId] = useState("");
+  const [trackCoords, setTrackCoords] = useState<[number, number][]>([]);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -232,11 +234,25 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     }
   }, [showMap, mapboxToken]);
 
+  // Load GPX tracks when map is shown
+  useEffect(() => {
+    if (showMap && selectedRaceId) {
+      loadGpxTracks();
+    }
+  }, [showMap, selectedRaceId]);
+
   useEffect(() => {
     if (map.current && timingPoints.length > 0) {
       updateMapMarkers();
     }
   }, [timingPoints, map.current]);
+
+  // Add track to map when coordinates are loaded
+  useEffect(() => {
+    if (map.current && trackCoords.length > 0) {
+      addTrackToMap();
+    }
+  }, [trackCoords, map.current]);
 
   useEffect(() => {
     if (showFormMap && mapboxToken && formMapContainer.current && !formMap.current) {
@@ -272,6 +288,107 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     } catch (error) {
       console.error("Error fetching Mapbox token:", error);
     }
+  };
+
+  const loadGpxTracks = async () => {
+    try {
+      // Fetch all distances for this race with GPX files
+      const { data: distances, error } = await supabase
+        .from("race_distances")
+        .select("gpx_file_url")
+        .eq("race_id", selectedRaceId)
+        .not("gpx_file_url", "is", null);
+
+      if (error) throw error;
+
+      if (!distances || distances.length === 0) {
+        return;
+      }
+
+      // Combine all GPX tracks
+      const allCoords: [number, number][] = [];
+
+      for (const distance of distances) {
+        if (!distance.gpx_file_url) continue;
+        
+        try {
+          const response = await fetch(distance.gpx_file_url);
+          if (!response.ok) continue;
+          
+          const gpxText = await response.text();
+          const gpx = new GpxParser();
+          gpx.parse(gpxText);
+
+          if (gpx.tracks.length > 0 && gpx.tracks[0].points.length > 0) {
+            const trackPoints = gpx.tracks[0].points.map(
+              (p) => [p.lon, p.lat] as [number, number]
+            );
+            allCoords.push(...trackPoints);
+          }
+        } catch (gpxError) {
+          console.error("Error parsing GPX:", gpxError);
+        }
+      }
+
+      if (allCoords.length > 0) {
+        setTrackCoords(allCoords);
+      }
+    } catch (error) {
+      console.error("Error loading GPX tracks:", error);
+    }
+  };
+
+  const addTrackToMap = () => {
+    if (!map.current || trackCoords.length === 0) return;
+    
+    // Wait for style to be loaded
+    if (!map.current.isStyleLoaded()) {
+      map.current.once("style.load", addTrackToMap);
+      return;
+    }
+
+    // Remove existing track layer if present
+    if (map.current.getLayer("race-track-line")) {
+      map.current.removeLayer("race-track-line");
+    }
+    if (map.current.getSource("race-track")) {
+      map.current.removeSource("race-track");
+    }
+
+    // Add track source and layer
+    map.current.addSource("race-track", {
+      type: "geojson",
+      data: {
+        type: "Feature",
+        properties: {},
+        geometry: {
+          type: "LineString",
+          coordinates: trackCoords,
+        },
+      },
+    });
+
+    map.current.addLayer({
+      id: "race-track-line",
+      type: "line",
+      source: "race-track",
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#f97316",
+        "line-width": 4,
+        "line-opacity": 0.8,
+      },
+    });
+
+    // Fit bounds to track
+    const bounds = new mapboxgl.LngLatBounds();
+    trackCoords.forEach((coord) => {
+      bounds.extend(coord);
+    });
+    map.current.fitBounds(bounds, { padding: 50 });
   };
 
   const fetchTimingPoints = async () => {
@@ -521,6 +638,10 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
 
     map.current.on("load", () => {
+      // Add track to map if coordinates are loaded
+      if (trackCoords.length > 0) {
+        addTrackToMap();
+      }
       updateMapMarkers();
     });
   };
