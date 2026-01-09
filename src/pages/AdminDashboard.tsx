@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -51,11 +51,19 @@ type AdminView = string;
 const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { view: urlView } = useParams<{ view?: string }>();
   const { toast } = useToast();
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
-  const [currentView, setCurrentView] = useState<AdminView>("races");
+  const [currentView, setCurrentView] = useState<AdminView>(urlView || "races");
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+
+  // Sync URL param with currentView
+  useEffect(() => {
+    if (urlView && urlView !== currentView) {
+      setCurrentView(urlView);
+    }
+  }, [urlView]);
 
   const {
     selectedRaceId,

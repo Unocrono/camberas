@@ -75,6 +75,7 @@ const App = () => (
           <Route path="/profile" element={<Profile />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/:view" element={<AdminDashboard />} />
           <Route path="/admin/support" element={<SupportChat />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
