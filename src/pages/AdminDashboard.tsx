@@ -42,6 +42,7 @@ import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { CategoryTemplatesManagement } from "@/components/admin/CategoryTemplatesManagement";
 import BlogPostsManagement from "@/components/admin/BlogPostsManagement";
+import NewsletterSubscribersManagement from "@/components/admin/NewsletterSubscribersManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -129,7 +130,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "blog-posts"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "blog-posts", "newsletter-subscribers"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -291,6 +292,7 @@ const AdminDashboard = () => {
             {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "category-templates" && <CategoryTemplatesManagement />}
             {currentView === "blog-posts" && <BlogPostsManagement />}
+            {currentView === "newsletter-subscribers" && <NewsletterSubscribersManagement />}
           </main>
         </div>
       </div>
