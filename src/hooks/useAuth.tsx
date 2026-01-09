@@ -90,7 +90,18 @@ export const useAuth = () => {
 
   const signOut = async () => {
     rolesCheckedForUserId.current = null;
-    await supabase.auth.signOut();
+    setIsAdmin(false);
+    setIsOrganizer(false);
+    setRolesLoaded(false);
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      // Even if server logout fails (session_not_found), clear local state
+      console.warn("Server logout failed, clearing local session:", error);
+    }
+    // Always clear local state regardless of server response
+    setUser(null);
+    setSession(null);
   };
 
   return { user, session, loading, signOut, isAdmin, isOrganizer, rolesLoaded };
