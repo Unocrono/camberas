@@ -277,12 +277,28 @@ const OverlayManager = () => {
     }
   }, [selectedRace]);
 
-  // Sync selectedDistanceId with config when config is loaded
+  // Auto-select first distance when distances are loaded and none is selected
   useEffect(() => {
-    if (config?.selected_distance_id && config.selected_distance_id !== selectedDistanceId) {
-      setSelectedDistanceId(config.selected_distance_id);
+    if (raceDistances.length > 0) {
+      // If config has a valid distance, use it; otherwise use the first one
+      const configDistanceId = config?.selected_distance_id;
+      const configDistanceExists = configDistanceId && raceDistances.some(d => d.id === configDistanceId);
+      
+      if (configDistanceExists) {
+        setSelectedDistanceId(configDistanceId);
+      } else if (!selectedDistanceId || !raceDistances.some(d => d.id === selectedDistanceId)) {
+        // Auto-select first distance by display order (already ordered)
+        setSelectedDistanceId(raceDistances[0].id);
+      }
     }
-  }, [config?.selected_distance_id]);
+  }, [raceDistances, config?.selected_distance_id]);
+
+  // Sync selectedDistanceId to config when it changes
+  useEffect(() => {
+    if (selectedDistanceId && config && config.selected_distance_id !== selectedDistanceId) {
+      updateConfig("selected_distance_id", selectedDistanceId);
+    }
+  }, [selectedDistanceId]);
 
   const fetchRaceDistances = async () => {
     try {
@@ -290,15 +306,10 @@ const OverlayManager = () => {
         .from("race_distances")
         .select("id, name, distance_km")
         .eq("race_id", selectedRace)
-        .order("distance_km");
+        .order("display_order", { ascending: true });
 
       if (error) throw error;
       setRaceDistances(data || []);
-      
-      // Auto-select first distance if none selected
-      if (data && data.length > 0 && !selectedDistanceId) {
-        setSelectedDistanceId(data[0].id);
-      }
     } catch (error) {
       console.error("Error fetching race distances:", error);
     }
