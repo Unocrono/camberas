@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
-import { format, parseISO } from "date-fns";
+
 
 interface WavesSummaryProps {
   raceId: string;
@@ -85,7 +85,7 @@ export function WavesSummary({ raceId }: WavesSummaryProps) {
                 <span className="truncate">{wave.wave_name}</span>
                 <span className="shrink-0 font-medium">
                   {wave.start_time 
-                    ? format(parseISO(wave.start_time), "HH:mm")
+                    ? new Date(wave.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
                     : <span className="text-muted-foreground">--:--</span>
                   }
                 </span>
