@@ -209,34 +209,55 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || !mapboxToken) return;
+    if (!mapContainer.current || !mapboxToken) {
+      console.log('MotoMapViewer: Waiting for container or token', { 
+        hasContainer: !!mapContainer.current, 
+        hasToken: !!mapboxToken 
+      });
+      return;
+    }
 
+    console.log('MotoMapViewer: Initializing map with token');
     mapboxgl.accessToken = mapboxToken;
     
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/outdoors-v12',
-      center: [-3.7, 40.4],
-      zoom: 12,
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/outdoors-v12',
+        center: [-3.7, 40.4],
+        zoom: 12,
+      });
 
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-      }),
-      'top-right'
-    );
+      map.current.addControl(
+        new mapboxgl.NavigationControl({
+          visualizePitch: true,
+        }),
+        'top-right'
+      );
 
-    map.current.on('load', () => {
-      setMapReady(true);
-    });
+      map.current.on('load', () => {
+        console.log('MotoMapViewer: Map loaded successfully');
+        setMapReady(true);
+      });
 
-    if (map.current.isStyleLoaded()) {
-      setMapReady(true);
+      map.current.on('error', (e) => {
+        console.error('MotoMapViewer: Map error', e);
+      });
+
+      // Fallback in case style is already loaded
+      if (map.current.isStyleLoaded()) {
+        console.log('MotoMapViewer: Style already loaded');
+        setMapReady(true);
+      }
+    } catch (error) {
+      console.error('MotoMapViewer: Error initializing map', error);
     }
 
     return () => {
+      console.log('MotoMapViewer: Cleaning up map');
       map.current?.remove();
+      map.current = null;
+      setMapReady(false);
     };
   }, [mapboxToken]);
 
@@ -571,9 +592,9 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="relative" style={{ height: isMobile ? '60vh' : '70vh' }}>
-            {/* Map container */}
-            <div ref={mapContainer} className="absolute inset-0" />
+          <div className="relative" style={{ height: isMobile ? '60vh' : '70vh', minHeight: '400px' }}>
+            {/* Map container - z-0 ensures it's below controls but still visible */}
+            <div ref={mapContainer} className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }} />
             
             {/* Map controls */}
             {mapReady && (
@@ -658,9 +679,19 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
               </div>
             )}
 
+            {/* Loading map token overlay */}
+            {!mapboxToken && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/80 z-20">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <RefreshCw className="h-6 w-6 animate-spin" />
+                  <span>Cargando mapa...</span>
+                </div>
+              </div>
+            )}
+
             {/* Loading overlay */}
-            {loading && motoPositions.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+            {mapboxToken && loading && motoPositions.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <RefreshCw className="h-6 w-6 animate-spin" />
                   <span>Cargando posiciones...</span>
@@ -668,10 +699,10 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
               </div>
             )}
 
-            {/* No motos message */}
-            {!loading && motoPositions.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-muted-foreground bg-background/90 p-6 rounded-lg shadow">
+            {/* No motos message - only show when map is ready but no motos */}
+            {mapReady && !loading && motoPositions.length === 0 && (
+              <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                <div className="text-center text-muted-foreground bg-background/90 p-6 rounded-lg shadow pointer-events-auto">
                   <Bike className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p className="font-medium">No hay motos con posición GPS</p>
                   <p className="text-sm mt-1">Las motos activas aparecerán aquí cuando envíen su ubicación</p>
