@@ -233,7 +233,7 @@ export function RunnerDetailModal({
                       <TableHead className="text-center font-semibold hidden md:table-cell">Gral</TableHead>
                       <TableHead className="text-center font-semibold hidden md:table-cell">Cat</TableHead>
                       <TableHead className="text-center font-semibold hidden md:table-cell">Sexo</TableHead>
-                      <TableHead className="text-center font-semibold w-12"></TableHead>
+                      <TableHead className="text-center font-semibold w-12 hidden md:table-cell"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -273,7 +273,7 @@ export function RunnerDetailModal({
                           <TableCell className="text-center font-mono text-sm hidden md:table-cell">
                             {split.gender_position || '-'}
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center hidden md:table-cell">
                             {hasYoutube && onYoutubeClick && (
                               <Button
                                 variant="ghost"
