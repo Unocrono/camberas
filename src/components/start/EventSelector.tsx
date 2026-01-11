@@ -66,6 +66,18 @@ export function EventSelector({
     onSelectionChange(newSelection);
   };
 
+  // Parse time string without timezone conversion (stored as local time)
+  const parseLocalTime = (timeStr: string): string => {
+    // Format: "2024-01-11T10:00:00" - extract time part directly
+    const match = timeStr.match(/T(\d{2}):(\d{2}):(\d{2})/);
+    if (match) {
+      return `${match[1]}:${match[2]}:${match[3]}`;
+    }
+    // Fallback to Date parsing (may cause timezone issues)
+    const date = new Date(timeStr);
+    return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
   const handleEditClick = (e: React.MouseEvent, distanceId: string, wave: RaceWave) => {
     e.stopPropagation();
     if (!wave.start_time) return;
@@ -76,8 +88,11 @@ export function EventSelector({
       currentTime: wave.start_time
     });
     
-    const date = new Date(wave.start_time);
-    const formatted = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}.${date.getMilliseconds().toString().padStart(3, '0')}`;
+    // Parse directly from string to avoid timezone conversion
+    const match = wave.start_time.match(/T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?/);
+    const formatted = match 
+      ? `${match[1]}:${match[2]}:${match[3]}.${(match[4] || '000').padEnd(3, '0').slice(0, 3)}`
+      : '00:00:00.000';
     setEditTimeValue(formatted);
     setEditDialogOpen(true);
   };
@@ -115,11 +130,7 @@ export function EventSelector({
     if (wave?.start_time) {
       return {
         type: 'synced' as const,
-        time: new Date(wave.start_time).toLocaleTimeString('es-ES', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }),
+        time: parseLocalTime(wave.start_time),
         wave
       };
     }
