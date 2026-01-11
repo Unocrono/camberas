@@ -87,10 +87,21 @@ export function RunnerDetailModal({
     if (!splitMatch) return "--:--:--";
     
     const splitSeconds = parseInt(splitMatch[1]) * 3600 + parseInt(splitMatch[2]) * 60 + parseInt(splitMatch[3]);
-    const waveStart = new Date(waveStartTime);
+    
+    // Parse wave start time as local time (without timezone conversion)
+    const cleanStr = waveStartTime.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const [datePart, timePart] = cleanStr.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hours, minutes, seconds] = (timePart || '00:00:00').split(':').map(s => parseInt(s) || 0);
+    const waveStart = new Date(year, month - 1, day, hours, minutes, seconds);
+    
     const crossingTime = new Date(waveStart.getTime() + splitSeconds * 1000);
     
-    return crossingTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    // Format as HH:MM:SS
+    const h = String(crossingTime.getHours()).padStart(2, '0');
+    const m = String(crossingTime.getMinutes()).padStart(2, '0');
+    const s = String(crossingTime.getSeconds()).padStart(2, '0');
+    return `${h}:${m}:${s}`;
   };
 
   // Filter checkpoints that have split times
