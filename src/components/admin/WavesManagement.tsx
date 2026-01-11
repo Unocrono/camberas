@@ -170,7 +170,8 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
         const year = match[1];
         const hours = match[4];
         const minutes = match[5];
-        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+        const seconds = match[6];
+        return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
       }
       return "Fecha inválida";
     } catch {
@@ -199,7 +200,7 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          Oleadas de Salida
+          SALIDAS / WAVES
         </CardTitle>
       </CardHeader>
       <CardContent>
