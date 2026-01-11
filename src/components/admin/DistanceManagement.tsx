@@ -368,12 +368,30 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     setUploading(true);
 
     try {
+      // Parse numeric values safely, treating empty strings as undefined/0
+      const distanceKm = formData.distance_km ? parseFloat(formData.distance_km) : 0;
+      const elevationGain = formData.elevation_gain ? parseInt(formData.elevation_gain) : undefined;
+      const price = formData.price ? parseFloat(formData.price) : 0;
+      const maxParticipants = formData.max_participants ? parseInt(formData.max_participants) : undefined;
+
+      // Check for NaN values before validation
+      if (isNaN(distanceKm) || (formData.price && isNaN(price))) {
+        toast({
+          title: "Error de validación",
+          description: "Por favor, introduce valores numéricos válidos para distancia y precio",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setUploading(false);
+        return;
+      }
+
       const validatedData = distanceSchema.parse({
         name: formData.name,
-        distance_km: parseFloat(formData.distance_km),
-        elevation_gain: formData.elevation_gain ? parseInt(formData.elevation_gain) : undefined,
-        price: parseFloat(formData.price),
-        max_participants: formData.max_participants ? parseInt(formData.max_participants) : undefined,
+        distance_km: distanceKm,
+        elevation_gain: elevationGain,
+        price: price,
+        max_participants: maxParticipants,
         cutoff_time: formData.cutoff_time || undefined,
         start_location: formData.start_location || undefined,
         finish_location: formData.finish_location || undefined,
