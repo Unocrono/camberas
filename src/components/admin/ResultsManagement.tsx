@@ -469,7 +469,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     const timeString = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}` : "";
 
     setFormData({
-      registration_id: result.registration.bib_number?.toString() || "",
+      registration_id: result.registration.id, // Use UUID, not bib_number
       finish_time: timeString,
       overall_position: result.overall_position?.toString() || "",
       category_position: result.category_position?.toString() || "",
