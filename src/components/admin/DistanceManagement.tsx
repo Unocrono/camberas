@@ -15,11 +15,12 @@ import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Format timestamp to local time HH:MM
+// Format timestamp to local time HH:MM - extract directly from ISO string
 const formatTimeLocal = (isoString: string | null): string => {
   if (!isoString) return "";
-  const date = new Date(isoString);
-  return date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  // Extract time directly from ISO string without timezone conversion
+  const match = isoString.match(/T(\d{2}:\d{2})/);
+  return match ? match[1] : "";
 };
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -209,16 +210,25 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     }
   };
 
-  // Helper to parse timestamp into date and time parts
+  // Helper to parse timestamp into date and time parts WITHOUT timezone conversion
+  // Extracts directly from ISO string to preserve the stored local time value
   const parseTimestamp = (timestamp: string | null): { date: string; time: string } => {
     if (!timestamp) return { date: "", time: "" };
-    const d = new Date(timestamp);
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
+    
+    // Extract date and time parts directly from ISO string
+    // Format expected: YYYY-MM-DDTHH:mm:ss or YYYY-MM-DDTHH:mm:ss.sssZ
+    const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}(?::\d{2})?)/);
+    if (match) {
+      const datePart = match[1]; // YYYY-MM-DD
+      const timePart = match[2]; // HH:mm or HH:mm:ss
+      // Ensure time has seconds
+      const timeWithSeconds = timePart.length === 5 ? `${timePart}:00` : timePart;
+      return { date: datePart, time: timeWithSeconds };
+    }
+    
+    // Fallback: try to parse as ISO date but avoid timezone conversion issues
+    // by extracting components directly
+    return { date: "", time: "" };
   };
 
   const fetchPriceRanges = async (distanceId: string) => {
@@ -260,7 +270,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         price: distance.price.toString(),
         max_participants: distance.max_participants?.toString() || "",
         start_date: waveStart.date,
-        start_time_value: waveStart.time ? `${waveStart.time}:00` : "",
+        start_time_value: waveStart.time, // Already includes seconds from parseTimestamp
         cutoff_time: distance.cutoff_time || "",
         start_location: distance.start_location || "",
         finish_location: distance.finish_location || "",
