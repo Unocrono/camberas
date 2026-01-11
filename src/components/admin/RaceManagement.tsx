@@ -517,9 +517,14 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     value={formData.utc_offset}
                     onChange={(e) => setFormData({ ...formData, utc_offset: e.target.value })}
                     placeholder="+1:00"
+                    disabled={isOrganizer}
+                    className={isOrganizer ? "bg-muted cursor-not-allowed" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Calculado automáticamente para España. +1:00 (invierno) o +2:00 (verano).
+                    {isOrganizer 
+                      ? "Valor calculado automáticamente. Solo administradores pueden modificarlo."
+                      : "Calculado automáticamente para España. +1:00 (invierno) o +2:00 (verano)."
+                    }
                   </p>
                 </div>
               </div>
