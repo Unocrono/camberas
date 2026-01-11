@@ -780,10 +780,21 @@ export default function LiveResults() {
       toast.error("No se encontró la hora de salida del evento");
       return;
     }
-    const waveStartTime = new Date(wave.start_time);
+    // Parse times as local time (without timezone conversion)
+    // Both wave.start_time and youtube_video_start_time are stored as local times
+    const parseLocalTime = (timeStr: string): Date => {
+      // Remove any Z suffix and timezone info to treat as local time
+      const cleanStr = timeStr.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+      const [datePart, timePart] = cleanStr.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hours, minutes, seconds] = (timePart || '00:00:00').split(':').map(s => parseInt(s) || 0);
+      return new Date(year, month - 1, day, hours, minutes, seconds);
+    };
     
-    // Parse video start time (real-world wall-clock time)
-    const videoStartTime = new Date(checkpoint.youtube_video_start_time);
+    const waveStartTime = parseLocalTime(wave.start_time);
+    
+    // Parse video start time (real-world wall-clock time, stored as local)
+    const videoStartTime = parseLocalTime(checkpoint.youtube_video_start_time);
     
     // The crossing time in the real world: wave start + split time
     const crossingTime = new Date(waveStartTime.getTime() + splitSeconds * 1000);

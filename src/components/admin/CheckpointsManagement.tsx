@@ -2040,17 +2040,18 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                           type="datetime-local"
                           step="1"
                           value={formData.youtube_video_start_time ? (() => {
-                            // Convertir de UTC (ISO) a formato datetime-local (hora local)
-                            const date = new Date(formData.youtube_video_start_time);
-                            const year = date.getFullYear();
-                            const month = String(date.getMonth() + 1).padStart(2, '0');
-                            const day = String(date.getDate()).padStart(2, '0');
-                            const hours = String(date.getHours()).padStart(2, '0');
-                            const minutes = String(date.getMinutes()).padStart(2, '0');
-                            const seconds = String(date.getSeconds()).padStart(2, '0');
-                            return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+                            // El valor ya está en formato local YYYY-MM-DDTHH:mm:ss
+                            // Solo necesitamos asegurar que tiene el formato correcto para datetime-local
+                            const val = formData.youtube_video_start_time;
+                            // Si tiene Z o offset, extraer solo la parte local
+                            const cleanVal = val.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+                            // Asegurar que tiene segundos
+                            if (cleanVal.length === 16) {
+                              return cleanVal + ':00';
+                            }
+                            return cleanVal;
                           })() : ""}
-                          onChange={(e) => setFormData({ ...formData, youtube_video_start_time: e.target.value ? new Date(e.target.value).toISOString() : "" })}
+                          onChange={(e) => setFormData({ ...formData, youtube_video_start_time: e.target.value || "" })}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           La hora exacta del mundo real en que comenzó la grabación del video (incluye segundos)
