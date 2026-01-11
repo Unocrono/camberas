@@ -95,7 +95,16 @@ export function useStartControlSync() {
     isEdit = false,
     waveIds?: string[]
   ): PendingStart => {
-    const startTimeISO = new Date(correctedTimestamp).toISOString();
+    // Format as local time ISO string WITHOUT converting to UTC
+    // This preserves the displayed time (e.g., 22:37:15 stays as 22:37:15)
+    const d = new Date(correctedTimestamp);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    const startTimeISO = `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
     
     // Verificar si ya existe un registro pendiente para estos eventos
     const existingIndex = state.pendingStarts.findIndex(
