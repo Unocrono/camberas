@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock } from "lucide-react";
+import { calculateUtcOffsetFromDateString, formatUtcOffset, parseUtcOffset } from "@/lib/timezoneUtils";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
@@ -63,6 +64,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     race_type: "trail" as "trail" | "mtb",
     is_visible: true,
     slug: "",
+    utc_offset: "+1:00",
   });
   
   // Image cropper states
@@ -122,6 +124,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         race_type: (race as any).race_type || "trail",
         is_visible: race.is_visible ?? true,
         slug: race.slug || "",
+        utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
       });
     } else {
       setEditingRace(null);
@@ -139,6 +142,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         race_type: "trail",
         is_visible: true,
         slug: "",
+        utc_offset: "+1:00",
       });
     }
     setIsDialogOpen(true);
@@ -272,6 +276,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           additional_info: formData.additional_info || null,
           race_type: formData.race_type,
           is_visible: formData.is_visible,
+          utc_offset: parseUtcOffset(formData.utc_offset),
         };
         
         // Solo actualizar slug si se ha modificado manualmente
@@ -325,6 +330,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
             is_visible: formData.is_visible,
+            utc_offset: parseUtcOffset(formData.utc_offset),
           }])
           .select('id')
           .single();
@@ -492,9 +498,29 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     id="date"
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      const calculatedOffset = formatUtcOffset(calculateUtcOffsetFromDateString(newDate));
+                      setFormData({ ...formData, date: newDate, utc_offset: calculatedOffset });
+                    }}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="utc_offset" className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Desfase UTC
+                  </Label>
+                  <Input
+                    id="utc_offset"
+                    value={formData.utc_offset}
+                    onChange={(e) => setFormData({ ...formData, utc_offset: e.target.value })}
+                    placeholder="+1:00"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Calculado automáticamente para España. +1:00 (invierno) o +2:00 (verano).
+                  </p>
                 </div>
               </div>
 

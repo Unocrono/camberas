@@ -2038,6 +2038,7 @@ export type Database = {
           registration_opens: string | null
           slug: string | null
           updated_at: string
+          utc_offset: number | null
         }
         Insert: {
           additional_info?: string | null
@@ -2064,6 +2065,7 @@ export type Database = {
           registration_opens?: string | null
           slug?: string | null
           updated_at?: string
+          utc_offset?: number | null
         }
         Update: {
           additional_info?: string | null
@@ -2090,6 +2092,7 @@ export type Database = {
           registration_opens?: string | null
           slug?: string | null
           updated_at?: string
+          utc_offset?: number | null
         }
         Relationships: []
       }

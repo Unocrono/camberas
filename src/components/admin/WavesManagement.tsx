@@ -94,12 +94,13 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     let startTime = "";
     
     if (wave.start_time) {
-      // Convert UTC to local time for display
-      const localDate = new Date(wave.start_time);
-      // Format date as YYYY-MM-DD for date input
-      startDate = `${localDate.getFullYear()}-${String(localDate.getMonth() + 1).padStart(2, '0')}-${String(localDate.getDate()).padStart(2, '0')}`;
-      // Format time as HH:mm:ss for time input
-      startTime = `${String(localDate.getHours()).padStart(2, '0')}:${String(localDate.getMinutes()).padStart(2, '0')}:${String(localDate.getSeconds()).padStart(2, '0')}`;
+      // Parse the timestamp string directly without timezone conversion
+      // Expected format: "YYYY-MM-DDTHH:mm:ss" or "YYYY-MM-DDTHH:mm:ss+00"
+      const match = wave.start_time.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        startDate = `${match[1]}-${match[2]}-${match[3]}`;
+        startTime = `${match[4]}:${match[5]}:${match[6]}`;
+      }
     }
     
     setFormData({
@@ -123,9 +124,9 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
         if (timeValue.length === 5) {
           timeValue += ":00"; // Si es HH:mm, añadir :00
         }
-        // Create local date and convert to ISO (UTC) for storage
-        const localDate = new Date(`${formData.start_date}T${timeValue}`);
-        startTimestamp = localDate.toISOString();
+        // Store as local time directly (no UTC conversion)
+        // Format: YYYY-MM-DDTHH:mm:ss without timezone suffix
+        startTimestamp = `${formData.start_date}T${timeValue}`;
       }
 
       const { error } = await supabase
@@ -161,15 +162,17 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
   const formatStartTime = (startTime: string | null) => {
     if (!startTime) return "Sin configurar";
     try {
-      // Convert UTC to local time for display
-      const localDate = new Date(startTime);
-      return localDate.toLocaleString('es-ES', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+      // Parse the timestamp directly without timezone conversion
+      const match = startTime.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        const day = match[3];
+        const month = match[2];
+        const year = match[1];
+        const hours = match[4];
+        const minutes = match[5];
+        return `${day}/${month}/${year}, ${hours}:${minutes}`;
+      }
+      return "Fecha inválida";
     } catch {
       return "Fecha inválida";
     }
