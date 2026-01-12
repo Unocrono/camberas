@@ -3139,6 +3139,10 @@ export type Database = {
         Args: { race_uuid: string }
         Returns: boolean
       }
+      user_has_moto_assignment_for_race: {
+        Args: { p_race_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
