@@ -528,29 +528,15 @@ const GPSTrackerApp = () => {
         }
         
         console.log('[GPSTrackerApp] Combined registrations result:', allRegistrations.length, 'registrations');
-        console.log('[GPSTrackerApp] Raw registrations data:', JSON.stringify(allRegistrations, null, 2));
         
         // Filter in JS:
         // 1. Must have gps_tracking_enabled = true
         // 2. Race date must be >= today
         // 3. Must have race_distances data (RLS might hide some)
-        const gpsEnabled = allRegistrations.filter((reg: any) => {
-          const hasGpsEnabled = reg.race_distances?.gps_tracking_enabled === true;
-          const raceDate = reg.races?.date;
-          const isDateValid = raceDate && raceDate >= today;
-          
-          console.log('[GPSTrackerApp] Filtering reg:', {
-            id: reg.id,
-            race_distances: reg.race_distances,
-            races: reg.races,
-            hasGpsEnabled,
-            raceDate,
-            today,
-            isDateValid
-          });
-          
-          return hasGpsEnabled && isDateValid;
-        });
+        const gpsEnabled = allRegistrations.filter((reg: any) => 
+          reg.race_distances?.gps_tracking_enabled === true &&
+          reg.races?.date >= today
+        );
         
         // Sort by race date ascending
         gpsEnabled.sort((a: any, b: any) => 
