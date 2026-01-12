@@ -162,26 +162,53 @@ export function GPSMiniMap({ latitude, longitude, heading, distanceId, raceId, d
     };
   }, [mapboxToken]);
 
-  // Load GPX route
+  // Load GPX route - support both distanceId and fallback to raceId
   useEffect(() => {
-    if (!map.current || !mapReady || !distanceId || routeLoadedRef.current) return;
+    if (!map.current || !mapReady || routeLoadedRef.current) return;
+    // Need at least distanceId or raceId
+    if (!distanceId && !raceId) return;
 
     const loadGpxRoute = async () => {
       try {
-        // Get GPX URL from race_distances
-        const { data: distanceData, error: distanceError } = await supabase
-          .from('race_distances')
-          .select('gpx_file_url')
-          .eq('id', distanceId)
-          .maybeSingle();
+        let gpxUrl: string | null = null;
 
-        if (distanceError || !distanceData?.gpx_file_url) {
-          console.log('No GPX file found for distance');
+        // Priority 1: Use specific distanceId if provided
+        if (distanceId) {
+          const { data: distanceData, error: distanceError } = await supabase
+            .from('race_distances')
+            .select('gpx_file_url')
+            .eq('id', distanceId)
+            .maybeSingle();
+
+          if (!distanceError && distanceData?.gpx_file_url) {
+            gpxUrl = distanceData.gpx_file_url;
+          }
+        }
+
+        // Priority 2: If no GPX from distanceId, try to get first distance with GPX from raceId
+        if (!gpxUrl && raceId) {
+          console.log('[GPSMiniMap] No GPX from distanceId, trying raceId:', raceId);
+          const { data: raceDistances, error: raceError } = await supabase
+            .from('race_distances')
+            .select('id, gpx_file_url')
+            .eq('race_id', raceId)
+            .not('gpx_file_url', 'is', null)
+            .order('display_order', { ascending: true })
+            .limit(1);
+
+          if (!raceError && raceDistances && raceDistances.length > 0 && raceDistances[0].gpx_file_url) {
+            gpxUrl = raceDistances[0].gpx_file_url;
+            console.log('[GPSMiniMap] Found GPX from race:', gpxUrl);
+          }
+        }
+
+        if (!gpxUrl) {
+          console.log('[GPSMiniMap] No GPX file found');
           return;
         }
 
         // Fetch and parse GPX
-        const response = await fetch(distanceData.gpx_file_url);
+        const response = await fetch(gpxUrl);
         const gpxText = await response.text();
         const parsedGpx = parseGpxFile(gpxText);
 
@@ -242,13 +269,14 @@ export function GPSMiniMap({ latitude, longitude, heading, distanceId, raceId, d
         map.current.fitBounds(bounds, { padding: 30 });
 
         routeLoadedRef.current = true;
+        console.log('[GPSMiniMap] GPX route loaded successfully');
       } catch (error) {
         console.error('Error loading GPX:', error);
       }
     };
 
     loadGpxRoute();
-  }, [distanceId, mapReady]);
+  }, [distanceId, raceId, mapReady]);
 
   // Load checkpoints and roadbook items
   useEffect(() => {
