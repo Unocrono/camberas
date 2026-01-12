@@ -455,6 +455,8 @@ const GPSTrackerApp = () => {
         
         console.log('[GPSTrackerApp] Fetching registrations for user:', user.id, 'today:', today);
         
+        // Query registrations - use left join to allow races that are not visible
+        // Filter by gps_tracking_enabled will be done in JS since RLS now allows GPS access
         const { data, error } = await supabase
           .from('registrations')
           .select(`
@@ -462,13 +464,13 @@ const GPSTrackerApp = () => {
             race_id,
             race_distance_id,
             bib_number,
-            race_distances!inner (
+            race_distances (
               name,
               distance_km,
               gps_tracking_enabled,
               gps_update_frequency
             ),
-            races!inner (
+            races (
               id,
               name,
               date,
@@ -477,16 +479,24 @@ const GPSTrackerApp = () => {
             )
           `)
           .eq('user_id', user.id)
-          .in('status', ['confirmed', 'pending'])
-          .gte('races.date', today)
-          .order('races(date)', { ascending: true });
+          .in('status', ['confirmed', 'pending']);
 
         console.log('[GPSTrackerApp] Registrations query result:', data, 'error:', error);
         
         if (error) throw error;
         
+        // Filter in JS:
+        // 1. Must have gps_tracking_enabled = true
+        // 2. Race date must be >= today
+        // 3. Must have race_distances data (RLS might hide some)
         const gpsEnabled = (data || []).filter((reg: any) => 
-          reg.race_distances?.gps_tracking_enabled
+          reg.race_distances?.gps_tracking_enabled === true &&
+          reg.races?.date >= today
+        );
+        
+        // Sort by race date ascending
+        gpsEnabled.sort((a: any, b: any) => 
+          (a.races?.date || '').localeCompare(b.races?.date || '')
         );
         
         const distanceIds = gpsEnabled.map((reg: any) => reg.race_distance_id);
