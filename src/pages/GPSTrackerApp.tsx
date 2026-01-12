@@ -208,11 +208,11 @@ const GPSTrackerApp = () => {
         
         if (motoRole) {
           setAppMode('moto');
-          // Use yesterday to include races from today that may have started earlier
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const minDate = yesterday.toISOString().split('T')[0];
-          console.log('[GPSTrackerApp] Min date filter:', minDate);
+          // Use local date to avoid timezone issues - include yesterday
+          const now = new Date();
+          now.setDate(now.getDate() - 1);
+          const minDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          console.log('[GPSTrackerApp] Moto mode - Min date filter:', minDate);
           const allAssignments: MotoAssignment[] = [];
           
           // 1. Fetch motos directly assigned via user_id in race_motos
@@ -335,10 +335,12 @@ const GPSTrackerApp = () => {
           setLoading(false);
         } else {
           // Runner mode - continue with normal flow
+          console.log('[GPSTrackerApp] No moto role found, switching to runner mode');
           setAppMode('runner');
+          // Don't set loading false here - let fetchRegistrations handle it
         }
       } catch (error) {
-        console.error('Error checking user role:', error);
+        console.error('[GPSTrackerApp] Error checking user role:', error);
         setAppMode('runner');
       }
     };
@@ -447,7 +449,11 @@ const GPSTrackerApp = () => {
     const fetchRegistrations = async () => {
       setLoading(true);
       try {
-        const today = new Date().toISOString().split('T')[0];
+        // Use local date to avoid timezone issues
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        
+        console.log('[GPSTrackerApp] Fetching registrations for user:', user.id, 'today:', today);
         
         const { data, error } = await supabase
           .from('registrations')
@@ -475,6 +481,8 @@ const GPSTrackerApp = () => {
           .gte('races.date', today)
           .order('races(date)', { ascending: true });
 
+        console.log('[GPSTrackerApp] Registrations query result:', data, 'error:', error);
+        
         if (error) throw error;
         
         const gpsEnabled = (data || []).filter((reg: any) => 
