@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { registerPlugin } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 // Background Geolocation plugin interface
 interface BackgroundGeolocationPlugin {
@@ -23,43 +24,56 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('Backg
 
 /**
  * Request POST_NOTIFICATIONS permission on Android 13+ (API 33+)
- * This is required to show the persistent Foreground Service notification
+ * This is REQUIRED to show the persistent Foreground Service notification
+ * Without this permission, the Foreground Service cannot display its notification
+ * and Android will kill the background tracking when the screen is off
  */
 const requestNotificationPermission = async (): Promise<boolean> => {
   // Only needed on native Android
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    console.log('[GPS] Not Android native, skipping notification permission');
     return true;
   }
 
   try {
-    // Check if the Notification API is available
-    if ('Notification' in window) {
-      const permission = Notification.permission;
-      
-      if (permission === 'granted') {
-        console.log('[GPS] Notification permission already granted');
-        return true;
-      }
-      
-      if (permission === 'denied') {
-        console.warn('[GPS] Notification permission was denied. Foreground Service notification may not show.');
-        // Still return true to attempt tracking - it might work without the notification on some devices
-        return true;
-      }
-      
-      // Request permission
-      console.log('[GPS] Requesting notification permission for Foreground Service...');
-      const result = await Notification.requestPermission();
-      console.log('[GPS] Notification permission result:', result);
-      return result === 'granted';
+    console.log('[GPS] Checking notification permission status...');
+    
+    // Use Capacitor LocalNotifications to check and request permission
+    const permStatus = await LocalNotifications.checkPermissions();
+    console.log('[GPS] Current notification permission:', permStatus.display);
+    
+    if (permStatus.display === 'granted') {
+      console.log('[GPS] ✅ Notification permission already granted');
+      return true;
     }
     
-    // Fallback: try using the Capacitor LocalNotifications plugin if available
-    console.log('[GPS] Notification API not available, proceeding anyway');
-    return true;
+    if (permStatus.display === 'denied') {
+      console.warn('[GPS] ⚠️ Notification permission denied. Opening settings...');
+      // Try to open settings so user can manually enable
+      try {
+        await BackgroundGeolocation.openSettings();
+      } catch (e) {
+        console.error('[GPS] Could not open settings:', e);
+      }
+      return false;
+    }
+    
+    // Request permission (prompt state)
+    console.log('[GPS] Requesting notification permission...');
+    const requestResult = await LocalNotifications.requestPermissions();
+    console.log('[GPS] Notification permission result:', requestResult.display);
+    
+    if (requestResult.display === 'granted') {
+      console.log('[GPS] ✅ Notification permission granted!');
+      return true;
+    } else {
+      console.warn('[GPS] ❌ Notification permission not granted:', requestResult.display);
+      return false;
+    }
   } catch (error) {
     console.error('[GPS] Error requesting notification permission:', error);
-    // Don't block tracking if permission request fails
+    // Don't block tracking, but warn
+    console.warn('[GPS] Proceeding without notification permission - tracking may stop when screen is off');
     return true;
   }
 };
@@ -182,8 +196,15 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
       // Use background geolocation plugin for native platforms
       try {
         // CRITICAL: Request notification permission FIRST on Android 13+ (API 33+)
-        // This is required for the Foreground Service notification to appear
-        await requestNotificationPermission();
+        // This is REQUIRED for the Foreground Service notification to appear
+        // Without this, Android will kill the tracking when screen is off!
+        const hasNotificationPerm = await requestNotificationPermission();
+        
+        if (!hasNotificationPerm) {
+          console.warn('[GPS] ⚠️ Notification permission not granted - background tracking may not work!');
+        }
+        
+        console.log('[GPS] Starting BackgroundGeolocation watcher...');
         
         const watcherId = await BackgroundGeolocation.addWatcher(
           {
@@ -195,25 +216,27 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
             // CRITICAL: stale: true allows cached readings when fresh GPS unavailable
             // This helps maintain tracking when OS throttles GPS in deep sleep
             stale: true,
-            // Reduce distance filter for more frequent updates
+            // Reduce distance filter for more frequent updates (meters)
             distanceFilter: 3,
           },
           (location, error) => {
             if (error) {
               if (error.code === 'NOT_AUTHORIZED') {
-                console.error('[GPS] Location permission not authorized');
-                // Could prompt user to open settings
-                // BackgroundGeolocation.openSettings();
+                console.error('[GPS] ❌ Location permission not authorized');
+                // Prompt user to open settings
+                BackgroundGeolocation.openSettings();
               }
               console.error('[GPS] Background location error:', error);
               return;
             }
             if (location) {
-              console.log('[GPS] Native location received:', location.latitude, location.longitude);
+              console.log('[GPS] 📍 Native location received:', location.latitude.toFixed(6), location.longitude.toFixed(6));
               callback(positionToResult(location));
             }
           }
         );
+        
+        console.log('[GPS] ✅ Watcher started with ID:', watcherId);
         return watcherId;
       } catch (e) {
         console.error('Failed to start background geolocation:', e);
