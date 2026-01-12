@@ -21,6 +21,49 @@ interface BackgroundGeolocationPlugin {
 // Register the plugin
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
 
+/**
+ * Request POST_NOTIFICATIONS permission on Android 13+ (API 33+)
+ * This is required to show the persistent Foreground Service notification
+ */
+const requestNotificationPermission = async (): Promise<boolean> => {
+  // Only needed on native Android
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    return true;
+  }
+
+  try {
+    // Check if the Notification API is available
+    if ('Notification' in window) {
+      const permission = Notification.permission;
+      
+      if (permission === 'granted') {
+        console.log('[GPS] Notification permission already granted');
+        return true;
+      }
+      
+      if (permission === 'denied') {
+        console.warn('[GPS] Notification permission was denied. Foreground Service notification may not show.');
+        // Still return true to attempt tracking - it might work without the notification on some devices
+        return true;
+      }
+      
+      // Request permission
+      console.log('[GPS] Requesting notification permission for Foreground Service...');
+      const result = await Notification.requestPermission();
+      console.log('[GPS] Notification permission result:', result);
+      return result === 'granted';
+    }
+    
+    // Fallback: try using the Capacitor LocalNotifications plugin if available
+    console.log('[GPS] Notification API not available, proceeding anyway');
+    return true;
+  } catch (error) {
+    console.error('[GPS] Error requesting notification permission:', error);
+    // Don't block tracking if permission request fails
+    return true;
+  }
+};
+
 export interface GeolocationResult {
   latitude: number;
   longitude: number;
@@ -138,6 +181,10 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
     if (isNative) {
       // Use background geolocation plugin for native platforms
       try {
+        // CRITICAL: Request notification permission FIRST on Android 13+ (API 33+)
+        // This is required for the Foreground Service notification to appear
+        await requestNotificationPermission();
+        
         const watcherId = await BackgroundGeolocation.addWatcher(
           {
             // Foreground Service configuration for Android

@@ -124,6 +124,9 @@ Abre `android/app/src/main/AndroidManifest.xml` y añade estos permisos **dentro
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
+<!-- CRÍTICO: Permiso para mostrar notificación (Android 13+/API 33+) -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 <!-- Mantener CPU activa durante tracking -->
 <uses-permission android:name="android.permission.WAKE_LOCK" />
 ```
@@ -152,9 +155,24 @@ android {
 }
 ```
 
-### 6.5. Permisos en tiempo de ejecución (Android 10+)
+### 6.5. Configurar capacitor.config.ts (CRÍTICO)
 
-El plugin solicita automáticamente los permisos. **El usuario DEBE seleccionar "Permitir todo el tiempo"** para que funcione en segundo plano.
+El archivo `capacitor.config.ts` debe tener `useLegacyBridge: true` en Android:
+
+```typescript
+android: {
+  backgroundColor: '#0a0a0a',
+  allowMixedContent: true,
+  // CRÍTICO: Requerido para que background-geolocation funcione
+  useLegacyBridge: true
+}
+```
+
+### 6.6. Permisos en tiempo de ejecución
+
+**Android 13+ (API 33+)**: El app solicita automáticamente el permiso `POST_NOTIFICATIONS` al iniciar tracking. Este permiso es **obligatorio** para mostrar la notificación persistente del Foreground Service.
+
+**Android 10+ (API 29+)**: El usuario DEBE seleccionar **"Permitir todo el tiempo"** para que funcione en segundo plano.
 
 Si el usuario selecciona "Solo mientras uso la app", el tracking se detendrá al bloquear pantalla.
 
