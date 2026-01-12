@@ -142,23 +142,27 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
           {
             // Foreground Service configuration for Android
             // This creates a persistent notification that prevents the OS from killing the app
-            backgroundTitle: 'Tracking Activo',
-            backgroundMessage: 'Camberas GPS está compartiendo tu ubicación en tiempo real.',
+            backgroundTitle: 'Tracking Activo 📍',
+            backgroundMessage: 'Camberas GPS - Ubicación en tiempo real',
             requestPermissions: true,
-            stale: false,           // Only use fresh GPS readings, not cached
-            distanceFilter: 5,      // Update every 5 meters for better accuracy
+            // CRITICAL: stale: true allows cached readings when fresh GPS unavailable
+            // This helps maintain tracking when OS throttles GPS in deep sleep
+            stale: true,
+            // Reduce distance filter for more frequent updates
+            distanceFilter: 3,
           },
           (location, error) => {
             if (error) {
               if (error.code === 'NOT_AUTHORIZED') {
-                console.error('Location permission not authorized');
+                console.error('[GPS] Location permission not authorized');
                 // Could prompt user to open settings
                 // BackgroundGeolocation.openSettings();
               }
-              console.error('Background location error:', error);
+              console.error('[GPS] Background location error:', error);
               return;
             }
             if (location) {
+              console.log('[GPS] Native location received:', location.latitude, location.longitude);
               callback(positionToResult(location));
             }
           }
