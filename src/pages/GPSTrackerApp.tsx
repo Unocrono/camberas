@@ -1343,20 +1343,39 @@ const GPSTrackerApp = () => {
   // No access for regular users - must have either GPS registration or moto assignment
   if (appMode === 'runner' && registrations.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-sm bg-card border shadow-lg">
           <CardContent className="pt-6 text-center space-y-4">
             <Navigation className="h-16 w-16 mx-auto text-muted-foreground" />
-            <h1 className="text-xl font-bold">Sin acceso GPS</h1>
+            <h1 className="text-xl font-bold text-foreground">Sin acceso GPS</h1>
             <p className="text-muted-foreground text-sm">
               No tienes inscripciones en carreras con seguimiento GPS habilitado para hoy o próximos días.
             </p>
-            <Button variant="outline" onClick={() => navigate('/races')}>
-              Ver Carreras
-            </Button>
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              Volver al inicio
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Conectado como: <span className="font-medium">{user?.email}</span>
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button variant="outline" onClick={() => navigate('/races')}>
+                Ver Carreras
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                Volver al inicio
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  signOut();
+                  toast({
+                    title: 'Sesión cerrada',
+                    description: 'Puedes iniciar sesión con otra cuenta',
+                  });
+                }}
+                className="mt-2"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Cerrar sesión
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1365,17 +1384,36 @@ const GPSTrackerApp = () => {
 
   if (appMode === 'moto' && motoAssignments.length === 0) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
+      <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-sm bg-card border shadow-lg">
           <CardContent className="pt-6 text-center space-y-4">
             <Bike className="h-16 w-16 mx-auto text-muted-foreground" />
-            <h1 className="text-xl font-bold">Sin motos asignadas</h1>
+            <h1 className="text-xl font-bold text-foreground">Sin motos asignadas</h1>
             <p className="text-muted-foreground text-sm">
               No tienes asignaciones de moto para carreras de hoy o próximos días.
             </p>
-            <Button variant="outline" onClick={() => navigate('/')}>
-              Volver al inicio
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Conectado como: <span className="font-medium">{user?.email}</span>
+            </p>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button variant="outline" onClick={() => navigate('/')}>
+                Volver al inicio
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={() => {
+                  signOut();
+                  toast({
+                    title: 'Sesión cerrada',
+                    description: 'Puedes iniciar sesión con otra cuenta',
+                  });
+                }}
+                className="mt-2"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Cerrar sesión
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1395,28 +1433,24 @@ const GPSTrackerApp = () => {
     <div className="min-h-screen bg-background flex flex-col safe-area-inset-top"
          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {/* Header - Camberas branded with moto color */}
+      {/* Header - Light background with dark text for readability */}
       <header 
-        className="border-b p-4 flex items-center justify-between"
-        style={{ 
-          background: appMode === 'moto' 
-            ? `linear-gradient(135deg, #0a0a0a 0%, ${motoColor}20 100%)` 
-            : 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
-          borderBottomColor: appMode === 'moto' ? `${motoColor}40` : undefined
-        }}
+        className="border-b p-4 flex items-center justify-between bg-card shadow-sm"
       >
         <div className="flex items-center gap-2">
           <img src={gpsLogo} alt="Camberas GPS" className="h-8 w-8 rounded-full" />
-          <span className="font-bold text-white" style={{ color: themeColor }}>
+          <span className="font-bold text-foreground">
             {appMode === 'moto' ? 'Camberas Moto GPS' : 'Camberas GPS'}
           </span>
           {appMode === 'moto' && selectedMotoAssignment && (
             <Badge 
-              variant="outline" 
+              variant="secondary" 
               className="ml-2"
               style={{ 
                 borderColor: motoColor, 
                 color: motoColor,
-                backgroundColor: `${motoColor}15`
+                backgroundColor: `${motoColor}15`,
+                borderWidth: '1px'
               }}
             >
               <Bike className="h-3 w-3 mr-1" />
@@ -1435,30 +1469,29 @@ const GPSTrackerApp = () => {
                 triggerCheckpointFeedback();
               }
             }}
-            className="p-1.5 rounded-md hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-md hover:bg-muted transition-colors"
             title={soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
           >
             {soundEnabled ? (
               <Volume2 className="h-4 w-4" style={{ color: CAMBERAS_PINK }} />
             ) : (
-              <VolumeX className="h-4 w-4 text-white/50" />
+              <VolumeX className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
           
           {/* Status indicators - stacked vertically */}
           <div className="flex flex-col gap-0.5">
             {isOnline ? (
-              <Badge variant="outline" className="border-emerald-500 text-emerald-400 bg-emerald-500/10 text-xs px-1.5 py-0">
+              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 text-xs px-1.5 py-0">
                 <Wifi className="h-3 w-3 mr-1" /> Online
               </Badge>
             ) : (
-              <Badge variant="outline" className="border-orange-500 text-orange-400 bg-orange-500/10 text-xs px-1.5 py-0">
+              <Badge className="bg-orange-100 text-orange-700 border-orange-300 text-xs px-1.5 py-0">
                 <WifiOff className="h-3 w-3 mr-1" /> Offline
               </Badge>
             )}
             <Badge 
-              variant="outline" 
-              className={`text-xs px-1.5 py-0 ${battery < 20 ? "border-red-500 text-red-400 bg-red-500/10" : "border-white/30 text-white/70"}`}
+              className={`text-xs px-1.5 py-0 ${battery < 20 ? "bg-red-100 text-red-700 border-red-300" : "bg-muted text-muted-foreground border-border"}`}
             >
               <Battery className="h-3 w-3 mr-1" /> {battery}%
             </Badge>
@@ -1481,10 +1514,10 @@ const GPSTrackerApp = () => {
                 description: 'Has cerrado sesión correctamente',
               });
             }}
-            className="p-2 rounded-md bg-red-500/20 hover:bg-red-500/30 transition-colors border border-red-500/40 ml-1"
+            className="p-2 rounded-md bg-red-100 hover:bg-red-200 transition-colors border border-red-300 ml-1"
             title="Cerrar sesión"
           >
-            <LogOut className="h-4 w-4 text-red-400" />
+            <LogOut className="h-4 w-4 text-red-600" />
           </button>
         </div>
       </header>
