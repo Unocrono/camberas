@@ -42,7 +42,10 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: '#0a0a0a',
-    allowMixedContent: true
+    allowMixedContent: true,
+    // CRITICAL: Required for background-geolocation to work properly
+    // Prevents location updates halting after 5 minutes in background
+    useLegacyBridge: true
   }
 };
 
