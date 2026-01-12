@@ -194,13 +194,17 @@ const GPSTrackerApp = () => {
     
     const checkUserRole = async () => {
       try {
+        console.log('[GPSTrackerApp] Checking role for user.id:', user.id, 'user.email:', user.email);
+        
         // Check if user has moto role
-        const { data: motoRole } = await supabase
+        const { data: motoRole, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .eq('role', 'moto')
           .maybeSingle();
+        
+        console.log('[GPSTrackerApp] Moto role check:', motoRole, 'error:', roleError);
         
         if (motoRole) {
           setAppMode('moto');
@@ -208,6 +212,7 @@ const GPSTrackerApp = () => {
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           const minDate = yesterday.toISOString().split('T')[0];
+          console.log('[GPSTrackerApp] Min date filter:', minDate);
           const allAssignments: MotoAssignment[] = [];
           
           // 1. Fetch motos directly assigned via user_id in race_motos
@@ -228,7 +233,7 @@ const GPSTrackerApp = () => {
             `)
             .eq('user_id', user.id);
           
-          console.log('Direct motos query result:', directMotos, directError);
+          console.log('[GPSTrackerApp] Direct motos raw query result:', directMotos, 'error:', directError);
           
           if (!directError && directMotos) {
             // Filter in JavaScript: races must exist and date >= minDate
