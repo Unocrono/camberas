@@ -1866,9 +1866,10 @@ const GPSTrackerApp = () => {
             checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
           />
         )}
-        {appMode === 'moto' && selectedMotoAssignment && selectedMotoAssignment.race_distance_id && (
+        {appMode === 'moto' && selectedMotoAssignment && (
           <ElevationMiniProfile
-            distanceId={selectedMotoAssignment.race_distance_id}
+            distanceId={selectedMotoAssignment.race_distance_id || undefined}
+            raceId={!selectedMotoAssignment.race_distance_id ? selectedMotoAssignment.race_id : undefined}
             currentDistanceKm={projectedDistanceKm ?? 0}
             checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
           />

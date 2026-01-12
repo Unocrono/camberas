@@ -15,7 +15,8 @@ interface Checkpoint {
 }
 
 interface ElevationMiniProfileProps {
-  distanceId: string;
+  distanceId?: string;
+  raceId?: string;
   currentDistanceKm?: number;
   checkpoints?: Checkpoint[];
   className?: string;
@@ -23,6 +24,7 @@ interface ElevationMiniProfileProps {
 
 export function ElevationMiniProfile({ 
   distanceId, 
+  raceId,
   currentDistanceKm = 0, 
   checkpoints = [],
   className = '' 
@@ -33,18 +35,36 @@ export function ElevationMiniProfile({
   const [elevationGain, setElevationGain] = useState(0);
 
   useEffect(() => {
-    if (!distanceId) return;
+    if (!distanceId && !raceId) return;
 
     const loadElevationData = async () => {
       setLoading(true);
       try {
-        const { data: distanceData, error } = await supabase
-          .from('race_distances')
-          .select('gpx_file_url, distance_km, elevation_gain')
-          .eq('id', distanceId)
-          .maybeSingle();
+        let distanceData = null;
+        
+        if (distanceId) {
+          // Fetch by distanceId directly
+          const { data, error } = await supabase
+            .from('race_distances')
+            .select('gpx_file_url, distance_km, elevation_gain')
+            .eq('id', distanceId)
+            .maybeSingle();
+          
+          if (!error) distanceData = data;
+        } else if (raceId) {
+          // Fetch first distance of the race (by display_order)
+          const { data, error } = await supabase
+            .from('race_distances')
+            .select('gpx_file_url, distance_km, elevation_gain')
+            .eq('race_id', raceId)
+            .order('display_order', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          
+          if (!error) distanceData = data;
+        }
 
-        if (error || !distanceData?.gpx_file_url) {
+        if (!distanceData?.gpx_file_url) {
           setLoading(false);
           return;
         }
@@ -104,7 +124,7 @@ export function ElevationMiniProfile({
     };
 
     loadElevationData();
-  }, [distanceId]);
+  }, [distanceId, raceId]);
 
   // Find current elevation at runner position
   const currentElevation = useMemo(() => {
