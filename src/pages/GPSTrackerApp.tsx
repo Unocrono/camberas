@@ -1301,7 +1301,12 @@ const GPSTrackerApp = () => {
     return `${(meters / 1000).toFixed(2)}km`;
   };
 
-  // Auth redirect
+  // Splash screen first - before any other checks
+  if (showSplash) {
+    return <GPSSplashScreen onComplete={handleSplashComplete} duration={2500} />;
+  }
+
+  // Auth redirect - must be logged in
   if (!authLoading && !user) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
@@ -1335,19 +1340,22 @@ const GPSTrackerApp = () => {
     );
   }
 
-  // No GPS races/motos
+  // No access for regular users - must have either GPS registration or moto assignment
   if (appMode === 'runner' && registrations.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-sm">
           <CardContent className="pt-6 text-center space-y-4">
             <Navigation className="h-16 w-16 mx-auto text-muted-foreground" />
-            <h1 className="text-xl font-bold">Sin carreras con GPS</h1>
+            <h1 className="text-xl font-bold">Sin acceso GPS</h1>
             <p className="text-muted-foreground text-sm">
-              No tienes inscripciones en carreras con seguimiento GPS habilitado
+              No tienes inscripciones en carreras con seguimiento GPS habilitado para hoy o próximos días.
             </p>
             <Button variant="outline" onClick={() => navigate('/races')}>
               Ver Carreras
+            </Button>
+            <Button variant="ghost" onClick={() => navigate('/')}>
+              Volver al inicio
             </Button>
           </CardContent>
         </Card>
@@ -1363,7 +1371,7 @@ const GPSTrackerApp = () => {
             <Bike className="h-16 w-16 mx-auto text-muted-foreground" />
             <h1 className="text-xl font-bold">Sin motos asignadas</h1>
             <p className="text-muted-foreground text-sm">
-              No tienes asignaciones de moto para carreras próximas
+              No tienes asignaciones de moto para carreras de hoy o próximos días.
             </p>
             <Button variant="outline" onClick={() => navigate('/')}>
               Volver al inicio
@@ -1372,11 +1380,6 @@ const GPSTrackerApp = () => {
         </Card>
       </div>
     );
-  }
-
-  // Splash screen
-  if (showSplash) {
-    return <GPSSplashScreen onComplete={handleSplashComplete} duration={2500} />;
   }
 
   const currentRaceId = appMode === 'moto' ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
