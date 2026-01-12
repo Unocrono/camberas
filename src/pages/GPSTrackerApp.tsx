@@ -951,12 +951,58 @@ const GPSTrackerApp = () => {
     };
   }, [selectedRegistration?.race_distance_id, selectedRegistration?.race_id, selectedMotoAssignment?.race_distance_id, selectedMotoAssignment?.race_id, appMode]);
 
+  // Parse time string as local time (without timezone conversion)
+  const parseLocalTime = (timeStr: string): Date => {
+    // Remove any Z suffix and timezone info to treat as local time
+    const cleanStr = timeStr.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const match = cleanStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+    if (match) {
+      return new Date(
+        parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
+        parseInt(match[4]), parseInt(match[5]), parseInt(match[6])
+      );
+    }
+    return new Date(cleanStr);
+  };
+
+  // Manual refresh function for wave start time
+  const refreshWaveStartTime = useCallback(async () => {
+    const distanceId = appMode === 'runner' 
+      ? selectedRegistration?.race_distance_id 
+      : selectedMotoAssignment?.race_distance_id;
+    const raceId = appMode === 'runner'
+      ? selectedRegistration?.race_id
+      : selectedMotoAssignment?.race_id;
+    
+    if (!distanceId && !raceId) return;
+
+    let query = supabase.from('race_waves').select('start_time, race_distance_id');
+    
+    if (distanceId) {
+      query = query.eq('race_distance_id', distanceId);
+    } else if (raceId) {
+      query = query.eq('race_id', raceId);
+    }
+    
+    const { data, error } = await query.order('start_time', { ascending: false }).limit(1).maybeSingle();
+    
+    console.log('[WaveStartTime] Manual refresh result:', data, 'error:', error);
+    
+    if (!error && data?.start_time) {
+      setWaveStartTime(data.start_time);
+      toast({
+        title: 'Hora actualizada',
+        description: 'Tiempo de carrera sincronizado',
+      });
+    }
+  }, [appMode, selectedRegistration?.race_distance_id, selectedRegistration?.race_id, selectedMotoAssignment?.race_distance_id, selectedMotoAssignment?.race_id, toast]);
+
   // Elapsed time counter - uses wave start time for both runner and moto
   useEffect(() => {
-    // Calculate elapsed time based on wave start time
+    // Calculate elapsed time based on wave start time (treating as local time)
     const calculateElapsed = () => {
       if (waveStartTime) {
-        const startDate = new Date(waveStartTime);
+        const startDate = parseLocalTime(waveStartTime);
         const elapsedSeconds = Math.floor((Date.now() - startDate.getTime()) / 1000);
         return Math.max(0, elapsedSeconds);
       }
@@ -1721,18 +1767,21 @@ const GPSTrackerApp = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Card>
+          <Card 
+            className="cursor-pointer hover:bg-muted/50 transition-colors active:scale-95"
+            onClick={refreshWaveStartTime}
+            title="Toca para actualizar hora de carrera"
+          >
             <CardContent className="pt-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
               <div className="text-2xl font-mono font-bold">
                 {stats.elapsed >= 0 ? formatTime(stats.elapsed) : '--:--:--'}
               </div>
               <div className="text-xs text-muted-foreground">
-                {waveStartTime ? 'Tiempo carrera' : 'Sin hora salida'}
+                {waveStartTime ? 'Tiempo carrera ↻' : 'Sin hora salida'}
               </div>
             </CardContent>
           </Card>
-          
           <Card 
             className="cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => setShowPace(!showPace)}
