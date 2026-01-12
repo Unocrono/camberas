@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Mail, MessageSquare, Phone, Loader2 } from "lucide-react";
 import { z } from "zod";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 const contactSchema = z.object({
   name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(100),
@@ -126,15 +128,20 @@ export default function Contact() {
 
   if (loadingSettings) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-12 max-w-4xl">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-background to-muted/20">
+      <Navbar />
+      <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4 text-foreground">{settings.page_title}</h1>
           <p className="text-lg text-muted-foreground">
@@ -283,7 +290,8 @@ export default function Contact() {
             </CardContent>
           </Card>
         )}
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }
