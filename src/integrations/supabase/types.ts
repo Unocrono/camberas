@@ -3131,6 +3131,10 @@ export type Database = {
         Args: { p_distance_id: string }
         Returns: undefined
       }
+      user_has_gps_registration: {
+        Args: { distance_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
