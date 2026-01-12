@@ -27,12 +27,18 @@ const Races = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [raceTypeFilter, setRaceTypeFilter] = useState<RaceTypeFilter>('all');
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>(() => {
-    const filter = searchParams.get('filter');
-    if (filter === 'upcoming' || filter === 'past') return filter;
-    return 'all';
-  });
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Sync timeFilter with URL params on mount and when URL changes
+  useEffect(() => {
+    const filter = searchParams.get('filter');
+    if (filter === 'upcoming' || filter === 'past') {
+      setTimeFilter(filter);
+    } else {
+      setTimeFilter('all');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchRaces();

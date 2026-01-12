@@ -30,7 +30,6 @@ const Navbar = () => {
               <SheetContent>
                 <nav className="flex flex-col gap-4 mt-8">
                   <NavLink to="/">Inicio</NavLink>
-                  <NavLink to="/races">Carreras</NavLink>
                   <NavLink to="/races?filter=upcoming" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Inscripciones
@@ -87,7 +86,6 @@ const Navbar = () => {
           {/* Desktop navigation */}
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
-            <NavLink to="/races">Carreras</NavLink>
             <NavLink to="/races?filter=upcoming">Inscripciones</NavLink>
             <NavLink to="/races?filter=past">Clasificaciones</NavLink>
             <NavLink to="/noticias">Noticias</NavLink>
