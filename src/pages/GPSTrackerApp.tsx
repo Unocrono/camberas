@@ -453,11 +453,15 @@ const GPSTrackerApp = () => {
         const now = new Date();
         const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         
-        console.log('[GPSTrackerApp] Fetching registrations for user:', user.id, 'today:', today);
+        const userEmail = user.email?.toLowerCase();
+        console.log('[GPSTrackerApp] Fetching registrations for user:', user.id, 'email:', userEmail, 'today:', today);
         
-        // Query registrations - use left join to allow races that are not visible
-        // Filter by gps_tracking_enabled will be done in JS since RLS now allows GPS access
-        const { data, error } = await supabase
+        // Query registrations - search by user_id OR by email (case-insensitive)
+        // This handles both linked accounts and registrations made with email only
+        let allRegistrations: any[] = [];
+        
+        // First, try by user_id
+        const { data: byUserId, error: errorUserId } = await supabase
           .from('registrations')
           .select(`
             id,
@@ -480,16 +484,56 @@ const GPSTrackerApp = () => {
           `)
           .eq('user_id', user.id)
           .in('status', ['confirmed', 'pending']);
-
-        console.log('[GPSTrackerApp] Registrations query result:', data, 'error:', error);
         
-        if (error) throw error;
+        if (!errorUserId && byUserId) {
+          allRegistrations = [...byUserId];
+        }
+        
+        // Then, try by email (for registrations without user_id linked)
+        if (userEmail) {
+          const { data: byEmail, error: errorEmail } = await supabase
+            .from('registrations')
+            .select(`
+              id,
+              race_id,
+              race_distance_id,
+              bib_number,
+              race_distances (
+                name,
+                distance_km,
+                gps_tracking_enabled,
+                gps_update_frequency
+              ),
+              races (
+                id,
+                name,
+                date,
+                gps_update_frequency,
+                race_type
+              )
+            `)
+            .ilike('email', userEmail)
+            .is('user_id', null)
+            .in('status', ['confirmed', 'pending']);
+          
+          if (!errorEmail && byEmail) {
+            // Merge, avoiding duplicates by id
+            const existingIds = new Set(allRegistrations.map(r => r.id));
+            byEmail.forEach(r => {
+              if (!existingIds.has(r.id)) {
+                allRegistrations.push(r);
+              }
+            });
+          }
+        }
+        
+        console.log('[GPSTrackerApp] Combined registrations result:', allRegistrations.length, 'registrations');
         
         // Filter in JS:
         // 1. Must have gps_tracking_enabled = true
         // 2. Race date must be >= today
         // 3. Must have race_distances data (RLS might hide some)
-        const gpsEnabled = (data || []).filter((reg: any) => 
+        const gpsEnabled = allRegistrations.filter((reg: any) => 
           reg.race_distances?.gps_tracking_enabled === true &&
           reg.races?.date >= today
         );
