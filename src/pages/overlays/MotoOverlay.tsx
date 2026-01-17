@@ -1096,7 +1096,7 @@ const RaceTimeDisplay = ({ startTime }: { startTime: Date | null }) => {
   }, [startTime]);
   
   return (
-    <span>{elapsed}</span>
+    <span style={{ color: 'inherit', fontWeight: 'bold', letterSpacing: '0.05em' }}>{elapsed}</span>
   );
 };
 
