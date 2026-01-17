@@ -479,42 +479,61 @@ const MotoOverlay = () => {
   // Determine which moto ID to use: config.selected_moto_id OR primaryMotoId
   const effectiveMotoId = config?.selected_moto_id || primaryMotoId;
 
-  // Fetch wave start time based on effectiveMotoId's race_distance_id
+  // Fetch wave start time - try from moto first, then fallback to race waves
   useEffect(() => {
-    if (!raceIdResolved || !effectiveMotoId) {
+    if (!raceIdResolved) {
       setWaveStartTime(null);
       return;
     }
 
     const fetchWaveStartTime = async () => {
-      // First get the moto's race_distance_id
-      const { data: motoData, error: motoError } = await supabase
-        .from("race_motos")
-        .select("race_distance_id")
-        .eq("id", effectiveMotoId)
-        .single();
+      let raceDistanceId: string | null = null;
 
-      if (motoError || !motoData?.race_distance_id) {
-        console.error("Error fetching moto race_distance_id:", motoError);
-        setWaveStartTime(null);
-        return;
+      // If we have a moto, try to get its race_distance_id first
+      if (effectiveMotoId) {
+        const { data: motoData, error: motoError } = await supabase
+          .from("race_motos")
+          .select("race_distance_id")
+          .eq("id", effectiveMotoId)
+          .single();
+
+        if (!motoError && motoData?.race_distance_id) {
+          raceDistanceId = motoData.race_distance_id;
+        }
       }
 
-      // Then get the wave for that race_distance
-      const { data: waveData, error: waveError } = await supabase
+      // If we have a race_distance_id from moto, get its wave
+      if (raceDistanceId) {
+        const { data: waveData, error: waveError } = await supabase
+          .from("race_waves")
+          .select("start_time")
+          .eq("race_distance_id", raceDistanceId)
+          .single();
+
+        if (!waveError && waveData?.start_time) {
+          console.log("[Overlay] Wave start time from moto event:", waveData.start_time);
+          setWaveStartTime(new Date(waveData.start_time));
+          return;
+        }
+      }
+
+      // Fallback: get any wave from this race that has a start_time
+      const { data: raceWaves, error: raceWavesError } = await supabase
         .from("race_waves")
         .select("start_time")
-        .eq("race_distance_id", motoData.race_distance_id)
-        .single();
+        .eq("race_id", raceIdResolved)
+        .not("start_time", "is", null)
+        .order("start_time", { ascending: true })
+        .limit(1);
 
-      if (waveError || !waveData?.start_time) {
-        console.error("Error fetching wave start_time:", waveError);
-        setWaveStartTime(null);
+      if (!raceWavesError && raceWaves && raceWaves.length > 0 && raceWaves[0].start_time) {
+        console.log("[Overlay] Wave start time from race fallback:", raceWaves[0].start_time);
+        setWaveStartTime(new Date(raceWaves[0].start_time));
         return;
       }
 
-      console.log("[Overlay] Wave start time for moto event:", waveData.start_time);
-      setWaveStartTime(new Date(waveData.start_time));
+      console.log("[Overlay] No wave start time found for race");
+      setWaveStartTime(null);
     };
 
     fetchWaveStartTime();
