@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff, MapPin } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff, MapPin, Square, CheckSquare, MinusSquare } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -98,6 +99,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [realtimeEnabled, setRealtimeEnabled] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [lastSplitsCache, setLastSplitsCache] = useState<Record<string, { checkpoint_name: string; split_time: string } | null>>({});
+  const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState({
     registration_id: "",
@@ -547,6 +549,54 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     
     return bibNumber.includes(search) || name.includes(search);
   });
+
+  // Selection handlers
+  const handleSelectResult = (resultId: string, checked: boolean) => {
+    const newSelected = new Set(selectedResults);
+    if (checked) {
+      newSelected.add(resultId);
+    } else {
+      newSelected.delete(resultId);
+    }
+    setSelectedResults(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedResults(new Set(filteredResults.map(r => r.id)));
+    } else {
+      setSelectedResults(new Set());
+    }
+  };
+
+  const isAllSelected = filteredResults.length > 0 && selectedResults.size === filteredResults.length;
+  const isSomeSelected = selectedResults.size > 0 && selectedResults.size < filteredResults.length;
+
+  const handleBulkDelete = async () => {
+    if (selectedResults.size === 0) return;
+    if (!confirm(`¿Estás seguro de eliminar ${selectedResults.size} resultados seleccionados?`)) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from("race_results")
+        .delete()
+        .in("id", Array.from(selectedResults));
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Resultados eliminados", 
+        description: `Se han eliminado ${selectedResults.size} resultados` 
+      });
+      setSelectedResults(new Set());
+      fetchResults();
+    } catch (error: any) {
+      toast({ title: "Error eliminando resultados", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1423,11 +1473,36 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                     En vivo
                   </Badge>
                 )}
+                {selectedResults.size > 0 && (
+                  <Badge variant="secondary" className="gap-1">
+                    {selectedResults.size} seleccionados
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {distances.find(d => d.id === selectedDistance)?.name} - {distances.find(d => d.id === selectedDistance)?.distance_km} km
               </CardDescription>
             </div>
+            {selectedResults.size > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedResults(new Set())}
+                >
+                  Deseleccionar
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  className="gap-2"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Eliminar ({selectedResults.size})
+                </Button>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -1445,6 +1520,14 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={(checked) => handleSelectAll(checked === true)}
+                          aria-label="Seleccionar todos"
+                          className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
+                        />
+                      </TableHead>
                       <TableHead className="w-8"></TableHead>
                       <TableHead className="w-12">Pos</TableHead>
                       <TableHead className="w-16">Dorsal</TableHead>
@@ -1462,9 +1545,21 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                   <TableBody>
                     {filteredResults.map((result) => {
                       const lastCheckpoint = getLastCheckpoint(result.id);
+                      const isSelected = selectedResults.has(result.id);
                       return (
                       <>
-                        <TableRow key={result.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableRow 
+                          key={result.id} 
+                          className={`cursor-pointer hover:bg-muted/50 ${isSelected ? 'bg-primary/5' : ''}`}
+                        >
+                          <TableCell className="p-2">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => handleSelectResult(result.id, checked === true)}
+                              aria-label={`Seleccionar resultado ${result.registration.bib_number}`}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </TableCell>
                           <TableCell className="p-0">
                             <Button
                               variant="ghost"
