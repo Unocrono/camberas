@@ -1081,7 +1081,7 @@ const MotoOverlay = () => {
 
 // Race time display component - shows elapsed time since wave start
 const RaceTimeDisplay = ({ startTime }: { startTime: Date | null }) => {
-  const [elapsed, setElapsed] = useState("--:--:--");
+  const [elapsed, setElapsed] = useState("00:00:00");
   
   useEffect(() => {
     // If no start time, show placeholder
