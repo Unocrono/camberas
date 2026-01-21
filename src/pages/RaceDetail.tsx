@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3 } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import raceScene from "@/assets/race-scene.jpg";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RoutePreviewMap } from "@/components/RoutePreviewMap";
+import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 
 const RaceDetail = () => {
   const { id, slug } = useParams();
@@ -33,6 +34,10 @@ const RaceDetail = () => {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [faqs, setFaqs] = useState<any[]>([]);
   const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
+  
+  // Payment state
+  const [registrationStep, setRegistrationStep] = useState<'form' | 'payment'>('form');
+  const [pendingRegistration, setPendingRegistration] = useState<any>(null);
 
   // Helper to validate UUID format
   const isValidUUID = (str: string) => {
@@ -286,6 +291,8 @@ const RaceDetail = () => {
   const handleRegisterClick = (distance: any) => {
     setSelectedDistance(distance);
     setIsGuestRegistration(!user);
+    setRegistrationStep('form');
+    setPendingRegistration(null);
     setIsDialogOpen(true);
   };
 
@@ -354,13 +361,6 @@ const RaceDetail = () => {
 
         // Get gender from form data
         const gender = customFormData.gender || "";
-        
-        // Calculate category if we have birth_date and gender
-        let category: string | null = null;
-        if (birthDate && gender) {
-          // Category will be calculated server-side via trigger or we calculate here
-          // For now, leave it null and let the server calculate via get_race_category
-        }
 
         // Create guest registration with denormalized fields
         const { data: newRegistration, error: registrationError } = await supabase
@@ -395,32 +395,21 @@ const RaceDetail = () => {
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
-        // Send confirmation email
-        try {
-          await supabase.functions.invoke('send-registration-confirmation', {
-            body: {
-              userEmail: email,
-              userName: `${firstName} ${lastName}`,
-              raceName: race!.name,
-              raceDate: race!.date,
-              raceLocation: race!.location,
-              distanceName: selectedDistance!.name,
-              price: selectedDistance!.price,
-              isGuest: true,
-            },
+        // If price > 0, go to payment step
+        if (selectedDistance.currentPrice > 0) {
+          setPendingRegistration({
+            ...newRegistration,
+            email,
+            firstName,
+            lastName,
           });
-        } catch (emailError) {
-          console.error("Failed to send confirmation email:", emailError);
+          setRegistrationStep('payment');
+          setIsSubmitting(false);
+          return;
         }
 
-        toast({
-          title: "¡Inscripción exitosa!",
-          description: `Te has inscrito correctamente como invitado. Revisa tu email (${email}) para más información.`,
-        });
-
-        setIsDialogOpen(false);
-        setCustomFormData({});
-        fetchRaceDetails(); // Refresh to update available spots
+        // Free registration - complete immediately
+        await completeRegistration(newRegistration.id, email, firstName, lastName, true);
         
       } else {
         // Authenticated user registration
@@ -494,35 +483,21 @@ const RaceDetail = () => {
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
-        // Send confirmation email
-        try {
-          await supabase.functions.invoke('send-registration-confirmation', {
-            body: {
-              userEmail: user.email,
-              userName: `${firstName} ${lastName}`,
-              raceName: race!.name,
-              raceDate: race!.date,
-              raceLocation: race!.location,
-              distanceName: selectedDistance!.name,
-              price: selectedDistance!.price,
-            },
+        // If price > 0, go to payment step
+        if (selectedDistance.currentPrice > 0) {
+          setPendingRegistration({
+            ...newRegistration,
+            email: user.email,
+            firstName,
+            lastName,
           });
-        } catch (emailError) {
-          console.error("Failed to send confirmation email:", emailError);
+          setRegistrationStep('payment');
+          setIsSubmitting(false);
+          return;
         }
 
-        toast({
-          title: "¡Inscripción exitosa!",
-          description: `Te has inscrito correctamente a la distancia ${selectedDistance.name}. Redirigiendo a tu dashboard...`,
-        });
-
-        setIsDialogOpen(false);
-        setCustomFormData({});
-        
-        // Redirect to dashboard after 1.5 seconds
-        setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+        // Free registration - complete immediately
+        await completeRegistration(newRegistration.id, user.email || "", firstName, lastName, false);
       }
     } catch (error: any) {
       toast({
@@ -533,6 +508,92 @@ const RaceDetail = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const completeRegistration = async (
+    registrationId: string, 
+    email: string, 
+    firstName: string, 
+    lastName: string,
+    isGuest: boolean
+  ) => {
+    // Update registration status
+    await supabase
+      .from("registrations")
+      .update({ 
+        status: "confirmed",
+        payment_status: selectedDistance.currentPrice > 0 ? "paid" : "not_required"
+      })
+      .eq("id", registrationId);
+
+    // Send confirmation email
+    try {
+      await supabase.functions.invoke('send-registration-confirmation', {
+        body: {
+          userEmail: email,
+          userName: `${firstName} ${lastName}`,
+          raceName: race!.name,
+          raceDate: race!.date,
+          raceLocation: race!.location,
+          distanceName: selectedDistance!.name,
+          price: selectedDistance!.currentPrice,
+          isGuest,
+        },
+      });
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError);
+    }
+
+    toast({
+      title: "¡Inscripción completada!",
+      description: isGuest 
+        ? `Te has inscrito correctamente. Revisa tu email (${email}) para más información.`
+        : `Te has inscrito correctamente a ${selectedDistance.name}.`,
+    });
+
+    setIsDialogOpen(false);
+    setCustomFormData({});
+    setRegistrationStep('form');
+    setPendingRegistration(null);
+    
+    if (!isGuest) {
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
+    } else {
+      fetchRaceDetails();
+    }
+  };
+
+  const handlePaymentSuccess = async () => {
+    if (!pendingRegistration) return;
+    
+    await completeRegistration(
+      pendingRegistration.id,
+      pendingRegistration.email,
+      pendingRegistration.firstName,
+      pendingRegistration.lastName,
+      isGuestRegistration
+    );
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast({
+      title: "Error en el pago",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
+  const handlePaymentCancel = () => {
+    // Go back to form step but keep registration pending
+    setRegistrationStep('form');
+    toast({
+      title: "Pago cancelado",
+      description: "Puedes completar el pago más tarde desde tu dashboard.",
+    });
+    setIsDialogOpen(false);
+    fetchRaceDetails();
   };
 
   const saveCustomFormResponses = async (registrationId: string, distanceId: string) => {
@@ -913,50 +974,94 @@ const RaceDetail = () => {
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
-                                <DialogTitle>Inscripción - {distance.name}</DialogTitle>
+                                <DialogTitle className="flex items-center gap-2">
+                                  {registrationStep === 'payment' && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-6 w-6"
+                                      onClick={() => setRegistrationStep('form')}
+                                    >
+                                      <ArrowLeft className="h-4 w-4" />
+                                    </Button>
+                                  )}
+                                  {registrationStep === 'form' 
+                                    ? `Inscripción - ${distance.name}`
+                                    : `Pago - ${distance.name}`
+                                  }
+                                </DialogTitle>
                                 <DialogDescription>
-                                  {isGuestRegistration 
-                                    ? "Completa tus datos para inscribirte como invitado. Si ya tienes cuenta, puedes iniciar sesión para vincular tu inscripción."
-                                    : "Completa tus datos para inscribirte a la carrera"
+                                  {registrationStep === 'form' 
+                                    ? (isGuestRegistration 
+                                        ? "Completa tus datos para inscribirte como invitado. Si ya tienes cuenta, puedes iniciar sesión para vincular tu inscripción."
+                                        : "Completa tus datos para inscribirte a la carrera"
+                                      )
+                                    : "Completa el pago con tarjeta para confirmar tu inscripción"
                                   }
                                 </DialogDescription>
                               </DialogHeader>
                               
-                              {isGuestRegistration && (
-                                <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                                  <p className="text-sm text-muted-foreground">
-                                    ¿Ya tienes cuenta?{" "}
-                                    <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
-                                      Inicia sesión
-                                    </Button>
-                                    {" "}para vincular tu inscripción a tu perfil.
-                                  </p>
+                              {registrationStep === 'form' ? (
+                                <>
+                                  {isGuestRegistration && (
+                                    <div className="bg-muted/50 p-4 rounded-lg border border-border">
+                                      <p className="text-sm text-muted-foreground">
+                                        ¿Ya tienes cuenta?{" "}
+                                        <Button variant="link" className="p-0 h-auto" onClick={() => navigate("/auth")}>
+                                          Inicia sesión
+                                        </Button>
+                                        {" "}para vincular tu inscripción a tu perfil.
+                                      </p>
+                                    </div>
+                                  )}
+                                  
+                                  <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+                                    {/* Dynamic Form Fields - All configurable */}
+                                    <DynamicRegistrationForm
+                                      distanceId={distance.id}
+                                      formData={customFormData}
+                                      onChange={handleCustomFieldChange}
+                                    />
+                                    
+                                    <div className="pt-4 border-t border-border">
+                                      <div className="flex justify-between items-center mb-4">
+                                        <span className="text-sm text-muted-foreground">Precio de inscripción:</span>
+                                        <span className="text-2xl font-bold">{distance.currentPrice}€</span>
+                                      </div>
+                                      
+                                      <Button 
+                                        type="submit" 
+                                        className="w-full" 
+                                        disabled={isSubmitting}
+                                      >
+                                        {isSubmitting ? "Procesando..." : (
+                                          distance.currentPrice > 0 ? (
+                                            <>
+                                              <CreditCard className="h-4 w-4 mr-2" />
+                                              Continuar al pago
+                                            </>
+                                          ) : (
+                                            isGuestRegistration ? "Inscribirme como Invitado" : "Confirmar Inscripción"
+                                          )
+                                        )}
+                                      </Button>
+                                    </div>
+                                  </form>
+                                </>
+                              ) : (
+                                <div className="py-4">
+                                  <RedsysPaymentForm
+                                    amount={distance.currentPrice}
+                                    registrationId={pendingRegistration?.id}
+                                    description={`${race.name} - ${distance.name}`}
+                                    userEmail={pendingRegistration?.email}
+                                    onSuccess={handlePaymentSuccess}
+                                    onError={handlePaymentError}
+                                    onCancel={handlePaymentCancel}
+                                    isTest={true}
+                                  />
                                 </div>
                               )}
-                              
-                              <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-                                {/* Dynamic Form Fields - All configurable */}
-                                <DynamicRegistrationForm
-                                  distanceId={distance.id}
-                                  formData={customFormData}
-                                  onChange={handleCustomFieldChange}
-                                />
-                                
-                                <div className="pt-4 border-t border-border">
-                                  <div className="flex justify-between items-center mb-4">
-                                    <span className="text-sm text-muted-foreground">Precio de inscripción:</span>
-                                    <span className="text-2xl font-bold">{distance.currentPrice}€</span>
-                                  </div>
-                                  
-                                  <Button 
-                                    type="submit" 
-                                    className="w-full" 
-                                    disabled={isSubmitting}
-                                  >
-                                    {isSubmitting ? "Procesando..." : isGuestRegistration ? "Inscribirme como Invitado" : "Confirmar Inscripción"}
-                                  </Button>
-                                </div>
-                              </form>
                             </DialogContent>
                           </Dialog>
                         </div>
