@@ -44,3 +44,9 @@ verify_jwt = false
 
 [functions.send-newsletter]
 verify_jwt = true
+
+[functions.redsys-init-payment]
+verify_jwt = false
+
+[functions.redsys-webhook]
+verify_jwt = false
