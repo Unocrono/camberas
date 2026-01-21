@@ -12,49 +12,59 @@ const REDSYS_URL_PROD = "https://sis.redsys.es/sis/rest/trataPeticionREST";
 const REDSYS_INSITE_URL_TEST = "https://sis-t.redsys.es:25443/sis/NC/sandbox/redsysV3.js";
 const REDSYS_INSITE_URL_PROD = "https://sis.redsys.es/sis/NC/redsysV3.js";
 
-function base64UrlDecode(str: string): Uint8Array {
+function base64UrlDecode(str: string): ArrayBuffer {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
     base64 += '=';
   }
-  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
 }
 
-function base64UrlEncode(data: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...data));
+function base64UrlEncode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 // Generate Redsys signature using HMAC-SHA256
 async function generateSignature(merchantParams: string, orderNumber: string, secretKey: string): Promise<string> {
-  const keyBytes = base64UrlDecode(secretKey);
+  const keyBuffer = base64UrlDecode(secretKey);
   
   const encoder = new TextEncoder();
   
   // Import the secret key
   const key = await crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyBuffer,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
   
   // First, derive key with order number using HMAC
-  const orderKey = await crypto.subtle.sign("HMAC", key, encoder.encode(orderNumber));
+  const orderKeyBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(orderNumber));
   
   // Then sign the merchant params with derived key
   const derivedKey = await crypto.subtle.importKey(
     "raw",
-    orderKey,
+    orderKeyBuffer,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"]
   );
   
-  const signature = await crypto.subtle.sign("HMAC", derivedKey, encoder.encode(merchantParams));
+  const signatureBuffer = await crypto.subtle.sign("HMAC", derivedKey, encoder.encode(merchantParams));
   
-  return base64UrlEncode(new Uint8Array(signature));
+  return base64UrlEncode(signatureBuffer);
 }
 
 serve(async (req) => {
@@ -150,10 +160,11 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
-    console.error("Error initializing payment:", error);
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    console.error("Error initializing payment:", err);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

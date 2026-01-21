@@ -1238,6 +1238,62 @@ export type Database = {
           },
         ]
       }
+      payment_intents: {
+        Row: {
+          amount: number
+          auth_code: string | null
+          completed_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          merchant_params: Json | null
+          order_number: string
+          registration_id: string | null
+          response_code: string | null
+          response_message: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          auth_code?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          merchant_params?: Json | null
+          order_number: string
+          registration_id?: string | null
+          response_code?: string | null
+          response_message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          auth_code?: string | null
+          completed_at?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          merchant_params?: Json | null
+          order_number?: string
+          registration_id?: string | null
+          response_code?: string | null
+          response_message?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_intents_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           address: string | null
