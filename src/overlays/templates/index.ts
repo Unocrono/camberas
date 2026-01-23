@@ -1,2 +1,2 @@
 // Overlay templates and layouts
-export { default as SimplifiedMotoOverlay } from './SimplifiedMotoOverlay';
+// Templates have been migrated to src/pages/overlays/
