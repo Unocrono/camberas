@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toLocalISOString } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -252,7 +253,11 @@ export function RFIDImportDialog({
   // Form fields
   const [selectedTimingPointId, setSelectedTimingPointId] = useState<string>("");
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>("");
-  const [defaultDate, setDefaultDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Initialize with today's date in LOCAL time, will be updated with race date
+  const [defaultDate, setDefaultDate] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const [readerDeviceId, setReaderDeviceId] = useState<string>("");
   
   // Import state
@@ -261,6 +266,28 @@ export function RFIDImportDialog({
   const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [step, setStep] = useState<'upload' | 'preview' | 'result'>('upload');
+
+  // Load race date when dialog opens to set defaultDate
+  useEffect(() => {
+    if (open && raceId) {
+      const fetchRaceDate = async () => {
+        try {
+          const { data } = await supabase
+            .from('races')
+            .select('date')
+            .eq('id', raceId)
+            .single();
+          
+          if (data?.date) {
+            setDefaultDate(data.date);
+          }
+        } catch (error) {
+          console.error('Error fetching race date:', error);
+        }
+      };
+      fetchRaceDate();
+    }
+  }, [open, raceId]);
 
   // Load bib_chips for the race
   const loadBibChips = useCallback(async () => {
@@ -521,7 +548,7 @@ export function RFIDImportDialog({
           race_id: raceId,
           bib_number: reading.resolved_bib!,
           chip_code: reading.chip_code,
-          timing_timestamp: reading.timestamp.toISOString(),
+          timing_timestamp: toLocalISOString(reading.timestamp),
           timing_point_id: selectedTimingPointId || null,
           race_distance_id: reading.resolved_distance_id || selectedDistanceId || null,
           reader_device_id: readerDeviceId || reading.reader_id,
