@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toLocalISOString } from "@/lib/timezoneUtils";
+import { toLocalISOString, formatLocalTime } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1511,7 +1511,7 @@ const TimingApp = () => {
                             )}
                           </p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <span>{new Date(reading.timestamp).toLocaleTimeString("es-ES")}</span>
+                            <span>{formatLocalTime(reading.timestamp)}</span>
                             {raceTime && (
                               <Badge variant="outline" className="font-mono text-xs bg-primary/10">
                                 {raceTime}

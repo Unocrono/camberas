@@ -5,6 +5,7 @@ import { ArrowLeft, Timer, Flag, Download, LogOut, LogIn, User } from 'lucide-re
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { formatLocalTime } from '@/lib/timezoneUtils';
 import { useNtpOffset } from '@/hooks/useNtpOffset';
 import { useStartControlSync } from '@/hooks/useStartControlSync';
 import { HoldToStart } from '@/components/start/HoldToStart';
@@ -228,7 +229,7 @@ export default function StartControl() {
     if (success) {
       toast({
         title: '¡Salida registrada!',
-        description: `${selectedDistanceIds.length} evento(s) a las ${new Date(correctedTimestamp).toLocaleTimeString('es-ES')}`
+        description: `${selectedDistanceIds.length} evento(s) a las ${formatLocalTime(correctedTimestamp.toString())}`
       });
     }
 

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Clock } from "lucide-react";
+import { formatLocalTime } from "@/lib/timezoneUtils";
 
 
 interface WavesSummaryProps {
@@ -85,7 +86,7 @@ export function WavesSummary({ raceId }: WavesSummaryProps) {
                 <span className="truncate">{wave.wave_name}</span>
                 <span className="shrink-0 font-medium">
                   {wave.start_time 
-                    ? new Date(wave.start_time).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+                    ? formatLocalTime(wave.start_time).slice(0, 5)
                     : <span className="text-muted-foreground">--:--</span>
                   }
                 </span>

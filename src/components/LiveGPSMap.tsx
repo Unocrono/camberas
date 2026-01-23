@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatLocalTime } from '@/lib/timezoneUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapControls } from '@/components/MapControls';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -813,7 +814,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           toast.success(
             `🏃 ${runnerName} pasó por ${checkpointName}`,
             {
-              description: `Dorsal #${newReading.bib_number} - ${new Date(newReading.timing_timestamp).toLocaleTimeString('es-ES')}`,
+              description: `Dorsal #${newReading.bib_number} - ${formatLocalTime(newReading.timing_timestamp)}`,
               duration: 5000,
             }
           );
@@ -951,11 +952,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   }, [selectedRunner, isFollowing]);
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('es-ES', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    return formatLocalTime(timestamp);
   };
 
   return (
