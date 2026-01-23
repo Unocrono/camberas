@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { toLocalISOString } from '@/lib/timezoneUtils';
 import type { PendingStart } from '@/hooks/useStartControlSync';
 
 interface RaceDistance {
@@ -106,7 +107,8 @@ export function EventSelector({
     const originalDate = new Date(editingEvent.currentTime);
     originalDate.setHours(hours, minutes, seconds, parseInt(ms) || 0);
     
-    onEditStart(editingEvent.distanceId, editingEvent.waveId, originalDate.toISOString());
+    // Use local ISO string to avoid UTC conversion
+    onEditStart(editingEvent.distanceId, editingEvent.waveId, toLocalISOString(originalDate));
     setEditDialogOpen(false);
     setEditingEvent(null);
   };

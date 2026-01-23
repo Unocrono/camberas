@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { toLocalISOString } from '@/lib/timezoneUtils';
 
 export interface PendingStart {
   id: string; // UUID local
@@ -201,7 +202,7 @@ export function useStartControlSync() {
             .from('race_waves')
             .update({ 
               start_time: start.startTimeISO,
-              updated_at: new Date().toISOString()
+              updated_at: toLocalISOString(new Date())
             })
             .eq('id', waveId);
           
@@ -224,7 +225,7 @@ export function useStartControlSync() {
               .from('race_waves')
               .update({ 
                 start_time: start.startTimeISO,
-                updated_at: new Date().toISOString()
+                updated_at: toLocalISOString(new Date())
               })
               .eq('id', existingWave.id);
             

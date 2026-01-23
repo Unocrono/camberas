@@ -389,9 +389,28 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
   const handleEdit = (reading: TimingReading) => {
     setEditingReading(reading);
+    // Parse timestamp without UTC conversion - use the stored local time directly
+    let formattedTimestamp = "";
+    if (reading.timing_timestamp) {
+      // timing_timestamp is stored as local time, extract YYYY-MM-DDTHH:mm directly
+      const ts = reading.timing_timestamp;
+      if (typeof ts === 'string') {
+        // Already a string, just take first 16 chars (YYYY-MM-DDTHH:mm)
+        formattedTimestamp = ts.slice(0, 16);
+      } else {
+        // Fallback: format manually to avoid UTC conversion
+        const d = new Date(ts);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        formattedTimestamp = `${year}-${month}-${day}T${hours}:${minutes}`;
+      }
+    }
     setFormData({
       bib_number: reading.bib_number.toString(),
-      timing_timestamp: reading.timing_timestamp ? new Date(reading.timing_timestamp).toISOString().slice(0, 16) : "",
+      timing_timestamp: formattedTimestamp,
       timing_point_id: reading.timing_point_id || "",
       race_distance_id: reading.race_distance_id || "",
       lap_number: (reading.lap_number || 1).toString(),
