@@ -117,7 +117,7 @@ const SimpleOverlayConfig = () => {
 
   const selectedRace = races.find(r => r.id === selectedRaceId);
   const overlayUrl = selectedRace 
-    ? `${window.location.origin}/overlay/moto-test/${selectedRace.slug}` 
+    ? `https://camberas.com/overlay/moto/${selectedRace.slug}` 
     : '';
 
   const copyUrl = () => {
@@ -127,7 +127,7 @@ const SimpleOverlayConfig = () => {
 
   const openPreview = () => {
     if (selectedRace) {
-      window.open(`/overlay/moto-test/${selectedRace.slug}`, '_blank', 'width=1920,height=1080');
+      window.open(`/overlay/moto/${selectedRace.slug}`, '_blank', 'width=1920,height=1080');
     }
   };
 
