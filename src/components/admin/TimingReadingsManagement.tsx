@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatUtcOffset, toLocalISOString } from "@/lib/timezoneUtils";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -77,6 +78,7 @@ interface TimingReading {
 interface Race {
   id: string;
   name: string;
+  utc_offset?: number;
 }
 
 interface RaceDistance {
@@ -187,7 +189,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
   const fetchRaces = async () => {
     try {
-      let query = supabase.from("races").select("id, name").order("date", { ascending: false });
+      let query = supabase.from("races").select("id, name, utc_offset").order("date", { ascending: false });
       
       if (isOrganizer && user) {
         query = query.eq("organizer_id", user.id);
@@ -200,6 +202,23 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       console.error("Error fetching races:", error);
     }
   };
+  
+  // Get UTC offset for the selected race
+  const getSelectedRaceOffset = useCallback((): number => {
+    const race = races.find(r => r.id === filterRaceId);
+    return race?.utc_offset ?? 60; // Default to CET (+1:00)
+  }, [races, filterRaceId]);
+
+  // Generate timestamp with UTC offset for correct timezone handling
+  const formatTimestampWithOffset = useCallback((dateStr: string): string => {
+    // Parse the date string as local time
+    const date = new Date(dateStr);
+    const offset = getSelectedRaceOffset();
+    const offsetStr = formatUtcOffset(offset);
+    // Format: YYYY-MM-DDTHH:mm:ss+HH:MM (local time with offset)
+    const localStr = toLocalISOString(date);
+    return `${localStr}${offsetStr}`;
+  }, [getSelectedRaceOffset]);
 
   const fetchDistances = async (raceId: string) => {
     try {
@@ -427,10 +446,11 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .maybeSingle();
 
       // registration_id se resuelve dinámicamente via bib_number + race_id en las funciones de cálculo
+      // Use formatTimestampWithOffset to ensure correct timezone handling
       const { error } = await supabase.from("timing_readings").insert({
         race_id: filterRaceId,
         bib_number: parseInt(formData.bib_number),
-        timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
+        timing_timestamp: formatTimestampWithOffset(formData.timing_timestamp),
         timing_point_id: formData.timing_point_id || null,
         race_distance_id: formData.race_distance_id || registration?.race_distance_id || null,
         lap_number: parseInt(formData.lap_number) || 1,
@@ -474,11 +494,12 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
 
     setSaving(true);
     try {
+      // Use formatTimestampWithOffset to ensure correct timezone handling
       const { error } = await supabase
         .from("timing_readings")
         .update({
           bib_number: parseInt(formData.bib_number),
-          timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
+          timing_timestamp: formatTimestampWithOffset(formData.timing_timestamp),
           timing_point_id: formData.timing_point_id || null,
           race_distance_id: formData.race_distance_id || null,
           lap_number: parseInt(formData.lap_number) || 1,

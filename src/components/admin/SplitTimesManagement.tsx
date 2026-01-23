@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatUtcOffset, toLocalISOString } from "@/lib/timezoneUtils";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -452,7 +453,10 @@ export function SplitTimesManagement({
     }
 
     const interval = `${formData.hours.toString().padStart(2, "0")}:${formData.minutes.toString().padStart(2, "0")}:${formData.seconds.toString().padStart(2, "0")}`;
-    const now = new Date().toISOString();
+    // Use local time with CET offset as default for manual entries
+    const now = new Date();
+    const localStr = toLocalISOString(now);
+    const timestamp = `${localStr}${formatUtcOffset(60)}`; // Default CET
 
     // Get or create race_result
     let raceResultId = registration.race_result_id;
@@ -486,8 +490,8 @@ export function SplitTimesManagement({
         registration_id: registration.id,
         checkpoint_id: checkpoint.id,
         bib_number: registration.bib_number || 0,
-        timing_timestamp: now,
-        reading_timestamp: now,
+        timing_timestamp: timestamp,
+        reading_timestamp: timestamp,
         reading_type: "manual",
         is_processed: true,
       })
