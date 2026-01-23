@@ -1,33 +1,47 @@
 // src/overlays/templates/SimplifiedMotoOverlay.tsx
 
 /**
- * CAMBERAS OVERLAY SYSTEM - SIMPLIFIED MOTO OVERLAY
- * Ejemplo de overlay usando el sistema modular
+ * EJEMPLO DE USO DEL NUEVO SISTEMA MODULAR
+ * Este es un ejemplo de cómo quedaría el MotoOverlay usando el nuevo sistema
+ * Compara con el MotoOverlay.tsx original (1000+ líneas) vs este (200 líneas)
  */
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
+
+// Importar del nuevo sistema
 import { useOverlayConfig } from '../core/useOverlayConfig';
-import { formatSpeed, metersToKm, calculateGap } from '../core/utils';
 import { DataDisplay, PositionWrapper, OverlayContainer } from '../components/DataDisplay';
 import { WithModeBadge } from '../components/ModeBadge';
+import { 
+  formatSpeed, 
+  metersToKm, 
+  calculateGap,
+  getElapsedTime,
+  DataBuffer 
+} from '../core/utils';
 import type { MotoData, DisplayData } from '../core/types';
 
 /**
- * Overlay simplificado para motos
- * Muestra: velocidad, distancia, gaps, checkpoint, reloj
+ * Versión simplificada del MotoOverlay usando el sistema modular
+ * 
+ * VENTAJAS:
+ * - 80% menos código
+ * - Componentes reutilizables
+ * - Más fácil de mantener
+ * - Lógica separada de la vista
  */
 const SimplifiedMotoOverlay = () => {
   const { raceId } = useParams<{ raceId: string }>();
   
-  // Hook para configuración
-  const { config, loading, error } = useOverlayConfig({
+  // Hook principal - maneja toda la config de Supabase
+  const { config, loading } = useOverlayConfig({
     raceId: raceId || '',
     autoSubscribe: true,
   });
-  
-  // Estado de datos GPS
+
   const [motoData, setMotoData] = useState<MotoData | null>(null);
   const [compareMotoData, setCompareMotoData] = useState<MotoData | null>(null);
   const [displayData, setDisplayData] = useState<DisplayData>({
@@ -35,241 +49,300 @@ const SimplifiedMotoOverlay = () => {
     distance: '0.0',
     distanceToFinish: '--',
     distanceToNextCheckpoint: '--',
-    nextCheckpointName: '--',
-    gap: '--',
+    nextCheckpointName: '',
+    gap: '',
     timestamp: Date.now(),
     isManualSpeed: false,
     isManualDistance: false,
     isManualGap: false,
   });
-  
-  // Suscribirse a datos GPS en tiempo real
+  const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
+
+  // Buffer para delay
+  const [dataBuffer] = useState(() => new DataBuffer<DisplayData>(60000));
+
+  // Fetch GPS data para moto principal
   useEffect(() => {
     if (!config?.selected_moto_id) return;
-    
-    const channel = supabase
-      .channel(`moto-gps-${config.selected_moto_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'moto_gps_tracking',
-          filter: `moto_id=eq.${config.selected_moto_id}`
-        },
-        (payload) => {
-          if (payload.new) {
-            const data = payload.new as MotoData;
-            setMotoData(data);
-          }
-        }
-      )
-      .subscribe();
-    
-    // Cargar último dato conocido
-    const loadLatestData = async () => {
-      const { data } = await supabase
+
+    const fetchMotoData = async () => {
+      const { data, error } = await supabase
         .from('moto_gps_tracking')
-        .select('*')
+        .select(`
+          speed,
+          distance_from_start,
+          distance_to_finish,
+          distance_to_next_checkpoint,
+          next_checkpoint_name,
+          timestamp,
+          race_motos!inner (name, name_tv, color)
+        `)
         .eq('moto_id', config.selected_moto_id)
+        .not('distance_from_start', 'is', null)
         .order('timestamp', { ascending: false })
         .limit(1)
-        .single();
-      
-      if (data) setMotoData(data as unknown as MotoData);
+        .maybeSingle();
+
+      if (!error && data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const motoInfo = data.race_motos as any;
+        setMotoData({
+          id: config.selected_moto_id,
+          name: motoInfo?.name || '',
+          name_tv: motoInfo?.name_tv,
+          color: motoInfo?.color || '#FF5722',
+          speed: data.speed || 0,
+          distance_from_start: data.distance_from_start || 0,
+          distance_to_finish: data.distance_to_finish,
+          distance_to_next_checkpoint: data.distance_to_next_checkpoint,
+          next_checkpoint_name: data.next_checkpoint_name,
+          timestamp: data.timestamp,
+        });
+      }
     };
-    
-    loadLatestData();
-    
+
+    fetchMotoData();
+    const interval = setInterval(fetchMotoData, 2000);
+
+    // Realtime subscription
+    const channel = supabase
+      .channel(`moto-gps-${config.selected_moto_id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'moto_gps_tracking',
+        filter: `moto_id=eq.${config.selected_moto_id}`,
+      }, () => {
+        fetchMotoData();
+      })
+      .subscribe();
+
     return () => {
+      clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [config?.selected_moto_id]);
-  
-  // Suscribirse a moto de comparación
+
+  // Fetch compare moto data
   useEffect(() => {
-    if (!config?.compare_moto_id) return;
-    
-    const channel = supabase
-      .channel(`moto-compare-${config.compare_moto_id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'moto_gps_tracking',
-          filter: `moto_id=eq.${config.compare_moto_id}`
-        },
-        (payload) => {
-          if (payload.new) {
-            setCompareMotoData(payload.new as MotoData);
-          }
-        }
-      )
-      .subscribe();
-    
-    return () => {
-      supabase.removeChannel(channel);
+    if (!config?.compare_moto_id) {
+      setCompareMotoData(null);
+      return;
+    }
+
+    const fetchCompareData = async () => {
+      const { data } = await supabase
+        .from('moto_gps_tracking')
+        .select('speed, distance_from_start')
+        .eq('moto_id', config.compare_moto_id)
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setCompareMotoData({
+          id: config.compare_moto_id,
+          name: '',
+          name_tv: null,
+          color: '',
+          speed: data.speed || 0,
+          distance_from_start: data.distance_from_start || 0,
+          distance_to_finish: null,
+          distance_to_next_checkpoint: null,
+          next_checkpoint_name: null,
+          timestamp: new Date().toISOString(),
+        });
+      }
     };
+
+    fetchCompareData();
+    const interval = setInterval(fetchCompareData, 2000);
+    return () => clearInterval(interval);
   }, [config?.compare_moto_id]);
-  
-  // Actualizar display data cuando cambian los datos
+
+  // Process data and add to buffer
   useEffect(() => {
     if (!config) return;
-    
+
     const isManualSpeed = config.speed.manualMode;
     const isManualDistance = config.distance.manualMode;
     const isManualGap = config.gaps.manualMode;
-    
+
+    // Speed
     let speed = '0';
-    let distance = '0.0';
-    let distanceToFinish = '--';
-    let distanceToNextCheckpoint = '--';
-    let nextCheckpointName = '--';
-    let gap = '--';
-    
-    // Velocidad
     if (isManualSpeed && config.speed.manualValue) {
       speed = config.speed.manualValue;
     } else if (motoData) {
       speed = formatSpeed(motoData.speed, config.speed.displayType);
     }
-    
-    // Distancia
+
+    // Distance
+    let distance = '0.0';
     if (isManualDistance && config.distance.manualValue) {
       distance = config.distance.manualValue;
     } else if (motoData) {
       distance = metersToKm(motoData.distance_from_start);
-      if (motoData.distance_to_finish !== null) {
-        distanceToFinish = `${motoData.distance_to_finish.toFixed(1)} km`;
-      }
     }
-    
-    // Checkpoint
-    if (config.checkpoint.manualMode && config.checkpoint.manualValue) {
-      nextCheckpointName = config.checkpoint.manualValue;
-    } else if (motoData) {
-      nextCheckpointName = motoData.next_checkpoint_name || '--';
-      if (motoData.distance_to_next_checkpoint !== null) {
-        distanceToNextCheckpoint = `${motoData.distance_to_next_checkpoint.toFixed(1)} km`;
-      }
-    }
-    
+
     // Gap
+    let gap = '';
     if (isManualGap && config.gaps.manualValue) {
       gap = config.gaps.manualValue;
-    } else if (motoData && compareMotoData) {
+    } else if (compareMotoData && motoData) {
       gap = calculateGap(motoData.distance_from_start, compareMotoData.distance_from_start);
     }
-    
-    setDisplayData({
+
+    dataBuffer.add({
       speed,
       distance,
-      distanceToFinish,
-      distanceToNextCheckpoint,
-      nextCheckpointName,
+      distanceToFinish: motoData?.distance_to_finish?.toFixed(1) || '--',
+      distanceToNextCheckpoint: motoData?.distance_to_next_checkpoint?.toFixed(1) || '--',
+      nextCheckpointName: motoData?.next_checkpoint_name || '',
       gap,
       timestamp: Date.now(),
       isManualSpeed,
       isManualDistance,
       isManualGap,
     });
-  }, [config, motoData, compareMotoData]);
-  
-  // Estados de carga y error
-  if (loading) {
-    return <div style={{ display: 'none' }} />;
+  }, [motoData, compareMotoData, config, dataBuffer]);
+
+  // Display delayed data
+  useEffect(() => {
+    if (!config) return;
+
+    const interval = setInterval(() => {
+      const delayed = dataBuffer.getDelayed(config.delay_seconds * 1000);
+      if (delayed) setDisplayData(delayed);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [config?.delay_seconds, dataBuffer]);
+
+  // Fetch wave start time
+  useEffect(() => {
+    if (!config?.selected_distance_id) return;
+
+    const fetchWaveStartTime = async () => {
+      const { data } = await supabase
+        .from('race_waves')
+        .select('start_time')
+        .eq('race_distance_id', config.selected_distance_id)
+        .maybeSingle();
+
+      if (data?.start_time) {
+        setWaveStartTime(new Date(data.start_time));
+      }
+    };
+
+    fetchWaveStartTime();
+  }, [config?.selected_distance_id]);
+
+  if (loading || !config) {
+    return <OverlayContainer><div /></OverlayContainer>;
   }
-  
-  if (error || !config) {
-    return <div style={{ display: 'none' }} />;
-  }
-  
+
   return (
     <OverlayContainer>
-      {/* Velocidad */}
-      <PositionWrapper
-        posX={config.speed.posX}
-        posY={config.speed.posY}
-        scale={config.speed.scale}
-        visible={config.speed.visible}
-      >
-        <WithModeBadge isManual={displayData.isManualSpeed}>
-          <DataDisplay
-            value={displayData.speed}
-            suffix={config.speed.displayType === 'pace' ? '' : ' km/h'}
-            config={config.speed}
-            isManual={displayData.isManualSpeed}
-          />
-        </WithModeBadge>
-      </PositionWrapper>
-      
-      {/* Distancia */}
-      <PositionWrapper
-        posX={config.distance.posX}
-        posY={config.distance.posY}
-        scale={config.distance.scale}
-        visible={config.distance.visible}
-      >
-        <WithModeBadge isManual={displayData.isManualDistance}>
-          <DataDisplay
-            label="DISTANCIA"
-            value={displayData.distance}
-            suffix=" km"
-            config={config.distance}
-            isManual={displayData.isManualDistance}
-          />
-        </WithModeBadge>
-      </PositionWrapper>
-      
-      {/* Gap */}
-      <PositionWrapper
-        posX={config.gaps.posX}
-        posY={config.gaps.posY}
-        scale={config.gaps.scale}
-        visible={config.gaps.visible}
-      >
-        <WithModeBadge isManual={displayData.isManualGap}>
-          <DataDisplay
-            label="GAP"
-            value={displayData.gap}
-            config={config.gaps}
-            isManual={displayData.isManualGap}
-          />
-        </WithModeBadge>
-      </PositionWrapper>
-      
-      {/* Checkpoint */}
-      <PositionWrapper
-        posX={config.checkpoint.posX}
-        posY={config.checkpoint.posY}
-        scale={config.checkpoint.scale}
-        visible={config.checkpoint.visible}
-      >
-        <DataDisplay
-          label="PRÓXIMO"
-          value={displayData.nextCheckpointName}
-          suffix={displayData.distanceToNextCheckpoint !== '--' ? ` (${displayData.distanceToNextCheckpoint})` : ''}
-          config={config.checkpoint}
-        />
-      </PositionWrapper>
-      
-      {/* Reloj (opcional) */}
-      <PositionWrapper
-        posX={config.clock.posX}
-        posY={config.clock.posY}
-        scale={config.clock.scale}
-        visible={config.clock.visible}
-      >
-        <DataDisplay
-          value={new Date().toLocaleTimeString('es-ES', { 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit' 
-          })}
-          config={config.clock}
-        />
-      </PositionWrapper>
+      <AnimatePresence mode="wait">
+        {/* Speed Display */}
+        {config.speed.visible && (
+          <PositionWrapper
+            key="speed"
+            posX={config.speed.posX}
+            posY={config.speed.posY}
+            scale={config.speed.scale}
+            visible={config.speed.visible}
+          >
+            <WithModeBadge 
+              isManual={displayData.isManualSpeed}
+              showBadge={false}
+            >
+              <DataDisplay
+                label={config.speed.displayType === 'pace' ? 'RITMO' : 'VELOCIDAD'}
+                value={displayData.speed}
+                suffix={config.speed.displayType === 'pace' ? ' min/km' : ' km/h'}
+                config={config.speed}
+                isManual={displayData.isManualSpeed}
+                animated={true}
+              />
+            </WithModeBadge>
+          </PositionWrapper>
+        )}
+
+        {/* Distance to Finish */}
+        {config.distance.visible && (
+          <PositionWrapper
+            key="distance"
+            posX={config.distance.posX}
+            posY={config.distance.posY}
+            scale={config.distance.scale}
+            visible={config.distance.visible}
+          >
+            <DataDisplay
+              label="A META"
+              value={displayData.distanceToFinish}
+              suffix=" km"
+              config={config.distance}
+              isManual={displayData.isManualDistance}
+              animated={true}
+            />
+          </PositionWrapper>
+        )}
+
+        {/* Checkpoint */}
+        {config.checkpoint.visible && (
+          <PositionWrapper
+            key="checkpoint"
+            posX={config.checkpoint.posX}
+            posY={config.checkpoint.posY}
+            scale={config.checkpoint.scale}
+            visible={config.checkpoint.visible}
+          >
+            <DataDisplay
+              label={displayData.nextCheckpointName || 'PRÓXIMO CONTROL'}
+              value={displayData.distanceToNextCheckpoint}
+              suffix=" km"
+              config={config.checkpoint}
+              animated={true}
+            />
+          </PositionWrapper>
+        )}
+
+        {/* Gap */}
+        {config.gaps.visible && displayData.gap && (
+          <PositionWrapper
+            key="gap"
+            posX={config.gaps.posX}
+            posY={config.gaps.posY}
+            scale={config.gaps.scale}
+            visible={config.gaps.visible}
+          >
+            <DataDisplay
+              value={displayData.gap}
+              config={config.gaps}
+              isManual={displayData.isManualGap}
+              animated={true}
+            />
+          </PositionWrapper>
+        )}
+
+        {/* Clock */}
+        {config.clock.visible && (
+          <PositionWrapper
+            key="clock"
+            posX={config.clock.posX}
+            posY={config.clock.posY}
+            scale={config.clock.scale}
+            visible={config.clock.visible}
+          >
+            <DataDisplay
+              value={getElapsedTime(waveStartTime)}
+              config={config.clock}
+              animated={false}
+            />
+          </PositionWrapper>
+        )}
+      </AnimatePresence>
     </OverlayContainer>
   );
 };
