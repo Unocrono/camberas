@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toLocalISOString } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -430,7 +431,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       const { error } = await supabase.from("timing_readings").insert({
         race_id: filterRaceId,
         bib_number: parseInt(formData.bib_number),
-        timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
+        timing_timestamp: toLocalISOString(new Date(formData.timing_timestamp)),
         timing_point_id: formData.timing_point_id || null,
         race_distance_id: formData.race_distance_id || registration?.race_distance_id || null,
         lap_number: parseInt(formData.lap_number) || 1,
@@ -478,7 +479,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         .from("timing_readings")
         .update({
           bib_number: parseInt(formData.bib_number),
-          timing_timestamp: new Date(formData.timing_timestamp).toISOString(),
+          timing_timestamp: toLocalISOString(new Date(formData.timing_timestamp)),
           timing_point_id: formData.timing_point_id || null,
           race_distance_id: formData.race_distance_id || null,
           lap_number: parseInt(formData.lap_number) || 1,

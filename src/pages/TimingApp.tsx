@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toLocalISOString } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -742,7 +743,7 @@ const TimingApp = () => {
       return;
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = toLocalISOString(new Date());
     const runner = runners.find((r) => r.bib_number === bib);
 
     const reading: TimingReading = {
@@ -946,7 +947,7 @@ const TimingApp = () => {
       return;
     }
 
-    const timestamp = new Date().toISOString();
+    const timestamp = toLocalISOString(new Date());
     const runnerName = `${runner.first_name} ${runner.last_name}`.trim();
 
     // Create reading for visual feedback
@@ -1088,7 +1089,7 @@ const TimingApp = () => {
           ? {
               ...r,
               bib_number: newBib,
-              timestamp: newDate.toISOString(),
+              timestamp: toLocalISOString(newDate),
               runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
               synced: false, // Mark as not synced since it was edited
             }
@@ -1103,7 +1104,7 @@ const TimingApp = () => {
           ? {
               ...r,
               bib_number: newBib,
-              timestamp: newDate.toISOString(),
+              timestamp: toLocalISOString(newDate),
               runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
             }
           : r

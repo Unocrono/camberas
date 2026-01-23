@@ -14,6 +14,7 @@ import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
 import { GPSSplashScreen } from '@/components/GPSSplashScreen';
 import { AuthModal } from '@/components/AuthModal';
 import gpsLogo from '@/assets/gps-icon.png';
+import { toLocalISOString } from '@/lib/timezoneUtils';
 import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints, findClosestTrackPoint, calculateDistanceFromStartToPoint } from '@/lib/gpxParser';
 import { 
   Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
@@ -1113,7 +1114,7 @@ const GPSTrackerApp = () => {
     const speed = 'coords' in position ? position.coords.speed : position.speed;
     const heading = 'coords' in position ? (position.coords as any).heading : null;
     
-    const timestampUtc = new Date().toISOString();
+    const timestampLocal = toLocalISOString(new Date());
     
     setCurrentPosition({ lat, lng, heading });
 
@@ -1122,7 +1123,7 @@ const GPSTrackerApp = () => {
       const dist = calculateDistance(lastPositionRef.current.latitude, lastPositionRef.current.longitude, lat, lng);
       setStats(prev => ({ ...prev, distance: prev.distance + dist }));
     }
-    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: timestampUtc };
+    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: timestampLocal };
 
     // Update speed
     if (speed !== null) {
@@ -1141,7 +1142,7 @@ const GPSTrackerApp = () => {
         speed: speed,
         heading: heading,
         battery_level: battery,
-        timestamp: timestampUtc,
+        timestamp: timestampLocal,
       };
 
       if (isOnline) {
@@ -1195,7 +1196,7 @@ const GPSTrackerApp = () => {
         speed: speed,
         heading: heading,
         battery_level: battery,
-        timestamp: timestampUtc,
+        timestamp: timestampLocal,
       };
 
       // Geofencing: Check if within any checkpoint radius
@@ -1217,7 +1218,7 @@ const GPSTrackerApp = () => {
             bib_number: selectedRegistration.bib_number || 0,
             checkpoint_id: checkpoint.id,
             timing_point_id: checkpoint.timing_point_id,
-            timing_timestamp: timestampUtc,
+            timing_timestamp: timestampLocal,
             reading_type: 'gps_auto',
             notes: `GPS auto: ${Math.round(distToCheckpoint)}m del checkpoint`,
           };
