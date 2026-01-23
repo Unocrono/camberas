@@ -505,7 +505,14 @@ const TimingApp = () => {
         // race_waves.start_time is already a full timestamp with timezone
         const startDate = new Date(waves[0].start_time);
         setRaceStartTime(startDate);
-        localStorage.setItem(`start_time_${raceId}`, startDate.toISOString());
+        // Store as local ISO to avoid UTC conversion on retrieval
+        const year = startDate.getFullYear();
+        const month = String(startDate.getMonth() + 1).padStart(2, '0');
+        const day = String(startDate.getDate()).padStart(2, '0');
+        const hours = String(startDate.getHours()).padStart(2, '0');
+        const minutes = String(startDate.getMinutes()).padStart(2, '0');
+        const seconds = String(startDate.getSeconds()).padStart(2, '0');
+        localStorage.setItem(`start_time_${raceId}`, `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`);
       }
     } catch (error) {
       console.error("Error fetching race start time:", error);

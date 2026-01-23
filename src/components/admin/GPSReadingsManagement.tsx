@@ -447,21 +447,16 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
 
     setReimporting(true);
     try {
-      // Build start and end timestamps
+      // Build start and end timestamps as local ISO strings (no UTC conversion)
       const startTimestamp = `${reimportDate}T${reimportStartTime}`;
       const endTimestamp = `${reimportDate}T${reimportEndTime}`;
-
-      // Calculate minutes back from now to start time
-      const startDate = new Date(startTimestamp);
-      const endDate = new Date(endTimestamp);
-      const now = new Date();
       
-      // Call the edge function with the time range
+      // Call the edge function with the time range (already local time strings)
       const { data, error } = await supabase.functions.invoke("process-gps-geofence", {
         body: { 
           race_id: filterRaceId,
-          start_time: startDate.toISOString(),
-          end_time: endDate.toISOString(),
+          start_time: startTimestamp,
+          end_time: endTimestamp,
           force_reprocess: true
         },
       });
