@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft } from "lucide-react";
+import { formatLocalTime } from "@/lib/timezoneUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -835,10 +836,7 @@ const RaceDetail = () => {
                             <div className="flex items-center gap-2 text-foreground font-medium">
                               <Clock className="h-5 w-5 text-primary" />
                               <span>
-                                Salida: {new Date(distance.start_time).toLocaleTimeString("es-ES", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}h
+                                Salida: {formatLocalTime(distance.start_time).slice(0, 5)}h
                               </span>
                             </div>
                           )}

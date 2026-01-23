@@ -126,3 +126,81 @@ export function toLocalISOString(date: Date): string {
   
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 }
+
+/**
+ * Parses a timestamp string from database WITHOUT UTC conversion.
+ * The database stores local times as timestamptz which adds +00 suffix.
+ * This function extracts the date/time values directly without timezone interpretation.
+ * @param timestampString The timestamp string from database (e.g., "2026-01-17 20:13:01+00" or "2026-01-17T20:13:01")
+ * @returns Object with parsed components for formatting, or null if invalid
+ */
+export function parseLocalTimestamp(timestampString: string): {
+  year: number;
+  month: number;
+  day: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+} | null {
+  if (!timestampString) return null;
+  
+  // Match formats: "2026-01-17 20:13:01+00", "2026-01-17T20:13:01", "2026-01-17T20:13:01.000Z"
+  const match = timestampString.match(/(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return null;
+  
+  return {
+    year: parseInt(match[1], 10),
+    month: parseInt(match[2], 10),
+    day: parseInt(match[3], 10),
+    hours: parseInt(match[4], 10),
+    minutes: parseInt(match[5], 10),
+    seconds: parseInt(match[6], 10),
+  };
+}
+
+/**
+ * Formats a database timestamp for display WITHOUT UTC conversion.
+ * Use this instead of new Date(timestamp).toLocaleString() which causes +1 hour offset.
+ * @param timestampString The timestamp string from database
+ * @param options Optional formatting options
+ * @returns Formatted date/time string in Spanish format
+ */
+export function formatLocalTimestamp(
+  timestampString: string,
+  options: {
+    showDate?: boolean;
+    showTime?: boolean;
+    showSeconds?: boolean;
+  } = { showDate: true, showTime: true, showSeconds: true }
+): string {
+  const parsed = parseLocalTimestamp(timestampString);
+  if (!parsed) return "-";
+  
+  const parts: string[] = [];
+  
+  if (options.showDate !== false) {
+    parts.push(`${String(parsed.day).padStart(2, '0')}/${String(parsed.month).padStart(2, '0')}/${parsed.year}`);
+  }
+  
+  if (options.showTime !== false) {
+    const timeParts = [
+      String(parsed.hours).padStart(2, '0'),
+      String(parsed.minutes).padStart(2, '0'),
+    ];
+    if (options.showSeconds !== false) {
+      timeParts.push(String(parsed.seconds).padStart(2, '0'));
+    }
+    parts.push(timeParts.join(':'));
+  }
+  
+  return parts.join(', ');
+}
+
+/**
+ * Formats a database timestamp as time only (HH:MM:SS) WITHOUT UTC conversion.
+ * @param timestampString The timestamp string from database
+ * @returns Formatted time string
+ */
+export function formatLocalTime(timestampString: string): string {
+  return formatLocalTimestamp(timestampString, { showDate: false, showTime: true, showSeconds: true });
+}

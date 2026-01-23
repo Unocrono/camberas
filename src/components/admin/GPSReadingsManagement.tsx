@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { formatLocalTimestamp } from "@/lib/timezoneUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -516,7 +517,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
       r.race_distance?.name || "-",
       r.checkpoint?.name || "-",
       r.checkpoint?.distance_km?.toFixed(1) || "-",
-      new Date(r.timing_timestamp).toLocaleString("es-ES"),
+      formatLocalTimestamp(r.timing_timestamp),
       r.is_processed ? "Sí" : "No",
       r.notes || "",
     ]);
@@ -530,14 +531,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    return formatLocalTimestamp(dateString);
   };
 
   // Selection handlers

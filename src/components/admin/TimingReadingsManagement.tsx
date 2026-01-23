@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toLocalISOString } from "@/lib/timezoneUtils";
+import { toLocalISOString, formatLocalTimestamp, formatLocalTime } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -863,7 +863,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
       r.registration ? `${r.registration.first_name || ""} ${r.registration.last_name || ""}`.trim() : "-",
       r.race_distance?.name || "-",
       r.timing_point?.name || "-",
-      new Date(r.timing_timestamp).toLocaleString("es-ES"),
+      formatLocalTimestamp(r.timing_timestamp),
       r.reading_type || "-",
       r.status_code || "-",
       r.lap_number || 1,
@@ -880,14 +880,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   };
 
   const formatDateTime = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    return formatLocalTimestamp(dateString);
   };
 
   const getReadingTypeBadge = (type: string | null) => {

@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { toLocalISOString } from '@/lib/timezoneUtils';
+import { toLocalISOString, formatLocalTime, parseLocalTimestamp } from '@/lib/timezoneUtils';
 import type { PendingStart } from '@/hooks/useStartControlSync';
 
 interface RaceDistance {
@@ -120,11 +120,7 @@ export function EventSelector({
     if (pendingStatus) {
       return {
         type: pendingStatus.status,
-        time: new Date(pendingStatus.startTimestamp).toLocaleTimeString('es-ES', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }),
+        time: formatLocalTime(new Date(pendingStatus.startTimestamp).toISOString()),
         wave: null
       };
     }
