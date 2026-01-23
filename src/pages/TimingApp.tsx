@@ -42,13 +42,11 @@ import {
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Pencil, Trash2 } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
-import { formatUtcOffset, toLocalISOString } from "@/lib/timezoneUtils";
 
 interface Race {
   id: string;
   name: string;
   date: string;
-  utc_offset?: number;
 }
 
 interface TimingPoint {
@@ -322,7 +320,7 @@ const TimingApp = () => {
 
       const { data: race } = await supabase
         .from("races")
-        .select("id, name, date, utc_offset")
+        .select("id, name, date")
         .eq("id", stored.race_id)
         .single();
 
@@ -352,7 +350,7 @@ const TimingApp = () => {
 
   const fetchRaces = async (userId: string, isOrgOrAdmin: boolean, assignments?: { race_id: string; checkpoint_id: string | null }[]) => {
     try {
-      let query = supabase.from("races").select("id, name, date, utc_offset");
+      let query = supabase.from("races").select("id, name, date");
 
       if (isOrgOrAdmin) {
         // Organizer: only their own races, Admin: all races
@@ -733,16 +731,6 @@ const TimingApp = () => {
     setTimeout(() => inputRef.current?.focus(), 100);
   };
 
-  // Generate timestamp with UTC offset for correct timezone handling
-  const generateTimestampWithOffset = useCallback(() => {
-    const now = new Date();
-    const offset = selectedRace?.utc_offset ?? 60; // Default to CET (+1:00)
-    const offsetStr = formatUtcOffset(offset);
-    // Format: YYYY-MM-DDTHH:mm:ss+HH:MM (local time with offset)
-    const localStr = toLocalISOString(now);
-    return `${localStr}${offsetStr}`;
-  }, [selectedRace?.utc_offset]);
-
   const handleRecordTime = async () => {
     const bib = parseInt(bibInput);
     if (isNaN(bib) || bib <= 0) {
@@ -754,8 +742,7 @@ const TimingApp = () => {
       return;
     }
 
-    // Generate timestamp with race UTC offset for correct timezone handling
-    const timestamp = generateTimestampWithOffset();
+    const timestamp = new Date().toISOString();
     const runner = runners.find((r) => r.bib_number === bib);
 
     const reading: TimingReading = {

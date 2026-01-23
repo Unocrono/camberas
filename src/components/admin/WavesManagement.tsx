@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatUtcOffset } from "@/lib/timezoneUtils";
 import {
   Table,
   TableBody,
@@ -47,7 +46,6 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
   const [editingWave, setEditingWave] = useState<Wave | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [raceUtcOffset, setRaceUtcOffset] = useState<number>(60); // Default CET
   const [formData, setFormData] = useState({
     wave_name: "",
     start_date: "",
@@ -56,31 +54,16 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
 
   useEffect(() => {
     if (selectedRaceId) {
-      fetchRaceAndWaves();
+      fetchWaves();
     } else {
       setWaves([]);
       setLoading(false);
     }
   }, [selectedRaceId]);
 
-  const fetchRaceAndWaves = async () => {
+  const fetchWaves = async () => {
     try {
       setLoading(true);
-      
-      // Fetch race to get UTC offset
-      const { data: raceData, error: raceError } = await supabase
-        .from("races")
-        .select("utc_offset")
-        .eq("id", selectedRaceId)
-        .single();
-      
-      if (raceError) {
-        console.error("Error fetching race:", raceError);
-      } else if (raceData?.utc_offset !== null) {
-        setRaceUtcOffset(raceData.utc_offset);
-      }
-      
-      // Fetch waves
       const { data, error } = await supabase
         .from("race_waves")
         .select(`
@@ -141,11 +124,9 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
         if (timeValue.length === 5) {
           timeValue += ":00"; // Si es HH:mm, añadir :00
         }
-        // Store as local time WITH timezone offset
-        // This ensures PostgreSQL interprets it correctly for timestamptz fields
-        // Format: YYYY-MM-DDTHH:mm:ss+HH:MM (e.g., 2026-01-13T11:30:00+01:00)
-        const offsetStr = formatUtcOffset(raceUtcOffset);
-        startTimestamp = `${formData.start_date}T${timeValue}${offsetStr}`;
+        // Store as local time directly (no UTC conversion)
+        // Format: YYYY-MM-DDTHH:mm:ss without timezone suffix
+        startTimestamp = `${formData.start_date}T${timeValue}`;
       }
 
       const { error } = await supabase
@@ -165,7 +146,7 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
 
       setDialogOpen(false);
       setEditingWave(null);
-      fetchRaceAndWaves();
+      fetchWaves();
     } catch (error: any) {
       console.error("Error saving wave:", error);
       toast({
