@@ -1,2 +1,2 @@
 // Overlay templates and layouts
-export {};
+export { default as SimplifiedMotoOverlay } from './SimplifiedMotoOverlay';

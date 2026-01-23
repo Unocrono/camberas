@@ -1,2 +1,4 @@
 // Core overlay utilities and shared logic
-export {};
+export * from './types';
+export * from './utils';
+export { useOverlayConfig } from './useOverlayConfig';
