@@ -47,6 +47,7 @@ import OverlayManager from "./pages/OverlayManager";
 import MotoOverlay from "./pages/overlays/MotoOverlay";
 import RouteMapOverlay from "./pages/overlays/RouteMapOverlay";
 import ElevationOverlay from "./pages/overlays/ElevationOverlay";
+import SimplifiedMotoOverlay from "./overlays/templates/SimplifiedMotoOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -107,6 +108,7 @@ const App = () => (
           <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
           <Route path="/overlay/route-map/:raceId" element={<RouteMapOverlay />} />
           <Route path="/overlay/elevation/:raceId" element={<ElevationOverlay />} />
+          <Route path="/overlay/moto-test/:raceId" element={<SimplifiedMotoOverlay />} />
           
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
