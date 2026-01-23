@@ -50,6 +50,7 @@ import ElevationOverlay from "./pages/overlays/ElevationOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import SimpleOverlayConfig from "./pages/SimpleOverlayConfig";
 
 const queryClient = new QueryClient();
 
@@ -102,6 +103,7 @@ const App = () => (
           
           {/* Overlay Manager y Overlays PRO */}
           <Route path="/overlays" element={<OverlayManager />} />
+          <Route path="/overlay-config" element={<SimpleOverlayConfig />} />
           <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
           <Route path="/overlay/route-map/:raceId" element={<RouteMapOverlay />} />
           <Route path="/overlay/elevation/:raceId" element={<ElevationOverlay />} />
