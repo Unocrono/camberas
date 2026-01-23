@@ -211,9 +211,9 @@ function parseLine(
     const match = timeStr.match(/(\d{2}):(\d{2}):(\d{2})\.?(\d*)/);
     if (!match) return null;
     const [, hours, minutes, seconds, ms] = match;
-    const dateObj = new Date(defaultDate);
-    dateObj.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
-    timestamp = dateObj;
+    // Parse date manually to avoid UTC interpretation
+    const [year, month, day] = defaultDate.split('-').map(Number);
+    timestamp = new Date(year, month - 1, day, parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
   }
 
   if (isNaN(timestamp.getTime())) return null;
@@ -329,9 +329,9 @@ export function RFIDImportDialog({
           : timeStr.match(/(\d{1,2}):(\d{2}):(\d{2})/);
         if (!match) return null;
         const [, hours, minutes, seconds, ms] = match;
-        const dateObj = new Date(defaultDateStr);
-        dateObj.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
-        timestamp = dateObj;
+        // Parse date manually to avoid UTC interpretation
+        const [year, month, day] = defaultDateStr.split('-').map(Number);
+        timestamp = new Date(year, month - 1, day, parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(ms || '0'));
       } else if (config.dateFormat === 'date_time_eu') {
         // DD/MM/YYYY HH:MM:SS
         const match = timeStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\.?(\d*)/);
