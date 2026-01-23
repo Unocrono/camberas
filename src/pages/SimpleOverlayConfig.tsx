@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,8 @@ const SimpleOverlayConfig = () => {
   const [races, setRaces] = useState<Race[]>([]);
   const [selectedRaceId, setSelectedRaceId] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
 
   const raceIdFromUrl = searchParams.get('race') || '';
 
@@ -55,8 +57,32 @@ const SimpleOverlayConfig = () => {
     autoSubscribe: true,
   });
 
+  // Auth check
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debes iniciar sesión para acceder a esta página");
+        navigate("/auth");
+        return;
+      }
+      setAuthChecked(true);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
   // Fetch races
   useEffect(() => {
+    if (!authChecked) return;
+
     const fetchRaces = async () => {
       const { data, error } = await supabase
         .from('races')
@@ -76,7 +102,7 @@ const SimpleOverlayConfig = () => {
     };
 
     fetchRaces();
-  }, []);
+  }, [authChecked]);
 
   useEffect(() => {
     if (raceIdFromUrl && raceIdFromUrl !== selectedRaceId) {
@@ -121,14 +147,16 @@ const SimpleOverlayConfig = () => {
     }
   };
 
-  if (loading) {
+  if (loading || !authChecked) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
         <main className="flex-1 container mx-auto px-4 py-8 flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Cargando...</p>
+            <p className="text-muted-foreground">
+              {!authChecked ? "Verificando acceso..." : "Cargando..."}
+            </p>
           </div>
         </main>
         <Footer />
