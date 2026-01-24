@@ -1803,7 +1803,33 @@ const GPSTrackerApp = () => {
                     Detener
                   </Button>
                 )}
-
+                {/* ⭐ INSERTAR AQUÍ ⭐ */}
+                {isTracking && (
+                  <BackgroundTrackingToggle
+                    isTracking={isTracking}
+                    appMode={appMode}
+                    config={{
+                      race_id:
+                        appMode === "runner"
+                          ? selectedRegistration?.race_id || ""
+                          : selectedMotoAssignment?.race_id || "",
+                      registration_id: appMode === "runner" ? selectedRegistration?.id : undefined,
+                      moto_id: appMode === "moto" ? selectedMotoAssignment?.moto_id : undefined,
+                      runner_name: appMode === "runner" ? "Corredor" : undefined,
+                      moto_name: appMode === "moto" ? selectedMotoAssignment?.moto.name : undefined,
+                      bib_number: appMode === "runner" ? selectedRegistration?.bib_number : null,
+                      update_frequency:
+                        appMode === "runner"
+                          ? selectedRegistration?.race_distances?.gps_update_frequency ||
+                            selectedRegistration?.races?.gps_update_frequency ||
+                            30
+                          : selectedMotoAssignment?.moto.race.gps_update_frequency || 30,
+                    }}
+                    onStatusChange={(isActive) => {
+                      console.log("Background tracking:", isActive ? "ACTIVADO" : "DESACTIVADO");
+                    }}
+                  />
+                )}
                 {appMode === "runner" && selectedRegistration?.bib_number && (
                   <Badge variant="secondary" className="text-lg px-3 py-1">
                     #{selectedRegistration.bib_number}
