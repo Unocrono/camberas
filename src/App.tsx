@@ -50,6 +50,7 @@ import ElevationOverlay from "./pages/overlays/ElevationOverlay";
 import LoteriaNavidad from "./pages/LoteriaNavidad";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
+import SimplifiedMotoOverlay from "./overlays/templates/SimplifiedMotoOverlay";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +106,8 @@ const App = () => (
           <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
           <Route path="/overlay/route-map/:raceId" element={<RouteMapOverlay />} />
           <Route path="/overlay/elevation/:raceId" element={<ElevationOverlay />} />
-          
+          <Route path="/overlay/moto-test/:raceId" element={<SimplifiedMotoOverlay />} />
+
           {/* Rutas con /race/:id */}
           <Route path="/race/:id" element={<RaceDetail />} />
           <Route path="/race/:id/regulation" element={<RaceRegulation />} />
@@ -113,7 +115,9 @@ const App = () => (
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
-          
+  
+
+        
           {/* Otras rutas con parámetros */}
           <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
           
