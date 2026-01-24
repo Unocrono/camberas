@@ -34,6 +34,12 @@
             </intent-filter>
 
         </activity>
+        <!-- ⭐ AGREGAR ESTE SERVICIO ⭐ -->
+        <service
+            android:name="com.getcapacitor.community.background.geolocation.BackgroundGeolocationService"
+            android:foregroundServiceType="location"
+            android:enabled="true"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
