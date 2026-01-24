@@ -1,33 +1,59 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useToast } from '@/hooks/use-toast';
-import { useNativeGeolocation, GeolocationResult } from '@/hooks/useNativeGeolocation';
-import { useCheckpointFeedback } from '@/hooks/useCheckpointFeedback';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GPSMiniMap } from '@/components/GPSMiniMap';
-import { ElevationMiniProfile } from '@/components/ElevationMiniProfile';
-import { GPSSplashScreen } from '@/components/GPSSplashScreen';
-import { AuthModal } from '@/components/AuthModal';
-import gpsLogo from '@/assets/gps-icon.png';
-import { toLocalISOString } from '@/lib/timezoneUtils';
-import { parseGpxFile, GpxTrackPoint, calculateDistanceToFinish, getAllTrackPoints, findClosestTrackPoint, calculateDistanceFromStartToPoint } from '@/lib/gpxParser';
-import { 
-  Battery, Navigation, Clock, Wifi, WifiOff, MapPin, Radio,
-  Gauge, Play, Square, RefreshCw, AlertTriangle,
-  Smartphone, Download, Volume2, VolumeX, Target, Bike, LogIn, LogOut, User
-} from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useNativeGeolocation, GeolocationResult } from "@/hooks/useNativeGeolocation";
+import { useCheckpointFeedback } from "@/hooks/useCheckpointFeedback";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GPSMiniMap } from "@/components/GPSMiniMap";
+import { ElevationMiniProfile } from "@/components/ElevationMiniProfile";
+import { GPSSplashScreen } from "@/components/GPSSplashScreen";
+import { AuthModal } from "@/components/AuthModal";
+import gpsLogo from "@/assets/gps-icon.png";
+import { toLocalISOString } from "@/lib/timezoneUtils";
+import {
+  parseGpxFile,
+  GpxTrackPoint,
+  calculateDistanceToFinish,
+  getAllTrackPoints,
+  findClosestTrackPoint,
+  calculateDistanceFromStartToPoint,
+} from "@/lib/gpxParser";
+import { BackgroundTrackingToggle } from "@/components/BackgroundTrackingToggle";
+import {
+  Battery,
+  Navigation,
+  Clock,
+  Wifi,
+  WifiOff,
+  MapPin,
+  Radio,
+  Gauge,
+  Play,
+  Square,
+  RefreshCw,
+  AlertTriangle,
+  Smartphone,
+  Download,
+  Volume2,
+  VolumeX,
+  Target,
+  Bike,
+  LogIn,
+  LogOut,
+  User,
+} from "lucide-react";
 
 // Camberas brand color
-const CAMBERAS_PINK = '#E91E8C';
+const CAMBERAS_PINK = "#E91E8C";
 
-const GPS_QUEUE_KEY = 'camberas_gps_queue';
-const GPS_SESSION_KEY = 'camberas_gps_session';
-const SPEED_PACE_PREF_KEY = 'camberas_speed_pace_pref';
+const GPS_QUEUE_KEY = "camberas_gps_queue";
+const GPS_SESSION_KEY = "camberas_gps_session";
+const SPEED_PACE_PREF_KEY = "camberas_speed_pace_pref";
 
 // GPS Point for runners
 interface GPSPoint {
@@ -116,34 +142,34 @@ interface NextCheckpointInfo {
   distance_remaining_km: number;
 }
 
-type AppMode = 'runner' | 'moto';
+type AppMode = "runner" | "moto";
 
 const GPSTrackerApp = () => {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { isNative, watchPosition, getCurrentPosition, clearWatch, requestPermissions } = useNativeGeolocation();
-  
+
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
-  
+
   // App mode detection
-  const [appMode, setAppMode] = useState<AppMode>('runner');
+  const [appMode, setAppMode] = useState<AppMode>("runner");
   const [motoAssignments, setMotoAssignments] = useState<MotoAssignment[]>([]);
   const [selectedMotoAssignment, setSelectedMotoAssignment] = useState<MotoAssignment | null>(null);
-  
+
   // Sound/vibration settings
   const [soundEnabled, setSoundEnabled] = useState(() => {
-    const stored = localStorage.getItem('gps_sound_enabled');
-    return stored !== 'false';
+    const stored = localStorage.getItem("gps_sound_enabled");
+    return stored !== "false";
   });
-  
+
   const { triggerCheckpointFeedback, vibrateGpsTick } = useCheckpointFeedback({
     enableSound: soundEnabled,
     enableVibration: true,
     soundVolume: 0.7,
   });
-  
+
   // State
   const [isTracking, setIsTracking] = useState(false);
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -160,66 +186,76 @@ const GPSTrackerApp = () => {
     elapsed: 0,
     lastUpdate: null as Date | null,
   });
-  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number; heading: number | null } | null>(null);
+  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number; heading: number | null } | null>(
+    null,
+  );
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [passedCheckpoints, setPassedCheckpoints] = useState<Set<string>>(new Set());
   const [showSplash, setShowSplash] = useState(true);
-  
+
   // Memoized splash complete handler to prevent re-renders
   const handleSplashComplete = useCallback(() => {
     setShowSplash(false);
   }, []);
   const [showPace, setShowPace] = useState(() => {
     const stored = localStorage.getItem(SPEED_PACE_PREF_KEY);
-    return stored === 'pace';
+    return stored === "pace";
   });
   const [trackPoints, setTrackPoints] = useState<GpxTrackPoint[]>([]);
   const [distanceToFinish, setDistanceToFinish] = useState<number | null>(null);
   const [projectedDistanceKm, setProjectedDistanceKm] = useState<number | null>(null);
   const [nextCheckpoint, setNextCheckpoint] = useState<NextCheckpointInfo | null>(null);
   const [waveStartTime, setWaveStartTime] = useState<string | null>(null);
-  
+
   // Refs
   const watchIdRef = useRef<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<Date | null>(null);
-  const lastPositionRef = useRef<{ latitude: number; longitude: number; altitude: number | null; accuracy: number | null; speed: number | null; timestamp: string } | null>(null);
+  const lastPositionRef = useRef<{
+    latitude: number;
+    longitude: number;
+    altitude: number | null;
+    accuracy: number | null;
+    speed: number | null;
+    timestamp: string;
+  } | null>(null);
   const wakeLockRef = useRef<any>(null);
   const passedCheckpointsRef = useRef<Set<string>>(new Set());
 
   // Check user role and determine app mode
   useEffect(() => {
     if (!user) return;
-    
+
     const checkUserRole = async () => {
       try {
-        console.log('[GPSTrackerApp] Checking role for user.id:', user.id, 'user.email:', user.email);
-        
+        console.log("[GPSTrackerApp] Checking role for user.id:", user.id, "user.email:", user.email);
+
         // Check if user has moto role
         const { data: motoRole, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'moto')
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "moto")
           .maybeSingle();
-        
-        console.log('[GPSTrackerApp] Moto role check:', motoRole, 'error:', roleError);
-        
+
+        console.log("[GPSTrackerApp] Moto role check:", motoRole, "error:", roleError);
+
         if (motoRole) {
-          setAppMode('moto');
+          setAppMode("moto");
           // Use local date to avoid timezone issues - include yesterday
           const now = new Date();
           now.setDate(now.getDate() - 1);
-          const minDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-          console.log('[GPSTrackerApp] Moto mode - Min date filter:', minDate);
+          const minDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+          console.log("[GPSTrackerApp] Moto mode - Min date filter:", minDate);
           const allAssignments: MotoAssignment[] = [];
-          
+
           // 1. Fetch motos directly assigned via user_id in race_motos
           const { data: directMotos, error: directError } = await supabase
-            .from('race_motos')
-            .select(`
+            .from("race_motos")
+            .select(
+              `
               id,
               name,
               color,
@@ -231,11 +267,12 @@ const GPSTrackerApp = () => {
                 date,
                 gps_update_frequency
               )
-            `)
-            .eq('user_id', user.id);
-          
-          console.log('[GPSTrackerApp] Direct motos raw query result:', directMotos, 'error:', directError);
-          
+            `,
+            )
+            .eq("user_id", user.id);
+
+          console.log("[GPSTrackerApp] Direct motos raw query result:", directMotos, "error:", directError);
+
           if (!directError && directMotos) {
             // Filter in JavaScript: races must exist and date >= minDate
             const validDirectMotos = directMotos
@@ -249,16 +286,17 @@ const GPSTrackerApp = () => {
                   id: m.id,
                   name: m.name,
                   color: m.color,
-                  race: m.races
-                }
+                  race: m.races,
+                },
               }));
             allAssignments.push(...validDirectMotos);
           }
-          
+
           // 2. Fetch moto assignments from moto_assignments table
           const { data: assignments, error: assignError } = await supabase
-            .from('moto_assignments')
-            .select(`
+            .from("moto_assignments")
+            .select(
+              `
               id,
               moto_id,
               race_id,
@@ -274,11 +312,12 @@ const GPSTrackerApp = () => {
                   gps_update_frequency
                 )
               )
-            `)
-            .eq('user_id', user.id);
-          
-          console.log('Moto assignments query result:', assignments, assignError);
-          
+            `,
+            )
+            .eq("user_id", user.id);
+
+          console.log("Moto assignments query result:", assignments, assignError);
+
           if (!assignError && assignments) {
             const validAssignments = assignments
               .filter((a: any) => a.race_motos?.races?.date >= minDate)
@@ -291,44 +330,44 @@ const GPSTrackerApp = () => {
                   id: a.race_motos.id,
                   name: a.race_motos.name,
                   color: a.race_motos.color,
-                  race: a.race_motos.races
-                }
+                  race: a.race_motos.races,
+                },
               }));
-            
+
             // Add only if not already added from direct assignment
             validAssignments.forEach((a: MotoAssignment) => {
-              if (!allAssignments.find(existing => existing.moto_id === a.moto_id)) {
+              if (!allAssignments.find((existing) => existing.moto_id === a.moto_id)) {
                 allAssignments.push(a);
               }
             });
           }
-          
+
           // Fetch wave start times for moto races
-          const raceIds = [...new Set(allAssignments.map(a => a.race_id))];
+          const raceIds = [...new Set(allAssignments.map((a) => a.race_id))];
           if (raceIds.length > 0) {
             const { data: waves } = await supabase
-              .from('race_waves')
-              .select('race_id, start_time')
-              .in('race_id', raceIds)
-              .not('start_time', 'is', null)
-              .order('start_time', { ascending: true });
-            
+              .from("race_waves")
+              .select("race_id, start_time")
+              .in("race_id", raceIds)
+              .not("start_time", "is", null)
+              .order("start_time", { ascending: true });
+
             if (waves && waves.length > 0) {
               // Create a map of race_id to earliest wave start_time
               const waveMap = new Map<string, string>();
-              waves.forEach(w => {
+              waves.forEach((w) => {
                 if (!waveMap.has(w.race_id) && w.start_time) {
                   waveMap.set(w.race_id, w.start_time);
                 }
               });
-              
+
               // Add wave_start_time to assignments
-              allAssignments.forEach(a => {
+              allAssignments.forEach((a) => {
                 a.wave_start_time = waveMap.get(a.race_id) || null;
               });
             }
           }
-          
+
           setMotoAssignments(allAssignments);
           if (allAssignments.length === 1) {
             setSelectedMotoAssignment(allAssignments[0]);
@@ -336,16 +375,16 @@ const GPSTrackerApp = () => {
           setLoading(false);
         } else {
           // Runner mode - continue with normal flow
-          console.log('[GPSTrackerApp] No moto role found, switching to runner mode');
-          setAppMode('runner');
+          console.log("[GPSTrackerApp] No moto role found, switching to runner mode");
+          setAppMode("runner");
           // Don't set loading false here - let fetchRegistrations handle it
         }
       } catch (error) {
-        console.error('[GPSTrackerApp] Error checking user role:', error);
-        setAppMode('runner');
+        console.error("[GPSTrackerApp] Error checking user role:", error);
+        setAppMode("runner");
       }
     };
-    
+
     checkUserRole();
   }, [user]);
 
@@ -356,10 +395,10 @@ const GPSTrackerApp = () => {
       try {
         setPendingPoints(JSON.parse(stored));
       } catch (e) {
-        console.error('Error loading GPS queue:', e);
+        console.error("Error loading GPS queue:", e);
       }
     }
-    
+
     const session = localStorage.getItem(GPS_SESSION_KEY);
     if (session) {
       try {
@@ -368,7 +407,7 @@ const GPSTrackerApp = () => {
           startTimeRef.current = new Date(startTime);
         }
       } catch (e) {
-        console.error('Error restoring session:', e);
+        console.error("Error restoring session:", e);
       }
     }
   }, []);
@@ -380,7 +419,7 @@ const GPSTrackerApp = () => {
 
   // Save speed/pace preference to localStorage
   useEffect(() => {
-    localStorage.setItem(SPEED_PACE_PREF_KEY, showPace ? 'pace' : 'speed');
+    localStorage.setItem(SPEED_PACE_PREF_KEY, showPace ? "pace" : "speed");
   }, [showPace]);
 
   // Online/offline detection
@@ -390,41 +429,41 @@ const GPSTrackerApp = () => {
       syncPendingPoints();
     };
     const handleOffline = () => setIsOnline(false);
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
   }, []);
 
   // Battery monitoring
   useEffect(() => {
     const checkBattery = async () => {
-      if ('getBattery' in navigator) {
+      if ("getBattery" in navigator) {
         try {
           const batteryInfo: any = await (navigator as any).getBattery();
           const level = Math.round(batteryInfo.level * 100);
           setBattery(level);
           setLowBatteryMode(level < 20);
-          
-          batteryInfo.addEventListener('levelchange', () => {
+
+          batteryInfo.addEventListener("levelchange", () => {
             const newLevel = Math.round(batteryInfo.level * 100);
             setBattery(newLevel);
             setLowBatteryMode(newLevel < 20);
-            
+
             if (newLevel < 20 && !lowBatteryMode) {
               toast({
-                title: '⚠️ Batería baja',
-                description: 'Modo de ahorro activado. Frecuencia GPS reducida.',
-                variant: 'destructive',
+                title: "⚠️ Batería baja",
+                description: "Modo de ahorro activado. Frecuencia GPS reducida.",
+                variant: "destructive",
               });
             }
           });
         } catch (e) {
-          console.error('Battery API error:', e);
+          console.error("Battery API error:", e);
         }
       }
     };
@@ -438,33 +477,34 @@ const GPSTrackerApp = () => {
       setDeferredPrompt(e);
       setShowInstallPrompt(true);
     };
-    
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
   }, []);
 
   // Fetch user registrations with GPS enabled (runner mode only)
   useEffect(() => {
-    if (!user || appMode === 'moto') return;
-    
+    if (!user || appMode === "moto") return;
+
     const fetchRegistrations = async () => {
       setLoading(true);
       try {
         // Use local date to avoid timezone issues
         const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
         const userEmail = user.email?.toLowerCase();
-        console.log('[GPSTrackerApp] Fetching registrations for user:', user.id, 'email:', userEmail, 'today:', today);
-        
+        console.log("[GPSTrackerApp] Fetching registrations for user:", user.id, "email:", userEmail, "today:", today);
+
         // Query registrations - search by user_id OR by email (case-insensitive)
         // This handles both linked accounts and registrations made with email only
         let allRegistrations: any[] = [];
-        
+
         // First, try by user_id
         const { data: byUserId, error: errorUserId } = await supabase
-          .from('registrations')
-          .select(`
+          .from("registrations")
+          .select(
+            `
             id,
             race_id,
             race_distance_id,
@@ -482,19 +522,21 @@ const GPSTrackerApp = () => {
               gps_update_frequency,
               race_type
             )
-          `)
-          .eq('user_id', user.id)
-          .in('status', ['confirmed', 'pending']);
-        
+          `,
+          )
+          .eq("user_id", user.id)
+          .in("status", ["confirmed", "pending"]);
+
         if (!errorUserId && byUserId) {
           allRegistrations = [...byUserId];
         }
-        
+
         // Then, try by email (for registrations without user_id linked)
         if (userEmail) {
           const { data: byEmail, error: errorEmail } = await supabase
-            .from('registrations')
-            .select(`
+            .from("registrations")
+            .select(
+              `
               id,
               race_id,
               race_distance_id,
@@ -512,77 +554,75 @@ const GPSTrackerApp = () => {
                 gps_update_frequency,
                 race_type
               )
-            `)
-            .ilike('email', userEmail)
-            .is('user_id', null)
-            .in('status', ['confirmed', 'pending']);
-          
+            `,
+            )
+            .ilike("email", userEmail)
+            .is("user_id", null)
+            .in("status", ["confirmed", "pending"]);
+
           if (!errorEmail && byEmail) {
             // Merge, avoiding duplicates by id
-            const existingIds = new Set(allRegistrations.map(r => r.id));
-            byEmail.forEach(r => {
+            const existingIds = new Set(allRegistrations.map((r) => r.id));
+            byEmail.forEach((r) => {
               if (!existingIds.has(r.id)) {
                 allRegistrations.push(r);
               }
             });
           }
         }
-        
-        console.log('[GPSTrackerApp] Combined registrations result:', allRegistrations.length, 'registrations');
-        
+
+        console.log("[GPSTrackerApp] Combined registrations result:", allRegistrations.length, "registrations");
+
         // Filter in JS:
         // 1. Must have gps_tracking_enabled = true
         // 2. Race date must be >= today
         // 3. Must have race_distances data (RLS might hide some)
-        const gpsEnabled = allRegistrations.filter((reg: any) => 
-          reg.race_distances?.gps_tracking_enabled === true &&
-          reg.races?.date >= today
+        const gpsEnabled = allRegistrations.filter(
+          (reg: any) => reg.race_distances?.gps_tracking_enabled === true && reg.races?.date >= today,
         );
-        
+
         // Sort by race date ascending
-        gpsEnabled.sort((a: any, b: any) => 
-          (a.races?.date || '').localeCompare(b.races?.date || '')
-        );
-        
+        gpsEnabled.sort((a: any, b: any) => (a.races?.date || "").localeCompare(b.races?.date || ""));
+
         const distanceIds = gpsEnabled.map((reg: any) => reg.race_distance_id);
         const { data: waves } = await supabase
-          .from('race_waves')
-          .select('race_distance_id, start_time')
-          .in('race_distance_id', distanceIds);
-        
-        const waveMap = new Map((waves || []).map(w => [w.race_distance_id, w.start_time]));
+          .from("race_waves")
+          .select("race_distance_id, start_time")
+          .in("race_distance_id", distanceIds);
+
+        const waveMap = new Map((waves || []).map((w) => [w.race_distance_id, w.start_time]));
         const registrationsWithWaves = gpsEnabled.map((reg: any) => ({
           ...reg,
-          wave_start_time: waveMap.get(reg.race_distance_id) || null
+          wave_start_time: waveMap.get(reg.race_distance_id) || null,
         })) as Registration[];
-        
+
         setRegistrations(registrationsWithWaves);
-        
+
         if (registrationsWithWaves.length === 1) {
           const reg = registrationsWithWaves[0];
           setSelectedRegistration(reg);
           if (!localStorage.getItem(SPEED_PACE_PREF_KEY)) {
-            setShowPace(reg.races.race_type === 'trail');
+            setShowPace(reg.races.race_type === "trail");
           }
         }
       } catch (error: any) {
         toast({
-          title: 'Error',
+          title: "Error",
           description: error.message,
-          variant: 'destructive',
+          variant: "destructive",
         });
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchRegistrations();
   }, [user, appMode]);
 
   // Fetch checkpoints when registration is selected (runner mode) or moto selected (moto mode)
   useEffect(() => {
     // For moto mode, fetch checkpoints from the first distance with data
-    if (appMode === 'moto') {
+    if (appMode === "moto") {
       if (!selectedMotoAssignment) {
         setCheckpoints([]);
         setNextCheckpoint(null);
@@ -593,16 +633,16 @@ const GPSTrackerApp = () => {
         try {
           // First try to get checkpoints from the specific distance assigned to the moto
           let distanceId = selectedMotoAssignment.race_distance_id;
-          
+
           // If no specific distance, get the first distance with checkpoints
           if (!distanceId) {
             const { data: distances } = await supabase
-              .from('race_distances')
-              .select('id')
-              .eq('race_id', selectedMotoAssignment.race_id)
+              .from("race_distances")
+              .select("id")
+              .eq("race_id", selectedMotoAssignment.race_id)
               .limit(1)
               .maybeSingle();
-            
+
             distanceId = distances?.id;
           }
 
@@ -612,15 +652,15 @@ const GPSTrackerApp = () => {
           }
 
           const { data, error } = await supabase
-            .from('race_checkpoints')
-            .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
-            .eq('race_distance_id', distanceId)
-            .order('checkpoint_order', { ascending: true });
+            .from("race_checkpoints")
+            .select("id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id")
+            .eq("race_distance_id", distanceId)
+            .order("checkpoint_order", { ascending: true });
 
           if (error) throw error;
           setCheckpoints((data || []) as Checkpoint[]);
         } catch (error) {
-          console.error('Error fetching moto checkpoints:', error);
+          console.error("Error fetching moto checkpoints:", error);
           setCheckpoints([]);
         }
       };
@@ -641,15 +681,15 @@ const GPSTrackerApp = () => {
     const fetchCheckpoints = async () => {
       try {
         const { data, error } = await supabase
-          .from('race_checkpoints')
-          .select('id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id')
-          .eq('race_distance_id', selectedRegistration.race_distance_id)
-          .order('checkpoint_order', { ascending: true });
+          .from("race_checkpoints")
+          .select("id, name, latitude, longitude, geofence_radius, checkpoint_order, distance_km, timing_point_id")
+          .eq("race_distance_id", selectedRegistration.race_distance_id)
+          .order("checkpoint_order", { ascending: true });
 
         if (error) throw error;
         setCheckpoints((data || []) as Checkpoint[]);
       } catch (error) {
-        console.error('Error fetching checkpoints:', error);
+        console.error("Error fetching checkpoints:", error);
       }
     };
 
@@ -659,21 +699,21 @@ const GPSTrackerApp = () => {
   // Load GPX track points (runner mode AND moto mode)
   useEffect(() => {
     // For moto mode, we need to fetch GPX from the race
-    if (appMode === 'moto') {
+    if (appMode === "moto") {
       if (!selectedMotoAssignment) {
         setTrackPoints([]);
         setDistanceToFinish(null);
         return;
       }
-      
+
       const loadMotoGpxTrack = async () => {
         try {
           // Fetch GPX from first distance with GPX
           const { data, error } = await supabase
-            .from('race_distances')
-            .select('gpx_file_url')
-            .eq('race_id', selectedMotoAssignment.race_id)
-            .not('gpx_file_url', 'is', null)
+            .from("race_distances")
+            .select("gpx_file_url")
+            .eq("race_id", selectedMotoAssignment.race_id)
+            .not("gpx_file_url", "is", null)
             .limit(1)
             .maybeSingle();
 
@@ -688,15 +728,15 @@ const GPSTrackerApp = () => {
           const points = getAllTrackPoints(parsedGpx);
           setTrackPoints(points);
         } catch (error) {
-          console.error('Error loading moto GPX track:', error);
+          console.error("Error loading moto GPX track:", error);
           setTrackPoints([]);
         }
       };
-      
+
       loadMotoGpxTrack();
       return;
     }
-    
+
     // Runner mode
     if (!selectedRegistration) {
       setTrackPoints([]);
@@ -707,9 +747,9 @@ const GPSTrackerApp = () => {
     const loadGpxTrack = async () => {
       try {
         const { data, error } = await supabase
-          .from('race_distances')
-          .select('gpx_file_url')
-          .eq('id', selectedRegistration.race_distance_id)
+          .from("race_distances")
+          .select("gpx_file_url")
+          .eq("id", selectedRegistration.race_distance_id)
           .maybeSingle();
 
         if (error || !data?.gpx_file_url) {
@@ -723,7 +763,7 @@ const GPSTrackerApp = () => {
         const points = getAllTrackPoints(parsedGpx);
         setTrackPoints(points);
       } catch (error) {
-        console.error('Error loading GPX:', error);
+        console.error("Error loading GPX:", error);
         setTrackPoints([]);
       }
     };
@@ -735,109 +775,103 @@ const GPSTrackerApp = () => {
   // For moto mode, use data from database via realtime subscription
   useEffect(() => {
     // Skip local calculation for moto mode - we get distances from DB
-    if (appMode === 'moto') return;
-    
+    if (appMode === "moto") return;
+
     if (!currentPosition || trackPoints.length === 0) {
       setDistanceToFinish(null);
       setProjectedDistanceKm(null);
       return;
     }
 
-    const { index: closestIndex } = findClosestTrackPoint(
-      trackPoints,
-      currentPosition.lat,
-      currentPosition.lng
-    );
+    const { index: closestIndex } = findClosestTrackPoint(trackPoints, currentPosition.lat, currentPosition.lng);
 
     const distanceFromStart = calculateDistanceFromStartToPoint(trackPoints, closestIndex);
     setProjectedDistanceKm(distanceFromStart);
 
-    const distance = calculateDistanceToFinish(
-      trackPoints,
-      currentPosition.lat,
-      currentPosition.lng
-    );
+    const distance = calculateDistanceToFinish(trackPoints, currentPosition.lat, currentPosition.lng);
     setDistanceToFinish(distance);
   }, [currentPosition, trackPoints, appMode]);
 
   // For moto mode: Subscribe to GPS data from database (calculated by edge function)
   useEffect(() => {
-    if (appMode !== 'moto' || !selectedMotoAssignment) return;
-    
+    if (appMode !== "moto" || !selectedMotoAssignment) return;
+
     const motoId = selectedMotoAssignment.moto_id;
-    
+
     // Fetch initial data
     const fetchMotoGpsData = async () => {
       const { data, error } = await supabase
-        .from('moto_gps_tracking')
-        .select('distance_to_finish, distance_to_next_checkpoint, next_checkpoint_name, distance_from_start, latitude, longitude')
-        .eq('moto_id', motoId)
-        .not('distance_from_start', 'is', null)
-        .not('distance_to_finish', 'is', null)
-        .order('timestamp', { ascending: false })
+        .from("moto_gps_tracking")
+        .select(
+          "distance_to_finish, distance_to_next_checkpoint, next_checkpoint_name, distance_from_start, latitude, longitude",
+        )
+        .eq("moto_id", motoId)
+        .not("distance_from_start", "is", null)
+        .not("distance_to_finish", "is", null)
+        .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle();
-      
+
       if (!error && data) {
-        console.log('[GPSTrackerApp] Moto GPS data from DB:', data);
+        console.log("[GPSTrackerApp] Moto GPS data from DB:", data);
         setDistanceToFinish(data.distance_to_finish);
         setProjectedDistanceKm(data.distance_from_start / 1000); // Convert to km
-        
+
         if (data.next_checkpoint_name && data.distance_to_next_checkpoint != null) {
           setNextCheckpoint({
             name: data.next_checkpoint_name,
             distance_km: 0, // Not used in display
-            distance_remaining_km: data.distance_to_next_checkpoint
+            distance_remaining_km: data.distance_to_next_checkpoint,
           });
         }
-        
+
         // Update current position for map display
         if (data.latitude && data.longitude) {
           setCurrentPosition({ lat: data.latitude, lng: data.longitude, heading: null });
         }
       }
     };
-    
+
     fetchMotoGpsData();
-    
+
     // Poll every 2 seconds for moto GPS data
     const pollInterval = setInterval(fetchMotoGpsData, 2000);
-    
+
     // Also subscribe to realtime updates
     const channel = supabase
       .channel(`moto-gps-tracker-${motoId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'moto_gps_tracking',
-          filter: `moto_id=eq.${motoId}`
+          event: "UPDATE",
+          schema: "public",
+          table: "moto_gps_tracking",
+          filter: `moto_id=eq.${motoId}`,
         },
         (payload) => {
           const newData = payload.new as any;
           // Only update if distances have been processed
           if (newData.distance_from_start != null && newData.distance_to_finish != null) {
-            console.log('[GPSTrackerApp] Moto GPS realtime update:', newData);
+            console.log("[GPSTrackerApp] Moto GPS realtime update:", newData);
             setDistanceToFinish(newData.distance_to_finish);
             setProjectedDistanceKm(newData.distance_from_start / 1000);
-            
+
             if (newData.next_checkpoint_name && newData.distance_to_next_checkpoint != null) {
               setNextCheckpoint({
                 name: newData.next_checkpoint_name,
                 distance_km: 0,
-                distance_remaining_km: newData.distance_to_next_checkpoint
+                distance_remaining_km: newData.distance_to_next_checkpoint,
               });
             }
-            
+
             if (newData.latitude && newData.longitude) {
               setCurrentPosition({ lat: newData.latitude, lng: newData.longitude, heading: newData.heading });
             }
           }
-        }
+        },
       )
       .subscribe();
-    
+
     return () => {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
@@ -847,8 +881,8 @@ const GPSTrackerApp = () => {
   // Calculate next checkpoint based on current projected distance (for runner mode primarily)
   useEffect(() => {
     // Skip for moto mode - checkpoint info comes from DB
-    if (appMode === 'moto') return;
-    
+    if (appMode === "moto") return;
+
     if (checkpoints.length === 0 || projectedDistanceKm === null) {
       setNextCheckpoint(null);
       return;
@@ -857,14 +891,14 @@ const GPSTrackerApp = () => {
     // Find the next checkpoint that is ahead of the current position
     // Sort by distance_km ascending and find the first one > projectedDistanceKm
     const sortedCheckpoints = [...checkpoints].sort((a, b) => a.distance_km - b.distance_km);
-    
-    const next = sortedCheckpoints.find(cp => cp.distance_km > projectedDistanceKm);
-    
+
+    const next = sortedCheckpoints.find((cp) => cp.distance_km > projectedDistanceKm);
+
     if (next) {
       setNextCheckpoint({
         name: next.name,
         distance_km: next.distance_km,
-        distance_remaining_km: next.distance_km - projectedDistanceKm
+        distance_remaining_km: next.distance_km - projectedDistanceKm,
       });
     } else {
       // All checkpoints passed, show last one (Meta) or null
@@ -874,7 +908,7 @@ const GPSTrackerApp = () => {
         setNextCheckpoint({
           name: lastCheckpoint.name,
           distance_km: lastCheckpoint.distance_km,
-          distance_remaining_km: remaining
+          distance_remaining_km: remaining,
         });
       } else {
         setNextCheckpoint(null);
@@ -884,15 +918,12 @@ const GPSTrackerApp = () => {
 
   // Subscribe to wave_start_time changes in real-time
   useEffect(() => {
-    const distanceId = appMode === 'runner' 
-      ? selectedRegistration?.race_distance_id 
-      : selectedMotoAssignment?.race_distance_id;
-    const raceId = appMode === 'runner'
-      ? selectedRegistration?.race_id
-      : selectedMotoAssignment?.race_id;
-    
-    console.log('[WaveStartTime] distanceId:', distanceId, 'raceId:', raceId, 'appMode:', appMode);
-    
+    const distanceId =
+      appMode === "runner" ? selectedRegistration?.race_distance_id : selectedMotoAssignment?.race_distance_id;
+    const raceId = appMode === "runner" ? selectedRegistration?.race_id : selectedMotoAssignment?.race_id;
+
+    console.log("[WaveStartTime] distanceId:", distanceId, "raceId:", raceId, "appMode:", appMode);
+
     if (!distanceId && !raceId) {
       setWaveStartTime(null);
       return;
@@ -900,67 +931,75 @@ const GPSTrackerApp = () => {
 
     // Initial fetch - ALWAYS filter by distanceId if available (more specific)
     const fetchWaveStartTime = async () => {
-      let query = supabase.from('race_waves').select('start_time, race_distance_id');
-      
+      let query = supabase.from("race_waves").select("start_time, race_distance_id");
+
       if (distanceId) {
-        query = query.eq('race_distance_id', distanceId);
+        query = query.eq("race_distance_id", distanceId);
       } else if (raceId) {
         // Fallback to race_id only if no distanceId
-        query = query.eq('race_id', raceId);
+        query = query.eq("race_id", raceId);
       }
-      
-      const { data, error } = await query.order('start_time', { ascending: false }).limit(1).maybeSingle();
-      
-      console.log('[WaveStartTime] Query result:', data, 'error:', error);
-      
+
+      const { data, error } = await query.order("start_time", { ascending: false }).limit(1).maybeSingle();
+
+      console.log("[WaveStartTime] Query result:", data, "error:", error);
+
       if (!error && data?.start_time) {
         setWaveStartTime(data.start_time);
       } else {
         setWaveStartTime(null);
       }
     };
-    
+
     fetchWaveStartTime();
 
     // Real-time subscription
-    const channelFilter = distanceId 
-      ? `race_distance_id=eq.${distanceId}`
-      : `race_id=eq.${raceId}`;
-    
+    const channelFilter = distanceId ? `race_distance_id=eq.${distanceId}` : `race_id=eq.${raceId}`;
+
     const channel = supabase
       .channel(`wave-start-${distanceId || raceId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'race_waves',
-          filter: channelFilter
+          event: "*",
+          schema: "public",
+          table: "race_waves",
+          filter: channelFilter,
         },
         (payload) => {
-          console.log('Wave start time changed:', payload);
+          console.log("Wave start time changed:", payload);
           const newStartTime = (payload.new as any)?.start_time;
           if (newStartTime) {
             setWaveStartTime(newStartTime);
           }
-        }
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedRegistration?.race_distance_id, selectedRegistration?.race_id, selectedMotoAssignment?.race_distance_id, selectedMotoAssignment?.race_id, appMode]);
+  }, [
+    selectedRegistration?.race_distance_id,
+    selectedRegistration?.race_id,
+    selectedMotoAssignment?.race_distance_id,
+    selectedMotoAssignment?.race_id,
+    appMode,
+  ]);
 
   // Parse time string as local time (without timezone conversion)
   const parseLocalTime = (timeStr: string): Date => {
     // Remove any Z suffix and timezone info to treat as local time
-    const cleanStr = timeStr.replace(/Z$/, '').replace(/[+-]\d{2}:\d{2}$/, '');
+    const cleanStr = timeStr.replace(/Z$/, "").replace(/[+-]\d{2}:\d{2}$/, "");
     const match = cleanStr.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
     if (match) {
       return new Date(
-        parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
-        parseInt(match[4]), parseInt(match[5]), parseInt(match[6])
+        parseInt(match[1]),
+        parseInt(match[2]) - 1,
+        parseInt(match[3]),
+        parseInt(match[4]),
+        parseInt(match[5]),
+        parseInt(match[6]),
       );
     }
     return new Date(cleanStr);
@@ -968,35 +1007,39 @@ const GPSTrackerApp = () => {
 
   // Manual refresh function for wave start time
   const refreshWaveStartTime = useCallback(async () => {
-    const distanceId = appMode === 'runner' 
-      ? selectedRegistration?.race_distance_id 
-      : selectedMotoAssignment?.race_distance_id;
-    const raceId = appMode === 'runner'
-      ? selectedRegistration?.race_id
-      : selectedMotoAssignment?.race_id;
-    
+    const distanceId =
+      appMode === "runner" ? selectedRegistration?.race_distance_id : selectedMotoAssignment?.race_distance_id;
+    const raceId = appMode === "runner" ? selectedRegistration?.race_id : selectedMotoAssignment?.race_id;
+
     if (!distanceId && !raceId) return;
 
-    let query = supabase.from('race_waves').select('start_time, race_distance_id');
-    
+    let query = supabase.from("race_waves").select("start_time, race_distance_id");
+
     if (distanceId) {
-      query = query.eq('race_distance_id', distanceId);
+      query = query.eq("race_distance_id", distanceId);
     } else if (raceId) {
-      query = query.eq('race_id', raceId);
+      query = query.eq("race_id", raceId);
     }
-    
-    const { data, error } = await query.order('start_time', { ascending: false }).limit(1).maybeSingle();
-    
-    console.log('[WaveStartTime] Manual refresh result:', data, 'error:', error);
-    
+
+    const { data, error } = await query.order("start_time", { ascending: false }).limit(1).maybeSingle();
+
+    console.log("[WaveStartTime] Manual refresh result:", data, "error:", error);
+
     if (!error && data?.start_time) {
       setWaveStartTime(data.start_time);
       toast({
-        title: 'Hora actualizada',
-        description: 'Tiempo de carrera sincronizado',
+        title: "Hora actualizada",
+        description: "Tiempo de carrera sincronizado",
       });
     }
-  }, [appMode, selectedRegistration?.race_distance_id, selectedRegistration?.race_id, selectedMotoAssignment?.race_distance_id, selectedMotoAssignment?.race_id, toast]);
+  }, [
+    appMode,
+    selectedRegistration?.race_distance_id,
+    selectedRegistration?.race_id,
+    selectedMotoAssignment?.race_distance_id,
+    selectedMotoAssignment?.race_id,
+    toast,
+  ]);
 
   // Elapsed time counter - uses wave start time for both runner and moto
   useEffect(() => {
@@ -1009,51 +1052,49 @@ const GPSTrackerApp = () => {
       }
       return -1; // Negative to indicate no start time
     };
-    
+
     // Update immediately
     const elapsed = calculateElapsed();
-    setStats(prev => ({ ...prev, elapsed }));
-    
+    setStats((prev) => ({ ...prev, elapsed }));
+
     // Update every second
     const timer = setInterval(() => {
       const elapsed = calculateElapsed();
-      setStats(prev => ({ ...prev, elapsed }));
+      setStats((prev) => ({ ...prev, elapsed }));
     }, 1000);
-    
+
     return () => clearInterval(timer);
   }, [waveStartTime]);
 
   // Sync pending points
   const syncPendingPoints = useCallback(async () => {
     if (pendingPoints.length === 0 || !isOnline) return;
-    
+
     try {
-      const tableName = appMode === 'moto' ? 'moto_gps_tracking' : 'gps_tracking';
-      
-      if (appMode === 'moto') {
+      const tableName = appMode === "moto" ? "moto_gps_tracking" : "gps_tracking";
+
+      if (appMode === "moto") {
         // For moto mode, insert each point and call edge function
         for (const point of pendingPoints) {
-          const { data: insertedData, error } = await supabase
-            .from(tableName)
-            .insert(point)
-            .select('id')
-            .single();
-          
+          const { data: insertedData, error } = await supabase.from(tableName).insert(point).select("id").single();
+
           if (error) throw error;
-          
+
           // Call edge function to calculate distances
-          if (insertedData?.id && 'moto_id' in point) {
-            supabase.functions.invoke('process-moto-gps', {
-              body: {
-                moto_id: (point as any).moto_id,
-                race_id: point.race_id,
-                latitude: point.latitude,
-                longitude: point.longitude,
-                speed: point.speed,
-                heading: point.heading,
-                gps_id: insertedData.id
-              }
-            }).catch(err => console.error('Error calling process-moto-gps:', err));
+          if (insertedData?.id && "moto_id" in point) {
+            supabase.functions
+              .invoke("process-moto-gps", {
+                body: {
+                  moto_id: (point as any).moto_id,
+                  race_id: point.race_id,
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                  speed: point.speed,
+                  heading: point.heading,
+                  gps_id: insertedData.id,
+                },
+              })
+              .catch((err) => console.error("Error calling process-moto-gps:", err));
           }
         }
       } else {
@@ -1061,26 +1102,26 @@ const GPSTrackerApp = () => {
         const { error } = await supabase.from(tableName).insert(pendingPoints);
         if (error) throw error;
       }
-      
-      setStats(prev => ({ ...prev, pointsSent: prev.pointsSent + pendingPoints.length }));
+
+      setStats((prev) => ({ ...prev, pointsSent: prev.pointsSent + pendingPoints.length }));
       setPendingPoints([]);
-      
+
       toast({
-        title: '✓ Sincronizado',
+        title: "✓ Sincronizado",
         description: `${pendingPoints.length} puntos GPS enviados`,
       });
     } catch (error: any) {
-      console.error('Sync error:', error);
+      console.error("Sync error:", error);
     }
   }, [pendingPoints, isOnline, appMode]);
 
   // Request wake lock
   const requestWakeLock = async () => {
-    if ('wakeLock' in navigator) {
+    if ("wakeLock" in navigator) {
       try {
-        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
       } catch (e) {
-        console.error('Wake lock error:', e);
+        console.error("Wake lock error:", e);
       }
     }
   };
@@ -1106,176 +1147,190 @@ const GPSTrackerApp = () => {
   };
 
   // Handle GPS position - different logic for runners vs motos
-  const handlePosition = useCallback(async (position: GeolocationResult | GeolocationPosition) => {
-    const lat = 'coords' in position ? position.coords.latitude : position.latitude;
-    const lng = 'coords' in position ? position.coords.longitude : position.longitude;
-    const altitude = 'coords' in position ? position.coords.altitude : position.altitude;
-    const accuracy = 'coords' in position ? position.coords.accuracy : position.accuracy;
-    const speed = 'coords' in position ? position.coords.speed : position.speed;
-    const heading = 'coords' in position ? (position.coords as any).heading : null;
-    
-    const timestampLocal = toLocalISOString(new Date());
-    
-    setCurrentPosition({ lat, lng, heading });
+  const handlePosition = useCallback(
+    async (position: GeolocationResult | GeolocationPosition) => {
+      const lat = "coords" in position ? position.coords.latitude : position.latitude;
+      const lng = "coords" in position ? position.coords.longitude : position.longitude;
+      const altitude = "coords" in position ? position.coords.altitude : position.altitude;
+      const accuracy = "coords" in position ? position.coords.accuracy : position.accuracy;
+      const speed = "coords" in position ? position.coords.speed : position.speed;
+      const heading = "coords" in position ? (position.coords as any).heading : null;
 
-    // Update distance
-    if (lastPositionRef.current) {
-      const dist = calculateDistance(lastPositionRef.current.latitude, lastPositionRef.current.longitude, lat, lng);
-      setStats(prev => ({ ...prev, distance: prev.distance + dist }));
-    }
-    lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: timestampLocal };
+      const timestampLocal = toLocalISOString(new Date());
 
-    // Update speed
-    if (speed !== null) {
-      setStats(prev => ({ ...prev, speed: speed! * 3.6 }));
-    }
+      setCurrentPosition({ lat, lng, heading });
 
-    if (appMode === 'moto' && selectedMotoAssignment) {
-      // MOTO MODE
-      const point: MotoGPSPoint = {
-        moto_id: selectedMotoAssignment.moto_id,
-        race_id: selectedMotoAssignment.race_id,
-        latitude: lat,
-        longitude: lng,
-        altitude: altitude,
-        accuracy: accuracy,
-        speed: speed,
-        heading: heading,
-        battery_level: battery,
-        timestamp: timestampLocal,
-      };
-
-      if (isOnline) {
-        try {
-          const { data: insertedData, error } = await supabase
-            .from('moto_gps_tracking')
-            .insert(point)
-            .select('id')
-            .single();
-          if (error) throw error;
-          
-          // Call edge function to calculate distances from GPX
-          if (insertedData?.id) {
-            supabase.functions.invoke('process-moto-gps', {
-              body: {
-                moto_id: point.moto_id,
-                race_id: point.race_id,
-                latitude: point.latitude,
-                longitude: point.longitude,
-                speed: point.speed,
-                heading: point.heading,
-                gps_id: insertedData.id
-              }
-            }).catch(err => console.error('Error calling process-moto-gps:', err));
-          }
-          
-          setStats(prev => ({ 
-            ...prev, 
-            pointsSent: prev.pointsSent + 1,
-            lastUpdate: new Date(),
-          }));
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50);
-          }
-        } catch (error) {
-          setPendingPoints(prev => [...prev, point]);
-        }
-      } else {
-        setPendingPoints(prev => [...prev, point]);
-        setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+      // Update distance
+      if (lastPositionRef.current) {
+        const dist = calculateDistance(lastPositionRef.current.latitude, lastPositionRef.current.longitude, lat, lng);
+        setStats((prev) => ({ ...prev, distance: prev.distance + dist }));
       }
-    } else if (appMode === 'runner' && selectedRegistration) {
-      // RUNNER MODE
-      const point: GPSPoint = {
-        race_id: selectedRegistration.race_id,
-        registration_id: selectedRegistration.id,
-        latitude: lat,
-        longitude: lng,
-        altitude: altitude,
-        accuracy: accuracy,
-        speed: speed,
-        heading: heading,
-        battery_level: battery,
-        timestamp: timestampLocal,
-      };
+      lastPositionRef.current = { latitude: lat, longitude: lng, altitude, accuracy, speed, timestamp: timestampLocal };
 
-      // Geofencing: Check if within any checkpoint radius
-      for (const checkpoint of checkpoints) {
-        if (!checkpoint.latitude || !checkpoint.longitude) continue;
-        if (passedCheckpointsRef.current.has(checkpoint.id)) continue;
-        
-        const distToCheckpoint = calculateDistance(lat, lng, checkpoint.latitude, checkpoint.longitude);
-        const radius = checkpoint.geofence_radius || 50;
-        
-        if (distToCheckpoint <= radius) {
-          passedCheckpointsRef.current.add(checkpoint.id);
-          setPassedCheckpoints(new Set(passedCheckpointsRef.current));
-          
-          const timingReading = {
-            race_id: selectedRegistration.race_id,
-            race_distance_id: selectedRegistration.race_distance_id,
-            registration_id: selectedRegistration.id,
-            bib_number: selectedRegistration.bib_number || 0,
-            checkpoint_id: checkpoint.id,
-            timing_point_id: checkpoint.timing_point_id,
-            timing_timestamp: timestampLocal,
-            reading_type: 'gps_auto',
-            notes: `GPS auto: ${Math.round(distToCheckpoint)}m del checkpoint`,
-          };
-          
+      // Update speed
+      if (speed !== null) {
+        setStats((prev) => ({ ...prev, speed: speed! * 3.6 }));
+      }
+
+      if (appMode === "moto" && selectedMotoAssignment) {
+        // MOTO MODE
+        const point: MotoGPSPoint = {
+          moto_id: selectedMotoAssignment.moto_id,
+          race_id: selectedMotoAssignment.race_id,
+          latitude: lat,
+          longitude: lng,
+          altitude: altitude,
+          accuracy: accuracy,
+          speed: speed,
+          heading: heading,
+          battery_level: battery,
+          timestamp: timestampLocal,
+        };
+
+        if (isOnline) {
           try {
-            const { error } = await supabase.from('timing_readings').insert(timingReading);
-            if (!error) {
-              triggerCheckpointFeedback();
-              toast({
-                title: `📍 ${checkpoint.name}`,
-                description: `Paso registrado (GPS) - ${checkpoint.distance_km}km`,
-              });
-            }
-          } catch (e) {
-            console.error('Error registering GPS timing:', e);
-          }
-        }
-      }
+            const { data: insertedData, error } = await supabase
+              .from("moto_gps_tracking")
+              .insert(point)
+              .select("id")
+              .single();
+            if (error) throw error;
 
-      if (isOnline) {
-        try {
-          const { error } = await supabase.from('gps_tracking').insert(point);
-          if (error) throw error;
-          setStats(prev => ({ 
-            ...prev, 
-            pointsSent: prev.pointsSent + 1,
-            lastUpdate: new Date(),
-          }));
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50);
+            // Call edge function to calculate distances from GPX
+            if (insertedData?.id) {
+              supabase.functions
+                .invoke("process-moto-gps", {
+                  body: {
+                    moto_id: point.moto_id,
+                    race_id: point.race_id,
+                    latitude: point.latitude,
+                    longitude: point.longitude,
+                    speed: point.speed,
+                    heading: point.heading,
+                    gps_id: insertedData.id,
+                  },
+                })
+                .catch((err) => console.error("Error calling process-moto-gps:", err));
+            }
+
+            setStats((prev) => ({
+              ...prev,
+              pointsSent: prev.pointsSent + 1,
+              lastUpdate: new Date(),
+            }));
+            if ("vibrate" in navigator) {
+              navigator.vibrate(50);
+            }
+          } catch (error) {
+            setPendingPoints((prev) => [...prev, point]);
           }
-        } catch (error) {
-          setPendingPoints(prev => [...prev, point]);
+        } else {
+          setPendingPoints((prev) => [...prev, point]);
+          setStats((prev) => ({ ...prev, lastUpdate: new Date() }));
         }
-      } else {
-        setPendingPoints(prev => [...prev, point]);
-        setStats(prev => ({ ...prev, lastUpdate: new Date() }));
+      } else if (appMode === "runner" && selectedRegistration) {
+        // RUNNER MODE
+        const point: GPSPoint = {
+          race_id: selectedRegistration.race_id,
+          registration_id: selectedRegistration.id,
+          latitude: lat,
+          longitude: lng,
+          altitude: altitude,
+          accuracy: accuracy,
+          speed: speed,
+          heading: heading,
+          battery_level: battery,
+          timestamp: timestampLocal,
+        };
+
+        // Geofencing: Check if within any checkpoint radius
+        for (const checkpoint of checkpoints) {
+          if (!checkpoint.latitude || !checkpoint.longitude) continue;
+          if (passedCheckpointsRef.current.has(checkpoint.id)) continue;
+
+          const distToCheckpoint = calculateDistance(lat, lng, checkpoint.latitude, checkpoint.longitude);
+          const radius = checkpoint.geofence_radius || 50;
+
+          if (distToCheckpoint <= radius) {
+            passedCheckpointsRef.current.add(checkpoint.id);
+            setPassedCheckpoints(new Set(passedCheckpointsRef.current));
+
+            const timingReading = {
+              race_id: selectedRegistration.race_id,
+              race_distance_id: selectedRegistration.race_distance_id,
+              registration_id: selectedRegistration.id,
+              bib_number: selectedRegistration.bib_number || 0,
+              checkpoint_id: checkpoint.id,
+              timing_point_id: checkpoint.timing_point_id,
+              timing_timestamp: timestampLocal,
+              reading_type: "gps_auto",
+              notes: `GPS auto: ${Math.round(distToCheckpoint)}m del checkpoint`,
+            };
+
+            try {
+              const { error } = await supabase.from("timing_readings").insert(timingReading);
+              if (!error) {
+                triggerCheckpointFeedback();
+                toast({
+                  title: `📍 ${checkpoint.name}`,
+                  description: `Paso registrado (GPS) - ${checkpoint.distance_km}km`,
+                });
+              }
+            } catch (e) {
+              console.error("Error registering GPS timing:", e);
+            }
+          }
+        }
+
+        if (isOnline) {
+          try {
+            const { error } = await supabase.from("gps_tracking").insert(point);
+            if (error) throw error;
+            setStats((prev) => ({
+              ...prev,
+              pointsSent: prev.pointsSent + 1,
+              lastUpdate: new Date(),
+            }));
+            if ("vibrate" in navigator) {
+              navigator.vibrate(50);
+            }
+          } catch (error) {
+            setPendingPoints((prev) => [...prev, point]);
+          }
+        } else {
+          setPendingPoints((prev) => [...prev, point]);
+          setStats((prev) => ({ ...prev, lastUpdate: new Date() }));
+        }
       }
-    }
-  }, [selectedRegistration, selectedMotoAssignment, appMode, battery, isOnline, checkpoints, toast, triggerCheckpointFeedback]);
+    },
+    [
+      selectedRegistration,
+      selectedMotoAssignment,
+      appMode,
+      battery,
+      isOnline,
+      checkpoints,
+      toast,
+      triggerCheckpointFeedback,
+    ],
+  );
 
   // Start tracking
   const startTracking = useCallback(async () => {
-    if (appMode === 'moto' && !selectedMotoAssignment) {
+    if (appMode === "moto" && !selectedMotoAssignment) {
       toast({
-        title: 'Moto no seleccionada',
-        description: 'Selecciona una moto primero',
-        variant: 'destructive',
+        title: "Moto no seleccionada",
+        description: "Selecciona una moto primero",
+        variant: "destructive",
       });
       return;
     }
-    
-    if (appMode === 'runner' && !selectedRegistration) {
+
+    if (appMode === "runner" && !selectedRegistration) {
       toast({
-        title: 'GPS no disponible',
-        description: 'Selecciona una carrera primero',
-        variant: 'destructive',
+        title: "GPS no disponible",
+        description: "Selecciona una carrera primero",
+        variant: "destructive",
       });
       return;
     }
@@ -1283,42 +1338,39 @@ const GPSTrackerApp = () => {
     const hasPerms = await requestPermissions();
     if (!hasPerms) {
       toast({
-        title: 'Permisos requeridos',
-        description: 'Necesitas permitir acceso al GPS para usar el tracking',
-        variant: 'destructive',
+        title: "Permisos requeridos",
+        description: "Necesitas permitir acceso al GPS para usar el tracking",
+        variant: "destructive",
       });
       return;
     }
 
-    const frequency = lowBatteryMode 
-      ? 60 
-      : (appMode === 'moto' 
-          ? (selectedMotoAssignment?.moto.race.gps_update_frequency || 10)
-          : (selectedRegistration?.race_distances?.gps_update_frequency || 
-             selectedRegistration?.races?.gps_update_frequency || 
-             30));
+    const frequency = lowBatteryMode
+      ? 60
+      : appMode === "moto"
+        ? selectedMotoAssignment?.moto.race.gps_update_frequency || 10
+        : selectedRegistration?.race_distances?.gps_update_frequency ||
+          selectedRegistration?.races?.gps_update_frequency ||
+          30;
 
-    const initialPos = await getCurrentPosition({ 
-      enableHighAccuracy: !lowBatteryMode, 
-      timeout: 10000 
+    const initialPos = await getCurrentPosition({
+      enableHighAccuracy: !lowBatteryMode,
+      timeout: 10000,
     });
     if (initialPos) {
       handlePosition(initialPos);
     }
 
-    const watchId = await watchPosition(
-      (position) => handlePosition(position),
-      { 
-        enableHighAccuracy: !lowBatteryMode, 
-        timeout: 15000 
-      }
-    );
+    const watchId = await watchPosition((position) => handlePosition(position), {
+      enableHighAccuracy: !lowBatteryMode,
+      timeout: 15000,
+    });
     watchIdRef.current = watchId;
 
     intervalRef.current = setInterval(async () => {
-      const pos = await getCurrentPosition({ 
-        enableHighAccuracy: !lowBatteryMode, 
-        timeout: 10000 
+      const pos = await getCurrentPosition({
+        enableHighAccuracy: !lowBatteryMode,
+        timeout: 10000,
       });
       if (pos) {
         handlePosition(pos);
@@ -1328,21 +1380,32 @@ const GPSTrackerApp = () => {
     startTimeRef.current = new Date();
     setIsTracking(true);
     requestWakeLock();
-    
-    localStorage.setItem(GPS_SESSION_KEY, JSON.stringify({
-      registrationId: appMode === 'runner' ? selectedRegistration?.id : selectedMotoAssignment?.id,
-      startTime: startTimeRef.current.toISOString(),
-      isTracking: true,
-      mode: appMode,
-    }));
+
+    localStorage.setItem(
+      GPS_SESSION_KEY,
+      JSON.stringify({
+        registrationId: appMode === "runner" ? selectedRegistration?.id : selectedMotoAssignment?.id,
+        startTime: startTimeRef.current.toISOString(),
+        isTracking: true,
+        mode: appMode,
+      }),
+    );
 
     toast({
-      title: appMode === 'moto' ? '🏍️ Tracking moto iniciado' : '🏃 Tracking iniciado',
-      description: isNative 
-        ? `Modo nativo activado. Frecuencia: cada ${frequency}s`
-        : `Frecuencia: cada ${frequency}s`,
+      title: appMode === "moto" ? "🏍️ Tracking moto iniciado" : "🏃 Tracking iniciado",
+      description: isNative ? `Modo nativo activado. Frecuencia: cada ${frequency}s` : `Frecuencia: cada ${frequency}s`,
     });
-  }, [selectedRegistration, selectedMotoAssignment, appMode, lowBatteryMode, handlePosition, requestPermissions, getCurrentPosition, watchPosition, isNative]);
+  }, [
+    selectedRegistration,
+    selectedMotoAssignment,
+    appMode,
+    lowBatteryMode,
+    handlePosition,
+    requestPermissions,
+    getCurrentPosition,
+    watchPosition,
+    isNative,
+  ]);
 
   // Stop tracking
   const stopTracking = useCallback(async () => {
@@ -1354,15 +1417,15 @@ const GPSTrackerApp = () => {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    
+
     releaseWakeLock();
     setIsTracking(false);
     localStorage.removeItem(GPS_SESSION_KEY);
-    
+
     syncPendingPoints();
-    
+
     toast({
-      title: '⏹ Tracking detenido',
+      title: "⏹ Tracking detenido",
       description: `Total: ${stats.pointsSent + pendingPoints.length} puntos`,
     });
   }, [stats.pointsSent, pendingPoints.length, syncPendingPoints, clearWatch]);
@@ -1372,7 +1435,7 @@ const GPSTrackerApp = () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
+    if (outcome === "accepted") {
       setShowInstallPrompt(false);
     }
     setDeferredPrompt(null);
@@ -1383,7 +1446,7 @@ const GPSTrackerApp = () => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
   // Format distance
@@ -1412,12 +1475,8 @@ const GPSTrackerApp = () => {
             </Button>
           </CardContent>
         </Card>
-        
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          appName="Camberas GPS"
-        />
+
+        <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} appName="Camberas GPS" />
       </div>
     );
   }
@@ -1432,7 +1491,7 @@ const GPSTrackerApp = () => {
   }
 
   // No access for regular users - must have either GPS registration or moto assignment
-  if (appMode === 'runner' && registrations.length === 0) {
+  if (appMode === "runner" && registrations.length === 0) {
     return (
       <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-sm bg-card border shadow-lg">
@@ -1446,19 +1505,19 @@ const GPSTrackerApp = () => {
               Conectado como: <span className="font-medium">{user?.email}</span>
             </p>
             <div className="flex flex-col gap-2 pt-2">
-              <Button variant="outline" onClick={() => navigate('/races')}>
+              <Button variant="outline" onClick={() => navigate("/races")}>
                 Ver Carreras
               </Button>
-              <Button variant="ghost" onClick={() => navigate('/')}>
+              <Button variant="ghost" onClick={() => navigate("/")}>
                 Volver al inicio
               </Button>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => {
                   signOut();
                   toast({
-                    title: 'Sesión cerrada',
-                    description: 'Puedes iniciar sesión con otra cuenta',
+                    title: "Sesión cerrada",
+                    description: "Puedes iniciar sesión con otra cuenta",
                   });
                 }}
                 className="mt-2"
@@ -1473,7 +1532,7 @@ const GPSTrackerApp = () => {
     );
   }
 
-  if (appMode === 'moto' && motoAssignments.length === 0) {
+  if (appMode === "moto" && motoAssignments.length === 0) {
     return (
       <div className="min-h-screen bg-muted flex flex-col items-center justify-center p-4">
         <Card className="w-full max-w-sm bg-card border shadow-lg">
@@ -1487,16 +1546,16 @@ const GPSTrackerApp = () => {
               Conectado como: <span className="font-medium">{user?.email}</span>
             </p>
             <div className="flex flex-col gap-2 pt-2">
-              <Button variant="outline" onClick={() => navigate('/')}>
+              <Button variant="outline" onClick={() => navigate("/")}>
                 Volver al inicio
               </Button>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={() => {
                   signOut();
                   toast({
-                    title: 'Sesión cerrada',
-                    description: 'Puedes iniciar sesión con otra cuenta',
+                    title: "Sesión cerrada",
+                    description: "Puedes iniciar sesión con otra cuenta",
                   });
                 }}
                 className="mt-2"
@@ -1511,37 +1570,34 @@ const GPSTrackerApp = () => {
     );
   }
 
-  const currentRaceId = appMode === 'moto' ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
-  const currentDistanceId = appMode === 'moto' 
-    ? selectedMotoAssignment?.race_distance_id 
-    : selectedRegistration?.race_distance_id;
+  const currentRaceId = appMode === "moto" ? selectedMotoAssignment?.race_id : selectedRegistration?.race_id;
+  const currentDistanceId =
+    appMode === "moto" ? selectedMotoAssignment?.race_distance_id : selectedRegistration?.race_distance_id;
 
   // Moto color for theming
   const motoColor = selectedMotoAssignment?.moto.color || CAMBERAS_PINK;
-  const themeColor = appMode === 'moto' ? motoColor : CAMBERAS_PINK;
+  const themeColor = appMode === "moto" ? motoColor : CAMBERAS_PINK;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col safe-area-inset-top"
-         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    <div
+      className="min-h-screen bg-background flex flex-col safe-area-inset-top"
+      style={{ paddingTop: "env(safe-area-inset-top)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       {/* Header - Camberas branded with moto color */}
       {/* Header - Light background with dark text for readability */}
-      <header 
-        className="border-b p-4 flex items-center justify-between bg-card shadow-sm"
-      >
+      <header className="border-b p-4 flex items-center justify-between bg-card shadow-sm">
         <div className="flex items-center gap-2">
           <img src={gpsLogo} alt="Camberas GPS" className="h-8 w-8 rounded-full" />
-          <span className="font-bold text-foreground">
-            {appMode === 'moto' ? 'Camberas Moto GPS' : 'Camberas GPS'}
-          </span>
-          {appMode === 'moto' && selectedMotoAssignment && (
-            <Badge 
-              variant="secondary" 
+          <span className="font-bold text-foreground">{appMode === "moto" ? "Camberas Moto GPS" : "Camberas GPS"}</span>
+          {appMode === "moto" && selectedMotoAssignment && (
+            <Badge
+              variant="secondary"
               className="ml-2"
-              style={{ 
-                borderColor: motoColor, 
+              style={{
+                borderColor: motoColor,
                 color: motoColor,
                 backgroundColor: `${motoColor}15`,
-                borderWidth: '1px'
+                borderWidth: "1px",
               }}
             >
               <Bike className="h-3 w-3 mr-1" />
@@ -1555,13 +1611,13 @@ const GPSTrackerApp = () => {
             onClick={() => {
               const newValue = !soundEnabled;
               setSoundEnabled(newValue);
-              localStorage.setItem('gps_sound_enabled', String(newValue));
+              localStorage.setItem("gps_sound_enabled", String(newValue));
               if (newValue) {
                 triggerCheckpointFeedback();
               }
             }}
             className="p-1.5 rounded-md hover:bg-muted transition-colors"
-            title={soundEnabled ? 'Sonido activado' : 'Sonido desactivado'}
+            title={soundEnabled ? "Sonido activado" : "Sonido desactivado"}
           >
             {soundEnabled ? (
               <Volume2 className="h-4 w-4" style={{ color: CAMBERAS_PINK }} />
@@ -1569,7 +1625,7 @@ const GPSTrackerApp = () => {
               <VolumeX className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
-          
+
           {/* Status indicators - stacked vertically */}
           <div className="flex flex-col gap-0.5">
             {isOnline ? (
@@ -1581,28 +1637,28 @@ const GPSTrackerApp = () => {
                 <WifiOff className="h-3 w-3 mr-1" /> Offline
               </Badge>
             )}
-            <Badge 
+            <Badge
               className={`text-xs px-1.5 py-0 ${battery < 20 ? "bg-red-100 text-red-700 border-red-300" : "bg-muted text-muted-foreground border-border"}`}
             >
               <Battery className="h-3 w-3 mr-1" /> {battery}%
             </Badge>
           </div>
-          
+
           {/* Logout button - emphasized */}
           <button
             onClick={() => {
               if (isTracking) {
                 toast({
-                  title: 'Tracking activo',
-                  description: 'Detén el tracking antes de cerrar sesión',
-                  variant: 'destructive',
+                  title: "Tracking activo",
+                  description: "Detén el tracking antes de cerrar sesión",
+                  variant: "destructive",
                 });
                 return;
               }
               signOut();
               toast({
-                title: 'Sesión cerrada',
-                description: 'Has cerrado sesión correctamente',
+                title: "Sesión cerrada",
+                description: "Has cerrado sesión correctamente",
               });
             }}
             className="p-2 rounded-md bg-red-100 hover:bg-red-200 transition-colors border border-red-300 ml-1"
@@ -1615,7 +1671,7 @@ const GPSTrackerApp = () => {
 
       {/* Install Banner */}
       {showInstallPrompt && (
-        <div 
+        <div
           className="border-b p-3 flex items-center justify-between"
           style={{ background: `${CAMBERAS_PINK}15`, borderColor: `${CAMBERAS_PINK}30` }}
         >
@@ -1623,10 +1679,10 @@ const GPSTrackerApp = () => {
             <Smartphone className="h-4 w-4" style={{ color: CAMBERAS_PINK }} />
             <span>Instala la app para mejor experiencia</span>
           </div>
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             onClick={handleInstallPWA}
-            style={{ backgroundColor: CAMBERAS_PINK, color: 'white' }}
+            style={{ backgroundColor: CAMBERAS_PINK, color: "white" }}
             className="hover:opacity-90"
           >
             <Download className="h-4 w-4 mr-1" /> Instalar
@@ -1645,14 +1701,14 @@ const GPSTrackerApp = () => {
       {/* Main Content */}
       <main className="flex-1 p-4 space-y-4">
         {/* Moto Selector */}
-        {appMode === 'moto' && !isTracking && motoAssignments.length > 1 && (
+        {appMode === "moto" && !isTracking && motoAssignments.length > 1 && (
           <Card>
             <CardContent className="pt-4">
               <label className="text-sm text-muted-foreground mb-2 block">Selecciona moto</label>
-              <Select 
-                value={selectedMotoAssignment?.id || ''} 
+              <Select
+                value={selectedMotoAssignment?.id || ""}
                 onValueChange={(val) => {
-                  const assignment = motoAssignments.find(a => a.id === val) || null;
+                  const assignment = motoAssignments.find((a) => a.id === val) || null;
                   setSelectedMotoAssignment(assignment);
                 }}
               >
@@ -1663,10 +1719,7 @@ const GPSTrackerApp = () => {
                   {motoAssignments.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: a.moto.color }}
-                        />
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: a.moto.color }} />
                         {a.moto.name} - {a.moto.race.name}
                       </div>
                     </SelectItem>
@@ -1678,17 +1731,17 @@ const GPSTrackerApp = () => {
         )}
 
         {/* Race Selector (Runner mode) */}
-        {appMode === 'runner' && !isTracking && registrations.length > 1 && (
+        {appMode === "runner" && !isTracking && registrations.length > 1 && (
           <Card>
             <CardContent className="pt-4">
               <label className="text-sm text-muted-foreground mb-2 block">Selecciona carrera</label>
-              <Select 
-                value={selectedRegistration?.id || ''} 
+              <Select
+                value={selectedRegistration?.id || ""}
                 onValueChange={(val) => {
-                  const reg = registrations.find(r => r.id === val) || null;
+                  const reg = registrations.find((r) => r.id === val) || null;
                   setSelectedRegistration(reg);
                   if (reg && !localStorage.getItem(SPEED_PACE_PREF_KEY)) {
-                    setShowPace(reg.races.race_type === 'trail');
+                    setShowPace(reg.races.race_type === "trail");
                   }
                 }}
               >
@@ -1713,11 +1766,11 @@ const GPSTrackerApp = () => {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  {appMode === 'moto' && selectedMotoAssignment ? (
+                  {appMode === "moto" && selectedMotoAssignment ? (
                     <>
                       <div className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded-full" 
+                        <div
+                          className="w-4 h-4 rounded-full"
                           style={{ backgroundColor: selectedMotoAssignment.moto.color }}
                         />
                         <h2 className="font-semibold truncate">{selectedMotoAssignment.moto.name}</h2>
@@ -1731,32 +1784,27 @@ const GPSTrackerApp = () => {
                     </>
                   ) : null}
                 </div>
-                
+
                 {/* Start/Stop Button */}
                 {!isTracking ? (
-                  <Button 
-                    onClick={startTracking} 
+                  <Button
+                    onClick={startTracking}
                     size="sm"
                     className="text-white px-3 py-1 h-8 text-xs"
                     style={{ backgroundColor: themeColor }}
-                    disabled={appMode === 'moto' ? !selectedMotoAssignment : !selectedRegistration}
+                    disabled={appMode === "moto" ? !selectedMotoAssignment : !selectedRegistration}
                   >
                     <Play className="h-3 w-3 mr-1" />
                     Iniciar
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={stopTracking} 
-                    variant="destructive" 
-                    size="sm"
-                    className="px-3 py-1 h-8 text-xs"
-                  >
+                  <Button onClick={stopTracking} variant="destructive" size="sm" className="px-3 py-1 h-8 text-xs">
                     <Square className="h-3 w-3 mr-1" />
                     Detener
                   </Button>
                 )}
 
-                {appMode === 'runner' && selectedRegistration?.bib_number && (
+                {appMode === "runner" && selectedRegistration?.bib_number && (
                   <Badge variant="secondary" className="text-lg px-3 py-1">
                     #{selectedRegistration.bib_number}
                   </Badge>
@@ -1768,7 +1816,7 @@ const GPSTrackerApp = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 gap-3">
-          <Card 
+          <Card
             className="cursor-pointer hover:bg-muted/50 transition-colors active:scale-95"
             onClick={refreshWaveStartTime}
             title="Toca para actualizar hora de carrera"
@@ -1776,23 +1824,22 @@ const GPSTrackerApp = () => {
             <CardContent className="pt-4 text-center">
               <Clock className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
               <div className="text-2xl font-mono font-bold">
-                {stats.elapsed >= 0 ? formatTime(stats.elapsed) : '--:--:--'}
+                {stats.elapsed >= 0 ? formatTime(stats.elapsed) : "--:--:--"}
               </div>
               <div className="text-xs text-muted-foreground">
-                {waveStartTime ? 'Tiempo carrera ↻' : 'Sin hora salida'}
+                {waveStartTime ? "Tiempo carrera ↻" : "Sin hora salida"}
               </div>
             </CardContent>
           </Card>
-          <Card 
-            className="cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={() => setShowPace(!showPace)}
-          >
+          <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => setShowPace(!showPace)}>
             <CardContent className="pt-4 text-center">
               <Gauge className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
               {showPace ? (
                 <>
                   <div className="text-2xl font-mono font-bold">
-                    {stats.speed > 0 ? `${Math.floor(60 / stats.speed)}:${String(Math.round((60 / stats.speed % 1) * 60)).padStart(2, '0')}` : '--:--'}
+                    {stats.speed > 0
+                      ? `${Math.floor(60 / stats.speed)}:${String(Math.round(((60 / stats.speed) % 1) * 60)).padStart(2, "0")}`
+                      : "--:--"}
                   </div>
                   <div className="text-xs text-muted-foreground">min/km</div>
                 </>
@@ -1804,29 +1851,38 @@ const GPSTrackerApp = () => {
               )}
             </CardContent>
           </Card>
-          
+
           {/* Distance to finish - for both runner and moto */}
-          <Card style={appMode === 'moto' ? { borderColor: `${motoColor}30` } : undefined}>
+          <Card style={appMode === "moto" ? { borderColor: `${motoColor}30` } : undefined}>
             <CardContent className="pt-4 text-center">
-              <Target className="h-5 w-5 mx-auto mb-1" style={appMode === 'moto' ? { color: motoColor } : undefined} />
-              <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
-                {distanceToFinish !== null 
+              <Target className="h-5 w-5 mx-auto mb-1" style={appMode === "moto" ? { color: motoColor } : undefined} />
+              <div
+                className="text-2xl font-mono font-bold"
+                style={appMode === "moto" ? { color: motoColor } : undefined}
+              >
+                {distanceToFinish !== null
                   ? formatDistance(distanceToFinish * 1000)
-                  : selectedRegistration?.race_distances?.distance_km 
-                    ? formatDistance((selectedRegistration.race_distances.distance_km * 1000) - stats.distance)
-                    : '--'}
+                  : selectedRegistration?.race_distances?.distance_km
+                    ? formatDistance(selectedRegistration.race_distances.distance_km * 1000 - stats.distance)
+                    : "--"}
               </div>
               <div className="text-xs text-muted-foreground">A meta</div>
             </CardContent>
           </Card>
 
           {/* Next checkpoint - for both runner and moto */}
-          <Card style={appMode === 'moto' ? { borderColor: `${motoColor}30` } : undefined}>
+          <Card style={appMode === "moto" ? { borderColor: `${motoColor}30` } : undefined}>
             <CardContent className="pt-4 text-center">
-              <Navigation className="h-5 w-5 mx-auto mb-1" style={appMode === 'moto' ? { color: motoColor } : undefined} />
+              <Navigation
+                className="h-5 w-5 mx-auto mb-1"
+                style={appMode === "moto" ? { color: motoColor } : undefined}
+              />
               {nextCheckpoint ? (
                 <>
-                  <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>
+                  <div
+                    className="text-2xl font-mono font-bold"
+                    style={appMode === "moto" ? { color: motoColor } : undefined}
+                  >
                     {nextCheckpoint.distance_remaining_km.toFixed(1)} km
                   </div>
                   <div className="text-xs text-muted-foreground truncate max-w-full" title={nextCheckpoint.name}>
@@ -1835,7 +1891,12 @@ const GPSTrackerApp = () => {
                 </>
               ) : (
                 <>
-                  <div className="text-2xl font-mono font-bold" style={appMode === 'moto' ? { color: motoColor } : undefined}>--</div>
+                  <div
+                    className="text-2xl font-mono font-bold"
+                    style={appMode === "moto" ? { color: motoColor } : undefined}
+                  >
+                    --
+                  </div>
                   <div className="text-xs text-muted-foreground">Próximo control</div>
                 </>
               )}
@@ -1846,33 +1907,33 @@ const GPSTrackerApp = () => {
         {/* Mini Map */}
         <Card>
           <CardContent className="p-2">
-            <GPSMiniMap 
+            <GPSMiniMap
               latitude={currentPosition?.lat || null}
               longitude={currentPosition?.lng || null}
               heading={currentPosition?.heading}
               distanceId={currentDistanceId}
               raceId={currentRaceId}
               distanceTraveled={stats.distance}
-              totalDistance={appMode === 'runner' ? selectedRegistration?.race_distances?.distance_km : undefined}
+              totalDistance={appMode === "runner" ? selectedRegistration?.race_distances?.distance_km : undefined}
               className="h-48 w-full"
             />
           </CardContent>
         </Card>
 
         {/* Elevation Profile (both runner and moto modes) */}
-        {appMode === 'runner' && selectedRegistration && (
+        {appMode === "runner" && selectedRegistration && (
           <ElevationMiniProfile
             distanceId={selectedRegistration.race_distance_id}
             currentDistanceKm={projectedDistanceKm ?? stats.distance / 1000}
-            checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
+            checkpoints={checkpoints.map((cp) => ({ name: cp.name, distance_km: cp.distance_km }))}
           />
         )}
-        {appMode === 'moto' && selectedMotoAssignment && (
+        {appMode === "moto" && selectedMotoAssignment && (
           <ElevationMiniProfile
             distanceId={selectedMotoAssignment.race_distance_id || undefined}
             raceId={!selectedMotoAssignment.race_distance_id ? selectedMotoAssignment.race_id : undefined}
             currentDistanceKm={projectedDistanceKm ?? 0}
-            checkpoints={checkpoints.map(cp => ({ name: cp.name, distance_km: cp.distance_km }))}
+            checkpoints={checkpoints.map((cp) => ({ name: cp.name, distance_km: cp.distance_km }))}
           />
         )}
 
@@ -1896,12 +1957,12 @@ const GPSTrackerApp = () => {
           <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground px-2">
             <div className="text-center">
               <div className="font-medium">Última actualización</div>
-              <div>{stats.lastUpdate ? stats.lastUpdate.toLocaleTimeString('es-ES') : '--:--:--'}</div>
+              <div>{stats.lastUpdate ? stats.lastUpdate.toLocaleTimeString("es-ES") : "--:--:--"}</div>
             </div>
             <div className="text-center">
               <div className="font-medium">Puntos enviados</div>
               <div className="flex items-center justify-center gap-1">
-                <Radio className={`h-3 w-3 ${isTracking ? 'text-green-500 animate-pulse' : ''}`} />
+                <Radio className={`h-3 w-3 ${isTracking ? "text-green-500 animate-pulse" : ""}`} />
                 {stats.pointsSent}
               </div>
             </div>
@@ -1910,14 +1971,10 @@ const GPSTrackerApp = () => {
       </main>
 
       {/* Bottom padding for safe area */}
-      <div className="p-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }} />
-      
+      <div className="p-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }} />
+
       {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        appName="Camberas GPS"
-      />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} appName="Camberas GPS" />
     </div>
   );
 };
