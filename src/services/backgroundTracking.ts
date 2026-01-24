@@ -1,7 +1,22 @@
-import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import { registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase } from '@/integrations/supabase/client';
+
+// Definir interfaz localmente (el paquete no exporta tipos correctamente)
+interface BackgroundGeolocationPlugin {
+  addWatcher: (
+    options: {
+      backgroundMessage?: string;
+      backgroundTitle?: string;
+      requestPermissions?: boolean;
+      stale?: boolean;
+      distanceFilter?: number;
+    },
+    callback: (location: any, error: any) => void
+  ) => Promise<string>;
+  removeWatcher: (options: { id: string }) => Promise<void>;
+  openSettings: () => Promise<void>;
+}
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
 
