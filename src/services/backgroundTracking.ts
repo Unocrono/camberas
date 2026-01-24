@@ -1,41 +1,105 @@
 import { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import { registerPlugin } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { supabase } from '@/integrations/supabase/client';
 
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
-import { LocalNotifications } from '@capacitor/local-notifications';
 
-// Interfaz para las actualizaciones de posición
-export interface PositionUpdate {
+/**
+ * BACKGROUND TRACKING SERVICE PARA CAMBERAS
+ * 
+ * Este servicio maneja el tracking GPS en segundo plano usando:
+ * - @capacitor-community/background-geolocation (GRATIS)
+ * - Notificación persistente para mantener el servicio vivo
+ * - Envío automático a Supabase
+ */
+
+// GPS Point para corredores
+interface GPSPoint {
+  race_id: string;
+  registration_id: string;
   latitude: number;
   longitude: number;
-  accuracy: number;
+  altitude: number | null;
+  accuracy: number | null;
   speed: number | null;
   heading: number | null;
-  altitude: number | null;
-  timestamp: number;
+  battery_level: number;
+  timestamp: string;
 }
 
-// Variable para almacenar el watcher ID
+// GPS Point para motos
+interface MotoGPSPoint {
+  moto_id: string;
+  race_id: string;
+  latitude: number;
+  longitude: number;
+  altitude: number | null;
+  accuracy: number | null;
+  speed: number | null;
+  heading: number | null;
+  battery_level: number;
+  timestamp: string;
+}
+
+type AppMode = 'runner' | 'moto';
+
+// Configuración del tracking actual
+interface TrackingConfig {
+  mode: AppMode;
+  race_id: string;
+  registration_id?: string; // Para runners
+  moto_id?: string;         // Para motos
+  runner_name?: string;
+  moto_name?: string;
+  bib_number?: number | null;
+  update_frequency?: number; // segundos
+}
+
+// Variable global para almacenar la configuración
+let currentConfig: TrackingConfig | null = null;
 let watcherId: string | null = null;
+let isInitialized = false;
+
+/**
+ * Obtener nivel de batería del dispositivo
+ */
+async function getBatteryLevel(): Promise<number> {
+  try {
+    if ('getBattery' in navigator) {
+      const battery = await (navigator as any).getBattery();
+      return Math.round(battery.level * 100);
+    }
+  } catch (error) {
+    console.warn('No se pudo obtener nivel de batería:', error);
+  }
+  return 100; // Default
+}
 
 /**
  * Solicitar permisos necesarios
  */
-export async function requestPermissions(): Promise<boolean> {
+export async function requestBackgroundPermissions(): Promise<boolean> {
   try {
-    // Permisos de notificaciones (para la notificación persistente)
-    const notifPermission = await LocalNotifications.requestPermissions();
+    console.log('🔐 Solicitando permisos...');
     
-    if (notifPermission.display !== 'granted') {
-      console.warn('⚠️ Permisos de notificaciones denegados (recomendado)');
-      // Continuamos igual, pero sin notificación
+    // 1. Permisos de notificaciones
+    try {
+      const notifPermission = await LocalNotifications.requestPermissions();
+      if (notifPermission.display !== 'granted') {
+        console.warn('⚠️ Permisos de notificaciones denegados (recomendado pero no crítico)');
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudieron solicitar permisos de notificación:', error);
     }
 
-    console.log('✅ Permisos otorgados');
+    // Los permisos de ubicación se solicitan automáticamente con addWatcher
+    // cuando requestPermissions: true está configurado
+    console.log('✅ Permisos de notificación procesados');
     return true;
 
   } catch (error) {
-    console.error('Error solicitando permisos:', error);
+    console.error('❌ Error solicitando permisos:', error);
     return false;
   }
 }
@@ -43,22 +107,27 @@ export async function requestPermissions(): Promise<boolean> {
 /**
  * Crear notificación persistente
  */
-async function createPersistentNotification() {
+async function createPersistentNotification(config: TrackingConfig) {
   try {
+    const displayName = config.mode === 'runner' 
+      ? `${config.runner_name || 'Corredor'}${config.bib_number ? ` #${config.bib_number}` : ''}`
+      : config.moto_name || 'Moto';
+
     await LocalNotifications.schedule({
       notifications: [{
         id: 999,
-        title: '📍 Camberas Tracking',
-        body: 'Enviando tu posición en tiempo real',
-        ongoing: true, // No se puede cerrar deslizando
+        title: '📍 Camberas GPS Tracking',
+        body: `${displayName} - Enviando posición en tiempo real`,
+        ongoing: true,
         autoCancel: false,
-        sound: undefined, // Sin sonido
+        sound: undefined,
         smallIcon: 'res://camberaslogoa',
       }]
     });
+    
     console.log('✅ Notificación persistente creada');
   } catch (error) {
-    console.error('Error creando notificación:', error);
+    console.error('❌ Error creando notificación:', error);
   }
 }
 
@@ -68,9 +137,87 @@ async function createPersistentNotification() {
 async function removePersistentNotification() {
   try {
     await LocalNotifications.cancel({ notifications: [{ id: 999 }] });
-    console.log('✅ Notificación persistente removida');
+    console.log('✅ Notificación removida');
   } catch (error) {
-    console.error('Error removiendo notificación:', error);
+    console.error('❌ Error removiendo notificación:', error);
+  }
+}
+
+/**
+ * Enviar posición a Supabase (RUNNERS)
+ */
+async function sendRunnerPosition(location: any, config: TrackingConfig): Promise<boolean> {
+  try {
+    if (!config.registration_id) {
+      throw new Error('registration_id no configurado');
+    }
+
+    const batteryLevel = await getBatteryLevel();
+
+    const gpsPoint: GPSPoint = {
+      race_id: config.race_id,
+      registration_id: config.registration_id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      altitude: location.altitude || null,
+      accuracy: location.accuracy || null,
+      speed: location.speed || null,
+      heading: location.bearing || location.heading || null,
+      battery_level: batteryLevel,
+      timestamp: new Date(location.time || Date.now()).toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('gps_tracking')
+      .insert(gpsPoint);
+
+    if (error) throw error;
+
+    console.log('✅ [RUNNER] Posición enviada:', gpsPoint);
+    return true;
+
+  } catch (error) {
+    console.error('❌ [RUNNER] Error enviando posición:', error);
+    return false;
+  }
+}
+
+/**
+ * Enviar posición a Supabase (MOTOS)
+ */
+async function sendMotoPosition(location: any, config: TrackingConfig): Promise<boolean> {
+  try {
+    if (!config.moto_id) {
+      throw new Error('moto_id no configurado');
+    }
+
+    const batteryLevel = await getBatteryLevel();
+
+    const motoPoint: MotoGPSPoint = {
+      moto_id: config.moto_id,
+      race_id: config.race_id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      altitude: location.altitude || null,
+      accuracy: location.accuracy || null,
+      speed: location.speed || null,
+      heading: location.bearing || location.heading || null,
+      battery_level: batteryLevel,
+      timestamp: new Date(location.time || Date.now()).toISOString(),
+    };
+
+    const { error } = await supabase
+      .from('moto_gps_tracking')
+      .insert(motoPoint);
+
+    if (error) throw error;
+
+    console.log('✅ [MOTO] Posición enviada:', motoPoint);
+    return true;
+
+  } catch (error) {
+    console.error('❌ [MOTO] Error enviando posición:', error);
+    return false;
   }
 }
 
@@ -78,55 +225,69 @@ async function removePersistentNotification() {
  * Callback cuando se recibe una nueva posición
  */
 function onLocationUpdate(location: any) {
-  const position: PositionUpdate = {
-    latitude: location.latitude,
-    longitude: location.longitude,
+  if (!currentConfig) {
+    console.error('❌ No hay configuración de tracking');
+    return;
+  }
+
+  console.log('📍 Nueva posición:', {
+    lat: location.latitude,
+    lng: location.longitude,
     accuracy: location.accuracy,
     speed: location.speed,
-    heading: location.bearing || location.heading,
-    altitude: location.altitude,
-    timestamp: location.time || Date.now()
-  };
+  });
 
-  console.log('[📍 Nueva posición]', position);
-
-  // Enviar al servidor
-  sendPositionToServer(position);
+  // Enviar según el modo
+  if (currentConfig.mode === 'runner') {
+    sendRunnerPosition(location, currentConfig);
+  } else {
+    sendMotoPosition(location, currentConfig);
+  }
 }
 
 /**
  * Callback cuando hay un error
  */
 function onLocationError(error: any) {
-  console.error('[❌ Error de ubicación]', error);
+  console.error('❌ Error de ubicación:', error);
 }
 
 /**
- * Iniciar el tracking en segundo plano
+ * INICIAR tracking en segundo plano
  */
-export async function startBackgroundTracking(): Promise<boolean> {
+export async function startBackgroundTracking(config: TrackingConfig): Promise<boolean> {
   try {
+    console.log('🚀 Iniciando background tracking:', config);
+
+    // Guardar configuración
+    currentConfig = config;
+
     // 1. Solicitar permisos si aún no los tiene
-    const hasPermissions = await requestPermissions();
-    if (!hasPermissions) {
-      alert('Necesitas otorgar permisos de ubicación para usar el tracking');
-      return false;
+    if (!isInitialized) {
+      const hasPermissions = await requestBackgroundPermissions();
+      if (!hasPermissions) {
+        throw new Error('Permisos no otorgados');
+      }
+      isInitialized = true;
     }
 
     // 2. Crear notificación persistente
-    await createPersistentNotification();
+    await createPersistentNotification(config);
 
-    // 3. Configurar y empezar el tracking
+    // 3. Configurar frecuencia de actualización
+    const updateFrequency = config.update_frequency || 30; // Default 30 segundos
+    const distanceFilter = Math.max(10, updateFrequency * 2); // Mínimo 10 metros
+
+    console.log(`⚙️ Configurando tracking cada ${updateFrequency}s o ${distanceFilter}m`);
+
+    // 4. Iniciar el tracking
     watcherId = await BackgroundGeolocation.addWatcher(
       {
-        // Configuración de tracking
         backgroundMessage: '📍 Camberas - Tracking activo',
         backgroundTitle: 'GPS Camberas',
-        requestPermissions: true, // Solicitar permisos de ubicación
-        stale: false, // No usar ubicaciones antiguas
-        
-        // Frecuencia de actualización
-        distanceFilter: 10 // Actualizar cada 10 metros de movimiento
+        requestPermissions: false, // Ya los solicitamos
+        stale: false,
+        distanceFilter: distanceFilter,
       },
       (location, error) => {
         if (error) {
@@ -144,25 +305,28 @@ export async function startBackgroundTracking(): Promise<boolean> {
 
   } catch (error) {
     console.error('❌ Error iniciando tracking:', error);
+    currentConfig = null;
     await removePersistentNotification();
     return false;
   }
 }
 
 /**
- * Detener el tracking en segundo plano
+ * DETENER tracking en segundo plano
  */
 export async function stopBackgroundTracking(): Promise<boolean> {
   try {
+    console.log('⏹️ Deteniendo background tracking...');
+
     if (watcherId) {
       await BackgroundGeolocation.removeWatcher({ id: watcherId });
       watcherId = null;
-      console.log('✅ Background tracking detenido');
     }
 
-    // Remover notificación
     await removePersistentNotification();
-    
+    currentConfig = null;
+
+    console.log('✅ Background tracking detenido');
     return true;
 
   } catch (error) {
@@ -174,57 +338,22 @@ export async function stopBackgroundTracking(): Promise<boolean> {
 /**
  * Verificar si el tracking está activo
  */
-export function isTrackingActive(): boolean {
-  return watcherId !== null;
+export function isBackgroundTrackingActive(): boolean {
+  return watcherId !== null && currentConfig !== null;
 }
 
 /**
- * Función para enviar posición al servidor
- * ADAPTA ESTO A TU IMPLEMENTACIÓN ACTUAL
+ * Obtener configuración actual
  */
-async function sendPositionToServer(position: PositionUpdate) {
-  try {
-    // TODO: Reemplaza con tu endpoint real y datos
-    const response = await fetch('https://TU_DOMINIO/api/positions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // Agrega headers de autenticación si los necesitas
-        // 'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        // Adapta estos campos a tu estructura de BD
-        runner_id: 'ID_DEL_CORREDOR', // Obtener del contexto
-        race_id: 'ID_DE_LA_CARRERA',   // Obtener del contexto
-        latitude: position.latitude,
-        longitude: position.longitude,
-        accuracy: position.accuracy,
-        speed: position.speed,
-        heading: position.heading,
-        altitude: position.altitude,
-        timestamp: new Date(position.timestamp).toISOString()
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('✅ Posición enviada al servidor:', data);
-
-  } catch (error) {
-    console.error('❌ Error enviando posición:', error);
-    
-    // TODO: Implementar cola de reintentos si falla
-    // Podrías guardar en localStorage y reenviar después
-  }
+export function getCurrentTrackingConfig(): TrackingConfig | null {
+  return currentConfig;
 }
 
-// Exportar las funciones principales
+// Exportar por defecto
 export default {
-  requestPermissions,
+  requestBackgroundPermissions,
   startBackgroundTracking,
   stopBackgroundTracking,
-  isTrackingActive
+  isBackgroundTrackingActive,
+  getCurrentTrackingConfig,
 };

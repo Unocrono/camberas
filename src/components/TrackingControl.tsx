@@ -4,8 +4,8 @@ import { Card } from '@/components/ui/card';
 import {
   startBackgroundTracking,
   stopBackgroundTracking,
-  isTrackingActive,
-  requestPermissions
+  isBackgroundTrackingActive,
+  requestBackgroundPermissions
 } from '@/services/backgroundTracking';
 
 export function TrackingControl() {
@@ -14,7 +14,7 @@ export function TrackingControl() {
 
   // Verificar estado al montar
   useEffect(() => {
-    setIsTracking(isTrackingActive());
+    setIsTracking(isBackgroundTrackingActive());
     checkPermissions();
   }, []);
 
@@ -25,7 +25,7 @@ export function TrackingControl() {
   };
 
   const handleRequestPermissions = async () => {
-    const granted = await requestPermissions();
+    const granted = await requestBackgroundPermissions();
     setHasPermissions(granted);
     
     if (!granted) {
@@ -34,7 +34,13 @@ export function TrackingControl() {
   };
 
   const handleStartTracking = async () => {
-    const started = await startBackgroundTracking();
+    // Configuración de ejemplo - adaptar según el contexto real
+    const started = await startBackgroundTracking({
+      mode: 'runner',
+      race_id: 'demo-race-id',
+      registration_id: 'demo-registration-id',
+      runner_name: 'Corredor Demo',
+    });
     
     if (started) {
       setIsTracking(true);
