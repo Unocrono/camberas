@@ -543,6 +543,57 @@ export type Database = {
         }
         Relationships: []
       }
+      gps_devices: {
+        Row: {
+          active: boolean | null
+          battery_level: number | null
+          created_at: string | null
+          device_model: string | null
+          device_name: string | null
+          id: string
+          imei: string
+          last_seen_at: string | null
+          moto_id: string | null
+          notes: string | null
+          race_id: string | null
+          registration_id: string | null
+          update_frequency: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          battery_level?: number | null
+          created_at?: string | null
+          device_model?: string | null
+          device_name?: string | null
+          id?: string
+          imei: string
+          last_seen_at?: string | null
+          moto_id?: string | null
+          notes?: string | null
+          race_id?: string | null
+          registration_id?: string | null
+          update_frequency?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          battery_level?: number | null
+          created_at?: string | null
+          device_model?: string | null
+          device_name?: string | null
+          id?: string
+          imei?: string
+          last_seen_at?: string | null
+          moto_id?: string | null
+          notes?: string | null
+          race_id?: string | null
+          registration_id?: string | null
+          update_frequency?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       gps_tracking: {
         Row: {
           accuracy: number | null
