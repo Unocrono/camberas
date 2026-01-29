@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User } from "lucide-react";
 import { calculateUtcOffsetFromDateString, formatUtcOffset, parseUtcOffset } from "@/lib/timezoneUtils";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
@@ -38,6 +39,13 @@ interface Race {
   slug: string | null;
 }
 
+interface Organizer {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
 interface RaceManagementProps {
   isOrganizer?: boolean;
 }
@@ -49,6 +57,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRace, setEditingRace] = useState<Race | null>(null);
+  const [organizers, setOrganizers] = useState<Organizer[]>([]);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -65,6 +74,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     is_visible: true,
     slug: "",
     utc_offset: "+1:00",
+    organizer_id: "" as string,
   });
   
   // Image cropper states
@@ -75,7 +85,36 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
   useEffect(() => {
     fetchRaces();
-  }, []);
+    if (!isOrganizer) {
+      fetchOrganizers();
+    }
+  }, [isOrganizer]);
+
+  const fetchOrganizers = async () => {
+    try {
+      // Get all users with organizer role
+      const { data: organizerRoles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "organizer")
+        .eq("status", "approved");
+
+      if (rolesError) throw rolesError;
+
+      if (organizerRoles && organizerRoles.length > 0) {
+        const userIds = organizerRoles.map(r => r.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", userIds);
+
+        if (profilesError) throw profilesError;
+        setOrganizers(profiles || []);
+      }
+    } catch (error: any) {
+      console.error("Error fetching organizers:", error);
+    }
+  };
 
   const fetchRaces = async () => {
     try {
@@ -125,6 +164,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_visible: race.is_visible ?? true,
         slug: race.slug || "",
         utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
+        organizer_id: race.organizer_id || "",
       });
     } else {
       setEditingRace(null);
@@ -143,6 +183,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_visible: true,
         slug: "",
         utc_offset: "+1:00",
+        organizer_id: "",
       });
     }
     setIsDialogOpen(true);
@@ -278,6 +319,11 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           is_visible: formData.is_visible,
           utc_offset: parseUtcOffset(formData.utc_offset),
         };
+        
+        // Allow admin to change organizer
+        if (!isOrganizer && formData.organizer_id) {
+          updateData.organizer_id = formData.organizer_id;
+        }
         
         // Solo actualizar slug si se ha modificado manualmente
         if (formData.slug && formData.slug !== editingRace.slug) {
@@ -456,6 +502,35 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   rows={3}
                 />
               </div>
+
+              {/* Organizer selector - Only visible for Admin when editing */}
+              {!isOrganizer && editingRace && organizers.length > 0 && (
+                <div className="space-y-2 border-t pt-4">
+                  <Label htmlFor="organizer_id" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Organizador asignado
+                  </Label>
+                  <Select
+                    value={formData.organizer_id || "none"}
+                    onValueChange={(value) => setFormData({ ...formData, organizer_id: value === "none" ? "" : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar organizador" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background">
+                      <SelectItem value="none">Sin organizador asignado</SelectItem>
+                      {organizers.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.first_name} {org.last_name} ({org.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Selecciona el organizador responsable de esta carrera. Solo los administradores pueden cambiar esta asignación.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Tipo de Carrera *</Label>
