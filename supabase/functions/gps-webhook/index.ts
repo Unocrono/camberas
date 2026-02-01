@@ -175,9 +175,23 @@ Deno.serve(async (req) => {
 
     // 7. Guardar en moto_gps_tracking
     if (device.race_moto_id) {
+      // Obtener race_moto para extraer race_id y distance_id
+      const { data: raceMoto, error: raceMotoError } = await supabase
+        .from("race_motos")
+        .select("id, race_id, race_distance_id")
+        .eq("id", device.race_moto_id)
+        .single();
+
+      if (raceMotoError || !raceMoto) {
+        console.error("❌ Error obteniendo race_moto:", raceMotoError);
+        throw new Error("Race moto not found");
+      }
+
       // Es una moto con GPS asignado
       const { error: insertError } = await supabase.from("moto_gps_tracking").insert({
-        race_moto_id: device.race_moto_id,
+        moto_id: device.race_moto_id, // El ID de race_motos
+        race_id: raceMoto.race_id, // El race_id de race_motos
+        distance_id: raceMoto.race_distance_id, // El distance_id (recorrido)
         latitude: gpsData.latitude,
         longitude: gpsData.longitude,
         altitude: gpsData.altitude,
@@ -186,6 +200,7 @@ Deno.serve(async (req) => {
         heading: gpsData.heading,
         battery_level: gpsData.battery_level,
         timestamp: gpsData.timestamp,
+        // Los campos de distancia se calcularán después por tu sistema
       });
 
       if (insertError) {
