@@ -556,6 +556,7 @@ export type Database = {
           moto_id: string | null
           notes: string | null
           race_id: string | null
+          race_moto_id: string | null
           registration_id: string | null
           update_frequency: number | null
           updated_at: string | null
@@ -572,6 +573,7 @@ export type Database = {
           moto_id?: string | null
           notes?: string | null
           race_id?: string | null
+          race_moto_id?: string | null
           registration_id?: string | null
           update_frequency?: number | null
           updated_at?: string | null
@@ -588,11 +590,20 @@ export type Database = {
           moto_id?: string | null
           notes?: string | null
           race_id?: string | null
+          race_moto_id?: string | null
           registration_id?: string | null
           update_frequency?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gps_devices_race_moto_id_fkey"
+            columns: ["race_moto_id"]
+            isOneToOne: false
+            referencedRelation: "race_motos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gps_tracking: {
         Row: {
@@ -776,6 +787,7 @@ export type Database = {
           battery_level: number | null
           created_at: string
           distance_from_start: number | null
+          distance_id: string | null
           distance_to_finish: number | null
           distance_to_next_checkpoint: number | null
           heading: number | null
@@ -795,6 +807,7 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
+          distance_id?: string | null
           distance_to_finish?: number | null
           distance_to_next_checkpoint?: number | null
           heading?: number | null
@@ -814,6 +827,7 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           distance_from_start?: number | null
+          distance_id?: string | null
           distance_to_finish?: number | null
           distance_to_next_checkpoint?: number | null
           heading?: number | null
@@ -828,6 +842,13 @@ export type Database = {
           timestamp?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "moto_gps_tracking_distance_id_fkey"
+            columns: ["distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "moto_gps_tracking_moto_id_fkey"
             columns: ["moto_id"]
