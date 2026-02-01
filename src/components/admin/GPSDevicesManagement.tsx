@@ -678,14 +678,14 @@ export function GPSDevicesManagement({ selectedRaceId }: GPSDevicesManagementPro
             <div className="grid gap-2">
               <Label htmlFor="race_id">Carrera</Label>
               <Select 
-                value={formData.race_id} 
-                onValueChange={(val) => setFormData({ ...formData, race_id: val, race_moto_id: "" })}
+                value={formData.race_id || "none"} 
+                onValueChange={(val) => setFormData({ ...formData, race_id: val === "none" ? "" : val, race_moto_id: "" })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una carrera" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin carrera</SelectItem>
+                  <SelectItem value="none">Sin carrera</SelectItem>
                   {races.map((race) => (
                     <SelectItem key={race.id} value={race.id}>
                       {race.name}
@@ -699,14 +699,14 @@ export function GPSDevicesManagement({ selectedRaceId }: GPSDevicesManagementPro
               <div className="grid gap-2">
                 <Label htmlFor="race_moto_id">Moto asignada</Label>
                 <Select 
-                  value={formData.race_moto_id} 
-                  onValueChange={(val) => setFormData({ ...formData, race_moto_id: val })}
+                  value={formData.race_moto_id || "none"} 
+                  onValueChange={(val) => setFormData({ ...formData, race_moto_id: val === "none" ? "" : val })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona una moto" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectItem value="none">Sin asignar</SelectItem>
                     {motos.map((moto) => (
                       <SelectItem key={moto.id} value={moto.id}>
                         <div className="flex items-center gap-2">
