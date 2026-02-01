@@ -36,7 +36,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
-import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
+
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
 import { GPSDevicesManagement } from "@/components/admin/GPSDevicesManagement";
@@ -296,7 +296,7 @@ const AdminDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
+            
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
             {currentView === "gps-devices" && <GPSDevicesManagement />}
