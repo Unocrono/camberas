@@ -187,11 +187,11 @@ Deno.serve(async (req) => {
         throw new Error("Race moto not found");
       }
 
-      // Es una moto con GPS asignado
-      const { error: insertError } = await supabase.from("moto_gps_tracking").insert({
-        moto_id: device.race_moto_id, // El ID de race_motos
-        race_id: raceMoto.race_id, // El race_id de race_motos
-        distance_id: raceMoto.race_distance_id, // El distance_id (recorrido)
+      // Es una moto con GPS asignado - insertar y obtener el ID del registro
+      const { data: insertedRecord, error: insertError } = await supabase.from("moto_gps_tracking").insert({
+        moto_id: device.race_moto_id,
+        race_id: raceMoto.race_id,
+        distance_id: raceMoto.race_distance_id,
         latitude: gpsData.latitude,
         longitude: gpsData.longitude,
         altitude: gpsData.altitude,
@@ -200,15 +200,49 @@ Deno.serve(async (req) => {
         heading: gpsData.heading,
         battery_level: gpsData.battery_level,
         timestamp: gpsData.timestamp,
-        // Los campos de distancia se calcularán después por tu sistema
-      });
+      }).select('id').single();
 
       if (insertError) {
         console.error("❌ Error insertando en moto_gps_tracking:", insertError);
         throw insertError;
       }
 
-      console.log("✅ Punto guardado (moto):", device.race_moto_id);
+      console.log("✅ Punto guardado (moto):", device.race_moto_id, "ID:", insertedRecord?.id);
+
+      // 7b. Llamar a process-moto-gps para calcular distancias
+      if (insertedRecord?.id) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+          const processUrl = `${supabaseUrl}/functions/v1/process-moto-gps`;
+          
+          const processResponse = await fetch(processUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              gps_id: insertedRecord.id,
+              moto_id: device.race_moto_id,
+              race_id: raceMoto.race_id,
+              latitude: gpsData.latitude,
+              longitude: gpsData.longitude,
+              speed: gpsData.speed,
+              heading: gpsData.heading,
+            }),
+          });
+
+          if (processResponse.ok) {
+            const result = await processResponse.json();
+            console.log("✅ Distancias calculadas:", result);
+          } else {
+            console.error("⚠️ Error calculando distancias:", await processResponse.text());
+          }
+        } catch (processError) {
+          console.error("⚠️ Error llamando a process-moto-gps:", processError);
+          // No lanzar error, el punto GPS ya fue guardado
+        }
+      }
     } else {
       // Dispositivo sin asignar a ninguna moto
       console.log("⚠️ Dispositivo sin asignar a ninguna moto, datos no guardados");
