@@ -39,6 +39,7 @@ import { MotosManagement } from "@/components/admin/MotosManagement";
 import { MotoAssignmentsManagement } from "@/components/admin/MotoAssignmentsManagement";
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
+import { GPSDevicesManagement } from "@/components/admin/GPSDevicesManagement";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { CategoryTemplatesManagement } from "@/components/admin/CategoryTemplatesManagement";
 import BlogPostsManagement from "@/components/admin/BlogPostsManagement";
@@ -139,7 +140,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "blog-posts", "newsletter-subscribers", "newsletter-campaigns"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -298,6 +299,7 @@ const AdminDashboard = () => {
             {currentView === "moto-assignments" && <MotoAssignmentsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
+            {currentView === "gps-devices" && <GPSDevicesManagement />}
             {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "category-templates" && <CategoryTemplatesManagement />}
             {currentView === "blog-posts" && <BlogPostsManagement />}
