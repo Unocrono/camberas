@@ -292,55 +292,7 @@ const GPSTrackerApp = () => {
             allAssignments.push(...validDirectMotos);
           }
 
-          // 2. Fetch moto assignments from moto_assignments table
-          const { data: assignments, error: assignError } = await supabase
-            .from("moto_assignments")
-            .select(
-              `
-              id,
-              moto_id,
-              race_id,
-              race_motos!moto_assignments_moto_id_fkey (
-                id,
-                name,
-                color,
-                race_distance_id,
-                races!race_motos_race_id_fkey (
-                  id,
-                  name,
-                  date,
-                  gps_update_frequency
-                )
-              )
-            `,
-            )
-            .eq("user_id", user.id);
-
-          console.log("Moto assignments query result:", assignments, assignError);
-
-          if (!assignError && assignments) {
-            const validAssignments = assignments
-              .filter((a: any) => a.race_motos?.races?.date >= minDate)
-              .map((a: any) => ({
-                id: a.id,
-                moto_id: a.moto_id,
-                race_id: a.race_id,
-                race_distance_id: a.race_motos.race_distance_id,
-                moto: {
-                  id: a.race_motos.id,
-                  name: a.race_motos.name,
-                  color: a.race_motos.color,
-                  race: a.race_motos.races,
-                },
-              }));
-
-            // Add only if not already added from direct assignment
-            validAssignments.forEach((a: MotoAssignment) => {
-              if (!allAssignments.find((existing) => existing.moto_id === a.moto_id)) {
-                allAssignments.push(a);
-              }
-            });
-          }
+          // moto_assignments table was removed - only use race_motos.user_id
 
           // Fetch wave start times for moto races
           const raceIds = [...new Set(allAssignments.map((a) => a.race_id))];
