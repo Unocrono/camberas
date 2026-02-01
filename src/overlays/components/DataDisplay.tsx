@@ -232,14 +232,16 @@ export const PositionWrapper = ({
 
 /**
  * Contenedor base para overlays con fondo transparente
+ * Optimizado para vMix/OBS browser sources
  */
 export const OverlayContainer = ({
   children,
 }: {
   children: React.ReactNode;
 }) => {
-  // Asegurar transparencia del fondo
+  // Asegurar transparencia del fondo y ocultar elementos no deseados
   useEffect(() => {
+    // Hacer fondo transparente
     document.documentElement.style.background = 'transparent';
     document.documentElement.style.backgroundColor = 'transparent';
     document.body.style.background = 'transparent';
@@ -251,7 +253,23 @@ export const OverlayContainer = ({
       root.style.backgroundColor = 'transparent';
     }
 
+    // Ocultar toasters y otros elementos de notificación
+    // que pueden interferir con vMix
+    const hideNotifications = () => {
+      const notificationElements = document.querySelectorAll(
+        '[role="region"][aria-label*="Notifications"], section[aria-label*="Notifications"], [data-sonner-toaster]'
+      );
+      notificationElements.forEach((el) => {
+        (el as HTMLElement).style.display = 'none';
+      });
+    };
+    
+    hideNotifications();
+    // Ejecutar también después de un delay por si se añaden después
+    const timer = setTimeout(hideNotifications, 500);
+
     return () => {
+      clearTimeout(timer);
       document.documentElement.style.background = '';
       document.documentElement.style.backgroundColor = '';
       document.body.style.background = '';
@@ -269,6 +287,15 @@ export const OverlayContainer = ({
         html, body, #root {
           background: transparent !important;
           background-color: transparent !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        /* Ocultar toasters para overlays de broadcast */
+        [role="region"][aria-label*="Notifications"],
+        section[aria-label*="Notifications"],
+        [data-sonner-toaster] {
+          display: none !important;
+          visibility: hidden !important;
         }
       `}</style>
 

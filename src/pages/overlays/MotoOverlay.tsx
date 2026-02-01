@@ -3,6 +3,11 @@
 /**
  * MotoOverlay - Sistema Modular de Overlays para Broadcast
  * Implementación limpia usando el nuevo sistema de componentes reutilizables
+ * 
+ * COMPATIBILIDAD vMix/OBS:
+ * - Fondo 100% transparente
+ * - Sin animaciones de entrada que bloqueen el renderizado inicial
+ * - Renderizado inmediato de elementos incluso sin datos
  */
 
 import { useState, useEffect } from 'react';
@@ -31,6 +36,7 @@ import type { MotoData, DisplayData } from '@/overlays/core/types';
  * - Componentes reutilizables
  * - Más fácil de mantener
  * - Lógica separada de la vista
+ * - Compatibilidad con vMix/OBS
  */
 const MotoOverlay = () => {
   const { raceId } = useParams<{ raceId: string }>();
@@ -46,8 +52,8 @@ const MotoOverlay = () => {
   const [displayData, setDisplayData] = useState<DisplayData>({
     speed: '0',
     distance: '0.0',
-    distanceToFinish: '--',
-    distanceToNextCheckpoint: '--',
+    distanceToFinish: '0.0',
+    distanceToNextCheckpoint: '0.0',
     nextCheckpointName: '',
     gap: '',
     timestamp: Date.now(),
@@ -56,6 +62,7 @@ const MotoOverlay = () => {
     isManualGap: false,
   });
   const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   // Buffer para delay
   const [dataBuffer] = useState(() => new DataBuffer<DisplayData>(60000));
@@ -236,8 +243,23 @@ const MotoOverlay = () => {
     fetchWaveStartTime();
   }, [config?.selected_distance_id]);
 
+  // Marcar como listo para renderizar (importante para vMix)
+  useEffect(() => {
+    if (config && !loading) {
+      // Pequeño delay para asegurar que React ha renderizado
+      const timer = setTimeout(() => setIsReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [config, loading]);
+
+  // Mientras carga, mostrar contenedor transparente vacío (no null)
+  // Esto es importante para vMix que necesita un DOM estable
   if (loading || !config) {
-    return <OverlayContainer><div /></OverlayContainer>;
+    return (
+      <OverlayContainer>
+        <div style={{ opacity: 0 }} />
+      </OverlayContainer>
+    );
   }
 
   return (
