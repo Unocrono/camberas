@@ -1,80 +1,59 @@
 // src/pages/overlays/MotoOverlay.tsx
+// VERSIÓN OPTIMIZADA PARA VMIX - Combina sistema modular con rendering directo
 
-/**
- * MotoOverlay - Sistema Modular de Overlays para Broadcast
- * Implementación limpia usando el nuevo sistema de componentes reutilizables
- * 
- * COMPATIBILIDAD vMix/OBS:
- * - Fondo 100% transparente
- * - Sin animaciones de entrada que bloqueen el renderizado inicial
- * - Renderizado inmediato de elementos incluso sin datos
- */
-
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
+import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 // Importar del sistema modular
-import { useOverlayConfig } from '@/overlays/core/useOverlayConfig';
-import { DataDisplay, PositionWrapper, OverlayContainer } from '@/overlays/components/DataDisplay';
-import { WithModeBadge } from '@/overlays/components/ModeBadge';
-import { 
-  formatSpeed, 
-  metersToKm, 
+import { useOverlayConfig } from "@/overlays/core/useOverlayConfig";
+import {
+  formatSpeed,
+  metersToKm,
   calculateGap,
   getElapsedTime,
-  DataBuffer 
-} from '@/overlays/core/utils';
-import type { MotoData, DisplayData } from '@/overlays/core/types';
+  DataBuffer,
+  getFontFamily,
+  hexToRgba,
+} from "@/overlays/core/utils";
+import type { MotoData, DisplayData } from "@/overlays/core/types";
 
-/**
- * MotoOverlay usando el sistema modular
- * 
- * VENTAJAS:
- * - 80% menos código que la versión anterior
- * - Componentes reutilizables
- * - Más fácil de mantener
- * - Lógica separada de la vista
- * - Compatibilidad con vMix/OBS
- */
 const MotoOverlay = () => {
   const { raceId } = useParams<{ raceId: string }>();
-  
-  // Hook principal - maneja toda la config de Supabase
+
+  // Hook modular para config
   const { config, loading } = useOverlayConfig({
-    raceId: raceId || '',
+    raceId: raceId || "",
     autoSubscribe: true,
   });
 
   const [motoData, setMotoData] = useState<MotoData | null>(null);
   const [compareMotoData, setCompareMotoData] = useState<MotoData | null>(null);
   const [displayData, setDisplayData] = useState<DisplayData>({
-    speed: '0',
-    distance: '0.0',
-    distanceToFinish: '0.0',
-    distanceToNextCheckpoint: '0.0',
-    nextCheckpointName: '',
-    gap: '',
+    speed: "0",
+    distance: "0.0",
+    distanceToFinish: "--",
+    distanceToNextCheckpoint: "--",
+    nextCheckpointName: "",
+    gap: "",
     timestamp: Date.now(),
     isManualSpeed: false,
     isManualDistance: false,
     isManualGap: false,
   });
   const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
-  const [isReady, setIsReady] = useState(false);
-
-  // Buffer para delay
   const [dataBuffer] = useState(() => new DataBuffer<DisplayData>(60000));
 
-  // Fetch GPS data para moto principal
+  // Fetch GPS data
   useEffect(() => {
     if (!config?.selected_moto_id) return;
 
     const fetchMotoData = async () => {
       const { data, error } = await supabase
-        .from('moto_gps_tracking')
-        .select(`
+        .from("moto_gps_tracking")
+        .select(
+          `
           speed,
           distance_from_start,
           distance_to_finish,
@@ -82,21 +61,21 @@ const MotoOverlay = () => {
           next_checkpoint_name,
           timestamp,
           race_motos!inner (name, name_tv, color)
-        `)
-        .eq('moto_id', config.selected_moto_id)
-        .not('distance_from_start', 'is', null)
-        .order('timestamp', { ascending: false })
+        `,
+        )
+        .eq("moto_id", config.selected_moto_id)
+        .not("distance_from_start", "is", null)
+        .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (!error && data) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const motoInfo = data.race_motos as any;
         setMotoData({
           id: config.selected_moto_id,
-          name: motoInfo?.name || '',
+          name: motoInfo?.name || "",
           name_tv: motoInfo?.name_tv,
-          color: motoInfo?.color || '#FF5722',
+          color: motoInfo?.color || "#FF5722",
           speed: data.speed || 0,
           distance_from_start: data.distance_from_start || 0,
           distance_to_finish: data.distance_to_finish,
@@ -110,17 +89,18 @@ const MotoOverlay = () => {
     fetchMotoData();
     const interval = setInterval(fetchMotoData, 2000);
 
-    // Realtime subscription
     const channel = supabase
       .channel(`moto-gps-${config.selected_moto_id}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'moto_gps_tracking',
-        filter: `moto_id=eq.${config.selected_moto_id}`,
-      }, () => {
-        fetchMotoData();
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "moto_gps_tracking",
+          filter: `moto_id=eq.${config.selected_moto_id}`,
+        },
+        () => fetchMotoData(),
+      )
       .subscribe();
 
     return () => {
@@ -129,7 +109,7 @@ const MotoOverlay = () => {
     };
   }, [config?.selected_moto_id]);
 
-  // Fetch compare moto data
+  // Fetch compare moto
   useEffect(() => {
     if (!config?.compare_moto_id) {
       setCompareMotoData(null);
@@ -138,25 +118,25 @@ const MotoOverlay = () => {
 
     const fetchCompareData = async () => {
       const { data } = await supabase
-        .from('moto_gps_tracking')
-        .select('speed, distance_from_start')
-        .eq('moto_id', config.compare_moto_id)
-        .order('timestamp', { ascending: false })
+        .from("moto_gps_tracking")
+        .select("speed, distance_from_start, timestamp")
+        .eq("moto_id", config.compare_moto_id)
+        .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle();
 
       if (data) {
         setCompareMotoData({
           id: config.compare_moto_id,
-          name: '',
+          name: "",
           name_tv: null,
-          color: '',
+          color: "",
           speed: data.speed || 0,
           distance_from_start: data.distance_from_start || 0,
           distance_to_finish: null,
           distance_to_next_checkpoint: null,
           next_checkpoint_name: null,
-          timestamp: new Date().toISOString(),
+          timestamp: data.timestamp,
         });
       }
     };
@@ -166,49 +146,42 @@ const MotoOverlay = () => {
     return () => clearInterval(interval);
   }, [config?.compare_moto_id]);
 
-  // Process data and add to buffer
+  // Process data
   useEffect(() => {
     if (!config) return;
 
-    const isManualSpeed = config.speed.manualMode;
-    const isManualDistance = config.distance.manualMode;
-    const isManualGap = config.gaps.manualMode;
+    const speed =
+      config.speed.manualMode && config.speed.manualValue
+        ? config.speed.manualValue
+        : motoData
+          ? formatSpeed(motoData.speed, config.speed.displayType)
+          : "0";
 
-    // Speed
-    let speed = '0';
-    if (isManualSpeed && config.speed.manualValue) {
-      speed = config.speed.manualValue;
-    } else if (motoData) {
-      speed = formatSpeed(motoData.speed, config.speed.displayType);
-    }
+    const distance =
+      config.distance.manualMode && config.distance.manualValue
+        ? config.distance.manualValue
+        : motoData
+          ? metersToKm(motoData.distance_from_start)
+          : "0.0";
 
-    // Distance
-    let distance = '0.0';
-    if (isManualDistance && config.distance.manualValue) {
-      distance = config.distance.manualValue;
-    } else if (motoData) {
-      distance = metersToKm(motoData.distance_from_start);
-    }
-
-    // Gap
-    let gap = '';
-    if (isManualGap && config.gaps.manualValue) {
-      gap = config.gaps.manualValue;
-    } else if (compareMotoData && motoData) {
-      gap = calculateGap(motoData.distance_from_start, compareMotoData.distance_from_start);
-    }
+    const gap =
+      config.gaps.manualMode && config.gaps.manualValue
+        ? config.gaps.manualValue
+        : compareMotoData && motoData
+          ? calculateGap(motoData.distance_from_start, compareMotoData.distance_from_start)
+          : "";
 
     dataBuffer.add({
       speed,
       distance,
-      distanceToFinish: motoData?.distance_to_finish?.toFixed(1) || '--',
-      distanceToNextCheckpoint: motoData?.distance_to_next_checkpoint?.toFixed(1) || '--',
-      nextCheckpointName: motoData?.next_checkpoint_name || '',
+      distanceToFinish: motoData?.distance_to_finish?.toFixed(1) || "--",
+      distanceToNextCheckpoint: motoData?.distance_to_next_checkpoint?.toFixed(1) || "--",
+      nextCheckpointName: motoData?.next_checkpoint_name || "",
       gap,
       timestamp: Date.now(),
-      isManualSpeed,
-      isManualDistance,
-      isManualGap,
+      isManualSpeed: config.speed.manualMode,
+      isManualDistance: config.distance.manualMode,
+      isManualGap: config.gaps.manualMode,
     });
   }, [motoData, compareMotoData, config, dataBuffer]);
 
@@ -230,9 +203,9 @@ const MotoOverlay = () => {
 
     const fetchWaveStartTime = async () => {
       const { data } = await supabase
-        .from('race_waves')
-        .select('start_time')
-        .eq('race_distance_id', config.selected_distance_id)
+        .from("race_waves")
+        .select("start_time")
+        .eq("race_distance_id", config.selected_distance_id)
         .maybeSingle();
 
       if (data?.start_time) {
@@ -243,128 +216,184 @@ const MotoOverlay = () => {
     fetchWaveStartTime();
   }, [config?.selected_distance_id]);
 
-  // Marcar como listo para renderizar (importante para vMix)
-  useEffect(() => {
-    if (config && !loading) {
-      // Pequeño delay para asegurar que React ha renderizado
-      const timer = setTimeout(() => setIsReady(true), 100);
-      return () => clearTimeout(timer);
-    }
-  }, [config, loading]);
-
-  // Mientras carga, mostrar contenedor transparente vacío (no null)
-  // Esto es importante para vMix que necesita un DOM estable
   if (loading || !config) {
-    return (
-      <OverlayContainer>
-        <div style={{ opacity: 0 }} />
-      </OverlayContainer>
-    );
+    return null; // No mostrar nada mientras carga
   }
 
+  // RENDERING DIRECTO - Sin OverlayContainer ni AnimatePresence que puedan causar delays
   return (
-    <OverlayContainer>
-      <AnimatePresence mode="wait">
+    <>
+      {/* CRÍTICO: Forzar transparencia desde el primer frame */}
+      <style>{`
+        html, body, #root {
+          background: transparent !important;
+          background-color: transparent !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+        }
+      `}</style>
+
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: "transparent",
+          backgroundColor: "transparent",
+          pointerEvents: "none",
+        }}
+      >
         {/* Speed Display */}
         {config.speed.visible && (
-          <PositionWrapper
-            key="speed"
-            posX={config.speed.posX}
-            posY={config.speed.posY}
-            scale={config.speed.scale}
-            visible={config.speed.visible}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "absolute",
+              left: `${config.speed.posX}%`,
+              top: `${config.speed.posY}%`,
+              transform: `translate(-50%, -50%) scale(${config.speed.scale})`,
+              fontFamily: getFontFamily(config.speed.font),
+              fontSize: `${config.speed.size}px`,
+              color: config.speed.color,
+              backgroundColor: hexToRgba(config.speed.bgColor, config.speed.bgOpacity),
+              padding: "12px 24px",
+              borderRadius: "8px",
+              textAlign: "center",
+              fontWeight: "bold",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+            }}
           >
-            <WithModeBadge 
-              isManual={displayData.isManualSpeed}
-              showBadge={false}
-            >
-              <DataDisplay
-                label={config.speed.displayType === 'pace' ? 'RITMO' : 'VELOCIDAD'}
-                value={displayData.speed}
-                suffix={config.speed.displayType === 'pace' ? ' min/km' : ' km/h'}
-                config={config.speed}
-                isManual={displayData.isManualSpeed}
-                animated={true}
-              />
-            </WithModeBadge>
-          </PositionWrapper>
+            <div style={{ fontSize: "0.4em", opacity: 0.7, marginBottom: "2px" }}>
+              {config.speed.displayType === "pace" ? "RITMO" : "VELOCIDAD"}
+            </div>
+            {displayData.speed}
+            <span style={{ fontSize: "0.6em", marginLeft: "4px" }}>
+              {config.speed.displayType === "pace" ? "min/km" : "km/h"}
+            </span>
+          </motion.div>
         )}
 
         {/* Distance to Finish */}
         {config.distance.visible && (
-          <PositionWrapper
-            key="distance"
-            posX={config.distance.posX}
-            posY={config.distance.posY}
-            scale={config.distance.scale}
-            visible={config.distance.visible}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "absolute",
+              left: `${config.distance.posX}%`,
+              top: `${config.distance.posY}%`,
+              transform: `translate(-50%, -50%) scale(${config.distance.scale})`,
+              fontFamily: getFontFamily(config.distance.font),
+              fontSize: `${config.distance.size}px`,
+              color: config.distance.color,
+              backgroundColor: hexToRgba(config.distance.bgColor, config.distance.bgOpacity),
+              padding: "12px 24px",
+              borderRadius: "8px",
+              textAlign: "center",
+              fontWeight: "bold",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+            }}
           >
-            <DataDisplay
-              label="A META"
-              value={displayData.distanceToFinish}
-              suffix=" km"
-              config={config.distance}
-              isManual={displayData.isManualDistance}
-              animated={true}
-            />
-          </PositionWrapper>
+            <div style={{ fontSize: "0.4em", opacity: 0.7, marginBottom: "2px" }}>A META</div>
+            {displayData.distanceToFinish}
+            <span style={{ fontSize: "0.6em", marginLeft: "4px" }}>km</span>
+          </motion.div>
         )}
 
         {/* Checkpoint */}
         {config.checkpoint.visible && (
-          <PositionWrapper
-            key="checkpoint"
-            posX={config.checkpoint.posX}
-            posY={config.checkpoint.posY}
-            scale={config.checkpoint.scale}
-            visible={config.checkpoint.visible}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "absolute",
+              left: `${config.checkpoint.posX}%`,
+              top: `${config.checkpoint.posY}%`,
+              transform: `translate(-50%, -50%) scale(${config.checkpoint.scale})`,
+              fontFamily: getFontFamily(config.checkpoint.font),
+              fontSize: `${config.checkpoint.size}px`,
+              color: config.checkpoint.color,
+              backgroundColor: hexToRgba(config.checkpoint.bgColor, config.checkpoint.bgOpacity),
+              padding: "10px 20px",
+              borderRadius: "8px",
+              textAlign: "center",
+              fontWeight: "bold",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+            }}
           >
-            <DataDisplay
-              label={displayData.nextCheckpointName || 'PRÓXIMO CONTROL'}
-              value={displayData.distanceToNextCheckpoint}
-              suffix=" km"
-              config={config.checkpoint}
-              animated={true}
-            />
-          </PositionWrapper>
+            <div style={{ fontSize: "0.45em", opacity: 0.7, marginBottom: "2px", whiteSpace: "nowrap" }}>
+              {displayData.nextCheckpointName || "PRÓXIMO CONTROL"}
+            </div>
+            {displayData.distanceToNextCheckpoint !== "--" ? (
+              <>
+                {displayData.distanceToNextCheckpoint}
+                <span style={{ fontSize: "0.6em", marginLeft: "4px" }}>km</span>
+              </>
+            ) : (
+              "--"
+            )}
+          </motion.div>
         )}
 
         {/* Gap */}
         {config.gaps.visible && displayData.gap && (
-          <PositionWrapper
-            key="gap"
-            posX={config.gaps.posX}
-            posY={config.gaps.posY}
-            scale={config.gaps.scale}
-            visible={config.gaps.visible}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "absolute",
+              left: `${config.gaps.posX}%`,
+              top: `${config.gaps.posY}%`,
+              transform: `translate(-50%, -50%) scale(${config.gaps.scale})`,
+              fontFamily: getFontFamily(config.gaps.font),
+              fontSize: `${config.gaps.size}px`,
+              color: config.gaps.color,
+              backgroundColor: hexToRgba(config.gaps.bgColor, config.gaps.bgOpacity),
+              padding: "8px 16px",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+            }}
           >
-            <DataDisplay
-              value={displayData.gap}
-              config={config.gaps}
-              isManual={displayData.isManualGap}
-              animated={true}
-            />
-          </PositionWrapper>
+            {displayData.gap}
+          </motion.div>
         )}
 
         {/* Clock */}
         {config.clock.visible && (
-          <PositionWrapper
-            key="clock"
-            posX={config.clock.posX}
-            posY={config.clock.posY}
-            scale={config.clock.scale}
-            visible={config.clock.visible}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              position: "absolute",
+              left: `${config.clock.posX}%`,
+              top: `${config.clock.posY}%`,
+              transform: `translate(-50%, -50%) scale(${config.clock.scale})`,
+              fontFamily: getFontFamily(config.clock.font),
+              fontSize: `${config.clock.size}px`,
+              color: config.clock.color,
+              backgroundColor: hexToRgba(config.clock.bgColor, config.clock.bgOpacity),
+              padding: "8px 20px",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              letterSpacing: "0.05em",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.5)",
+            }}
           >
-            <DataDisplay
-              value={getElapsedTime(waveStartTime)}
-              config={config.clock}
-              animated={false}
-            />
-          </PositionWrapper>
+            {getElapsedTime(waveStartTime)}
+          </motion.div>
         )}
-      </AnimatePresence>
-    </OverlayContainer>
+      </div>
+    </>
   );
 };
 
