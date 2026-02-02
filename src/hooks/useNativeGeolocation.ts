@@ -1,26 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
-import { Capacitor } from '@capacitor/core';
-import { registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-
-// Background Geolocation plugin interface
-interface BackgroundGeolocationPlugin {
-  addWatcher: (
-    options: {
-      backgroundMessage?: string;
-      backgroundTitle?: string;
-      requestPermissions?: boolean;
-      stale?: boolean;
-      distanceFilter?: number;
-    },
-    callback: (location: any, error: any) => void
-  ) => Promise<string>;
-  removeWatcher: (options: { id: string }) => Promise<void>;
-  openSettings: () => Promise<void>;
-}
-
-// Register the plugin
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+import { getBackgroundGeolocation, isNativePlatform, getPlatform } from '@/lib/capacitorPlugins';
 
 /**
  * Request POST_NOTIFICATIONS permission on Android 13+ (API 33+)
@@ -30,7 +10,7 @@ const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('Backg
  */
 const requestNotificationPermission = async (): Promise<boolean> => {
   // Only needed on native Android
-  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+  if (!isNativePlatform() || getPlatform() !== 'android') {
     console.log('[GPS] Not Android native, skipping notification permission');
     return true;
   }
@@ -51,7 +31,10 @@ const requestNotificationPermission = async (): Promise<boolean> => {
       console.warn('[GPS] ⚠️ Notification permission denied. Opening settings...');
       // Try to open settings so user can manually enable
       try {
-        await BackgroundGeolocation.openSettings();
+        const BackgroundGeolocation = getBackgroundGeolocation();
+        if (BackgroundGeolocation) {
+          await BackgroundGeolocation.openSettings();
+        }
       } catch (e) {
         console.error('[GPS] Could not open settings:', e);
       }
@@ -107,7 +90,7 @@ interface UseNativeGeolocationReturn {
  * On native platforms, uses @capacitor-community/background-geolocation for true background support
  */
 export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
-  const isNative = Capacitor.isNativePlatform();
+  const isNative = isNativePlatform();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const webWatchIdRef = useRef<number | null>(null);
 
@@ -192,7 +175,9 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
     callback: (position: GeolocationResult) => void,
     options?: UseNativeGeolocationOptions
   ): Promise<string | null> => {
-    if (isNative) {
+    const BackgroundGeolocation = getBackgroundGeolocation();
+    
+    if (isNative && BackgroundGeolocation) {
       // Use background geolocation plugin for native platforms
       try {
         // CRITICAL: Request notification permission FIRST on Android 13+ (API 33+)
@@ -281,7 +266,10 @@ export const useNativeGeolocation = (): UseNativeGeolocationReturn => {
     } else {
       // Native background geolocation watcher
       try {
-        await BackgroundGeolocation.removeWatcher({ id: watchId });
+        const BackgroundGeolocation = getBackgroundGeolocation();
+        if (BackgroundGeolocation) {
+          await BackgroundGeolocation.removeWatcher({ id: watchId });
+        }
       } catch (e) {
         console.error('Error removing background watcher:', e);
       }

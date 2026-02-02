@@ -1,24 +1,6 @@
-import { registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { supabase } from '@/integrations/supabase/client';
-
-// Definir interfaz localmente (el paquete no exporta tipos correctamente)
-interface BackgroundGeolocationPlugin {
-  addWatcher: (
-    options: {
-      backgroundMessage?: string;
-      backgroundTitle?: string;
-      requestPermissions?: boolean;
-      stale?: boolean;
-      distanceFilter?: number;
-    },
-    callback: (location: any, error: any) => void
-  ) => Promise<string>;
-  removeWatcher: (options: { id: string }) => Promise<void>;
-  openSettings: () => Promise<void>;
-}
-
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
+import { getBackgroundGeolocation, isNativePlatform, type BackgroundGeolocationPlugin } from '@/lib/capacitorPlugins';
 
 /**
  * BACKGROUND TRACKING SERVICE PARA CAMBERAS
@@ -274,6 +256,18 @@ export async function startBackgroundTracking(config: TrackingConfig): Promise<b
   try {
     console.log('🚀 Iniciando background tracking:', config);
 
+    // Verificar que estamos en plataforma nativa
+    if (!isNativePlatform()) {
+      console.warn('⚠️ Background tracking solo disponible en plataforma nativa');
+      return false;
+    }
+
+    const BackgroundGeolocation = getBackgroundGeolocation();
+    if (!BackgroundGeolocation) {
+      console.error('❌ Plugin BackgroundGeolocation no disponible');
+      return false;
+    }
+
     // Guardar configuración
     currentConfig = config;
 
@@ -333,7 +327,9 @@ export async function stopBackgroundTracking(): Promise<boolean> {
   try {
     console.log('⏹️ Deteniendo background tracking...');
 
-    if (watcherId) {
+    const BackgroundGeolocation = getBackgroundGeolocation();
+    
+    if (watcherId && BackgroundGeolocation) {
       await BackgroundGeolocation.removeWatcher({ id: watcherId });
       watcherId = null;
     }
