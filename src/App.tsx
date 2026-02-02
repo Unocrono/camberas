@@ -4,7 +4,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { Capacitor } from '@capacitor/core';
 import Index from "./pages/Index";
 import Races from "./pages/Races";
 import RaceDetail from "./pages/RaceDetail";
@@ -54,8 +53,25 @@ import SimpleOverlayConfig from "./pages/SimpleOverlayConfig";
 
 const queryClient = new QueryClient();
 
-// Detectar si estamos en una app nativa (Android/iOS)
-const isNativePlatform = Capacitor.isNativePlatform();
+// Detectar si estamos en una app nativa - usando URL parameters para evitar
+// cargar Capacitor en páginas de overlay donde causa conflictos
+const checkIsNativePlatform = (): boolean => {
+  // En overlays web, nunca redirigir
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/overlay')) {
+    return false;
+  }
+  
+  // Lazy check - solo importar Capacitor si realmente lo necesitamos
+  try {
+    // Check for Capacitor native bridge
+    const win = window as any;
+    return !!(win.Capacitor?.isNativePlatform?.());
+  } catch {
+    return false;
+  }
+};
+
+const isNativePlatform = checkIsNativePlatform();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
