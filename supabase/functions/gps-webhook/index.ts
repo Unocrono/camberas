@@ -32,9 +32,9 @@ function parseGL300Data(data: string): ParsedGPSData | null {
         latitude: json.latitude || json.lat,
         longitude: json.longitude || json.lng || json.lon,
         altitude: json.altitude || json.alt || null,
-        speed: json.speed || null,
-        heading: json.heading || json.course || null,
-        accuracy: json.accuracy || json.hdop || null,
+        speed: json.speed != null ? json.speed : null,
+        heading: json.heading != null ? json.heading : (json.course != null ? json.course : null),
+        accuracy: json.accuracy != null ? json.accuracy : (json.hdop != null ? json.hdop : null),
         timestamp: json.timestamp || new Date().toISOString(),
         battery_level: json.battery || json.battery_level || 100,
       };
