@@ -605,6 +605,133 @@ export type Database = {
           },
         ]
       }
+      gps_positions: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          battery: number | null
+          id: string
+          lat: number
+          lng: number
+          speed: number | null
+          timestamp: string
+          token_id: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          id?: string
+          lat: number
+          lng: number
+          speed?: number | null
+          timestamp: string
+          token_id?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          id?: string
+          lat?: number
+          lng?: number
+          speed?: number | null
+          timestamp?: string
+          token_id?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gps_positions_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "gps_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gps_sos_alerts: {
+        Row: {
+          id: string
+          lat: number
+          lng: number
+          notes: string | null
+          resolved_at: string | null
+          token_id: string | null
+          triggered_at: string | null
+        }
+        Insert: {
+          id?: string
+          lat: number
+          lng: number
+          notes?: string | null
+          resolved_at?: string | null
+          token_id?: string | null
+          triggered_at?: string | null
+        }
+        Update: {
+          id?: string
+          lat?: number
+          lng?: number
+          notes?: string | null
+          resolved_at?: string | null
+          token_id?: string | null
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gps_sos_alerts_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "gps_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gps_tokens: {
+        Row: {
+          active: boolean | null
+          bib_number: string
+          created_at: string | null
+          device_id: string | null
+          email: string | null
+          event_id: string | null
+          id: string
+          linked_at: string | null
+          participant_name: string | null
+          phone: string | null
+          token: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          bib_number: string
+          created_at?: string | null
+          device_id?: string | null
+          email?: string | null
+          event_id?: string | null
+          id?: string
+          linked_at?: string | null
+          participant_name?: string | null
+          phone?: string | null
+          token?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          bib_number?: string
+          created_at?: string | null
+          device_id?: string | null
+          email?: string | null
+          event_id?: string | null
+          id?: string
+          linked_at?: string | null
+          participant_name?: string | null
+          phone?: string | null
+          token?: string | null
+        }
+        Relationships: []
+      }
       gps_tracking: {
         Row: {
           accuracy: number | null
@@ -1456,9 +1583,9 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           lugar: string | null
-          max_time: unknown
-          min_lap_time: unknown
-          min_time: unknown
+          max_time: string | null
+          min_lap_time: string | null
+          min_time: string | null
           name: string
           race_distance_id: string | null
           race_id: string
@@ -1482,9 +1609,9 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           lugar?: string | null
-          max_time?: unknown
-          min_lap_time?: unknown
-          min_time?: unknown
+          max_time?: string | null
+          min_lap_time?: string | null
+          min_time?: string | null
           name: string
           race_distance_id?: string | null
           race_id: string
@@ -1508,9 +1635,9 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           lugar?: string | null
-          max_time?: unknown
-          min_lap_time?: unknown
-          min_time?: unknown
+          max_time?: string | null
+          min_lap_time?: string | null
+          min_time?: string | null
           name?: string
           race_distance_id?: string | null
           race_id?: string
@@ -1862,7 +1989,7 @@ export type Database = {
         Row: {
           category_position: number | null
           created_at: string
-          finish_time: unknown
+          finish_time: string
           gender_position: number | null
           id: string
           notes: string | null
@@ -1876,7 +2003,7 @@ export type Database = {
         Insert: {
           category_position?: number | null
           created_at?: string
-          finish_time: unknown
+          finish_time: string
           gender_position?: number | null
           id?: string
           notes?: string | null
@@ -1890,7 +2017,7 @@ export type Database = {
         Update: {
           category_position?: number | null
           created_at?: string
-          finish_time?: unknown
+          finish_time?: string
           gender_position?: number | null
           id?: string
           notes?: string | null
@@ -2572,21 +2699,21 @@ export type Database = {
       roadbook_schedules: {
         Row: {
           created_at: string
-          estimated_time: unknown
+          estimated_time: string
           id: string
           roadbook_item_id: string
           roadbook_pace_id: string
         }
         Insert: {
           created_at?: string
-          estimated_time: unknown
+          estimated_time: string
           id?: string
           roadbook_item_id: string
           roadbook_pace_id: string
         }
         Update: {
           created_at?: string
-          estimated_time?: unknown
+          estimated_time?: string
           id?: string
           roadbook_item_id?: string
           roadbook_pace_id?: string
@@ -2660,7 +2787,7 @@ export type Database = {
           overall_position: number | null
           pace: string | null
           race_result_id: string
-          split_time: unknown
+          split_time: string
           updated_at: string
         }
         Insert: {
@@ -2676,7 +2803,7 @@ export type Database = {
           overall_position?: number | null
           pace?: string | null
           race_result_id: string
-          split_time: unknown
+          split_time: string
           updated_at?: string
         }
         Update: {
@@ -2692,7 +2819,7 @@ export type Database = {
           overall_position?: number | null
           pace?: string | null
           race_result_id?: string
-          split_time?: unknown
+          split_time?: string
           updated_at?: string
         }
         Relationships: [
@@ -3086,7 +3213,7 @@ export type Database = {
           bib_number: number
           finish_checkpoint_id: string
           finish_checkpoint_name: string
-          finish_time: unknown
+          finish_time: string
           registration_id: string
         }[]
       }
@@ -3105,7 +3232,7 @@ export type Database = {
           checkpoint_order: number
           lap_number: number
           registration_id: string
-          split_time: unknown
+          split_time: string
           timing_reading_id: string
         }[]
       }
