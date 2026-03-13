@@ -93,12 +93,17 @@ export function CamberasTrackMap({
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState(mapboxTokenProp || '');
 
-  // Cargar token si no se pasó como prop
+  // Cargar token de app_settings si no se pasó como prop
   useEffect(() => {
     if (!mapboxTokenProp) {
-      supabase.functions.invoke('get-mapbox-token').then(({ data }) => {
-        if (data?.token) setMapboxToken(data.token);
-      });
+      supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'mapbox_token')
+        .single()
+        .then(({ data }) => {
+          if (data?.value) setMapboxToken(data.value);
+        });
     }
   }, [mapboxTokenProp]);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
