@@ -195,7 +195,7 @@ export function CamberasTrackMap({
   // ── Inicializar mapa ──────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current || map.current || !mapboxToken) return;
 
     mapboxgl.accessToken = mapboxToken;
     map.current = new mapboxgl.Map({
