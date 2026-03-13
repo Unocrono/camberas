@@ -45,6 +45,7 @@ import { CategoryTemplatesManagement } from "@/components/admin/CategoryTemplate
 import BlogPostsManagement from "@/components/admin/BlogPostsManagement";
 import NewsletterSubscribersManagement from "@/components/admin/NewsletterSubscribersManagement";
 import NewsletterCampaignsManagement from "@/components/admin/NewsletterCampaignsManagement";
+import { CamberasTrackMap } from "@/components/CamberasTrackMap";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -305,6 +306,13 @@ const AdminDashboard = () => {
             {currentView === "blog-posts" && <BlogPostsManagement />}
             {currentView === "newsletter-subscribers" && <NewsletterSubscribersManagement />}
             {currentView === "newsletter-campaigns" && <NewsletterCampaignsManagement />}
+            {currentView === "camberas-track" && (
+              <CamberasTrackMap
+                eventId={selectedRaceId || undefined}
+                showSOSPanel={true}
+                height="75vh"
+              />
+            )}
           </main>
         </div>
       </div>

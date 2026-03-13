@@ -12,6 +12,7 @@ import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
 import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
+import CamberasTrackLive from "./pages/CamberasTrackLive";
 import RunnerGPSTracker from "./pages/RunnerGPSTracker";
 import TimingShop from "./pages/TimingShop";
 import Auth from "./pages/Auth";
@@ -131,6 +132,7 @@ const App = () => (
           <Route path="/race/:id/results" element={<RaceResults />} />
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
+          <Route path="/race/:id/live" element={<CamberasTrackLive />} />
           <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
   
 
@@ -142,6 +144,7 @@ const App = () => (
           <Route path="/:slug" element={<RaceDetail />} />
           <Route path="/:slug/live" element={<LiveResults />} />
           <Route path="/:slug/gps" element={<LiveGPSTracking />} />
+          <Route path="/:slug/live" element={<CamberasTrackLive />} />
           <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
           
           {/* Catch-all para 404 */}

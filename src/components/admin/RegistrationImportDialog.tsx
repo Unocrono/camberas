@@ -80,6 +80,8 @@ const PROFILE_TO_REGISTRATION: Record<string, string> = {
   'province': 'province',
   'autonomous_community': 'autonomous_community',
   'country': 'country',
+  'emergency_contact': 'emergency_contact',
+  'emergency_phone': 'emergency_phone',
 };
 
 // Campos especiales que siempre están disponibles (no dependen de registration_form_fields)
@@ -649,13 +651,17 @@ export function RegistrationImportDialog({
     setImportErrors([]);
 
     const errors: string[] = [];
-    let successCount = 0;
-
-    // Get the category field ID if it exists
-    const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
-
+    let insertedCount = 0;
+    let updatedCount = 0;
     let skippedCount = 0;
-    
+
+    // Fetch race date once, used for category calculation
+    const { data: raceData } = await supabase
+      .from("races")
+      .select("date")
+      .eq("id", raceId)
+      .single();
+
     for (let i = 0; i < csvData.rows.length; i++) {
       const row = csvData.rows[i];
       const validation = validateRow(row, i);
@@ -663,10 +669,7 @@ export function RegistrationImportDialog({
       // Skip empty rows silently
       if (validation.skipped) {
         skippedCount++;
-        setImportProgress((prev) => ({
-          ...prev,
-          current: i + 1,
-        }));
+        setImportProgress((prev) => ({ ...prev, current: i + 1 }));
         continue;
       }
 
@@ -685,7 +688,7 @@ export function RegistrationImportDialog({
       try {
         // Separate registration fields from custom fields
         const customFieldMappings: { fieldId: string; value: string }[] = [];
-        
+
         const insertData: any = {
           race_id: raceId,
           race_distance_id: selectedDistanceId,
@@ -696,8 +699,7 @@ export function RegistrationImportDialog({
         // Process mapped data based on field configuration
         for (const [key, value] of Object.entries(mappedData)) {
           if (!value) continue;
-          
-          // Handle special fields directly
+
           if (key === "bib_number") {
             insertData.bib_number = parseInt(value) || null;
           } else if (key === "chip_code") {
@@ -707,19 +709,16 @@ export function RegistrationImportDialog({
           } else if (key === "payment_status") {
             insertData.payment_status = value;
           } else if (PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION]) {
-            // Profile field mapped to registration field
             const regField = PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION];
             if (regField === 'birth_date') {
               insertData[regField] = convertDateFormat(value);
             } else if (regField === 'gender') {
-              // Store both legacy text and new gender_id
               insertData[regField] = value;
               insertData.gender_id = getGenderIdFromText(value);
             } else {
               insertData[regField] = value;
             }
           } else if (key.startsWith("custom_")) {
-            // Custom field - store in registration_responses
             const field = availableFields.find(f => f.value === key);
             if (field?.fieldId) {
               customFieldMappings.push({ fieldId: field.fieldId, value });
@@ -727,87 +726,135 @@ export function RegistrationImportDialog({
           }
         }
 
-        const { data: registration, error } = await supabase
-          .from("registrations")
-          .insert(insertData)
-          .select("id")
-          .single();
+        // -----------------------------------------------------------------
+        // UPSERT POR DNI: si ya existe una inscripción con el mismo DNI en
+        // este recorrido, solo actualizamos los campos operativos (dorsal,
+        // chip, estado). El snapshot (nombre, apellidos, etc.) no se toca.
+        // -----------------------------------------------------------------
+        let registrationId: string | null = null;
+        let operationError: string | null = null;
+        let isUpdate = false;
 
-        if (error) {
-          errors.push(`Fila ${i + 2}: ${error.message}`);
+        const dniValue = insertData.dni_passport as string | undefined;
+
+        if (dniValue) {
+          const { data: existing } = await supabase
+            .from("registrations")
+            .select("id")
+            .eq("race_distance_id", selectedDistanceId)
+            .eq("dni_passport", dniValue)
+            .maybeSingle();
+
+          if (existing) {
+            // Registro existente: actualizar solo campos operativos
+            const updateData: any = {};
+            if (insertData.bib_number != null) updateData.bib_number = insertData.bib_number;
+            if (insertData.chip_code)          updateData.chip_code = insertData.chip_code;
+            if (insertData.status)             updateData.status = insertData.status;
+            if (insertData.payment_status)     updateData.payment_status = insertData.payment_status;
+
+            if (Object.keys(updateData).length > 0) {
+              const { error: updateError } = await supabase
+                .from("registrations")
+                .update(updateData)
+                .eq("id", existing.id);
+              if (updateError) operationError = updateError.message;
+            }
+
+            registrationId = existing.id;
+            isUpdate = true;
+          }
+        }
+
+        if (!isUpdate) {
+          // Nuevo registro
+          const { data: newReg, error: insertError } = await supabase
+            .from("registrations")
+            .insert(insertData)
+            .select("id")
+            .single();
+
+          if (insertError) {
+            operationError = insertError.message;
+          } else {
+            registrationId = newReg?.id ?? null;
+          }
+        }
+
+        if (operationError) {
+          errors.push(`Fila ${i + 2}: ${operationError}`);
           setImportProgress((prev) => ({
             ...prev,
             current: i + 1,
             errors: prev.errors + 1,
           }));
-        } else {
-          // Insert custom field responses
-          if (registration && customFieldMappings.length > 0) {
-            const responses = customFieldMappings.map(cf => ({
-              registration_id: registration.id,
-              field_id: cf.fieldId,
-              field_value: cf.value,
-            }));
-            
-            await supabase.from("registration_responses").insert(responses);
-          }
-          
-          // Handle category assignment using hybrid logic (Option 3):
-          // 1. If CSV has category → use/create it
-          // 2. If no CSV category AND age_dependent categories exist → calculate by age
-          // 3. If neither → use "UNICA" default category
-          if (registration) {
-            const birthDate = insertData.birth_date;
-            
-            // Check if a category was directly imported
-            const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
-            const importedCategory = customFieldMappings.find(cf => cf.fieldId === categoryField?.fieldId);
-            const importedCategoryName = importedCategory?.value || null;
-            
-            // Get gender from registration data or custom field
-            let gender: string | null = insertData.gender || null;
-            if (!gender) {
-              const genderField = customFieldMappings.find(cf => {
-                const field = availableFields.find(f => f.fieldId === cf.fieldId);
-                return field?.profileField === 'gender';
-              });
-              gender = genderField?.value ? normalizeCategoryGender(genderField.value) : null;
-            }
-            
-            // Get race date for age calculation
-            const { data: raceData } = await supabase
-              .from("races")
-              .select("date")
-              .eq("id", raceId)
-              .single();
-            
-            if (raceData?.date) {
-              // Use the new hybrid category logic - returns {id, name}
-              const categoryResult = await getOrCreateCategoryId(
-                raceId,
-                selectedDistanceId,
-                importedCategoryName,
-                birthDate,
-                gender,
-                raceData.date
-              );
-              
-              // Update race_category_id FK
-              if (categoryResult.id) {
-                await supabase
-                  .from("registrations")
-                  .update({ race_category_id: categoryResult.id })
-                  .eq("id", registration.id);
-              }
-            }
-          }
-          
-          successCount++;
-          setImportProgress((prev) => ({
-            ...prev,
-            current: i + 1,
-          }));
+          continue;
         }
+
+        // Insert / update custom field responses
+        if (registrationId && customFieldMappings.length > 0) {
+          if (isUpdate) {
+            // For updates, upsert responses individually to avoid duplicates
+            for (const cf of customFieldMappings) {
+              await supabase
+                .from("registration_responses")
+                .upsert(
+                  { registration_id: registrationId, field_id: cf.fieldId, field_value: cf.value },
+                  { onConflict: "registration_id,field_id" }
+                );
+            }
+          } else {
+            await supabase.from("registration_responses").insert(
+              customFieldMappings.map(cf => ({
+                registration_id: registrationId,
+                field_id: cf.fieldId,
+                field_value: cf.value,
+              }))
+            );
+          }
+        }
+
+        // Category assignment (only for new registrations or if explicitly updating)
+        if (registrationId && !isUpdate && raceData?.date) {
+          const birthDate = insertData.birth_date;
+
+          const categoryField = availableFields.find(f => f.label === 'Categoría' && f.fieldId);
+          const importedCategory = customFieldMappings.find(cf => cf.fieldId === categoryField?.fieldId);
+          const importedCategoryName = importedCategory?.value || null;
+
+          let gender: string | null = insertData.gender || null;
+          if (!gender) {
+            const genderField = customFieldMappings.find(cf => {
+              const field = availableFields.find(f => f.fieldId === cf.fieldId);
+              return field?.profileField === 'gender';
+            });
+            gender = genderField?.value ? normalizeCategoryGender(genderField.value) : null;
+          }
+
+          const categoryResult = await getOrCreateCategoryId(
+            raceId,
+            selectedDistanceId,
+            importedCategoryName,
+            birthDate,
+            gender,
+            raceData.date
+          );
+
+          if (categoryResult.id) {
+            await supabase
+              .from("registrations")
+              .update({ race_category_id: categoryResult.id })
+              .eq("id", registrationId);
+          }
+        }
+
+        if (isUpdate) {
+          updatedCount++;
+        } else {
+          insertedCount++;
+        }
+        setImportProgress((prev) => ({ ...prev, current: i + 1 }));
+
       } catch (err: any) {
         errors.push(`Fila ${i + 2}: Error inesperado`);
         setImportProgress((prev) => ({
@@ -820,12 +867,16 @@ export function RegistrationImportDialog({
 
     setImportErrors(errors);
 
-    if (successCount > 0) {
-      const skippedMsg = skippedCount > 0 ? `, ${skippedCount} filas vacías omitidas` : "";
-      const errorsMsg = errors.length > 0 ? `, ${errors.length} errores` : "";
+    const totalSuccess = insertedCount + updatedCount;
+    if (totalSuccess > 0) {
+      const parts: string[] = [];
+      if (insertedCount > 0) parts.push(`${insertedCount} nuevas`);
+      if (updatedCount > 0) parts.push(`${updatedCount} actualizadas`);
+      if (errors.length > 0) parts.push(`${errors.length} errores`);
+      if (skippedCount > 0) parts.push(`${skippedCount} filas vacías omitidas`);
       toast({
         title: "Importación completada",
-        description: `Se importaron ${successCount} inscripciones${errorsMsg}${skippedMsg}`,
+        description: `Inscripciones: ${parts.join(", ")}`,
       });
       onImportComplete();
     } else {

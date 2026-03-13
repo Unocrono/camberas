@@ -28,6 +28,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
+import { CamberasTrackMap } from "@/components/CamberasTrackMap";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
@@ -250,6 +251,13 @@ const OrganizerDashboard = () => {
               )
             )}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
+            {currentView === "camberas-track" && (
+              <CamberasTrackMap
+                eventId={selectedRaceId || undefined}
+                showSOSPanel={true}
+                height="75vh"
+              />
+            )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
