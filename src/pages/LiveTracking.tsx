@@ -652,33 +652,35 @@ const LiveTracking = () => {
         </div>
       )}
 
-      {/* Stats bar */}
-      <div
-        style={{
-          background: '#1a1a2e',
-          padding: '8px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '20px',
-          fontSize: '13px',
-          borderTop: '1px solid #333',
-          flexShrink: 0,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: '#888' }}>Corredores activos:</span>
-          <span style={{ color: '#e94560', fontWeight: 700 }}>{activeRunners.length}</span>
+      {/* Stats bar — only visible when panel is open */}
+      {panelOpen && (
+        <div
+          style={{
+            background: '#1a1a2e',
+            padding: '8px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '20px',
+            fontSize: '13px',
+            borderTop: '1px solid #333',
+            flexShrink: 0,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: '#888' }}>Corredores activos:</span>
+            <span style={{ color: '#e94560', fontWeight: 700 }}>{activeRunners.length}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: '#888' }}>Ultima actualizacion:</span>
+            <span style={{ color: '#e94560', fontWeight: 700 }}>{lastUpdate}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: '#888' }}>Recorrido:</span>
+            <span style={{ color: '#e94560', fontWeight: 700 }}>52 km</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: '#888' }}>Ultima actualizacion:</span>
-          <span style={{ color: '#e94560', fontWeight: 700 }}>{lastUpdate}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ color: '#888' }}>Recorrido:</span>
-          <span style={{ color: '#e94560', fontWeight: 700 }}>52 km</span>
-        </div>
-      </div>
+      )}
 
       {/* Animations */}
       <style>{`
