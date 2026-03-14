@@ -42,6 +42,7 @@ interface CamberasTrackMapProps {
   mapboxToken?: string;    // si no se pasa, se carga de Supabase Edge Function
   showSOSPanel?: boolean;  // solo para organizador
   height?: string;
+  roadbookId?: string;     // roadbook para mostrar el recorrido
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export function CamberasTrackMap({
   mapboxToken: mapboxTokenProp,
   showSOSPanel = false,
   height = '600px',
+  roadbookId,
 }: CamberasTrackMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -317,6 +319,158 @@ export function CamberasTrackMap({
       map.current.fitBounds(bounds, { padding: 80, maxZoom: 14 });
     }
   }, [runners, mapReady]);
+
+  // ── Auto-detectar roadbook si no se pasa ─────────────────────────────────
+  const [detectedRoadbookId, setDetectedRoadbookId] = useState(roadbookId || '');
+
+  useEffect(() => {
+    if (roadbookId) { setDetectedRoadbookId(roadbookId); return; }
+    if (!eventId) return;
+
+    // Intentar encontrar roadbook via race_distances → roadbooks
+    // O buscar directamente si el eventId está en roadbooks o race_distances
+    const findRoadbook = async () => {
+      // 1. Buscar race_distances con race_id = eventId
+      const { data: dists } = await supabase
+        .from('race_distances')
+        .select('id')
+        .eq('race_id', eventId);
+
+      if (dists && dists.length > 0) {
+        const distIds = dists.map(d => d.id);
+        const { data: rbs } = await supabase
+          .from('roadbooks')
+          .select('id')
+          .in('race_distance_id', distIds)
+          .limit(1);
+        if (rbs && rbs.length > 0) {
+          setDetectedRoadbookId(rbs[0].id);
+          return;
+        }
+      }
+
+      // 2. Buscar en gps_tokens los race_distance_id asociados al evento
+      //    El eventId podría no ser un race_id real, así que buscamos roadbooks
+      //    que tengan puntos geográficamente cercanos a los corredores
+      const { data: allRoadbooks } = await supabase
+        .from('roadbooks')
+        .select('id, name')
+        .limit(20);
+
+      if (allRoadbooks && allRoadbooks.length === 1) {
+        // Solo hay un roadbook, úsalo
+        setDetectedRoadbookId(allRoadbooks[0].id);
+      }
+      // Si hay más de uno, no auto-detectamos para evitar confusión
+    };
+
+    findRoadbook();
+  }, [eventId, roadbookId]);
+
+  // ── Recorrido del roadbook ───────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!mapReady || !map.current || !detectedRoadbookId) return;
+
+    const loadRoute = async () => {
+      // Cargar todos los puntos del roadbook ordenados
+      const allPoints: { latitude: number; longitude: number; altitude: number; description: string; is_checkpoint: boolean; item_order: number }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('roadbook_items')
+          .select('latitude, longitude, altitude, description, is_checkpoint, item_order')
+          .eq('roadbook_id', detectedRoadbookId)
+          .order('item_order', { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error || !data || data.length === 0) break;
+        allPoints.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+
+      if (allPoints.length < 2) return;
+
+      // Crear GeoJSON LineString
+      const coordinates = allPoints
+        .filter(p => p.latitude && p.longitude)
+        .map(p => [p.longitude, p.latitude]);
+
+      const geojson: GeoJSON.Feature = {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates,
+        },
+      };
+
+      // Eliminar fuente/capa anterior si existe
+      if (map.current!.getLayer('roadbook-route-line')) {
+        map.current!.removeLayer('roadbook-route-line');
+      }
+      if (map.current!.getLayer('roadbook-route-outline')) {
+        map.current!.removeLayer('roadbook-route-outline');
+      }
+      if (map.current!.getSource('roadbook-route')) {
+        map.current!.removeSource('roadbook-route');
+      }
+
+      // Añadir fuente y capas
+      map.current!.addSource('roadbook-route', {
+        type: 'geojson',
+        data: geojson,
+      });
+
+      // Línea de borde (más gruesa, oscura)
+      map.current!.addLayer({
+        id: 'roadbook-route-outline',
+        type: 'line',
+        source: 'roadbook-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#1a1a2e', 'line-width': 6, 'line-opacity': 0.6 },
+      });
+
+      // Línea principal
+      map.current!.addLayer({
+        id: 'roadbook-route-line',
+        type: 'line',
+        source: 'roadbook-route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#e94560', 'line-width': 3, 'line-opacity': 0.85 },
+      });
+
+      // Marcadores de salida y meta
+      const start = allPoints[0];
+      const end = allPoints[allPoints.length - 1];
+
+      const startEl = document.createElement('div');
+      startEl.innerHTML = `<div style="background:#4ade80;color:#000;font-weight:bold;font-size:11px;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">S</div>`;
+      new mapboxgl.Marker(startEl)
+        .setLngLat([start.longitude, start.latitude])
+        .setPopup(new mapboxgl.Popup().setHTML('<b>🏁 Salida</b>'))
+        .addTo(map.current!);
+
+      const endEl = document.createElement('div');
+      endEl.innerHTML = `<div style="background:#e94560;color:#fff;font-weight:bold;font-size:11px;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">M</div>`;
+      new mapboxgl.Marker(endEl)
+        .setLngLat([end.longitude, end.latitude])
+        .setPopup(new mapboxgl.Popup().setHTML('<b>🏆 Meta</b>'))
+        .addTo(map.current!);
+
+      // Si no hay corredores aún, centrar en el recorrido
+      if (runners.length === 0 && coordinates.length > 0) {
+        const bounds = new mapboxgl.LngLatBounds();
+        coordinates.forEach(c => bounds.extend(c as [number, number]));
+        map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+      }
+    };
+
+    loadRoute();
+  }, [mapReady, detectedRoadbookId]);
 
   // ── Marcadores SOS en el mapa ─────────────────────────────────────────────
 

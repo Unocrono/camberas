@@ -256,6 +256,7 @@ const OrganizerDashboard = () => {
                 eventId={selectedRaceId || undefined}
                 showSOSPanel={true}
                 height="75vh"
+                roadbookId="09e96abf-3c7b-4c92-8c61-e85ee9dc11ad"
               />
             )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
