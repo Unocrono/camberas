@@ -81,6 +81,11 @@ const LiveTracking = () => {
     return () => clearInterval(id);
   }, []);
 
+  // Resize map when panel toggles so it fills the space
+  useEffect(() => {
+    setTimeout(() => mapRef.current?.resize(), 50);
+  }, [panelOpen]);
+
   // ── Update runners list ────────────────────────────────────────────────────
   const updateRunnersList = useCallback((tokenId: string, row: PositionRow) => {
     setRunners((prev) => {
