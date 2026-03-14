@@ -116,6 +116,13 @@ export function CamberasTrackMap({
   const [selectedRunner, setSelectedRunner] = useState<TrackedRunner | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [, setTick] = useState(0); // force re-render to update timeAgo / active status
+
+  // Tick every 15s to refresh timeAgo and active/inactive indicators
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
 
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
 
@@ -611,7 +618,7 @@ export function CamberasTrackMap({
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map(runner => {
                   const ago = (Date.now() - new Date(runner.timestamp).getTime()) / 1000;
-                  const isActive = ago < 300;
+                  const isActive = ago < 60;
                   return (
                     <button
                       key={runner.token_id}
