@@ -1,7 +1,8 @@
 /**
  * LiveTracking — Standalone public live GPS tracking page
  * URL: /live
- * Full-screen Mapbox map with race route and realtime GPS positions.
+ * Full-screen Mapbox map with race route, realtime GPS positions,
+ * and a sidebar listing all runners (bib, name, status, battery).
  * No authentication required.
  */
 
@@ -35,6 +36,32 @@ interface PositionRow {
   gps_tokens: GpsToken;
 }
 
+interface RunnerInfo {
+  token_id: string;
+  bib_number: string;
+  participant_name: string;
+  lat: number;
+  lng: number;
+  speed: number | null;
+  battery: number | null;
+  timestamp: string;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const batteryColor = (pct: number | null) => {
+  if (pct === null) return '#888';
+  if (pct > 50) return '#4ade80';
+  if (pct > 20) return '#f59e0b';
+  return '#e94560';
+};
+
+const timeAgo = (iso: string) => {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  return `${Math.floor(diff / 3600)}h`;
+};
+
 // ── Component ────────────────────────────────────────────────────────────────
 const LiveTracking = () => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -44,21 +71,59 @@ const LiveTracking = () => {
   const [activeCount, setActiveCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState('--');
   const [error, setError] = useState<string | null>(null);
+  const [runners, setRunners] = useState<RunnerInfo[]>([]);
+  const [panelOpen, setPanelOpen] = useState(true);
+  const [, setTick] = useState(0);
 
-  // ── Update stats ─────────────────────────────────────────────────────────
+  // Re-render every 15s to update timeAgo labels
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 15_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Update runners list ────────────────────────────────────────────────────
+  const updateRunnersList = useCallback((tokenId: string, row: PositionRow) => {
+    setRunners((prev) => {
+      const existing = prev.filter((r) => r.token_id !== tokenId);
+      return [
+        ...existing,
+        {
+          token_id: tokenId,
+          bib_number: row.gps_tokens.bib_number,
+          participant_name: row.gps_tokens.participant_name,
+          lat: row.lat,
+          lng: row.lng,
+          speed: row.speed,
+          battery: row.battery,
+          timestamp: row.timestamp,
+        },
+      ];
+    });
+  }, []);
+
+  // ── Update stats ───────────────────────────────────────────────────────────
   const updateStats = useCallback(() => {
     setActiveCount(markersRef.current.size);
     setLastUpdate(new Date().toLocaleTimeString('es-ES'));
   }, []);
 
-  // ── Add / update a runner marker ─────────────────────────────────────────
+  // ── Add / update a runner marker ───────────────────────────────────────────
   const addRunnerMarker = useCallback(
     (map: mapboxgl.Map, tokenId: string, row: PositionRow) => {
       const token = row.gps_tokens;
       const bib = token.bib_number;
 
+      // Update runner list
+      updateRunnersList(tokenId, row);
+
       if (markersRef.current.has(tokenId)) {
         markersRef.current.get(tokenId)!.setLngLat([row.lng, row.lat]);
+        // Update popup content
+        const marker = markersRef.current.get(tokenId)!;
+        const popup = marker.getPopup();
+        if (popup) {
+          popup.setHTML(buildPopupHTML(row));
+        }
         return;
       }
 
@@ -67,19 +132,7 @@ const LiveTracking = () => {
       el.style.cursor = 'pointer';
       el.innerHTML = `<div style="background:#1a1a2e;border:2px solid #e94560;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">${bib}</div>`;
 
-      const speed = row.speed != null ? (row.speed * 3.6).toFixed(1) + ' km/h' : '--';
-      const alt = row.altitude != null ? row.altitude.toFixed(0) + ' m' : '--';
-      const batt = row.battery != null ? row.battery + '%' : '--';
-      const time = new Date(row.timestamp).toLocaleTimeString('es-ES');
-
-      const popup = new mapboxgl.Popup({ offset: 20 }).setHTML(`
-        <div style="font-family:-apple-system,sans-serif">
-          <h3 style="color:#e94560;margin:0 0 4px">Dorsal ${bib}</h3>
-          <p style="margin:2px 0;font-size:13px;color:#333"><b>${token.participant_name}</b></p>
-          <p style="margin:2px 0;font-size:13px;color:#333">${speed} | ${alt}</p>
-          <p style="margin:2px 0;font-size:13px;color:#333">Bateria: ${batt} | ${time}</p>
-        </div>
-      `);
+      const popup = new mapboxgl.Popup({ offset: 20 }).setHTML(buildPopupHTML(row));
 
       const marker = new mapboxgl.Marker(el)
         .setLngLat([row.lng, row.lat])
@@ -88,10 +141,26 @@ const LiveTracking = () => {
 
       markersRef.current.set(tokenId, marker);
     },
-    []
+    [updateRunnersList]
   );
 
-  // ── Load route from roadbook ─────────────────────────────────────────────
+  const buildPopupHTML = (row: PositionRow) => {
+    const token = row.gps_tokens;
+    const speed = row.speed != null ? (row.speed * 3.6).toFixed(1) + ' km/h' : '--';
+    const alt = row.altitude != null ? row.altitude.toFixed(0) + ' m' : '--';
+    const batt = row.battery != null ? row.battery + '%' : '--';
+    const time = new Date(row.timestamp).toLocaleTimeString('es-ES');
+    return `
+      <div style="font-family:-apple-system,sans-serif">
+        <h3 style="color:#e94560;margin:0 0 4px">Dorsal ${token.bib_number}</h3>
+        <p style="margin:2px 0;font-size:13px;color:#333"><b>${token.participant_name}</b></p>
+        <p style="margin:2px 0;font-size:13px;color:#333">${speed} | ${alt}</p>
+        <p style="margin:2px 0;font-size:13px;color:#333">Bateria: ${batt} | ${time}</p>
+      </div>
+    `;
+  };
+
+  // ── Load route from roadbook ───────────────────────────────────────────────
   const loadRoute = useCallback(async (map: mapboxgl.Map) => {
     const allPoints: { latitude: number; longitude: number; item_order: number }[] = [];
     let from = 0;
@@ -153,7 +222,7 @@ const LiveTracking = () => {
     map.fitBounds(bounds, { padding: 50, maxZoom: 13 });
   }, []);
 
-  // ── Circle marker helper ─────────────────────────────────────────────────
+  // ── Circle marker helper ───────────────────────────────────────────────────
   const addCircleMarker = (
     map: mapboxgl.Map,
     lngLat: [number, number],
@@ -171,7 +240,7 @@ const LiveTracking = () => {
       .addTo(map);
   };
 
-  // ── Load GPS positions ───────────────────────────────────────────────────
+  // ── Load GPS positions ─────────────────────────────────────────────────────
   const loadPositions = useCallback(
     async (map: mapboxgl.Map) => {
       const { data, error } = await supabase
@@ -200,7 +269,7 @@ const LiveTracking = () => {
     [addRunnerMarker, updateStats]
   );
 
-  // ── Subscribe to realtime ────────────────────────────────────────────────
+  // ── Subscribe to realtime ──────────────────────────────────────────────────
   const subscribeRealtime = useCallback(
     (map: mapboxgl.Map) => {
       const channel = supabase
@@ -232,12 +301,11 @@ const LiveTracking = () => {
     [addRunnerMarker, updateStats]
   );
 
-  // ── Initialize map ───────────────────────────────────────────────────────
+  // ── Initialize map ─────────────────────────────────────────────────────────
   useEffect(() => {
     let channel: any = null;
 
     const init = async () => {
-      // Load Mapbox token from app_settings
       const { data: tokenData } = await supabase
         .from('app_settings')
         .select('value')
@@ -275,20 +343,41 @@ const LiveTracking = () => {
     init();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
-      // Clean up markers
       markersRef.current.clear();
     };
   }, [loadRoute, loadPositions, subscribeRealtime]);
 
+  // ── Fly to runner on click ─────────────────────────────────────────────────
+  const flyToRunner = (runner: RunnerInfo) => {
+    mapRef.current?.flyTo({ center: [runner.lng, runner.lat], zoom: 15 });
+  };
+
+  // Sorted runners (most recent first)
+  const sortedRunners = [...runners].sort(
+    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+  const activeRunners = sortedRunners.filter(
+    (r) => (Date.now() - new Date(r.timestamp).getTime()) / 1000 < 60
+  );
+
   return (
-    <div style={{ margin: 0, padding: 0, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: '#0f0f23', color: '#fff', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div
+      style={{
+        margin: 0,
+        padding: 0,
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        background: '#0f0f23',
+        color: '#fff',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Header */}
       <div
         style={{
@@ -309,33 +398,54 @@ const LiveTracking = () => {
             XI Desafio BTT Las Branas y el Mar
           </span>
         </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(74,222,128,0.15)',
-            border: '1px solid #4ade80',
-            borderRadius: '20px',
-            padding: '4px 12px',
-            fontSize: '12px',
-            fontWeight: 600,
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Toggle panel button (mobile) */}
+          <button
+            onClick={() => setPanelOpen(!panelOpen)}
+            style={{
+              background: 'rgba(233,69,96,0.15)',
+              border: '1px solid #e94560',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              fontSize: '12px',
+              fontWeight: 600,
+              color: '#e94560',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            {panelOpen ? 'Ocultar lista' : `Corredores (${runners.length})`}
+          </button>
           <div
             style={{
-              width: '8px',
-              height: '8px',
-              background: '#4ade80',
-              borderRadius: '50%',
-              animation: 'live-pulse 1.5s infinite',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(74,222,128,0.15)',
+              border: '1px solid #4ade80',
+              borderRadius: '20px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              fontWeight: 600,
             }}
-          />
-          EN VIVO
+          >
+            <div
+              style={{
+                width: '8px',
+                height: '8px',
+                background: '#4ade80',
+                borderRadius: '50%',
+                animation: 'live-pulse 1.5s infinite',
+              }}
+            />
+            EN VIVO
+          </div>
         </div>
       </div>
 
-      {/* Map */}
+      {/* Main content: map + sidebar */}
       {error ? (
         <div
           style={{
@@ -350,7 +460,196 @@ const LiveTracking = () => {
           {error}
         </div>
       ) : (
-        <div ref={mapContainer} style={{ flex: 1, width: '100%' }} />
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Map */}
+          <div ref={mapContainer} style={{ flex: 1 }} />
+
+          {/* Sidebar — runners list */}
+          {panelOpen && (
+            <div
+              style={{
+                width: '280px',
+                background: '#16213e',
+                borderLeft: '1px solid #333',
+                display: 'flex',
+                flexDirection: 'column',
+                flexShrink: 0,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Panel header */}
+              <div
+                style={{
+                  padding: '12px 14px',
+                  borderBottom: '1px solid #333',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700 }}>Corredores</div>
+                  <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+                    <span style={{ color: '#4ade80', fontWeight: 700 }}>{activeRunners.length}</span>
+                    {' '}activos de {runners.length}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    background: '#e94560',
+                    borderRadius: '12px',
+                    padding: '2px 10px',
+                    fontSize: '18px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {activeRunners.length}
+                </div>
+              </div>
+
+              {/* Runners list */}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {sortedRunners.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '20px',
+                      textAlign: 'center',
+                      fontSize: '13px',
+                      color: '#888',
+                    }}
+                  >
+                    Sin posiciones aun.
+                    <br />
+                    Esperando datos de la app...
+                  </div>
+                ) : (
+                  sortedRunners.map((runner) => {
+                    const ago = (Date.now() - new Date(runner.timestamp).getTime()) / 1000;
+                    const isActive = ago < 60;
+                    const speed =
+                      runner.speed != null ? (runner.speed * 3.6).toFixed(1) + ' km/h' : '';
+
+                    return (
+                      <button
+                        key={runner.token_id}
+                        onClick={() => flyToRunner(runner)}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '8px 14px',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottomStyle: 'solid',
+                          borderBottomWidth: '1px',
+                          borderBottomColor: 'rgba(255,255,255,0.05)',
+                          cursor: 'pointer',
+                          color: '#fff',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = 'transparent')
+                        }
+                      >
+                        {/* Row 1: bib + name + status */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                color: '#e94560',
+                                fontWeight: 700,
+                                fontSize: '14px',
+                                width: '28px',
+                              }}
+                            >
+                              {runner.bib_number}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '12px',
+                                color: '#ccc',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '120px',
+                              }}
+                            >
+                              {runner.participant_name}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: isActive ? '#4ade80' : '#555',
+                                boxShadow: isActive ? '0 0 6px #4ade80' : 'none',
+                              }}
+                            />
+                            <span style={{ fontSize: '11px', color: '#888' }}>
+                              {timeAgo(runner.timestamp)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Row 2: speed + battery */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginTop: '4px',
+                            marginLeft: '36px',
+                          }}
+                        >
+                          {speed && (
+                            <span style={{ fontSize: '11px', color: '#888' }}>{speed}</span>
+                          )}
+                          {runner.battery !== null && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <div
+                                style={{
+                                  width: '24px',
+                                  height: '6px',
+                                  background: '#333',
+                                  borderRadius: '3px',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: `${runner.battery}%`,
+                                    height: '100%',
+                                    background: batteryColor(runner.battery),
+                                    borderRadius: '3px',
+                                  }}
+                                />
+                              </div>
+                              <span style={{ fontSize: '10px', color: '#888' }}>
+                                {runner.battery}%
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Stats bar */}
@@ -369,7 +668,7 @@ const LiveTracking = () => {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span style={{ color: '#888' }}>Corredores activos:</span>
-          <span style={{ color: '#e94560', fontWeight: 700 }}>{activeCount}</span>
+          <span style={{ color: '#e94560', fontWeight: 700 }}>{activeRunners.length}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
           <span style={{ color: '#888' }}>Ultima actualizacion:</span>
@@ -381,11 +680,31 @@ const LiveTracking = () => {
         </div>
       </div>
 
-      {/* Pulse animation */}
+      {/* Animations */}
       <style>{`
         @keyframes live-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.3; }
+        }
+        /* Scrollbar styling for runner list */
+        div::-webkit-scrollbar {
+          width: 4px;
+        }
+        div::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        div::-webkit-scrollbar-thumb {
+          background: #333;
+          border-radius: 2px;
+        }
+        /* Mobile: sidebar becomes bottom panel */
+        @media (max-width: 768px) {
+          .live-sidebar {
+            width: 100% !important;
+            max-height: 40vh !important;
+            border-left: none !important;
+            border-top: 1px solid #333 !important;
+          }
         }
       `}</style>
     </div>
