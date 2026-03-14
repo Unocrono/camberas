@@ -51,6 +51,7 @@ import LoteriaNavidad from "./pages/LoteriaNavidad";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import SimpleOverlayConfig from "./pages/SimpleOverlayConfig";
+import LiveTracking from "./pages/LiveTracking";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ const App = () => (
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/timing-shop" element={<TimingShop />} />
           <Route path="/start" element={<StartControl />} />
+          <Route path="/live" element={<LiveTracking />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />
           <Route path="/noticias" element={<Blog />} />
           <Route path="/noticias/:slug" element={<BlogPost />} />
