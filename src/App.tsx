@@ -83,7 +83,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           {/* En app nativa, redirigir "/" a "/track" */}
-          <Route path="/" element={isNativePlatform ? <Navigate to="/track" replace /> : <Index />} />
+          <Route path="/" element={<Navigate to={isNativePlatform ? "/track" : "/races"} replace />} />
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
