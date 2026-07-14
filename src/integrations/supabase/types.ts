@@ -47,6 +47,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          created_at: string | null
+          key: string
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       bib_chips: {
         Row: {
           bib_number: number
@@ -507,6 +525,51 @@ export type Database = {
         }
         Relationships: []
       }
+      finish_photos: {
+        Row: {
+          athlete_name: string | null
+          category: string | null
+          category_pos: number | null
+          created_at: string | null
+          dorsal: number | null
+          event_id: string | null
+          gender_pos: number | null
+          id: string
+          image_url: string | null
+          original_url: string | null
+          overall_pos: number | null
+          race_time: string | null
+        }
+        Insert: {
+          athlete_name?: string | null
+          category?: string | null
+          category_pos?: number | null
+          created_at?: string | null
+          dorsal?: number | null
+          event_id?: string | null
+          gender_pos?: number | null
+          id?: string
+          image_url?: string | null
+          original_url?: string | null
+          overall_pos?: number | null
+          race_time?: string | null
+        }
+        Update: {
+          athlete_name?: string | null
+          category?: string | null
+          category_pos?: number | null
+          created_at?: string | null
+          dorsal?: number | null
+          event_id?: string | null
+          gender_pos?: number | null
+          id?: string
+          image_url?: string | null
+          original_url?: string | null
+          overall_pos?: number | null
+          race_time?: string | null
+        }
+        Relationships: []
+      }
       genders: {
         Row: {
           created_at: string
@@ -610,6 +673,7 @@ export type Database = {
           accuracy: number | null
           altitude: number | null
           battery: number | null
+          device_id: string | null
           id: string
           lat: number
           lng: number
@@ -622,6 +686,7 @@ export type Database = {
           accuracy?: number | null
           altitude?: number | null
           battery?: number | null
+          device_id?: string | null
           id?: string
           lat: number
           lng: number
@@ -634,6 +699,7 @@ export type Database = {
           accuracy?: number | null
           altitude?: number | null
           battery?: number | null
+          device_id?: string | null
           id?: string
           lat?: number
           lng?: number
@@ -848,6 +914,60 @@ export type Database = {
           },
         ]
       }
+      microgate_times: {
+        Row: {
+          bib: number | null
+          channel_name: string | null
+          counter: number | null
+          date_raw: string | null
+          heat: number | null
+          id: number
+          info_type: string | null
+          logical_channel: number | null
+          mode: string | null
+          physical_channel: number | null
+          position: string | null
+          program: string | null
+          received_at: string | null
+          time_ms: number | null
+          time_raw: string | null
+        }
+        Insert: {
+          bib?: number | null
+          channel_name?: string | null
+          counter?: number | null
+          date_raw?: string | null
+          heat?: number | null
+          id?: never
+          info_type?: string | null
+          logical_channel?: number | null
+          mode?: string | null
+          physical_channel?: number | null
+          position?: string | null
+          program?: string | null
+          received_at?: string | null
+          time_ms?: number | null
+          time_raw?: string | null
+        }
+        Update: {
+          bib?: number | null
+          channel_name?: string | null
+          counter?: number | null
+          date_raw?: string | null
+          heat?: number | null
+          id?: never
+          info_type?: string | null
+          logical_channel?: number | null
+          mode?: string | null
+          physical_channel?: number | null
+          position?: string | null
+          program?: string | null
+          received_at?: string | null
+          time_ms?: number | null
+          time_raw?: string | null
+        }
+        Relationships: []
+      }
       moto_gps_tracking: {
         Row: {
           accuracy: number | null
@@ -939,6 +1059,108 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      moto_positions: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          battery: number | null
+          distance_to_finish: number | null
+          id: string
+          lat: number
+          lng: number
+          moto_id: number
+          speed: number | null
+          synced_at: string | null
+          timestamp: string
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          distance_to_finish?: number | null
+          id?: string
+          lat: number
+          lng: number
+          moto_id: number
+          speed?: number | null
+          synced_at?: string | null
+          timestamp: string
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          distance_to_finish?: number | null
+          id?: string
+          lat?: number
+          lng?: number
+          moto_id?: number
+          speed?: number | null
+          synced_at?: string | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
+      moto_race_config: {
+        Row: {
+          gpx_m1: number | null
+          gpx_m2: number | null
+          gpx_m3: number | null
+          gpx1_url: string | null
+          gpx2_url: string | null
+          id: number
+          offset_m1: number | null
+          offset_m2: number | null
+          offset_m3: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          gpx_m1?: number | null
+          gpx_m2?: number | null
+          gpx_m3?: number | null
+          gpx1_url?: string | null
+          gpx2_url?: string | null
+          id?: number
+          offset_m1?: number | null
+          offset_m2?: number | null
+          offset_m3?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          gpx_m1?: number | null
+          gpx_m2?: number | null
+          gpx_m3?: number | null
+          gpx1_url?: string | null
+          gpx2_url?: string | null
+          id?: number
+          offset_m1?: number | null
+          offset_m2?: number | null
+          offset_m3?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      moto_state: {
+        Row: {
+          current_lap: number
+          is_active: boolean
+          moto_id: number
+          updated_at: string
+        }
+        Insert: {
+          current_lap?: number
+          is_active?: boolean
+          moto_id: number
+          updated_at?: string
+        }
+        Update: {
+          current_lap?: number
+          is_active?: boolean
+          moto_id?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       newsletter_campaigns: {
         Row: {
@@ -1377,6 +1599,191 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      overlay_control: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
+      overlay_riders: {
+        Row: {
+          bib: number
+          birth_date: string | null
+          category: string | null
+          category_code: number | null
+          country: string | null
+          country_code: string | null
+          first_name: string
+          last_name: string
+          license: number | null
+          local: boolean | null
+          neo_pro: boolean | null
+          short_name: string | null
+          team_code: string | null
+          uci_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          bib: number
+          birth_date?: string | null
+          category?: string | null
+          category_code?: number | null
+          country?: string | null
+          country_code?: string | null
+          first_name: string
+          last_name: string
+          license?: number | null
+          local?: boolean | null
+          neo_pro?: boolean | null
+          short_name?: string | null
+          team_code?: string | null
+          uci_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          bib?: number
+          birth_date?: string | null
+          category?: string | null
+          category_code?: number | null
+          country?: string | null
+          country_code?: string | null
+          first_name?: string
+          last_name?: string
+          license?: number | null
+          local?: boolean | null
+          neo_pro?: boolean | null
+          short_name?: string | null
+          team_code?: string | null
+          uci_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overlay_riders_team_code_fkey"
+            columns: ["team_code"]
+            isOneToOne: false
+            referencedRelation: "overlay_teams"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      overlay_stages: {
+        Row: {
+          date: string | null
+          distance_km: number | null
+          finish_city: string | null
+          name: string | null
+          stage_no: number
+          start_city: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          date?: string | null
+          distance_km?: number | null
+          finish_city?: string | null
+          name?: string | null
+          stage_no: number
+          start_city?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          date?: string | null
+          distance_km?: number | null
+          finish_city?: string | null
+          name?: string | null
+          stage_no?: number
+          start_city?: string | null
+          type?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      overlay_teams: {
+        Row: {
+          code: string
+          country_code: string | null
+          name: string
+          order_no: number | null
+          short_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          country_code?: string | null
+          name: string
+          order_no?: number | null
+          short_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          country_code?: string | null
+          name?: string
+          order_no?: number | null
+          short_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      overlays_results: {
+        Row: {
+          bib: number | null
+          clas_name: string | null
+          cod_clas: number
+          gap_ms: number | null
+          irm: string | null
+          points: number | null
+          position: number
+          stage_no: number
+          team_code: string | null
+          texto: string | null
+          time_ms: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bib?: number | null
+          clas_name?: string | null
+          cod_clas: number
+          gap_ms?: number | null
+          irm?: string | null
+          points?: number | null
+          position: number
+          stage_no: number
+          team_code?: string | null
+          texto?: string | null
+          time_ms?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bib?: number | null
+          clas_name?: string | null
+          cod_clas?: number
+          gap_ms?: number | null
+          irm?: string | null
+          points?: number | null
+          position?: number
+          stage_no?: number
+          team_code?: string | null
+          texto?: string | null
+          time_ms?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       payment_intents: {
         Row: {
@@ -1839,6 +2246,51 @@ export type Database = {
           },
         ]
       }
+      race_leaderboard: {
+        Row: {
+          bib: string
+          category: string | null
+          eid: string
+          firstname: string | null
+          gap: string | null
+          lastname: string | null
+          position: number | null
+          status: string | null
+          team: string | null
+          time_display: string | null
+          time_secs: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bib: string
+          category?: string | null
+          eid: string
+          firstname?: string | null
+          gap?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          time_display?: string | null
+          time_secs?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bib?: string
+          category?: string | null
+          eid?: string
+          firstname?: string | null
+          gap?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          time_display?: string | null
+          time_secs?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       race_motos: {
         Row: {
           color: string
@@ -2289,6 +2741,246 @@ export type Database = {
           slug?: string | null
           updated_at?: string
           utc_offset?: number | null
+        }
+        Relationships: []
+      }
+      racetec_athletes: {
+        Row: {
+          athlete_id: number | null
+          bib: string
+          category: string | null
+          country: string | null
+          eid: string
+          firstname: string | null
+          gender: string | null
+          id: number
+          lastname: string | null
+          secondary_category: string | null
+          start_time: string | null
+          start_wave: string | null
+          status: string | null
+          status_id: number | null
+          team: string | null
+        }
+        Insert: {
+          athlete_id?: number | null
+          bib: string
+          category?: string | null
+          country?: string | null
+          eid: string
+          firstname?: string | null
+          gender?: string | null
+          id?: number
+          lastname?: string | null
+          secondary_category?: string | null
+          start_time?: string | null
+          start_wave?: string | null
+          status?: string | null
+          status_id?: number | null
+          team?: string | null
+        }
+        Update: {
+          athlete_id?: number | null
+          bib?: string
+          category?: string | null
+          country?: string | null
+          eid?: string
+          firstname?: string | null
+          gender?: string | null
+          id?: number
+          lastname?: string | null
+          secondary_category?: string | null
+          start_time?: string | null
+          start_wave?: string | null
+          status?: string | null
+          status_id?: number | null
+          team?: string | null
+        }
+        Relationships: []
+      }
+      racetec_categories: {
+        Row: {
+          cat_id: string
+          eid: string
+          id: number
+          name: string | null
+          sort_order: number | null
+        }
+        Insert: {
+          cat_id: string
+          eid: string
+          id?: number
+          name?: string | null
+          sort_order?: number | null
+        }
+        Update: {
+          cat_id?: string
+          eid?: string
+          id?: number
+          name?: string | null
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      racetec_events: {
+        Row: {
+          distance: string | null
+          eid: string
+          event_date: string | null
+          name: string | null
+          unit: string | null
+        }
+        Insert: {
+          distance?: string | null
+          eid: string
+          event_date?: string | null
+          name?: string | null
+          unit?: string | null
+        }
+        Update: {
+          distance?: string | null
+          eid?: string
+          event_date?: string | null
+          name?: string | null
+          unit?: string | null
+        }
+        Relationships: []
+      }
+      racetec_leaderboard: {
+        Row: {
+          athlete_id: number | null
+          bib: string
+          cat_position: number | null
+          category: string | null
+          country: string | null
+          eid: string
+          firstname: string | null
+          gap_display: string | null
+          gap_secs: number | null
+          gender: string | null
+          gender_position: number | null
+          gun_time_display: string | null
+          gun_time_secs: number | null
+          id: number
+          last_split: string | null
+          lastname: string | null
+          position: number | null
+          status: string | null
+          team: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id?: number | null
+          bib: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: number | null
+          bib?: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid?: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      racetec_results: {
+        Row: {
+          athlete_id: number | null
+          bib: string
+          cat_position: number | null
+          category: string | null
+          country: string | null
+          eid: string
+          firstname: string | null
+          gap_display: string | null
+          gap_secs: number | null
+          gender: string | null
+          gender_position: number | null
+          gun_time_display: string | null
+          gun_time_secs: number | null
+          id: number
+          last_split: string | null
+          lastname: string | null
+          position: number | null
+          status: string | null
+          team: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id?: number | null
+          bib: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: number | null
+          bib?: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid?: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -2838,6 +3530,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      start_list: {
+        Row: {
+          bib: string
+          category: string | null
+          country: string | null
+          firstname: string | null
+          lastname: string | null
+          race: string
+          team: string | null
+        }
+        Insert: {
+          bib: string
+          category?: string | null
+          country?: string | null
+          firstname?: string | null
+          lastname?: string | null
+          race: string
+          team?: string | null
+        }
+        Update: {
+          bib?: string
+          category?: string | null
+          country?: string | null
+          firstname?: string | null
+          lastname?: string | null
+          race?: string
+          team?: string | null
+        }
+        Relationships: []
       }
       support_conversations: {
         Row: {
