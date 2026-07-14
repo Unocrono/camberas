@@ -20,8 +20,8 @@ export function HoldToStart({
   const [isCompleted, setIsCompleted] = useState(false);
   const [progress, setProgress] = useState(0);
   const capturedTimestamp = useRef<number | null>(null);
-  const holdTimer = useRef<NodeJS.Timeout | null>(null);
-  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioContext = useRef<AudioContext | null>(null);
 
   // Limpiar timers
