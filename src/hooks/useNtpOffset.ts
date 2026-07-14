@@ -22,7 +22,7 @@ export function useNtpOffset() {
     error: null
   });
   
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const calibrationRef = useRef<boolean>(false);
   const hasInitialCalibrationRef = useRef<boolean>(false);
   const initialLoadedRef = useRef<boolean>(false);

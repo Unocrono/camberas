@@ -211,7 +211,7 @@ const GPSTrackerApp = () => {
 
   // Refs
   const watchIdRef = useRef<string | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<Date | null>(null);
   const lastPositionRef = useRef<{
     latitude: number;
@@ -1028,7 +1028,7 @@ const GPSTrackerApp = () => {
       if (appMode === "moto") {
         // For moto mode, insert each point and call edge function
         for (const point of pendingPoints) {
-          const { data: insertedData, error } = await supabase.from(tableName).insert(point).select("id").single();
+          const { data: insertedData, error } = await supabase.from(tableName).insert(point as any).select("id").single();
 
           if (error) throw error;
 

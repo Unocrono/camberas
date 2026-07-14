@@ -44,7 +44,7 @@ export function TrackPlaybackControls({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentPoint = trackPoints[currentIndex];
   const totalPoints = trackPoints.length;

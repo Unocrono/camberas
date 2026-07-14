@@ -681,7 +681,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     try {
       const { error } = await supabase
         .from("roadbook_items")
-        .update({ [field]: newValue })
+        .update({ [field]: newValue } as any)
         .eq("id", itemId);
 
       if (error) throw error;

@@ -406,7 +406,7 @@ export function CamberasTrackMap({
         .filter(p => p.latitude && p.longitude)
         .map(p => [p.longitude, p.latitude]);
 
-      const geojson: GeoJSON.Feature = {
+      const geojson: any = {
         type: 'Feature',
         properties: {},
         geometry: {

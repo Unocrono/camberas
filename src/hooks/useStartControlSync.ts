@@ -45,7 +45,7 @@ export function useStartControlSync() {
     lastSyncAttempt: null
   });
   
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cargar cola desde localStorage
   useEffect(() => {
