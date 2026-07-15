@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +33,26 @@ function base64UrlDecode(str: string): string {
   return atob(base64);
 }
 
+// Misma derivación que redsys-init-payment: clave de operación = 3DES(order, clave
+// comercio), firma = HMAC-SHA256(params, clave operación). Redsys envía la firma
+// de la notificación en base64url.
+function computeSignature(merchantParamsB64: string, orderNumber: string, secretKey: string): string {
+  const key = CryptoJS.enc.Base64.parse(secretKey);
+  const iv = CryptoJS.enc.Hex.parse("0000000000000000");
+  const derivedKey = CryptoJS.TripleDES.encrypt(orderNumber, key, {
+    iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.ZeroPadding,
+  }).ciphertext;
+  const hmac = CryptoJS.HmacSHA256(merchantParamsB64, derivedKey);
+  return CryptoJS.enc.Base64.stringify(hmac);
+}
+
+// Normaliza base64/base64url sin padding para comparar firmas
+function normalizeB64(sig: string): string {
+  return sig.replace(/-/g, '+').replace(/_/g, '/').replace(/=/g, '');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,22 +63,18 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const SECRET_KEY = Deno.env.get("REDSYS_SECRET_KEY");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error("Supabase credentials not configured");
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SECRET_KEY) {
+      throw new Error("Credentials not configured");
     }
 
-    // Parse the webhook payload
+    // Parse the webhook payload (Redsys envía form-urlencoded)
     const formData = await req.formData();
     const merchantParamsB64 = formData.get("Ds_MerchantParameters") as string;
     const signature = formData.get("Ds_Signature") as string;
-    const signatureVersion = formData.get("Ds_SignatureVersion") as string;
 
-    if (!merchantParamsB64) {
-      // Try JSON body
-      const body = await req.json();
-      if (!body.Ds_MerchantParameters) {
-        throw new Error("Missing merchant parameters");
-      }
+    if (!merchantParamsB64 || !signature) {
+      console.error("Missing Ds_MerchantParameters or Ds_Signature");
+      return new Response("OK", { status: 200 });
     }
 
     // Decode merchant parameters
@@ -67,7 +84,13 @@ serve(async (req) => {
     const orderNumber = merchantParams.Ds_Order;
     const responseCode = merchantParams.Ds_Response;
     const authCode = merchantParams.Ds_AuthorisationCode;
-    const amount = parseInt(merchantParams.Ds_Amount) / 100;
+
+    // Verificar la firma — rechazar notificaciones no autenticadas
+    const expected = computeSignature(merchantParamsB64, orderNumber, SECRET_KEY);
+    if (normalizeB64(expected) !== normalizeB64(signature)) {
+      console.error(`Invalid signature for order ${orderNumber} — notification rejected`);
+      return new Response("OK", { status: 200 });
+    }
 
     // Determine if payment was successful (codes 0000-0099 are success)
     const responseNum = parseInt(responseCode);
@@ -75,7 +98,7 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Update payment intent
+    // Find payment intent
     const { data: paymentIntent, error: fetchError } = await supabase
       .from("payment_intents")
       .select("*, registrations(*)")
@@ -83,12 +106,12 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !paymentIntent) {
-      console.error("Payment intent not found:", orderNumber);
+      console.error("Payment intent not found:", orderNumber, fetchError?.message);
       return new Response("OK", { status: 200 });
     }
 
     // Update payment intent status
-    await supabase
+    const { error: intentError } = await supabase
       .from("payment_intents")
       .update({
         status: isSuccess ? "completed" : "failed",
@@ -99,21 +122,33 @@ serve(async (req) => {
       })
       .eq("order_number", orderNumber);
 
-    // If successful, update registration payment status
+    if (intentError) {
+      console.error("Error updating payment intent:", intentError.message);
+    }
+
+    // If successful, confirm the registration
     if (isSuccess && paymentIntent.registration_id) {
-      await supabase
+      const { error: regError } = await supabase
         .from("registrations")
         .update({
+          status: "confirmed",
           payment_status: "paid",
-          payment_method: "card",
-          payment_date: new Date().toISOString(),
         })
         .eq("id", paymentIntent.registration_id);
 
-      // Send payment confirmation email
+      if (regError) {
+        console.error("Error updating registration:", regError.message);
+      }
+
+      // Send payment confirmation email with real race/distance names
       try {
         const registration = paymentIntent.registrations;
         if (registration) {
+          const [{ data: race }, { data: distance }] = await Promise.all([
+            supabase.from("races").select("name").eq("id", registration.race_id).single(),
+            supabase.from("race_distances").select("name").eq("id", registration.race_distance_id).single(),
+          ]);
+
           await fetch(`${SUPABASE_URL}/functions/v1/send-payment-confirmation`, {
             method: "POST",
             headers: {
@@ -124,9 +159,9 @@ serve(async (req) => {
               email: registration.email,
               firstName: registration.first_name,
               lastName: registration.last_name,
-              raceName: "Carrera", // Would need to join with race table
-              distanceName: "Distancia",
-              amount: amount,
+              raceName: race?.name ?? "Carrera",
+              distanceName: distance?.name ?? "",
+              amount: paymentIntent.amount,
               orderNumber: orderNumber,
             }),
           });
@@ -138,9 +173,9 @@ serve(async (req) => {
 
     console.log(`Payment ${orderNumber}: ${isSuccess ? 'SUCCESS' : 'FAILED'} - Code: ${responseCode}`);
 
-    return new Response("OK", { 
+    return new Response("OK", {
       status: 200,
-      headers: corsHeaders 
+      headers: corsHeaders
     });
   } catch (error) {
     console.error("Webhook error:", error);
