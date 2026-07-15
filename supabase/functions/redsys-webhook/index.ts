@@ -163,6 +163,7 @@ serve(async (req) => {
               distanceName: distance?.name ?? "",
               amount: paymentIntent.amount,
               orderNumber: orderNumber,
+              bibNumber: registration.bib_number,
             }),
           });
         }

@@ -18,6 +18,7 @@ const requestSchema = z.object({
   distanceName: z.string().trim().max(100).nullish(),
   amount: z.number().nonnegative().max(100000),
   orderNumber: z.string().max(20).nullish(),
+  bibNumber: z.number().int().nullish(),
 });
 
 const handler = async (req: Request): Promise<Response> => {
@@ -45,7 +46,7 @@ const handler = async (req: Request): Promise<Response> => {
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
 
-    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber } = input;
+    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber } = input;
     const userName = [firstName, lastName].filter(Boolean).join(" ") || "corredor/a";
 
     console.log("Sending payment confirmation to:", email);
@@ -69,6 +70,8 @@ const handler = async (req: Request): Promise<Response> => {
 
             <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #16a34a;">
               <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">Detalles de la Inscripción</h3>
+              <p style="margin: 8px 0; color: #4b5563;"><strong>Corredor/a:</strong> ${userName}</p>
+              ${bibNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Dorsal:</strong> ${bibNumber}</p>` : ''}
               <p style="margin: 8px 0; color: #4b5563;"><strong>Carrera:</strong> ${raceName}</p>
               ${distanceName ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Distancia:</strong> ${distanceName}</p>` : ''}
               <p style="margin: 8px 0; color: #4b5563;"><strong>Importe Pagado:</strong> ${amount.toFixed(2)}€</p>
