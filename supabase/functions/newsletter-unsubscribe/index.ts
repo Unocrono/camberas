@@ -7,8 +7,8 @@ serve(async (req) => {
     const email = url.searchParams.get("email");
     const token = url.searchParams.get("token");
 
-    if (!email && !token) {
-      return new Response(renderPage("error", "Parámetros inválidos"), {
+    if (!token) {
+      return new Response(renderPage("error", "Enlace inválido o caducado"), {
         status: 400,
         headers: { "Content-Type": "text/html" }
       });
@@ -18,16 +18,13 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Find subscriber
-    let query = supabase.from("newsletter_subscribers").select("id, email, status");
-    
-    if (token) {
-      query = query.eq("id", token);
-    } else if (email) {
-      query = query.eq("email", email.toLowerCase().trim());
-    }
-
-    const { data: subscriber, error: findError } = await query.single();
+    // Only allow unsubscription via a valid per-subscriber token (the subscriber's UUID id).
+    // Bare email lookups are rejected to prevent third parties from unsubscribing others.
+    const { data: subscriber, error: findError } = await supabase
+      .from("newsletter_subscribers")
+      .select("id, email, status")
+      .eq("id", token)
+      .single();
 
     if (findError || !subscriber) {
       return new Response(renderPage("error", "Suscriptor no encontrado"), {
