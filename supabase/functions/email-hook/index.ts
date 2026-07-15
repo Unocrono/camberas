@@ -71,32 +71,24 @@ serve(async (req: Request): Promise<Response> => {
     console.log("Hook secret configured:", hookSecret ? "yes" : "no");
 
     let verifiedPayload: EmailHookPayload;
-    
-    // Try to verify webhook signature if secret is configured
-    if (hookSecret) {
+
+    // Require a configured hook secret and a valid signature. No fallback.
+    if (!hookSecret) {
+      console.error("Email hook secret is not configured; rejecting request");
+      return new Response(
+        JSON.stringify({ error: { http_code: 500, message: "Hook secret not configured" } }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    try {
       const wh = new Webhook(hookSecret);
-      try {
-        verifiedPayload = wh.verify(payload, headers) as EmailHookPayload;
-        console.log("Webhook signature verified successfully");
-      } catch (err) {
-        console.error("Webhook verification failed, trying without verification:", err);
-        // If verification fails, try parsing the payload directly
-        // This allows the hook to work while debugging signature issues
-        try {
-          verifiedPayload = JSON.parse(payload) as EmailHookPayload;
-          console.log("Parsed payload without verification");
-        } catch (parseErr) {
-          console.error("Failed to parse payload:", parseErr);
-          return new Response(
-            JSON.stringify({ error: { http_code: 400, message: "Invalid payload" } }),
-            { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
-      }
-    } else {
-      // No secret configured, parse directly
-      console.log("No hook secret configured, parsing payload directly");
-      verifiedPayload = JSON.parse(payload) as EmailHookPayload;
+      verifiedPayload = wh.verify(payload, headers) as EmailHookPayload;
+    } catch (err) {
+      console.error("Webhook signature verification failed:", err);
+      return new Response(
+        JSON.stringify({ error: { http_code: 401, message: "Invalid signature" } }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
     }
 
     console.log("Email hook received (verified):", JSON.stringify(verifiedPayload, null, 2));

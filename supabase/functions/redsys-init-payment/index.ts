@@ -47,19 +47,62 @@ serve(async (req) => {
     }
 
     const { 
-      amount, 
       registrationId, 
       description, 
       userEmail,
       isTest = true 
     } = await req.json();
 
-    if (!amount || !registrationId) {
+    if (!registrationId) {
       return new Response(
-        JSON.stringify({ error: "Amount and registrationId are required" }),
+        JSON.stringify({ error: "registrationId is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Resolve authoritative amount server-side from the registration's race_distance
+    const supabaseAuth = createClient(SUPABASE_URL!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? SUPABASE_ANON_KEY!);
+    const { data: registration, error: regErr } = await supabaseAuth
+      .from("registrations")
+      .select("id, race_distance_id")
+      .eq("id", registrationId)
+      .single();
+    if (regErr || !registration) {
+      return new Response(
+        JSON.stringify({ error: "Registration not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Prefer active price tier (race_distance_prices covering now), else base price on race_distances
+    const nowIso = new Date().toISOString();
+    const { data: tier } = await supabaseAuth
+      .from("race_distance_prices")
+      .select("price, start_datetime, end_datetime")
+      .eq("race_distance_id", registration.race_distance_id)
+      .lte("start_datetime", nowIso)
+      .gte("end_datetime", nowIso)
+      .order("start_datetime", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let resolvedPrice: number | null = tier?.price != null ? Number(tier.price) : null;
+    if (resolvedPrice == null) {
+      const { data: dist } = await supabaseAuth
+        .from("race_distances")
+        .select("price")
+        .eq("id", registration.race_distance_id)
+        .single();
+      resolvedPrice = dist?.price != null ? Number(dist.price) : null;
+    }
+
+    if (resolvedPrice == null || !(resolvedPrice > 0)) {
+      return new Response(
+        JSON.stringify({ error: "No price configured for this distance" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const amount = resolvedPrice;
 
     // Generate unique order number (12 digits max)
     const timestamp = Date.now().toString().slice(-8);
