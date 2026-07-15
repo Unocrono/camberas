@@ -146,13 +146,25 @@ serve(async (req) => {
         const registration = paymentIntent.registrations;
         if (registration) {
           const [{ data: race }, { data: distance }, { data: responses }] = await Promise.all([
-            supabase.from("races").select("name, organizer_email").eq("id", registration.race_id).single(),
+            supabase.from("races").select("name, organizer_email, organizer_id").eq("id", registration.race_id).single(),
             supabase.from("race_distances").select("name").eq("id", registration.race_distance_id).single(),
             supabase
               .from("registration_responses")
               .select("field_value, registration_form_fields(field_label, field_order)")
               .eq("registration_id", paymentIntent.registration_id),
           ]);
+
+          // Email del organizador: organizer_email de la carrera como override,
+          // si no, el email del perfil del usuario organizador
+          let organizerEmail: string | null = race?.organizer_email ?? null;
+          if (!organizerEmail && race?.organizer_id) {
+            const { data: organizerProfile } = await supabase
+              .from("profiles")
+              .select("email")
+              .eq("id", race.organizer_id)
+              .single();
+            organizerEmail = organizerProfile?.email ?? null;
+          }
 
           const formData = (responses ?? [])
             .map((r: any) => ({
@@ -180,7 +192,7 @@ serve(async (req) => {
               orderNumber: orderNumber,
               bibNumber: registration.bib_number,
               formData,
-              organizerEmail: race?.organizer_email ?? null,
+              organizerEmail,
             }),
           });
         }
