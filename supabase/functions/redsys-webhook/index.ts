@@ -140,14 +140,29 @@ serve(async (req) => {
         console.error("Error updating registration:", regError.message);
       }
 
-      // Send payment confirmation email with real race/distance names
+      // Send payment confirmation email with real race/distance names,
+      // full form responses, and a copy to the race organizer
       try {
         const registration = paymentIntent.registrations;
         if (registration) {
-          const [{ data: race }, { data: distance }] = await Promise.all([
-            supabase.from("races").select("name").eq("id", registration.race_id).single(),
+          const [{ data: race }, { data: distance }, { data: responses }] = await Promise.all([
+            supabase.from("races").select("name, organizer_email").eq("id", registration.race_id).single(),
             supabase.from("race_distances").select("name").eq("id", registration.race_distance_id).single(),
+            supabase
+              .from("registration_responses")
+              .select("field_value, registration_form_fields(field_label, field_order)")
+              .eq("registration_id", paymentIntent.registration_id),
           ]);
+
+          const formData = (responses ?? [])
+            .map((r: any) => ({
+              label: r.registration_form_fields?.field_label ?? "",
+              value: r.field_value ?? "",
+              order: r.registration_form_fields?.field_order ?? 999,
+            }))
+            .filter((f: any) => f.label && f.value)
+            .sort((a: any, b: any) => a.order - b.order)
+            .map(({ label, value }: any) => ({ label, value }));
 
           await fetch(`${SUPABASE_URL}/functions/v1/send-payment-confirmation`, {
             method: "POST",
@@ -164,6 +179,8 @@ serve(async (req) => {
               amount: paymentIntent.amount,
               orderNumber: orderNumber,
               bibNumber: registration.bib_number,
+              formData,
+              organizerEmail: race?.organizer_email ?? null,
             }),
           });
         }

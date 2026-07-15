@@ -19,7 +19,23 @@ const requestSchema = z.object({
   amount: z.number().nonnegative().max(100000),
   orderNumber: z.string().max(20).nullish(),
   bibNumber: z.number().int().nullish(),
+  formData: z.array(z.object({
+    label: z.string().max(200),
+    value: z.string().max(1000),
+  })).max(50).nullish(),
+  organizerEmail: z.string().email().max(255).nullish(),
 });
+
+// Escapar HTML en valores introducidos por el usuario
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function formDataRows(formData: { label: string; value: string }[]): string {
+  return formData
+    .map(f => `<p style="margin: 8px 0; color: #4b5563;"><strong>${esc(f.label)}:</strong> ${esc(f.value)}</p>`)
+    .join("\n              ");
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -46,8 +62,15 @@ const handler = async (req: Request): Promise<Response> => {
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
 
-    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber } = input;
+    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber, formData, organizerEmail } = input;
     const userName = [firstName, lastName].filter(Boolean).join(" ") || "corredor/a";
+
+    // Bloque con todas las respuestas del formulario de inscripción
+    const formDataBlock = formData && formData.length > 0 ? `
+            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #9ca3af;">
+              <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">Datos de tu Inscripción</h3>
+              ${formDataRows(formData)}
+            </div>` : '';
 
     console.log("Sending payment confirmation to:", email);
 
@@ -77,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin: 8px 0; color: #4b5563;"><strong>Importe Pagado:</strong> ${amount.toFixed(2)}€</p>
               ${orderNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Referencia de pago:</strong> ${orderNumber}</p>` : ''}
             </div>
-
+            ${formDataBlock}
             <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb;">
               <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">¿Qué viene ahora?</h3>
               <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
@@ -103,6 +126,44 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Payment confirmation email sent successfully:", emailResponse);
+
+    // Copia al organizador con todos los datos de la inscripción
+    if (organizerEmail) {
+      try {
+        await resend.emails.send({
+          from: "Camberas <noreply@camberas.com>",
+          to: [organizerEmail],
+          subject: `Nueva inscripción pagada: ${raceName} — ${userName}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+              <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 20px 30px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Camberas — Nueva Inscripción</h1>
+              </div>
+              <div style="padding: 30px;">
+                <p style="color: #4b5563; font-size: 15px;">
+                  Inscripción confirmada y pagada en <strong>${raceName}</strong>${distanceName ? ` (${distanceName})` : ''}.
+                </p>
+                <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Corredor/a:</strong> ${esc(userName)}</p>
+                  ${bibNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Dorsal:</strong> ${bibNumber}</p>` : ''}
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${esc(email)}</p>
+                  <p style="margin: 8px 0; color: #4b5563;"><strong>Importe:</strong> ${amount.toFixed(2)}€</p>
+                  ${orderNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Referencia de pago:</strong> ${orderNumber}</p>` : ''}
+                </div>
+                ${formData && formData.length > 0 ? `
+                <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #9ca3af;">
+                  <h3 style="margin-top: 0; color: #1f2937; font-size: 15px;">Datos del formulario</h3>
+                  ${formDataRows(formData)}
+                </div>` : ''}
+              </div>
+            </div>
+          `,
+        });
+        console.log("Organizer copy sent to:", organizerEmail);
+      } catch (organizerError) {
+        console.error("Error sending organizer copy:", organizerError);
+      }
+    }
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,
