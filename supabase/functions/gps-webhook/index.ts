@@ -111,6 +111,16 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // 0. Require shared API key for ingestion
+    const expectedKey = Deno.env.get("GPS_API_KEY");
+    const providedKey = req.headers.get("x-api-key") || req.headers.get("X-API-Key");
+    if (!expectedKey || providedKey !== expectedKey) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 1. Verificar método
     if (req.method !== "POST") {
       return new Response(JSON.stringify({ error: "Method not allowed" }), {
