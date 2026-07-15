@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CreditCard, Lock, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, Lock, AlertCircle, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+
+// Redsys hosted payment page (redirect flow)
+const REDSYS_REDIRECT_URL_TEST = "https://sis-t.redsys.es:25443/sis/realizarPago";
+const REDSYS_REDIRECT_URL_PROD = "https://sis.redsys.es/sis/realizarPago";
 
 interface RedsysPaymentFormProps {
   amount: number;
@@ -16,47 +19,26 @@ interface RedsysPaymentFormProps {
   isTest?: boolean;
 }
 
-declare global {
-  interface Window {
-    getInSiteForm: (
-      id: string,
-      style: string,
-      fuc: string,
-      terminal: string,
-      order: string
-    ) => void;
-    getIdOper: (params: {
-      Ds_MerchantParameters: string;
-      Ds_SignatureVersion: string;
-      Ds_Signature: string;
-    }, callback: (response: any) => void) => void;
-  }
-}
-
 export const RedsysPaymentForm = ({
   amount,
   registrationId,
   description,
   userEmail,
-  onSuccess,
   onError,
   onCancel,
   isTest = true,
 }: RedsysPaymentFormProps) => {
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<{
     orderNumber: string;
     merchantParams: string;
     signature: string;
     signatureVersion: string;
-    insiteUrl: string;
-    redsysUrl: string;
   } | null>(null);
-  const { toast } = useToast();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  // Initialize payment
   useEffect(() => {
     initializePayment();
   }, [amount, registrationId]);
@@ -80,9 +62,6 @@ export const RedsysPaymentForm = ({
       if (!data.success) throw new Error(data.error || "Error inicializando pago");
 
       setPaymentData(data);
-      
-      // Load Redsys inSite script
-      loadRedsysScript(data.insiteUrl);
     } catch (err: any) {
       console.error("Error initializing payment:", err);
       setError(err.message || "Error al inicializar el pago");
@@ -92,100 +71,13 @@ export const RedsysPaymentForm = ({
     }
   };
 
-  const loadRedsysScript = (scriptUrl: string) => {
-    // Check if script already loaded
-    if (document.querySelector(`script[src="${scriptUrl}"]`)) {
-      initRedsysForm();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = scriptUrl;
-    script.async = true;
-    script.onload = () => {
-      console.log("Redsys script loaded");
-      initRedsysForm();
-    };
-    script.onerror = () => {
-      setError("Error cargando el formulario de pago");
-    };
-    document.body.appendChild(script);
-  };
-
-  const initRedsysForm = useCallback(() => {
-    if (!paymentData) return;
-    
-    // Wait for Redsys to be ready
-    setTimeout(() => {
-      try {
-        if (window.getInSiteForm) {
-          // Style: unified inline form
-          window.getInSiteForm(
-            "redsys-form-container",
-            "twoRows", // inline, twoRows, or card
-            "175883131", // FUC (merchant code)
-            "001", // Terminal
-            paymentData.orderNumber
-          );
-        }
-      } catch (err) {
-        console.error("Error initializing Redsys form:", err);
-      }
-    }, 500);
-  }, [paymentData]);
-
-  const handleSubmit = async () => {
-    if (!paymentData) return;
-
-    try {
-      setProcessing(true);
-
-      // Get the idOper token from Redsys
-      window.getIdOper(
-        {
-          Ds_MerchantParameters: paymentData.merchantParams,
-          Ds_SignatureVersion: paymentData.signatureVersion,
-          Ds_Signature: paymentData.signature,
-        },
-        async (response) => {
-          if (response.errorCode) {
-            const errorMsg = getRedsysErrorMessage(response.errorCode);
-            setError(errorMsg);
-            onError?.(errorMsg);
-            setProcessing(false);
-            return;
-          }
-
-          if (response.Ds_MerchantParameters) {
-            // Payment successful - the webhook will handle the rest
-            toast({
-              title: "Pago procesado",
-              description: "Tu pago está siendo verificado...",
-            });
-            onSuccess?.();
-          }
-        }
-      );
-    } catch (err: any) {
-      console.error("Payment error:", err);
-      setError(err.message || "Error procesando el pago");
-      onError?.(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  const getRedsysErrorMessage = (code: string): string => {
-    const errors: Record<string, string> = {
-      "SIS0051": "Tarjeta caducada",
-      "SIS0059": "Operación cancelada",
-      "SIS0093": "Tarjeta no válida",
-      "SIS0094": "Error en datos de tarjeta",
-      "SIS0112": "Tarjeta no permite operación",
-      "SIS0253": "Tarjeta no identificada",
-      "MSG0000": "Error de conexión",
-    };
-    return errors[code] || `Error de pago (${code})`;
+  // Redirige a la página de pago de Redsys enviando el formulario oculto.
+  // Redsys gestiona la captura de tarjeta y 3D Secure; al terminar
+  // redirige a URLOK/URLKO y notifica al webhook (redsys-webhook).
+  const handleSubmit = () => {
+    if (!formRef.current) return;
+    setRedirecting(true);
+    formRef.current.submit();
   };
 
   if (loading) {
@@ -193,7 +85,7 @@ export const RedsysPaymentForm = ({
       <Card className="w-full max-w-md mx-auto">
         <CardContent className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3">Cargando formulario de pago...</span>
+          <span className="ml-3">Preparando el pago...</span>
         </CardContent>
       </Card>
     );
@@ -233,11 +125,28 @@ export const RedsysPaymentForm = ({
         )}
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Redsys inSite form container */}
-        <div 
-          id="redsys-form-container" 
-          className="min-h-[120px] bg-muted/30 rounded-lg p-4"
-        />
+        <div className="bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground text-center space-y-2">
+          <p>
+            Al pulsar <span className="font-semibold text-foreground">Pagar</span> te
+            llevaremos a la pasarela segura de Redsys para completar el pago con tu tarjeta.
+          </p>
+          <p className="flex items-center justify-center gap-1 text-xs">
+            <ExternalLink className="h-3 w-3" />
+            Volverás a esta web automáticamente al terminar
+          </p>
+        </div>
+
+        {paymentData && (
+          <form
+            ref={formRef}
+            action={isTest ? REDSYS_REDIRECT_URL_TEST : REDSYS_REDIRECT_URL_PROD}
+            method="POST"
+          >
+            <input type="hidden" name="Ds_SignatureVersion" value={paymentData.signatureVersion} />
+            <input type="hidden" name="Ds_MerchantParameters" value={paymentData.merchantParams} />
+            <input type="hidden" name="Ds_Signature" value={paymentData.signature} />
+          </form>
+        )}
 
         <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Lock className="h-3 w-3" />
@@ -246,24 +155,24 @@ export const RedsysPaymentForm = ({
 
         <div className="flex gap-3">
           {onCancel && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={onCancel}
-              disabled={processing}
+              disabled={redirecting}
               className="flex-1"
             >
               Cancelar
             </Button>
           )}
-          <Button 
+          <Button
             onClick={handleSubmit}
-            disabled={processing}
+            disabled={redirecting || !paymentData}
             className="flex-1"
           >
-            {processing ? (
+            {redirecting ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Procesando...
+                Redirigiendo...
               </>
             ) : (
               `Pagar ${amount.toFixed(2)} €`

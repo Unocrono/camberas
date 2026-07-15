@@ -363,10 +363,14 @@ const RaceDetail = () => {
         // Get gender from form data
         const gender = customFormData.gender || "";
 
-        // Create guest registration with denormalized fields
-        const { data: newRegistration, error: registrationError } = await supabase
+        // Create guest registration with denormalized fields.
+        // ID generado en cliente: RLS permite a anon insertar pero no leer la
+        // fila de vuelta, así que .select() tras insert falla con 42501.
+        const newRegistrationId = crypto.randomUUID();
+        const { error: registrationError } = await supabase
           .from("registrations")
           .insert({
+            id: newRegistrationId,
             race_id: raceId,
             race_distance_id: selectedDistance.id,
             status: "pending",
@@ -379,11 +383,11 @@ const RaceDetail = () => {
             birth_date: birthDate || null,
             gender: gender || null,
             bib_number: assignedBib,
-          })
-          .select()
-          .single();
+          });
 
         if (registrationError) throw registrationError;
+
+        const newRegistration = { id: newRegistrationId, bib_number: assignedBib };
 
         // Update next_bib in the distance if a bib was assigned
         if (assignedBib) {

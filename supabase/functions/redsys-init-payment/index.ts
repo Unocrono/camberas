@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,59 +13,21 @@ const REDSYS_URL_PROD = "https://sis.redsys.es/sis/rest/trataPeticionREST";
 const REDSYS_INSITE_URL_TEST = "https://sis-t.redsys.es:25443/sis/NC/sandbox/redsysV3.js";
 const REDSYS_INSITE_URL_PROD = "https://sis.redsys.es/sis/NC/redsysV3.js";
 
-function base64UrlDecode(str: string): ArrayBuffer {
-  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (base64.length % 4) {
-    base64 += '=';
-  }
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes.buffer;
-}
-
-function base64UrlEncode(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  const base64 = btoa(binary);
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// Generate Redsys signature using HMAC-SHA256
-async function generateSignature(merchantParams: string, orderNumber: string, secretKey: string): Promise<string> {
-  const keyBuffer = base64UrlDecode(secretKey);
-  
-  const encoder = new TextEncoder();
-  
-  // Import the secret key
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyBuffer,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  
-  // First, derive key with order number using HMAC
-  const orderKeyBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(orderNumber));
-  
-  // Then sign the merchant params with derived key
-  const derivedKey = await crypto.subtle.importKey(
-    "raw",
-    orderKeyBuffer,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  
-  const signatureBuffer = await crypto.subtle.sign("HMAC", derivedKey, encoder.encode(merchantParams));
-  
-  return base64UrlEncode(signatureBuffer);
+// Firma Redsys HMAC_SHA256_V1:
+// 1. Derivar clave de operación cifrando el nº de pedido con 3DES-CBC
+//    (clave = secreto del comercio en base64, IV = ceros, padding = ceros)
+// 2. HMAC-SHA256 de Ds_MerchantParameters con la clave derivada
+// 3. Codificar en Base64 estándar
+function generateSignature(merchantParams: string, orderNumber: string, secretKey: string): string {
+  const key = CryptoJS.enc.Base64.parse(secretKey);
+  const iv = CryptoJS.enc.Hex.parse("0000000000000000");
+  const derivedKey = CryptoJS.TripleDES.encrypt(orderNumber, key, {
+    iv,
+    mode: CryptoJS.mode.CBC,
+    padding: CryptoJS.pad.ZeroPadding,
+  }).ciphertext;
+  const hmac = CryptoJS.HmacSHA256(merchantParams, derivedKey);
+  return CryptoJS.enc.Base64.stringify(hmac);
 }
 
 serve(async (req) => {
