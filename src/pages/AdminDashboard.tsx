@@ -15,6 +15,7 @@ import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagement";
 import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
+import HelpContentManagement from "@/components/admin/HelpContentManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
 import OrganizerApprovalManagement from "@/components/admin/OrganizerApprovalManagement";
@@ -141,7 +142,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -273,6 +274,7 @@ const AdminDashboard = () => {
             )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "organizer-faqs" && <OrganizerFaqsManagement isAdmin={true} />}
+            {currentView === "help-content" && <HelpContentManagement />}
             {currentView === "organizer-approval" && <OrganizerApprovalManagement />}
             {currentView === "race-faqs" && (
               selectedRaceId ? (
