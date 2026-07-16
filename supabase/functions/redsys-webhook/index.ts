@@ -30,7 +30,13 @@ function base64UrlDecode(str: string): string {
   while (base64.length % 4) {
     base64 += '=';
   }
-  return atob(base64);
+  // Decodificar como UTF-8 (atob devuelve Latin-1 y rompe ñ/acentos)
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder().decode(bytes);
 }
 
 // Misma derivación que redsys-init-payment: clave de operación = 3DES(order, clave

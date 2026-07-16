@@ -128,9 +128,13 @@ serve(async (req) => {
       DS_MERCHANT_PAYMETHODS: "C", // Card only
     };
 
-    // Encode merchant params to base64
+    // Encode merchant params to base64 en UTF-8 — btoa() a secas es Latin-1
+    // y rompe ñ/acentos en la descripción del producto (se ve "Pe�a" en Redsys)
     const merchantParamsJson = JSON.stringify(merchantParams);
-    const merchantParamsB64 = btoa(merchantParamsJson);
+    const utf8Bytes = new TextEncoder().encode(merchantParamsJson);
+    let binary = "";
+    for (const b of utf8Bytes) binary += String.fromCharCode(b);
+    const merchantParamsB64 = btoa(binary);
 
     // Generate signature
     const signature = await generateSignature(merchantParamsB64, orderNumber, SECRET_KEY);
