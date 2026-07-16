@@ -3,9 +3,9 @@ import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mountain, Bike, Calendar, Trophy } from "lucide-react";
+import { Search, Mountain, Bike, Calendar, Trophy, Route, TrendingUp, Radio } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import {
   Pagination,
   PaginationContent,
@@ -57,7 +57,7 @@ const Races = () => {
         (racesData || []).map(async (race) => {
           const { data: distancesData, error: distancesError } = await supabase
             .from("race_distances")
-            .select("name, price")
+            .select("name, price, distance_km, elevation_gain, gps_tracking_enabled")
             .eq("race_id", race.id)
             .eq("is_visible", true)
             .order("display_order", { ascending: true });
@@ -69,7 +69,8 @@ const Races = () => {
             .select("id", { count: "exact", head: true })
             .eq("race_id", race.id);
 
-          const paidPrices = (distancesData || []).map((d) => Number(d.price) || 0).filter((p) => p > 0);
+          const dists = distancesData || [];
+          const paidPrices = dists.map((d) => Number(d.price) || 0).filter((p) => p > 0);
           const priceLabel = paidPrices.length === 0
             ? "Gratis"
             : Math.min(...paidPrices) === Math.max(...paidPrices)
@@ -87,12 +88,16 @@ const Races = () => {
             }),
             rawDate: race.date,
             location: race.location,
-            distances: (distancesData || []).map((d) => d.name),
+            distances: dists.map((d) => d.name),
             participants: count || 0,
             imageUrl: race.image_url,
             raceType: race.race_type as 'trail' | 'mtb',
             priceLabel,
             isPast: race.date < new Date().toISOString().split("T")[0],
+            maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
+            maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),
+            plazas: race.max_participants || null,
+            gpsEnabled: dists.some((d) => d.gps_tracking_enabled),
           };
         })
       );
@@ -104,6 +109,17 @@ const Races = () => {
       setLoading(false);
     }
   };
+
+  // Carrera destacada para el hero: la próxima (más cercana en el futuro)
+  const featured = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return allRaces.find((r) => r.rawDate >= today) || null;
+  }, [allRaces]);
+
+  // El hero solo se muestra en la vista limpia (sin filtros ni búsqueda)
+  const showHero = timeFilter === 'all' && raceTypeFilter === 'all' && !searchTerm && !!featured;
+
+  const raceUrl = (r: any) => (r.slug ? `/race/${r.slug}` : `/race/${r.id}`);
 
   const filteredRaces = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -155,10 +171,113 @@ const Races = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
-      <div className="pt-24 pb-16">
+
+      {/* HERO — carrera destacada (solo en la vista limpia) */}
+      {showHero && featured && (
+        <>
+          <section className="relative overflow-hidden pt-24 pb-14">
+            <div className="absolute -right-32 -top-24 h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
+            <div className="container relative mx-auto px-4">
+              <div className="grid items-center gap-10 md:grid-cols-2">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">
+                    Próxima carrera destacada
+                  </p>
+                  <h1 className="font-archivo mt-3 text-4xl uppercase leading-[0.98] text-foreground md:text-6xl">
+                    {featured.name}
+                  </h1>
+                  <p className="mt-4 max-w-md text-lg text-muted-foreground">
+                    {featured.location} · {featured.date}
+                  </p>
+                  <div className="mt-6 flex gap-8">
+                    {featured.maxDistanceKm > 0 && (
+                      <div>
+                        <div className="font-archivo text-3xl text-primary">
+                          {featured.maxDistanceKm}<span className="text-sm">KM</span>
+                        </div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Distancia máx.</div>
+                      </div>
+                    )}
+                    {featured.maxElevation > 0 && (
+                      <div>
+                        <div className="font-archivo text-3xl text-primary">
+                          +{featured.maxElevation}<span className="text-sm">M</span>
+                        </div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Desnivel</div>
+                      </div>
+                    )}
+                    {featured.plazas && (
+                      <div>
+                        <div className="font-archivo text-3xl text-primary">{featured.plazas}</div>
+                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Plazas</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-7 flex gap-3">
+                    <Button asChild size="lg" variant="secondary">
+                      <Link to={raceUrl(featured)}>Inscribirme</Link>
+                    </Button>
+                    <Button asChild size="lg" variant="outline">
+                      <Link to={raceUrl(featured)}>Ver detalles</Link>
+                    </Button>
+                  </div>
+                </div>
+
+                <Link to={raceUrl(featured)} className="group relative block">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                    {featured.imageUrl && (
+                      <img
+                        src={featured.imageUrl}
+                        alt={featured.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/20 to-transparent" />
+                    <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-secondary/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {featured.date}
+                    </span>
+                    <div className="absolute bottom-0 left-0 right-0 p-6">
+                      <div className="font-archivo text-2xl uppercase text-white md:text-3xl">{featured.name}</div>
+                      <div className="mt-1 font-medium text-white/80">
+                        {featured.location} · {featured.raceType === "mtb" ? "MTB" : "Trail"}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          {/* Píldora de datos (banda oscura de acento) */}
+          <div className="container mx-auto px-4">
+            <div className="-mt-4 mb-4 flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-primary px-8 py-5 shadow-elevated">
+              {featured.distances.slice(0, 3).map((d: string, i: number) => (
+                <div key={i} className="flex items-center gap-3">
+                  {i === 0 ? <Route className="h-6 w-6 text-secondary" /> : i === 1 ? <Mountain className="h-6 w-6 text-secondary" /> : <TrendingUp className="h-6 w-6 text-secondary" />}
+                  <div>
+                    <div className="font-archivo text-xl text-primary-foreground">{d}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">Recorrido</div>
+                  </div>
+                </div>
+              ))}
+              {featured.gpsEnabled && (
+                <div className="flex items-center gap-3">
+                  <Radio className="h-6 w-6 text-secondary" />
+                  <div>
+                    <div className="font-archivo text-lg text-primary-foreground">GPS</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">En directo</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      <div className={showHero ? "pb-16" : "pt-24 pb-16"}>
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
+          <div className={showHero ? "text-center mb-12 mt-8" : "text-center mb-12"}>
             <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
               {getPageTitle()}
             </h1>
