@@ -1060,7 +1060,7 @@ const RaceDetail = () => {
                                     onSuccess={handlePaymentSuccess}
                                     onError={handlePaymentError}
                                     onCancel={handlePaymentCancel}
-                                    isTest={true}
+                                    isTest={false}
                                   />
                                 </div>
                               )}
