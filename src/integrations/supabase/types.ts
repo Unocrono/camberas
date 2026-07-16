@@ -3929,6 +3929,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_next_bib: { Args: { p_distance_id: string }; Returns: number }
       calculate_race_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -4025,6 +4026,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_guest_registration: { Args: { reg_id: string }; Returns: boolean }
       is_timer_for_race: {
         Args: { _race_id: string; _user_id: string }
         Returns: boolean
