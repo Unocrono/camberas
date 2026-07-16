@@ -22,7 +22,7 @@ const helpSections = [
       },
       {
         question: "¿Necesito crear una cuenta para inscribirme?",
-        answer: "Sí, necesitas crear una cuenta gratuita para inscribirte. Esto te permite:\n- Gestionar tus inscripciones\n- Ver tu historial de carreras\n- Acceder a tus resultados\n- Usar la app de seguimiento GPS"
+        answer: "No, puedes inscribirte como invitado sin crear cuenta: solo necesitas rellenar el formulario con tus datos y recibirás la confirmación por email.\n\nCrear una cuenta gratuita es opcional y te permite además:\n- Gestionar tus inscripciones desde tu perfil\n- Ver tu historial de carreras y resultados\n- Vincular inscripciones anteriores hechas con tu email"
       },
       {
         question: "¿Puedo modificar mis datos después de inscribirme?",
@@ -34,7 +34,7 @@ const helpSections = [
       },
       {
         question: "¿Dónde veo mi dorsal asignado?",
-        answer: "Tu número de dorsal aparece en:\n- El email de confirmación\n- Tu panel 'Mi Perfil' > 'Mis Carreras'\n- La página de detalle de la carrera una vez inscrito"
+        answer: "Tu número de dorsal aparece en el email de confirmación de la inscripción (y del pago, si la carrera es de pago).\n\nSi tienes cuenta, también lo verás en 'Mi Perfil' > 'Mis Carreras'."
       }
     ]
   },
