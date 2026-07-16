@@ -343,8 +343,12 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         return;
       }
 
-      // Crear categorías basadas en la plantilla
-      const categoriesToInsert = templateItems.map((item: CategoryTemplateItem) => ({
+      // Fecha para el método "temporada": 31 de diciembre del año de la carrera
+      const seasonDate = raceDate ? `${raceDate.slice(0, 4)}-12-31` : raceDate;
+
+      // Crear categorías basadas en la plantilla. El método de cálculo de edad
+      // de cada item se resuelve aquí a una fecha concreta.
+      const categoriesToInsert = templateItems.map((item: any) => ({
         race_id: selectedRaceId,
         race_distance_id: selectedDistanceId || null,
         name: item.name,
@@ -352,7 +356,8 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         min_age: item.min_age,
         max_age: item.max_age,
         age_dependent: item.age_dependent ?? true,
-        age_calculation_date: raceDate,
+        age_calculation_date:
+          item.age_calculation_method === "season" ? seasonDate : raceDate,
         display_order: item.display_order,
       }));
 

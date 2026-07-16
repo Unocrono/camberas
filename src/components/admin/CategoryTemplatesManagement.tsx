@@ -42,6 +42,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Plus, 
   Pencil, 
@@ -60,6 +61,8 @@ interface CategoryTemplate {
   is_default: boolean;
 }
 
+type AgeCalculationMethod = "race_date" | "season";
+
 interface CategoryTemplateItem {
   id: string;
   template_id: string;
@@ -68,6 +71,7 @@ interface CategoryTemplateItem {
   min_age: number | null;
   max_age: number | null;
   age_dependent: boolean;
+  age_calculation_method: AgeCalculationMethod;
   display_order: number;
 }
 
@@ -104,6 +108,7 @@ export function CategoryTemplatesManagement() {
     min_age: "",
     max_age: "",
     age_dependent: true,
+    age_calculation_method: "race_date" as AgeCalculationMethod,
     display_order: "0",
   });
 
@@ -288,13 +293,15 @@ export function CategoryTemplatesManagement() {
 
       // Copy items to new template
       if (items && items.length > 0) {
-        const newItems = items.map((item) => ({
+        const newItems = items.map((item: any) => ({
           template_id: newTemplate.id,
           name: item.name,
           short_name: item.short_name,
           gender: item.gender,
           min_age: item.min_age,
           max_age: item.max_age,
+          age_dependent: item.age_dependent,
+          age_calculation_method: item.age_calculation_method ?? "race_date",
           display_order: item.display_order,
         }));
 
@@ -326,6 +333,7 @@ export function CategoryTemplatesManagement() {
       min_age: "",
       max_age: "",
       age_dependent: true,
+      age_calculation_method: "race_date",
       display_order: String(templateItems.length + 1),
     });
     setItemDialogOpen(true);
@@ -339,6 +347,7 @@ export function CategoryTemplatesManagement() {
       min_age: item.min_age?.toString() || "",
       max_age: item.max_age?.toString() || "",
       age_dependent: item.age_dependent ?? true,
+      age_calculation_method: item.age_calculation_method ?? "race_date",
       display_order: item.display_order.toString(),
     });
     setItemDialogOpen(true);
@@ -355,13 +364,14 @@ export function CategoryTemplatesManagement() {
     }
 
     try {
-      const itemData = {
+      const itemData: any = {
         template_id: expandedTemplateId,
         name: itemFormData.name.trim(),
         short_name: itemFormData.short_name.trim() || itemFormData.name.trim().substring(0, 6).toUpperCase(),
         min_age: itemFormData.min_age ? parseInt(itemFormData.min_age) : null,
         max_age: itemFormData.max_age ? parseInt(itemFormData.max_age) : null,
         age_dependent: itemFormData.age_dependent,
+        age_calculation_method: itemFormData.age_dependent ? itemFormData.age_calculation_method : "race_date",
         display_order: parseInt(itemFormData.display_order) || 0,
       };
 
@@ -564,9 +574,18 @@ export function CategoryTemplatesManagement() {
                                   <Badge variant="outline">{item.short_name || "-"}</Badge>
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant={item.age_dependent ? "default" : "outline"}>
-                                    {getAgeDependentLabel(item.age_dependent)}
-                                  </Badge>
+                                  <div className="flex flex-col gap-1">
+                                    <Badge variant={item.age_dependent ? "default" : "outline"} className="w-fit">
+                                      {getAgeDependentLabel(item.age_dependent)}
+                                    </Badge>
+                                    {item.age_dependent && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {item.age_calculation_method === "season"
+                                          ? "Temporada (31 dic)"
+                                          : "Fecha de carrera"}
+                                      </span>
+                                    )}
+                                  </div>
                                 </TableCell>
                                 <TableCell>{getAgeRange(item.min_age, item.max_age)}</TableCell>
                                 <TableCell>
@@ -737,6 +756,38 @@ export function CategoryTemplatesManagement() {
             <p className="text-xs text-muted-foreground -mt-2">
               Si está activado, la categoría se asignará según la edad del corredor
             </p>
+
+            {itemFormData.age_dependent && (
+              <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+                <Label>Cálculo de la edad</Label>
+                <RadioGroup
+                  value={itemFormData.age_calculation_method}
+                  onValueChange={(value) =>
+                    setItemFormData({
+                      ...itemFormData,
+                      age_calculation_method: value as AgeCalculationMethod,
+                    })
+                  }
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="race_date" id="age-method-race" />
+                    <Label htmlFor="age-method-race" className="cursor-pointer font-normal">
+                      Fecha de la carrera
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="season" id="age-method-season" />
+                    <Label htmlFor="age-method-season" className="cursor-pointer font-normal">
+                      Por temporada (a 31 de diciembre)
+                    </Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground">
+                  Al aplicar la plantilla a una carrera, la edad se calculará el día de la
+                  carrera o a 31 de diciembre de su año, según lo elegido.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
