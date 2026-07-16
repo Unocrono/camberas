@@ -332,76 +332,36 @@ const RaceDetail = () => {
           return;
         }
 
-        // Check if guest email is already registered for this race
-        const { data: existingRegistration, error: checkError } = await supabase
-          .from("registrations")
-          .select("id")
-          .eq("email", email)
-          .eq("race_id", raceId)
-          .maybeSingle();
+        // Todo el flujo de invitados corre en servidor (edge function con
+        // service role): duplicados, dorsal atómico, inscripción y respuestas.
+        const { data: result, error: fnError } = await supabase.functions.invoke("guest-register", {
+          body: {
+            raceId,
+            distanceId: selectedDistance.id,
+            formData: customFormData,
+          },
+        });
 
-        if (checkError) throw checkError;
-
-        if (existingRegistration) {
+        if (fnError) {
+          // FunctionsHttpError: extraer el mensaje real del cuerpo
+          let message = fnError.message;
+          try {
+            const body = await (fnError as any).context?.json?.();
+            if (body?.error) message = body.error;
+          } catch { /* usar el mensaje genérico */ }
           toast({
-            title: "Email ya inscrito",
-            description: "Este email ya tiene una inscripción para esta carrera",
+            title: "Error al inscribirse",
+            description: message,
             variant: "destructive",
           });
           setIsSubmitting(false);
           return;
         }
 
-        // Get next bib number from distance
-        let assignedBib: number | null = null;
-        if (selectedDistance.next_bib && selectedDistance.bib_end) {
-          if (selectedDistance.next_bib <= selectedDistance.bib_end) {
-            assignedBib = selectedDistance.next_bib;
-          }
-        }
-
-        // Get gender from form data
-        const gender = customFormData.gender || "";
-
-        // Create guest registration with denormalized fields.
-        // ID generado en cliente: RLS permite a anon insertar pero no leer la
-        // fila de vuelta, así que .select() tras insert falla con 42501.
-        const newRegistrationId = crypto.randomUUID();
-        const { error: registrationError } = await supabase
-          .from("registrations")
-          .insert({
-            id: newRegistrationId,
-            race_id: raceId,
-            race_distance_id: selectedDistance.id,
-            status: "pending",
-            payment_status: "pending",
-            first_name: firstName,
-            last_name: lastName,
-            email: email,
-            phone: phone,
-            dni_passport: documentNumber,
-            birth_date: birthDate || null,
-            gender: gender || null,
-            bib_number: assignedBib,
-          });
-
-        if (registrationError) throw registrationError;
-
-        const newRegistration = { id: newRegistrationId, bib_number: assignedBib };
-
-        // Update next_bib in the distance if a bib was assigned
-        if (assignedBib) {
-          await supabase
-            .from("race_distances")
-            .update({ next_bib: assignedBib + 1 })
-            .eq("id", selectedDistance.id);
-        }
-
-        // Store all form field responses
-        await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
+        const newRegistration = { id: result.registrationId, bib_number: result.bibNumber };
 
         // If price > 0, go to payment step
-        if (selectedDistance.currentPrice > 0) {
+        if (!result.isFree) {
           setPendingRegistration({
             ...newRegistration,
             email,
@@ -413,9 +373,33 @@ const RaceDetail = () => {
           return;
         }
 
-        // Free registration - complete immediately
-        await completeRegistration(newRegistration.id, email, firstName, lastName, true);
-        
+        // Gratuita: la función ya la dejó confirmada — enviar email y cerrar
+        try {
+          await supabase.functions.invoke('send-registration-confirmation', {
+            body: {
+              userEmail: email,
+              userName: `${firstName} ${lastName}`,
+              raceName: race!.name,
+              raceDate: race!.date,
+              raceLocation: race!.location,
+              distanceName: selectedDistance!.name,
+              price: 0,
+              isGuest: true,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send confirmation email:", emailError);
+        }
+        toast({
+          title: "¡Inscripción completada!",
+          description: `Te has inscrito correctamente. Revisa tu email (${email}) para más información.`,
+        });
+        setIsDialogOpen(false);
+        setCustomFormData({});
+        setRegistrationStep('form');
+        setPendingRegistration(null);
+        fetchRaceDetails();
+
       } else {
         // Authenticated user registration
         if (!user) return;
@@ -453,13 +437,9 @@ const RaceDetail = () => {
 
         if (profileError) throw profileError;
 
-        // Get next bib number from distance
-        let assignedBib: number | null = null;
-        if (selectedDistance.next_bib && selectedDistance.bib_end) {
-          if (selectedDistance.next_bib <= selectedDistance.bib_end) {
-            assignedBib = selectedDistance.next_bib;
-          }
-        }
+        // Dorsal atómico en servidor — evita duplicados con inscripciones simultáneas
+        const { data: assignedBib } = await supabase
+          .rpc("assign_next_bib", { p_distance_id: selectedDistance.id });
 
         // Create registration
         const { data: newRegistration, error: registrationError } = await supabase
@@ -470,20 +450,12 @@ const RaceDetail = () => {
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
-            bib_number: assignedBib,
+            bib_number: assignedBib ?? null,
           })
           .select()
           .single();
 
         if (registrationError) throw registrationError;
-
-        // Update next_bib in the distance if a bib was assigned
-        if (assignedBib) {
-          await supabase
-            .from("race_distances")
-            .update({ next_bib: assignedBib + 1 })
-            .eq("id", selectedDistance.id);
-        }
 
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);

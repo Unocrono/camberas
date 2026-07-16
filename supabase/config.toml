@@ -51,5 +51,8 @@ verify_jwt = false
 [functions.redsys-webhook]
 verify_jwt = false
 
+[functions.guest-register]
+verify_jwt = false
+
 [functions.gps-webhook]
 verify_jwt = false
