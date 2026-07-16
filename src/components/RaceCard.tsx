@@ -1,7 +1,4 @@
-import { Calendar, MapPin, Users, Mountain, Bike } from "lucide-react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Mountain, Bike, Trophy, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface RaceCardProps {
@@ -14,60 +11,98 @@ interface RaceCardProps {
   participants: number;
   imageUrl?: string;
   raceType?: 'trail' | 'mtb';
+  priceLabel?: string | null;
+  isPast?: boolean;
 }
 
-const RaceCard = ({ id, slug, name, date, location, distances, participants, imageUrl, raceType = 'trail' }: RaceCardProps) => {
+const RaceCard = ({
+  id, slug, name, date, location, distances,
+  imageUrl, raceType = 'trail', priceLabel, isPast = false,
+}: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
+
   return (
-    <Card className="overflow-hidden hover:shadow-elevated transition-all duration-300 group">
-      <div className="relative h-48 overflow-hidden">
-        <img 
-          src={imageUrl || "/placeholder.svg"} 
-          alt={name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-        />
-        <div className="absolute top-4 left-4">
-          <Badge variant="default" className="bg-primary/90 backdrop-blur-sm flex items-center gap-1">
-            {raceType === 'mtb' ? <Bike className="h-3 w-3" /> : <Mountain className="h-3 w-3" />}
-            {raceType === 'mtb' ? 'MTB' : 'Trail'}
-          </Badge>
+    <Link
+      to={raceUrl}
+      className="group flex flex-col overflow-hidden rounded-2xl bg-card border border-border shadow-sm hover:shadow-elevated hover:-translate-y-1 transition-all duration-300"
+    >
+      {/* El cartel es el protagonista */}
+      <div className="relative h-56 overflow-hidden bg-muted">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-hero" />
+        )}
+        {/* Estado */}
+        <span
+          className={`absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${
+            isPast ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+          }`}
+        >
+          {isPast ? 'Finalizada' : 'Abiertas'}
+        </span>
+        {/* Deporte */}
+        <span className="absolute top-3 right-3 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
+          {raceType === 'mtb' ? <Bike className="h-3 w-3" /> : <Mountain className="h-3 w-3" />}
+          {raceType === 'mtb' ? 'MTB' : 'Trail'}
+        </span>
+      </div>
+
+      {/* Info */}
+      <div className="flex flex-col flex-1 p-4">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+          {raceType === 'mtb' ? 'MTB' : 'Trail'}
+        </p>
+        <h3 className="text-lg font-bold leading-tight mt-1 mb-3 text-foreground line-clamp-2">
+          {name}
+        </h3>
+
+        <div className="space-y-1.5 text-sm font-medium text-muted-foreground mb-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span>{date}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span className="line-clamp-1">{location}</span>
+          </div>
         </div>
-        <div className="absolute top-4 right-4 flex gap-2">
-          {distances.map((distance) => (
-            <Badge key={distance} variant="secondary" className="bg-secondary/90 backdrop-blur-sm">
-              {distance}
-            </Badge>
-          ))}
+
+        {distances.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {distances.slice(0, 3).map((d) => (
+              <span
+                key={d}
+                className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-primary/5 text-primary border border-primary/15"
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Pie */}
+        <div className="mt-auto flex items-center justify-between border-t border-border pt-3">
+          {isPast ? (
+            <span className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-primary">
+              <Trophy className="h-4 w-4" /> Resultados
+            </span>
+          ) : (
+            <span className="font-archivo text-lg text-secondary">
+              {priceLabel || 'Inscripción'}
+            </span>
+          )}
+          <span className="flex items-center gap-1 text-sm font-bold text-primary group-hover:gap-2 transition-all">
+            {isPast ? 'Ver' : 'Inscribirme'}
+            <ChevronRight className="h-4 w-4" />
+          </span>
         </div>
       </div>
-      
-      <CardContent className="pt-6">
-        <h3 className="text-xl font-bold text-foreground mb-4">{name}</h3>
-        
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span className="text-sm">{date}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            <span className="text-sm">{location}</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Users className="h-4 w-4" />
-            <span className="text-sm">{participants} participantes</span>
-          </div>
-        </div>
-      </CardContent>
-      
-      <CardFooter>
-        <Button asChild className="w-full">
-          <Link to={raceUrl}>Ver detalles</Link>
-        </Button>
-      </CardFooter>
-    </Card>
+    </Link>
   );
 };
 

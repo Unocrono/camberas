@@ -1,10 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, Trophy, Timer, Mountain, Users, Calendar, Settings, Bike } from "lucide-react";
+import { ArrowRight, MapPin, Calendar, Mountain, Route, TrendingUp, Radio } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
-import heroImage from "@/assets/hero-trail-mtb.jpg";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -16,10 +15,40 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 
-const RACES_PER_PAGE = 6;
+const RACES_PER_PAGE = 8;
+
+interface HomeRace {
+  id: string;
+  slug: string | null;
+  name: string;
+  date: string;
+  rawDate: string;
+  location: string;
+  distances: string[];
+  participants: number;
+  imageUrl?: string;
+  raceType: "trail" | "mtb";
+  priceLabel: string | null;
+  maxDistanceKm: number;
+  maxElevation: number;
+  plazas: number | null;
+  gpsEnabled: boolean;
+  isPast: boolean;
+}
+
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+
+const priceRange = (prices: number[]): string | null => {
+  const paid = prices.filter((p) => p > 0);
+  if (paid.length === 0) return "Gratis";
+  const min = Math.min(...paid);
+  const max = Math.max(...paid);
+  return min === max ? `${min}€` : `${min}–${max}€`;
+};
 
 const Index = () => {
-  const [allUpcomingRaces, setAllUpcomingRaces] = useState<any[]>([]);
+  const [races, setRaces] = useState<HomeRace[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -29,210 +58,233 @@ const Index = () => {
 
   const fetchRaces = async () => {
     try {
-      const {
-        data: racesData,
-        error: racesError
-      } = await supabase.from("races").select("*").gte("date", new Date().toISOString().split("T")[0]).order("date", {
-        ascending: true
-      });
-      if (racesError) throw racesError;
-      const racesWithDistances = await Promise.all((racesData || []).map(async race => {
-        const {
-          data: distancesData,
-          error: distancesError
-        } = await supabase.from("race_distances").select("name").eq("race_id", race.id);
-        if (distancesError) throw distancesError;
-        const {
-          data: registrationsData,
-          error: registrationsError
-        } = await supabase.from("registrations").select("id").eq("race_id", race.id);
-        if (registrationsError) throw registrationsError;
-        return {
-          id: race.id,
-          name: race.name,
-          date: new Date(race.date).toLocaleDateString("es-ES", {
-            day: "numeric",
-            month: "long",
-            year: "numeric"
-          }),
-          location: race.location,
-          distances: (distancesData || []).map(d => d.name),
-          participants: registrationsData?.length || 0,
-          imageUrl: race.image_url,
-          raceType: race.race_type as 'trail' | 'mtb'
-        };
-      }));
-      setAllUpcomingRaces(racesWithDistances);
-    } catch (error) {
-      console.error("Error fetching races:", error);
+      const { data: racesData, error } = await supabase
+        .from("races")
+        .select("*")
+        .gte("date", new Date().toISOString().split("T")[0])
+        .order("date", { ascending: true });
+      if (error) throw error;
+
+      const enriched = await Promise.all(
+        (racesData || []).map(async (race): Promise<HomeRace> => {
+          const { data: distancesData } = await supabase
+            .from("race_distances")
+            .select("name, distance_km, elevation_gain, price, gps_tracking_enabled, max_participants")
+            .eq("race_id", race.id)
+            .eq("is_visible", true)
+            .order("display_order", { ascending: true });
+
+          const { count } = await supabase
+            .from("registrations")
+            .select("id", { count: "exact", head: true })
+            .eq("race_id", race.id);
+
+          const dists = distancesData || [];
+          return {
+            id: race.id,
+            slug: race.slug,
+            name: race.name,
+            date: formatDate(race.date),
+            rawDate: race.date,
+            location: race.location,
+            distances: dists.map((d) => d.name),
+            participants: count || 0,
+            imageUrl: race.image_url || undefined,
+            raceType: (race.race_type as "trail" | "mtb") || "trail",
+            priceLabel: priceRange(dists.map((d) => Number(d.price) || 0)),
+            maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
+            maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),
+            plazas: race.max_participants || null,
+            gpsEnabled: dists.some((d) => d.gps_tracking_enabled),
+            isPast: false,
+          };
+        })
+      );
+      setRaces(enriched);
+    } catch (err) {
+      console.error("Error fetching races:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  const totalPages = Math.ceil(allUpcomingRaces.length / RACES_PER_PAGE);
-  
+  const featured = races[0];
+  const rest = races.slice(1);
+  const totalPages = Math.ceil(rest.length / RACES_PER_PAGE);
   const paginatedRaces = useMemo(() => {
-    const startIndex = (currentPage - 1) * RACES_PER_PAGE;
-    return allUpcomingRaces.slice(startIndex, startIndex + RACES_PER_PAGE);
-  }, [allUpcomingRaces, currentPage]);
+    const start = (currentPage - 1) * RACES_PER_PAGE;
+    return rest.slice(start, start + RACES_PER_PAGE);
+  }, [rest, currentPage]);
+
+  const raceUrl = (r: HomeRace) => (r.slug ? `/race/${r.slug}` : `/race/${r.id}`);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] py-20 md:py-0 flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0">
-          <img 
-            src={heroImage} 
-            alt="Trail" 
-            className="w-full h-full object-cover" 
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/40 to-background/90" />
-        </div>
+      {/* HERO — carrera destacada */}
+      <section className="relative overflow-hidden pt-24 pb-16 md:pt-28 md:pb-20">
+        <div className="absolute -right-32 -top-24 h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
+        <div className="container relative mx-auto px-4">
+          {loading ? (
+            <div className="h-64 flex items-center justify-center text-muted-foreground">Cargando…</div>
+          ) : featured ? (
+            <div className="grid items-center gap-10 md:grid-cols-2">
+              {/* Izquierda */}
+              <div>
+                <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">
+                  Próxima carrera destacada
+                </p>
+                <h1 className="font-archivo mt-3 text-4xl uppercase leading-[0.98] text-foreground md:text-6xl">
+                  {featured.name}
+                </h1>
+                <p className="mt-4 max-w-md text-lg text-muted-foreground">
+                  {featured.location} · {featured.date}
+                </p>
 
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6">Camberas</h1>
-          <p className="text-xl md:text-2xl text-primary-foreground/90 mb-8 max-w-3xl mx-auto">
-            La plataforma integral para deportistas y organizadores de <span className="font-semibold">Trail</span> y <span className="font-semibold">MTB</span>
-          </p>
+                <div className="mt-6 flex gap-8">
+                  {featured.maxDistanceKm > 0 && (
+                    <div>
+                      <div className="font-archivo text-3xl text-primary">
+                        {featured.maxDistanceKm}
+                        <span className="text-sm">KM</span>
+                      </div>
+                      <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Distancia máx.
+                      </div>
+                    </div>
+                  )}
+                  {featured.maxElevation > 0 && (
+                    <div>
+                      <div className="font-archivo text-3xl text-primary">
+                        +{featured.maxElevation}
+                        <span className="text-sm">M</span>
+                      </div>
+                      <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Desnivel
+                      </div>
+                    </div>
+                  )}
+                  {featured.plazas && (
+                    <div>
+                      <div className="font-archivo text-3xl text-primary">{featured.plazas}</div>
+                      <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Plazas
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-          {/* Two Main Sections */}
-          <div className="grid md:grid-cols-2 gap-4 md:gap-6 max-w-5xl mx-auto mt-8 md:mt-12">
-            {/* Para Deportistas */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-primary/20 animate-fade-in [animation-delay:200ms] [animation-fill-mode:forwards]">
-              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-gradient-hero mb-3 md:mb-4">
-                <div className="flex gap-1">
-                  <Mountain className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
-                  <Bike className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
+                <div className="mt-7 flex gap-3">
+                  <Button asChild size="lg" variant="secondary">
+                    <Link to={raceUrl(featured)}>Inscribirme</Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link to={raceUrl(featured)}>Ver detalles</Link>
+                  </Button>
                 </div>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">Para Deportistas</h2>
-              <p className="text-sm md:text-base text-muted-foreground mb-3 md:mb-6">
-                Descubre carreras de Trail y MTB, inscríbete online y sigue tus resultados en tiempo real
-              </p>
-              <div className="space-y-1.5 md:space-y-2 mb-4 md:mb-6">
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Calendar className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                  <span>Calendario de Trail y MTB</span>
+
+              {/* Derecha — cartel */}
+              <Link to={raceUrl(featured)} className="group relative block">
+                <div className="relative aspect-[4/5] overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                  {featured.imageUrl && (
+                    <img
+                      src={featured.imageUrl}
+                      alt={featured.name}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/20 to-transparent" />
+                  <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-secondary/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {featured.date}
+                  </span>
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <div className="font-archivo text-2xl uppercase text-white md:text-3xl">
+                      {featured.name}
+                    </div>
+                    <div className="mt-1 font-medium text-white/80">
+                      {featured.location} · {featured.raceType === "mtb" ? "MTB" : "Trail"}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                  <span>Inscripción online</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Timer className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                  <span>Resultados en vivo</span>
-                </div>
-              </div>
-              <Button asChild size="lg" className="w-full">
-                <Link to="/races">
-                  Ver Carreras <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
+              </Link>
             </div>
-
-            {/* Para Organizadores */}
-            <div className="bg-card/95 backdrop-blur-sm rounded-xl p-5 md:p-8 shadow-elevated hover:shadow-xl transition-all duration-300 border-2 border-secondary/20 animate-fade-in [animation-delay:400ms] [animation-fill-mode:forwards]">
-              <div className="inline-flex items-center justify-center w-12 h-12 md:w-16 md:h-16 rounded-full bg-secondary mb-3 md:mb-4">
-                <Settings className="h-6 w-6 md:h-8 md:w-8 text-secondary-foreground" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2 md:mb-4">Para Organizadores</h2>
-              <p className="text-sm md:text-base text-muted-foreground mb-3 md:mb-6">
-                Gestiona inscripciones, reglamento, recorrido... incluso diseña el dorsal de tu carrera
-              </p>
-              <div className="space-y-1.5 md:space-y-2 mb-4 md:mb-6">
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Users className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
-                  <span>Gestión de inscripciones</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Timer className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
-                  <span>Integra el GPX y localiza corredores</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
-                  <Trophy className="h-3.5 w-3.5 md:h-4 md:w-4 text-secondary" />
-                  <span>Cronometraje profesional</span>
-                </div>
-              </div>
-              <Button asChild size="lg" variant="secondary" className="w-full">
-                <Link to="/organizers">
-                  ¿Eres Organizador? <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-8 rounded-lg bg-card shadow-sm hover:shadow-elevated transition-all duration-300">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
-                <Mountain className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">Trail</h3>
-              <p className="text-muted-foreground">Descubre rutas espectaculares en las mejores montañas de España</p>
-            </div>
-
-            <div className="text-center p-8 rounded-lg bg-card shadow-sm hover:shadow-elevated transition-all duration-300">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
-                <Bike className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">Mountain Bike</h3>
-              <p className="text-muted-foreground">
-                Pruebas de MTB con recorridos técnicos y desafiantes
+          ) : (
+            <div className="py-16 text-center">
+              <h1 className="font-archivo text-4xl uppercase text-foreground">Camberas</h1>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Cronometraje, inscripciones y seguimiento GPS de carreras de montaña
               </p>
             </div>
-
-            <div className="text-center p-8 rounded-lg bg-card shadow-sm hover:shadow-elevated transition-all duration-300">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-hero mb-6">
-                <Timer className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <h3 className="text-xl font-bold mb-3 text-foreground">Cronometraje Profesional</h3>
-              <p className="text-muted-foreground">Alquila sistemas de cronometraje profesional para tu evento</p>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 
-      {/* Upcoming Races */}
-      <section className="py-20">
+      {/* PÍLDORA de datos (banda oscura de acento) */}
+      {featured && !loading && (
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-foreground mb-4">Próximas Carreras</h2>
-            <p className="text-xl text-muted-foreground">Inscríbete ahora y asegura tu plaza</p>
+          <div className="mx-auto -mt-6 flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-primary px-8 py-5 shadow-elevated">
+            {featured.distances.slice(0, 3).map((d, i) => (
+              <div key={i} className="flex items-center gap-3">
+                {i === 0 ? <Route className="h-6 w-6 text-secondary" /> : i === 1 ? <Mountain className="h-6 w-6 text-secondary" /> : <TrendingUp className="h-6 w-6 text-secondary" />}
+                <div>
+                  <div className="font-archivo text-xl text-primary-foreground">{d}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">
+                    Recorrido
+                  </div>
+                </div>
+              </div>
+            ))}
+            {featured.gpsEnabled && (
+              <div className="flex items-center gap-3">
+                <Radio className="h-6 w-6 text-secondary" />
+                <div>
+                  <div className="font-archivo text-lg text-primary-foreground">GPS</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">
+                    En directo
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* PRÓXIMAS CARRERAS */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="mb-8 flex items-baseline justify-between">
+            <h2 className="font-archivo text-2xl uppercase text-foreground md:text-3xl">
+              Próximas carreras
+            </h2>
+            <Link to="/races" className="text-sm font-bold text-primary hover:underline">
+              Ver todas <ArrowRight className="inline h-4 w-4" />
+            </Link>
           </div>
 
           {loading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Cargando carreras...</p>
-            </div>
-          ) : allUpcomingRaces.length > 0 ? (
+            <div className="py-12 text-center text-muted-foreground">Cargando carreras…</div>
+          ) : races.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">No hay carreras próximas disponibles</div>
+          ) : (
             <>
-              <p className="text-sm text-muted-foreground text-center mb-6">
-                Mostrando {paginatedRaces.length} de {allUpcomingRaces.length} carreras próximas
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {paginatedRaces.map(race => <RaceCard key={race.id} {...race} />)}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {paginatedRaces.map((race) => (
+                  <RaceCard key={race.id} {...race} />
+                ))}
               </div>
 
               {totalPages > 1 && (
-                <Pagination className="mt-8">
+                <Pagination className="mt-10">
                   <PaginationContent>
                     <PaginationItem>
-                      <PaginationPrevious 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                         className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
                       />
                     </PaginationItem>
-                    
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <PaginationItem key={page}>
                         <PaginationLink
@@ -244,30 +296,46 @@ const Index = () => {
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-                    
                     <PaginationItem>
-                      <PaginationNext 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      <PaginationNext
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
                       />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
               )}
-
-              <div className="text-center mt-12">
-                <Button asChild size="lg" variant="outline">
-                  <Link to="/races">
-                    Ver todas las carreras <ArrowRight className="ml-2 h-5 w-5" />
-                  </Link>
-                </Button>
-              </div>
             </>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No hay carreras próximas disponibles</p>
-            </div>
           )}
+        </div>
+      </section>
+
+      {/* Servicios */}
+      <section className="border-t border-border bg-muted/30 py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="rounded-2xl bg-card p-8 text-center shadow-sm transition-all hover:shadow-elevated">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-hero">
+                <Mountain className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <h3 className="mb-2 text-xl font-bold">Trail y montaña</h3>
+              <p className="text-muted-foreground">Descubre carreras por las mejores sierras y descarga sus recorridos GPX.</p>
+            </div>
+            <div className="rounded-2xl bg-card p-8 text-center shadow-sm transition-all hover:shadow-elevated">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-hero">
+                <MapPin className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <h3 className="mb-2 text-xl font-bold">Seguimiento GPS</h3>
+              <p className="text-muted-foreground">Tus familiares te siguen en tiempo real en el mapa durante la carrera.</p>
+            </div>
+            <div className="rounded-2xl bg-card p-8 text-center shadow-sm transition-all hover:shadow-elevated">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-hero">
+                <TrendingUp className="h-7 w-7 text-primary-foreground" />
+              </div>
+              <h3 className="mb-2 text-xl font-bold">Cronometraje profesional</h3>
+              <p className="text-muted-foreground">Resultados y clasificaciones al instante para tu evento.</p>
+            </div>
+          </div>
         </div>
       </section>
 

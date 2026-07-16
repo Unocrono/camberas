@@ -57,17 +57,24 @@ const Races = () => {
         (racesData || []).map(async (race) => {
           const { data: distancesData, error: distancesError } = await supabase
             .from("race_distances")
-            .select("name")
-            .eq("race_id", race.id);
+            .select("name, price")
+            .eq("race_id", race.id)
+            .eq("is_visible", true)
+            .order("display_order", { ascending: true });
 
           if (distancesError) throw distancesError;
 
-          const { data: registrationsData, error: registrationsError } = await supabase
+          const { count } = await supabase
             .from("registrations")
-            .select("id")
+            .select("id", { count: "exact", head: true })
             .eq("race_id", race.id);
 
-          if (registrationsError) throw registrationsError;
+          const paidPrices = (distancesData || []).map((d) => Number(d.price) || 0).filter((p) => p > 0);
+          const priceLabel = paidPrices.length === 0
+            ? "Gratis"
+            : Math.min(...paidPrices) === Math.max(...paidPrices)
+              ? `${Math.min(...paidPrices)}€`
+              : `${Math.min(...paidPrices)}–${Math.max(...paidPrices)}€`;
 
           return {
             id: race.id,
@@ -81,9 +88,11 @@ const Races = () => {
             rawDate: race.date,
             location: race.location,
             distances: (distancesData || []).map((d) => d.name),
-            participants: registrationsData?.length || 0,
+            participants: count || 0,
             imageUrl: race.image_url,
             raceType: race.race_type as 'trail' | 'mtb',
+            priceLabel,
+            isPast: race.date < new Date().toISOString().split("T")[0],
           };
         })
       );
