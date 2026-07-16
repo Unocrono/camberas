@@ -139,10 +139,10 @@ serve(async (req) => {
     // Generate signature
     const signature = await generateSignature(merchantParamsB64, orderNumber, SECRET_KEY);
 
-    // Store payment intent in database
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!);
-    
-    const { error: insertError } = await supabase
+    // Store payment intent — con service role (operación de servidor, no
+    // sujeta a RLS). Si no se puede registrar el intent, NO se inicia el
+    // pago: el webhook nunca podría confirmarlo y el cobro quedaría huérfano.
+    const { error: insertError } = await supabaseAuth
       .from("payment_intents")
       .insert({
         order_number: orderNumber,
@@ -154,6 +154,10 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("Error storing payment intent:", insertError);
+      return new Response(
+        JSON.stringify({ error: "No se pudo registrar el intento de pago" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(
