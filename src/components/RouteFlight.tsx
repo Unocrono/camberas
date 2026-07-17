@@ -126,8 +126,11 @@ const TERRAIN_EXAGGERATION = 1.3;
 const MIN_CLEARANCE_M = 60; // margen mínimo sobre cualquier cresta bajo el vuelo
 
 interface CamState {
+  lng: number;
+  lat: number;
   alt: number;
   bearing: number;
+  pitch: number;
   initialized: boolean;
 }
 
@@ -159,9 +162,9 @@ function positionCamera(
 ) {
   const g = Math.max(-12, Math.min(12, gradient));
 
-  const trailKm = 0.9 + Math.max(0, g) * 0.04;
+  const trailKm = 1.4 + Math.max(0, g) * 0.04;
   const lookaheadKm = 0.5 + Math.max(0, -g) * 0.05;
-  const heightM = 300 + Math.max(0, g) * 25;
+  const heightM = 340 + Math.max(0, g) * 25;
 
   const behind = sampleAt(idx, km - trailKm);
   const ahead = sampleAt(idx, km + lookaheadKm);
@@ -179,18 +182,26 @@ function positionCamera(
     turf.point([ahead.lng, ahead.lat]),
   );
 
-  // Suavizado exponencial: el zigzag del GPX no debe dar tirones de cámara
+  // Suavizado exponencial de TODO (posición, altitud, rumbo y pitch):
+  // el zigzag del GPX no debe traducirse en golpes de cámara
   if (!cam.initialized) {
+    cam.lng = behind.lng;
+    cam.lat = behind.lat;
     cam.alt = rawAlt;
     cam.bearing = rawBearing;
+    cam.pitch = 60;
     cam.initialized = true;
   } else {
-    const k = 0.08;
-    cam.alt += (rawAlt - cam.alt) * k;
+    const kPos = 0.05;
+    const kAlt = 0.04;
+    const kBear = 0.05;
+    cam.lng += (behind.lng - cam.lng) * kPos;
+    cam.lat += (behind.lat - cam.lat) * kPos;
+    cam.alt += (rawAlt - cam.alt) * kAlt;
     let db = rawBearing - cam.bearing;
     if (db > 180) db -= 360;
     if (db < -180) db += 360;
-    cam.bearing += db * k * 1.5;
+    cam.bearing += db * kBear;
     cam.bearing = ((cam.bearing + 540) % 360) - 180;
   }
   // Aunque el suavizado vaya por detrás, nunca por debajo del terreno
@@ -201,19 +212,23 @@ function positionCamera(
   const distM = Math.max(
     1,
     turf.distance(
-      turf.point([behind.lng, behind.lat]),
+      turf.point([cam.lng, cam.lat]),
       turf.point([ahead.lng, ahead.lat]),
       { units: 'kilometers' },
     ) * 1000,
   );
-  const pitch = (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI;
+  const rawPitch = Math.max(
+    25,
+    Math.min(83, (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI),
+  );
+  cam.pitch += (rawPitch - cam.pitch) * 0.06;
 
   const camera = map.getFreeCameraOptions();
   camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
-    { lng: behind.lng, lat: behind.lat },
+    { lng: cam.lng, lat: cam.lat },
     alt,
   );
-  camera.setPitchBearing(Math.max(25, Math.min(83, pitch)), cam.bearing);
+  camera.setPitchBearing(cam.pitch, cam.bearing);
   map.setFreeCameraOptions(camera);
 }
 
@@ -299,7 +314,9 @@ export default function RouteFlight({
   const lastTsRef = useRef<number | null>(null);
   const kmRef = useRef(0);
   const frameRef = useRef(0);
-  const camRef = useRef<CamState>({ alt: 0, bearing: 0, initialized: false });
+  const camRef = useRef<CamState>({
+    lng: 0, lat: 0, alt: 0, bearing: 0, pitch: 60, initialized: false,
+  });
   const posMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const posEleRef = useRef<HTMLSpanElement | null>(null);
 
