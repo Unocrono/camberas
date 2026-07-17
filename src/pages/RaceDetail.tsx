@@ -39,6 +39,8 @@ const RaceDetail = () => {
   // Payment state
   const [registrationStep, setRegistrationStep] = useState<'form' | 'payment'>('form');
   const [pendingRegistration, setPendingRegistration] = useState<any>(null);
+  // Suplemento (€) que aportan los campos del formulario con importe
+  const [fieldSupplement, setFieldSupplement] = useState(0);
 
   // Helper to validate UUID format
   const isValidUUID = (str: string) => {
@@ -460,8 +462,8 @@ const RaceDetail = () => {
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
-        // If price > 0, go to payment step
-        if (selectedDistance.currentPrice > 0) {
+        // If total (base + suplementos de campos) > 0, go to payment step
+        if (selectedDistance.currentPrice + fieldSupplement > 0) {
           setPendingRegistration({
             ...newRegistration,
             email: user.email,
@@ -1020,21 +1022,36 @@ const RaceDetail = () => {
                                       distanceId={distance.id}
                                       formData={customFormData}
                                       onChange={handleCustomFieldChange}
+                                      onSupplementChange={setFieldSupplement}
                                     />
-                                    
+
                                     <div className="pt-4 border-t border-border">
+                                      {fieldSupplement !== 0 && (
+                                        <div className="mb-2 space-y-1 text-sm text-muted-foreground">
+                                          <div className="flex justify-between">
+                                            <span>Inscripción</span>
+                                            <span>{distance.currentPrice}€</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span>Extras</span>
+                                            <span>{fieldSupplement > 0 ? "+" : ""}{fieldSupplement}€</span>
+                                          </div>
+                                        </div>
+                                      )}
                                       <div className="flex justify-between items-center mb-4">
-                                        <span className="text-sm text-muted-foreground">Precio de inscripción:</span>
-                                        <span className="text-2xl font-bold">{distance.currentPrice}€</span>
+                                        <span className="text-sm text-muted-foreground">Precio total:</span>
+                                        <span className="text-2xl font-bold">
+                                          {Math.max(0, Math.round((distance.currentPrice + fieldSupplement) * 100) / 100)}€
+                                        </span>
                                       </div>
-                                      
-                                      <Button 
-                                        type="submit" 
-                                        className="w-full" 
+
+                                      <Button
+                                        type="submit"
+                                        className="w-full"
                                         disabled={isSubmitting}
                                       >
                                         {isSubmitting ? "Procesando..." : (
-                                          distance.currentPrice > 0 ? (
+                                          distance.currentPrice + fieldSupplement > 0 ? (
                                             <>
                                               <CreditCard className="h-4 w-4 mr-2" />
                                               Continuar al pago
@@ -1050,7 +1067,7 @@ const RaceDetail = () => {
                               ) : (
                                 <div className="py-4">
                                   <RedsysPaymentForm
-                                    amount={distance.currentPrice}
+                                    amount={Math.max(0, Math.round((distance.currentPrice + fieldSupplement) * 100) / 100)}
                                     registrationId={pendingRegistration?.id}
                                     description={`${race.name} - ${distance.name}`}
                                     userEmail={pendingRegistration?.email}

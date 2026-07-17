@@ -96,13 +96,41 @@ serve(async (req) => {
       resolvedPrice = dist?.price != null ? Number(dist.price) : null;
     }
 
-    if (resolvedPrice == null || !(resolvedPrice > 0)) {
+    // Suplementos de los campos con importe, desde las respuestas guardadas
+    // de esta inscripción (fee_enabled en field_options)
+    const { data: respRows } = await supabaseAuth
+      .from("registration_responses")
+      .select("field_value, registration_form_fields(field_name, field_type, field_options)")
+      .eq("registration_id", registrationId);
+
+    const fieldFee = (f: any, value: unknown): number => {
+      const o = f?.field_options;
+      if (!o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
+      if (Array.isArray(o.options) && Array.isArray(o.fees)) {
+        const idx = o.options.indexOf(String(value));
+        return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;
+      }
+      const feeAmount = Number(o.fee_amount) || 0;
+      if (f.field_type === "number") {
+        const n = parseFloat(String(value));
+        return isNaN(n) ? 0 : feeAmount * n;
+      }
+      const checked = value === true || value === "true" || value === "on" || value === "1";
+      return checked ? feeAmount : 0;
+    };
+    const supplement = (respRows ?? []).reduce(
+      (sum: number, r: any) => sum + fieldFee(r.registration_form_fields, r.field_value),
+      0
+    );
+
+    const totalPrice = Math.max(0, Math.round(((resolvedPrice ?? 0) + supplement) * 100) / 100);
+    if (!(totalPrice > 0)) {
       return new Response(
         JSON.stringify({ error: "No price configured for this distance" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const amount = resolvedPrice;
+    const amount = totalPrice;
 
     // Generate unique order number (12 digits max)
     const timestamp = Date.now().toString().slice(-8);

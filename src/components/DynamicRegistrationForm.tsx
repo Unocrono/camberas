@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { getGenderCode, getGenderIdFromText } from "@/lib/genderUtils";
+import { computeSupplement, optionLabelWithFee, getFieldFee } from "@/lib/fieldFees";
 interface FormField {
   id: string;
   field_name: string;
@@ -30,9 +31,11 @@ interface DynamicRegistrationFormProps {
   distanceId?: string;
   formData: Record<string, any>;
   onChange: (fieldName: string, value: any) => void;
+  /** Notifica el suplemento total (€) que aportan los campos con importe */
+  onSupplementChange?: (supplement: number) => void;
 }
 
-export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange }: DynamicRegistrationFormProps) => {
+export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange, onSupplementChange }: DynamicRegistrationFormProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -43,6 +46,12 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   useEffect(() => {
     fetchFormFields();
   }, [raceId, distanceId]);
+
+  // Recalcular el suplemento de los campos con importe y avisar al padre
+  useEffect(() => {
+    if (!onSupplementChange) return;
+    onSupplementChange(computeSupplement(fields, formData));
+  }, [fields, formData, onSupplementChange]);
 
   // Pre-fill form with profile data when user is logged in and fields are loaded
   useEffect(() => {
@@ -289,7 +298,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
               <SelectContent>
                 {options.map((option: string, index: number) => (
                   <SelectItem key={index} value={option}>
-                    {option}
+                    {optionLabelWithFee(field, option)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -316,6 +325,14 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
                   className="text-sm font-normal cursor-pointer"
                 >
                   {field.field_label}
+                  {(() => {
+                    const fee = getFieldFee(field, true);
+                    return fee ? (
+                      <span className="ml-1 font-semibold text-secondary">
+                        ({fee > 0 ? "+" : ""}{fee}€)
+                      </span>
+                    ) : null;
+                  })()}
                   {field.is_required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 {field.help_text && (
@@ -348,7 +365,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
                     htmlFor={`${field.field_name}-${index}`}
                     className="text-sm font-normal cursor-pointer"
                   >
-                    {option}
+                    {optionLabelWithFee(field, option)}
                   </Label>
                 </div>
               ))}

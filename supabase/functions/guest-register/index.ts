@@ -86,7 +86,34 @@ serve(async (req) => {
       .order("start_datetime", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const price = tier?.price != null ? Number(tier.price) : (distance.price != null ? Number(distance.price) : 0);
+    const basePrice = tier?.price != null ? Number(tier.price) : (distance.price != null ? Number(distance.price) : 0);
+
+    // Campos del formulario (también se usan luego para guardar respuestas)
+    const { data: fields } = await supabase
+      .from("registration_form_fields")
+      .select("id, field_name, field_type, field_options")
+      .eq("race_distance_id", distanceId);
+
+    // Suplemento de los campos con importe (fee_enabled en field_options):
+    //  - select/radio: fees[] paralelo a options
+    //  - number: fee_amount × valor · checkbox/otros: fee_amount si se marca
+    const fieldFee = (f: any, value: unknown): number => {
+      const o = f.field_options;
+      if (!o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
+      if (Array.isArray(o.options) && Array.isArray(o.fees)) {
+        const idx = o.options.indexOf(String(value));
+        return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;
+      }
+      const amount = Number(o.fee_amount) || 0;
+      if (f.field_type === "number") {
+        const n = parseFloat(String(value));
+        return isNaN(n) ? 0 : amount * n;
+      }
+      const checked = value === true || value === "true" || value === "on" || value === "1";
+      return checked ? amount : 0;
+    };
+    const supplement = (fields ?? []).reduce((sum, f) => sum + fieldFee(f, formData[f.field_name]), 0);
+    const price = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
 
     // Dorsal atómico
     const { data: bibNumber, error: bibErr } = await supabase
@@ -122,11 +149,6 @@ serve(async (req) => {
     }
 
     // Guardar todas las respuestas del formulario
-    const { data: fields } = await supabase
-      .from("registration_form_fields")
-      .select("id, field_name")
-      .eq("race_distance_id", distanceId);
-
     if (fields && fields.length > 0) {
       const responses = fields
         .filter((f) => formData[f.field_name] !== undefined && formData[f.field_name] !== "" && formData[f.field_name] !== null)

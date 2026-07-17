@@ -274,6 +274,10 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     is_required: false,
     options: [] as string[],
     profile_field: "" as string,
+    // Suplementos: el campo puede modificar el precio de la inscripción
+    fee_enabled: false,
+    fees: [] as string[],      // importe por opción (paralelo a options)
+    fee_amount: "",            // importe único (checkbox) o por unidad (number)
   });
 
   const [optionInput, setOptionInput] = useState("");
@@ -468,6 +472,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         ? field.field_options 
         : field.field_options?.options || [];
       
+      const opts = field.field_options;
+      const storedFees: number[] = (!Array.isArray(opts) && Array.isArray(opts?.fees)) ? opts.fees : [];
+
       setFormData({
         field_name: field.field_name,
         field_label: field.field_label,
@@ -477,6 +484,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         is_required: field.is_required,
         options: options,
         profile_field: field.profile_field || "",
+        fee_enabled: (!Array.isArray(opts) && opts?.fee_enabled) === true,
+        fees: options.map((_: string, i: number) => storedFees[i] != null ? String(storedFees[i]) : "0"),
+        fee_amount: (!Array.isArray(opts) && opts?.fee_amount != null) ? String(opts.fee_amount) : "",
       });
     } else {
       setEditingField(null);
@@ -489,6 +499,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         is_required: false,
         options: [],
         profile_field: "",
+        fee_enabled: false,
+        fees: [],
+        fee_amount: "",
       });
     }
     setOptionInput("");
@@ -500,6 +513,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
       setFormData({
         ...formData,
         options: [...formData.options, optionInput.trim()],
+        fees: [...formData.fees, "0"],
       });
       setOptionInput("");
     }
@@ -509,7 +523,14 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     setFormData({
       ...formData,
       options: formData.options.filter((_, i) => i !== index),
+      fees: formData.fees.filter((_, i) => i !== index),
     });
+  };
+
+  const handleFeeChange = (index: number, value: string) => {
+    const fees = [...formData.fees];
+    fees[index] = value;
+    setFormData({ ...formData, fees });
   };
 
   const handleToggleVisibility = async (field: FormField) => {
@@ -538,6 +559,25 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     }
   };
 
+  // field_options JSONB: opciones + configuración de suplementos.
+  // select/radio → fees[] paralelo a options; checkbox/number/text → fee_amount
+  const buildFieldOptions = (): any => {
+    const hasOptions = ["select", "radio"].includes(formData.field_type);
+    if (!hasOptions && !formData.fee_enabled) return null;
+
+    const out: any = {};
+    if (hasOptions) out.options = formData.options;
+    if (formData.fee_enabled) {
+      out.fee_enabled = true;
+      if (hasOptions) {
+        out.fees = formData.options.map((_, i) => parseFloat(formData.fees[i]) || 0);
+      } else {
+        out.fee_amount = parseFloat(formData.fee_amount) || 0;
+      }
+    }
+    return out;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -551,15 +591,11 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
           throw new Error("La etiqueta es requerida");
         }
 
-        const fieldOptions = ["select", "radio"].includes(formData.field_type)
-          ? formData.options
-          : null;
-
         const { error } = await supabase
           .from("registration_form_fields")
           .update({
             field_label: formData.field_label.trim(),
-            field_options: fieldOptions,
+            field_options: buildFieldOptions(),
             is_required: formData.is_required,
           })
           .eq("id", editingField!.id);
@@ -580,9 +616,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
           is_required: formData.is_required,
         });
 
-        const fieldOptions = ["select", "radio"].includes(formData.field_type)
-          ? { options: formData.options }
-          : null;
+        const fieldOptions = buildFieldOptions();
 
         if (editingField) {
           const { error } = await supabase
@@ -893,6 +927,18 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                         <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded">
                           <GripVertical className="h-4 w-4 text-muted-foreground" />
                           <span className="flex-1">{option}</span>
+                          {formData.fee_enabled && (
+                            <div className="flex items-center gap-1">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={formData.fees[index] ?? "0"}
+                                onChange={(e) => handleFeeChange(index, e.target.value)}
+                                className="w-24 h-8 text-right"
+                              />
+                              <span className="text-sm text-muted-foreground">€</span>
+                            </div>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
@@ -904,6 +950,55 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && (
+                  <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="fee_enabled"
+                        checked={formData.fee_enabled}
+                        onCheckedChange={(checked) =>
+                          setFormData({ ...formData, fee_enabled: checked as boolean })
+                        }
+                      />
+                      <Label htmlFor="fee_enabled" className="cursor-pointer">
+                        Este campo modifica el precio de la inscripción
+                      </Label>
+                    </div>
+                    {formData.fee_enabled && (
+                      <>
+                        {["select", "radio"].includes(formData.field_type) ? (
+                          <p className="text-xs text-muted-foreground">
+                            Indica el importe de cada opción en la lista de arriba.
+                            Positivo suma al precio, negativo lo descuenta (ej: -5).
+                          </p>
+                        ) : (
+                          <div className="space-y-1">
+                            <Label htmlFor="fee_amount">
+                              {formData.field_type === "number"
+                                ? "Importe por unidad (€)"
+                                : "Importe si se marca (€)"}
+                            </Label>
+                            <Input
+                              id="fee_amount"
+                              type="number"
+                              step="0.01"
+                              value={formData.fee_amount}
+                              onChange={(e) => setFormData({ ...formData, fee_amount: e.target.value })}
+                              placeholder="Ej: 10 o -5"
+                              className="w-40"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {formData.field_type === "number"
+                                ? "Se multiplica por el valor introducido por el corredor."
+                                : "Se aplica cuando el corredor marca la casilla."}
+                            </p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
 
