@@ -5,8 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format, parseISO } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatLocalTime } from "@/lib/timezoneUtils";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 
@@ -183,7 +182,8 @@ export function EventsSummary({ raceId }: EventsSummaryProps) {
                   </TableCell>
                   <TableCell className="text-center">
                     {event.startTime ? (
-                      format(parseISO(event.startTime), "HH:mm", { locale: es })
+                      // Hora literal tal como se guardó — sin conversión de zona horaria
+                      formatLocalTime(event.startTime).slice(0, 5)
                     ) : (
                       <span className="text-muted-foreground text-sm">Sin definir</span>
                     )}
