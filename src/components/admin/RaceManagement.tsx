@@ -624,6 +624,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Imagen Principal (16:9 - 1920x1080px)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Foto apaisada para compartir en redes y respaldo del cartel.
+                    </p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -659,6 +662,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
                   <div className="space-y-2">
                     <Label>Imagen de Portada (2.4:1 - 1920x800px)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Banda ancha de cabecera en la página de la carrera.
+                    </p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -694,6 +700,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
                   <div className="space-y-2">
                     <Label>Logo (1:1 - 400x400px)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Emblema sobre la cabecera de la página de la carrera.
+                    </p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
@@ -729,6 +738,10 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
                   <div className="space-y-2">
                     <Label>Cartel (2:3 - 800x1200px)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      El cartel oficial. Protagonista del listado: llena la card y el
+                      destacado de la portada. Si no lo subes, se usa la Imagen Principal.
+                    </p>
                     <div className="flex gap-2">
                       <Button
                         type="button"
