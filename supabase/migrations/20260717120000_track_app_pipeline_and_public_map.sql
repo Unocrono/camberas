@@ -41,7 +41,7 @@ RETURNS TABLE(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
-AS $$
+AS $fn$
 DECLARE
   tok record;
 BEGIN
@@ -67,7 +67,7 @@ BEGIN
   RETURN QUERY SELECT tok.id, tok.bib_number::text, tok.participant_name,
                       tok.event_id::text, p_device_id, now(), false;
 END;
-$$;
+$fn$;
 
 CREATE OR REPLACE FUNCTION public.unlink_gps_token(
   p_token_id uuid,
@@ -77,14 +77,14 @@ RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
-AS $$
+AS $fn$
 BEGIN
   UPDATE gps_tokens g
   SET device_id = NULL, linked_at = NULL
   WHERE g.id = p_token_id AND g.device_id = p_device_id;
   RETURN FOUND;
 END;
-$$;
+$fn$;
 
 GRANT EXECUTE ON FUNCTION public.link_gps_token(text, text, boolean) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.unlink_gps_token(uuid, text) TO anon, authenticated;
@@ -135,7 +135,7 @@ RETURNS TABLE(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
-AS $$
+AS $fn$
 BEGIN
   RETURN QUERY
   -- Pipeline 1: dispositivos GPS / tracker web (gps_tracking)
@@ -190,7 +190,7 @@ BEGIN
   )
   ORDER BY bib_number NULLS LAST;
 END;
-$$;
+$fn$;
 
 -- El mapa es público por diseño: restaurar EXECUTE para visitantes anónimos.
 -- (Solo expone posición, dorsal y nombre — datos de carrera en vivo.)
@@ -210,7 +210,7 @@ RETURNS TABLE(
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
-AS $$
+AS $fn$
 BEGIN
   RETURN QUERY
   SELECT a.id, a.lat::numeric, a.lng::numeric, a.triggered_at, a.resolved_at,
@@ -222,17 +222,17 @@ BEGIN
     AND a.triggered_at > now() - interval '24 hours'
   ORDER BY a.triggered_at DESC;
 END;
-$$;
+$fn$;
 
 GRANT EXECUTE ON FUNCTION public.get_race_sos_alerts(uuid) TO anon, authenticated;
 
 -- ── 6) Realtime para el mapa público ────────────────────────────────────────
-DO $$ BEGIN
+DO $fn$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.gps_positions;
 EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+END $fn$;
 
-DO $$ BEGIN
+DO $fn$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.gps_sos_alerts;
 EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
+END $fn$;
