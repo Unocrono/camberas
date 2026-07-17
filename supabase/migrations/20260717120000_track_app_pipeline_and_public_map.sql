@@ -149,7 +149,7 @@ BEGIN
       r.bib_number::text,
       COALESCE(
         p.first_name || ' ' || COALESCE(p.last_name, ''),
-        r.guest_first_name || ' ' || COALESCE(r.guest_last_name, ''),
+        r.first_name || ' ' || COALESCE(r.last_name, ''),
         'Corredor'
       ),
       r.race_distance_id,
