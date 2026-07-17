@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsFunctionEnabled } from "@/hooks/useEdgeFunctionFlags";
+import { CamberasLogo } from "@/components/CamberasLogo";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer } = useAuth();
@@ -15,8 +16,11 @@ const Navbar = () => {
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-            Camberas
+          <Link to="/" className="flex items-center gap-2.5">
+            <CamberasLogo size={34} />
+            <span className="font-archivo text-lg uppercase tracking-wide text-foreground">
+              Camberas
+            </span>
           </Link>
 
           {/* Mobile menu button - centered */}
