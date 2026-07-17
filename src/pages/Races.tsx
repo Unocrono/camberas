@@ -3,7 +3,8 @@ import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mountain, Bike, Calendar, Trophy, MapPin } from "lucide-react";
+import { Search, Mountain, Bike, Calendar, Trophy, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import {
@@ -20,6 +21,78 @@ type RaceTypeFilter = 'all' | 'trail' | 'mtb';
 type TimeFilter = 'all' | 'upcoming' | 'past';
 
 const RACES_PER_PAGE = 9;
+
+// Slide del hero: una carrera destacada con sus datos y su imagen
+function HeroSlide({ race, raceUrl }: { race: any; raceUrl: (r: any) => string }) {
+  return (
+    <div className="grid items-center gap-10 md:grid-cols-2">
+      <div>
+        <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">
+          Carrera destacada
+        </p>
+        <h1 className="font-archivo mt-3 text-4xl uppercase leading-[0.98] text-foreground md:text-6xl">
+          {race.name}
+        </h1>
+        {race.subtitle && (
+          <p className="mt-2 text-xl font-semibold text-primary">{race.subtitle}</p>
+        )}
+        <p className="mt-4 max-w-md text-lg text-muted-foreground">
+          {race.location} · {race.date}
+        </p>
+        <div className="mt-6 flex gap-8">
+          {race.maxDistanceKm > 0 && (
+            <div>
+              <div className="font-archivo text-3xl text-primary">
+                {race.maxDistanceKm}<span className="text-sm">KM</span>
+              </div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Distancia máx.</div>
+            </div>
+          )}
+          {race.maxElevation > 0 && (
+            <div>
+              <div className="font-archivo text-3xl text-primary">
+                +{race.maxElevation}<span className="text-sm">M</span>
+              </div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Desnivel</div>
+            </div>
+          )}
+          {race.plazas && (
+            <div>
+              <div className="font-archivo text-3xl text-primary">{race.plazas}</div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Plazas</div>
+            </div>
+          )}
+        </div>
+        <div className="mt-7 flex gap-3">
+          <Button asChild size="lg" variant="secondary">
+            <Link to={raceUrl(race)}>Inscribirme</Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link to={raceUrl(race)}>Ver detalles</Link>
+          </Button>
+        </div>
+      </div>
+
+      <Link to={raceUrl(race)} className="group relative block">
+        {/* Imagen Principal (16:9) — la Portada panorámica queda para
+            la cabecera de la página de la carrera */}
+        <div className="relative aspect-video overflow-hidden rounded-3xl bg-primary shadow-elevated">
+          {(race.imageUrl || race.coverImageUrl) && (
+            <img
+              src={race.imageUrl || race.coverImageUrl}
+              alt={race.name}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          )}
+          <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-secondary/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
+            <Calendar className="h-3.5 w-3.5" />
+            {race.date}
+          </span>
+        </div>
+      </Link>
+    </div>
+  );
+}
 
 const Races = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -118,13 +191,36 @@ const Races = () => {
     }
   };
 
-  // Carrera del hero: la próxima marcada como destacada; si no hay
-  // ninguna destacada, la próxima en el calendario
-  const featured = useMemo(() => {
+  // Carreras del hero: las próximas marcadas como destacadas (carrusel);
+  // si no hay ninguna destacada, la próxima del calendario
+  const heroRaces = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const upcoming = allRaces.filter((r) => r.rawDate >= today);
-    return upcoming.find((r) => r.isFeatured) || upcoming[0] || null;
+    const destacadas = upcoming.filter((r) => r.isFeatured);
+    return destacadas.length > 0 ? destacadas : upcoming.slice(0, 1);
   }, [allRaces]);
+
+  const [heroApi, setHeroApi] = useState<CarouselApi>();
+  const [heroIndex, setHeroIndex] = useState(0);
+  // La carrera activa del carrusel — la píldora de datos la sigue
+  const featured = heroRaces[heroIndex] ?? heroRaces[0] ?? null;
+
+  useEffect(() => {
+    if (!heroApi) return;
+    const onSelect = () => setHeroIndex(heroApi.selectedScrollSnap());
+    onSelect();
+    heroApi.on("select", onSelect);
+    return () => {
+      heroApi.off("select", onSelect);
+    };
+  }, [heroApi]);
+
+  // Auto-avance cada 6 s cuando hay varias destacadas
+  useEffect(() => {
+    if (!heroApi || heroRaces.length < 2) return;
+    const timer = setInterval(() => heroApi.scrollNext(), 6000);
+    return () => clearInterval(timer);
+  }, [heroApi, heroRaces.length]);
 
   // El hero solo se muestra en la vista limpia (sin filtros ni búsqueda)
   const showHero = timeFilter === 'all' && raceTypeFilter === 'all' && !searchTerm && !!featured;
@@ -182,80 +278,57 @@ const Races = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* HERO — carrera destacada (solo en la vista limpia) */}
+      {/* HERO — carreras destacadas (solo en la vista limpia) */}
       {showHero && featured && (
         <>
           <section className="relative overflow-hidden pt-24 pb-14">
             <div className="absolute -right-32 -top-24 h-[520px] w-[520px] rounded-full bg-primary/10 blur-3xl" />
             <div className="container relative mx-auto px-4">
-              <div className="grid items-center gap-10 md:grid-cols-2">
-                <div>
-                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">
-                    Próxima carrera destacada
-                  </p>
-                  <h1 className="font-archivo mt-3 text-4xl uppercase leading-[0.98] text-foreground md:text-6xl">
-                    {featured.name}
-                  </h1>
-                  {featured.subtitle && (
-                    <p className="mt-2 text-xl font-semibold text-primary">{featured.subtitle}</p>
-                  )}
-                  <p className="mt-4 max-w-md text-lg text-muted-foreground">
-                    {featured.location} · {featured.date}
-                  </p>
-                  <div className="mt-6 flex gap-8">
-                    {featured.maxDistanceKm > 0 && (
-                      <div>
-                        <div className="font-archivo text-3xl text-primary">
-                          {featured.maxDistanceKm}<span className="text-sm">KM</span>
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Distancia máx.</div>
-                      </div>
-                    )}
-                    {featured.maxElevation > 0 && (
-                      <div>
-                        <div className="font-archivo text-3xl text-primary">
-                          +{featured.maxElevation}<span className="text-sm">M</span>
-                        </div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Desnivel</div>
-                      </div>
-                    )}
-                    {featured.plazas && (
-                      <div>
-                        <div className="font-archivo text-3xl text-primary">{featured.plazas}</div>
-                        <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Plazas</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-7 flex gap-3">
-                    <Button asChild size="lg" variant="secondary">
-                      <Link to={raceUrl(featured)}>Inscribirme</Link>
-                    </Button>
-                    <Button asChild size="lg" variant="outline">
-                      <Link to={raceUrl(featured)}>Ver detalles</Link>
-                    </Button>
-                  </div>
-                </div>
+              {heroRaces.length > 1 ? (
+                <>
+                  <Carousel setApi={setHeroApi} opts={{ loop: true }}>
+                    <CarouselContent>
+                      {heroRaces.map((race) => (
+                        <CarouselItem key={race.id}>
+                          <HeroSlide race={race} raceUrl={raceUrl} />
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                  </Carousel>
 
-                <Link to={raceUrl(featured)} className="group relative block">
-                  {/* Imagen Principal (16:9) — la Portada panorámica queda para
-                      la cabecera de la página de la carrera */}
-                  <div className="relative aspect-video overflow-hidden rounded-3xl bg-primary shadow-elevated">
-                    {(featured.imageUrl || featured.coverImageUrl) && (
-                      <img
-                        src={featured.imageUrl || featured.coverImageUrl}
-                        alt={featured.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    )}
-                    {/* Sin texto encima: el nombre ya está al lado y taparía
-                        la franja panorámica */}
-                    <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-secondary/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {featured.date}
-                    </span>
+                  {/* Controles: flechas + puntos */}
+                  <div className="mt-6 flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => heroApi?.scrollPrev()}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted"
+                      aria-label="Carrera anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="flex gap-2">
+                      {heroRaces.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={() => heroApi?.scrollTo(i)}
+                          className={`h-2.5 rounded-full transition-all ${
+                            i === heroIndex ? "w-7 bg-secondary" : "w-2.5 bg-border hover:bg-muted-foreground/40"
+                          }`}
+                          aria-label={`Ir a la carrera ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => heroApi?.scrollNext()}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:bg-muted"
+                      aria-label="Carrera siguiente"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
                   </div>
-                </Link>
-              </div>
+                </>
+              ) : (
+                <HeroSlide race={featured} raceUrl={raceUrl} />
+              )}
             </div>
           </section>
 
