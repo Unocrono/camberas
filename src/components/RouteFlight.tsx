@@ -251,6 +251,24 @@ const HUD_CSS = `
 }
 .rbf-poi-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .rbf-poi-label b { color: ${LIMA}; margin-left: 5px; }
+.rbf-pos { display: flex; align-items: center; gap: 7px; pointer-events: none; }
+.rbf-pos-dot {
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: #EC7C2B; border: 3px solid #fff;
+  box-shadow: 0 0 0 4px rgba(236, 124, 43, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
+  animation: rbf-pulse 1.6s ease-out infinite;
+}
+.rbf-pos-ele {
+  background: ${NOCHE}E6; color: ${LIMA};
+  font-family: 'Barlow Semi Condensed', system-ui, sans-serif;
+  font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 2px 9px; border-radius: 11px; white-space: nowrap;
+}
+@keyframes rbf-pulse {
+  0% { box-shadow: 0 0 0 4px rgba(236, 124, 43, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5); }
+  70% { box-shadow: 0 0 0 12px rgba(236, 124, 43, 0), 0 2px 6px rgba(0, 0, 0, 0.5); }
+  100% { box-shadow: 0 0 0 4px rgba(236, 124, 43, 0), 0 2px 6px rgba(0, 0, 0, 0.5); }
+}
 @media (max-width: 640px) {
   .rbf-km-value { font-size: 34px; }
   .rbf-hud { left: 10px; bottom: 10px; padding: 9px 13px; }
@@ -282,6 +300,8 @@ export default function RouteFlight({
   const kmRef = useRef(0);
   const frameRef = useRef(0);
   const camRef = useRef<CamState>({ alt: 0, bearing: 0, initialized: false });
+  const posMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const posEleRef = useRef<HTMLSpanElement | null>(null);
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(autoPlay);
@@ -302,6 +322,14 @@ export default function RouteFlight({
     const g = gradientAt(idx, km);
 
     positionCamera(map, idx, km, g, camRef.current);
+
+    // Punto de posición actual sobre el track
+    if (posMarkerRef.current) {
+      posMarkerRef.current.setLngLat([s.lng, s.lat]);
+      if (posEleRef.current) {
+        posEleRef.current.textContent = `${Math.round(s.ele)} m`;
+      }
+    }
 
     const done = map.getSource('track-done') as mapboxgl.GeoJSONSource | undefined;
     if (done && km > 0.01) {
@@ -359,7 +387,7 @@ export default function RouteFlight({
         type: 'line',
         source: 'track-full',
         layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': '#FFFFFF', 'line-width': 3, 'line-opacity': 0.35 },
+        paint: { 'line-color': '#FFFFFF', 'line-width': 4, 'line-opacity': 0.65 },
       });
 
       map.addSource('track-done', {
@@ -383,6 +411,20 @@ export default function RouteFlight({
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: { 'line-color': LIMA, 'line-width': 5 },
       });
+
+      // Marcador de posición actual: punto naranja pulsante + altitud
+      const posEl = document.createElement('div');
+      posEl.className = 'rbf-pos';
+      const dot = document.createElement('span');
+      dot.className = 'rbf-pos-dot';
+      const eleLabel = document.createElement('span');
+      eleLabel.className = 'rbf-pos-ele';
+      eleLabel.textContent = `${Math.round(start.ele)} m`;
+      posEl.append(dot, eleLabel);
+      posEleRef.current = eleLabel;
+      posMarkerRef.current = new mapboxgl.Marker({ element: posEl, anchor: 'left', offset: [-11, 0] })
+        .setLngLat([start.lng, start.lat])
+        .addTo(map);
 
       for (const poi of pois) {
         const p = sampleAt(idx, poi.km);
