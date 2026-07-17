@@ -687,7 +687,10 @@ const RaceDetail = () => {
                   Trail
                 </Badge>
               </div>
-              <CardTitle className="text-4xl md:text-5xl mb-4">{race.name}</CardTitle>
+              <CardTitle className="text-4xl md:text-5xl mb-1">{race.name}</CardTitle>
+              {race.subtitle && (
+                <p className="text-xl font-semibold text-primary mb-3">{race.subtitle}</p>
+              )}
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
               
               {/* Contact & Web Info */}

@@ -61,6 +61,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   
   const [formData, setFormData] = useState({
     name: "",
+    subtitle: "",
     description: "",
     location: "",
     date: "",
@@ -151,6 +152,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
       setEditingRace(race);
       setFormData({
         name: race.name,
+        subtitle: (race as any).subtitle || "",
         description: race.description || "",
         location: race.location,
         date: race.date,
@@ -170,6 +172,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
       setEditingRace(null);
       setFormData({
         name: "",
+        subtitle: "",
         description: "",
         location: "",
         date: "",
@@ -307,6 +310,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
       if (editingRace) {
         const updateData: any = {
           name: validatedData.name,
+          subtitle: formData.subtitle.trim() || null,
           description: validatedData.description || null,
           location: validatedData.location,
           date: validatedData.date,
@@ -366,6 +370,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           .from("races")
           .insert([{
             name: validatedData.name,
+            subtitle: formData.subtitle.trim() || null,
             description: validatedData.description || null,
             location: validatedData.location,
             date: validatedData.date,
@@ -493,6 +498,19 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="subtitle">Subtítulo</Label>
+                <Input
+                  id="subtitle"
+                  value={formData.subtitle}
+                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                  placeholder="Ej: VIII Memorial Manuel Pérez Nestar"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Se muestra bajo el título en el listado y en la página de la carrera.
+                </p>
               </div>
 
               <div className="space-y-2">

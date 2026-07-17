@@ -5,6 +5,7 @@ interface RaceCardProps {
   id: string;
   slug?: string | null;
   name: string;
+  subtitle?: string | null;
   date: string;
   location: string;
   distances: string[];
@@ -17,7 +18,7 @@ interface RaceCardProps {
 }
 
 const RaceCard = ({
-  id, slug, name, date, location, distances,
+  id, slug, name, subtitle, date, location, distances,
   coverImageUrl, imageUrl, raceType = 'trail', priceLabel, isPast = false,
 }: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
@@ -61,9 +62,14 @@ const RaceCard = ({
         <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
           {raceType === 'mtb' ? 'MTB' : 'Trail'}
         </p>
-        <h3 className="text-lg font-bold leading-tight mt-1 mb-3 text-foreground line-clamp-2">
+        <h3 className="text-lg font-bold leading-tight mt-1 text-foreground line-clamp-2">
           {name}
         </h3>
+        {subtitle ? (
+          <p className="text-sm font-medium text-muted-foreground line-clamp-1 mb-3">{subtitle}</p>
+        ) : (
+          <div className="mb-3" />
+        )}
 
         <div className="space-y-1.5 text-sm font-medium text-muted-foreground mb-3">
           <div className="flex items-center gap-2">

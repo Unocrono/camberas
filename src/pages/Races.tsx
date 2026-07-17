@@ -81,6 +81,7 @@ const Races = () => {
             id: race.id,
             slug: race.slug,
             name: race.name,
+            subtitle: (race as any).subtitle || null,
             date: new Date(race.date).toLocaleDateString("es-ES", {
               day: "numeric",
               month: "long",
@@ -192,6 +193,9 @@ const Races = () => {
                   <h1 className="font-archivo mt-3 text-4xl uppercase leading-[0.98] text-foreground md:text-6xl">
                     {featured.name}
                   </h1>
+                  {featured.subtitle && (
+                    <p className="mt-2 text-xl font-semibold text-primary">{featured.subtitle}</p>
+                  )}
                   <p className="mt-4 max-w-md text-lg text-muted-foreground">
                     {featured.location} · {featured.date}
                   </p>
