@@ -57,7 +57,7 @@ export default function Contact() {
     success_message: "Te responderemos lo antes posible por email.",
     email_card_visible: true,
     whatsapp_card_visible: true,
-    support_chat_card_visible: true,
+    support_chat_card_visible: false,
   });
 
   useEffect(() => {

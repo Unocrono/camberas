@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,8 +134,8 @@ const TimingShop = () => {
                 </CardContent>
 
                 <CardFooter>
-                  <Button className="w-full" variant={pkg.popular ? "default" : "outline"}>
-                    Solicitar Información
+                  <Button className="w-full" variant={pkg.popular ? "default" : "outline"} asChild>
+                    <Link to="/contact">Solicitar Información</Link>
                   </Button>
                 </CardFooter>
               </Card>
@@ -174,8 +175,8 @@ const TimingShop = () => {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button variant="secondary" size="lg">
-                Contactar con Ventas
+              <Button variant="secondary" size="lg" asChild>
+                <Link to="/contact">Contactar con Ventas</Link>
               </Button>
             </CardFooter>
           </Card>
