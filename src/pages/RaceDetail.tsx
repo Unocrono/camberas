@@ -461,6 +461,9 @@ const RaceDetail = () => {
             status: "pending",
             payment_status: "pending",
             bib_number: assignedBib ?? null,
+            tshirt_size: customFormData.tshirt_size
+              ? String(customFormData.tshirt_size)
+              : null,
           })
           .select()
           .single();
