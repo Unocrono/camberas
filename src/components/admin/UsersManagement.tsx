@@ -68,6 +68,16 @@ const initialFormData: UserFormData = {
   roles: ["user"],
 };
 
+// FunctionsHttpError oculta el cuerpo de la respuesta ("non-2xx status code"):
+// extraer el mensaje real que devuelve la edge function
+const extractFunctionError = async (error: any): Promise<Error> => {
+  try {
+    const body = await error.context?.json?.();
+    if (body?.error) return new Error(body.error);
+  } catch { /* cuerpo no JSON */ }
+  return error instanceof Error ? error : new Error(String(error?.message ?? error));
+};
+
 export function UsersManagement() {
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,7 +187,7 @@ export function UsersManagement() {
         },
       });
 
-      if (error) throw error;
+      if (error) throw await extractFunctionError(error);
       if (data?.error) throw new Error(data.error);
 
       toast({
@@ -217,7 +227,7 @@ export function UsersManagement() {
         },
       });
 
-      if (error) throw error;
+      if (error) throw await extractFunctionError(error);
       if (data?.error) throw new Error(data.error);
 
       toast({
@@ -250,7 +260,7 @@ export function UsersManagement() {
         body: { userId: userToDelete.id },
       });
 
-      if (error) throw error;
+      if (error) throw await extractFunctionError(error);
       if (data?.error) throw new Error(data.error);
 
       toast({
