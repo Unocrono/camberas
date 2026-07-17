@@ -443,6 +443,7 @@ export function UsersManagement() {
               <Input
                 id="email"
                 type="email"
+                autoComplete="off"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="usuario@ejemplo.com"
@@ -453,6 +454,7 @@ export function UsersManagement() {
               <Input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Mínimo 6 caracteres"
@@ -539,6 +541,7 @@ export function UsersManagement() {
               <Input
                 id="edit-email"
                 type="email"
+                autoComplete="off"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
@@ -548,6 +551,7 @@ export function UsersManagement() {
               <Input
                 id="edit-password"
                 type="password"
+                autoComplete="new-password"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 placeholder="Dejar vacío para no cambiar"
