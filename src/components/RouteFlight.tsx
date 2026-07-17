@@ -159,9 +159,9 @@ function positionCamera(
 ) {
   const g = Math.max(-12, Math.min(12, gradient));
 
-  const trailKm = 0.35 + Math.max(0, g) * 0.03;
-  const lookaheadKm = 0.6 + Math.max(0, -g) * 0.05;
-  const heightM = 220 + Math.max(0, g) * 25;
+  const trailKm = 0.9 + Math.max(0, g) * 0.04;
+  const lookaheadKm = 0.5 + Math.max(0, -g) * 0.05;
+  const heightM = 300 + Math.max(0, g) * 25;
 
   const behind = sampleAt(idx, km - trailKm);
   const ahead = sampleAt(idx, km + lookaheadKm);
