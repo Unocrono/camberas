@@ -122,31 +122,98 @@ function kmhAt(pace: PaceSegment[] | undefined, km: number): number {
   return Math.max(1, v);
 }
 
+const TERRAIN_EXAGGERATION = 1.3;
+const MIN_CLEARANCE_M = 60; // margen mínimo sobre cualquier cresta bajo el vuelo
+
+interface CamState {
+  alt: number;
+  bearing: number;
+  initialized: boolean;
+}
+
+/**
+ * Elevación del terreno RENDERIZADO (con exageración) en un punto.
+ * queryTerrainElevation devuelve null si la tesela aún no está cargada;
+ * en ese caso caemos a la cota del GPX multiplicada por la exageración.
+ */
+function groundElevation(
+  map: mapboxgl.Map,
+  s: { lng: number; lat: number; ele: number },
+): number {
+  const q = map.queryTerrainElevation([s.lng, s.lat], { exaggerated: true });
+  return Math.max(q ?? -Infinity, s.ele * TERRAIN_EXAGGERATION);
+}
+
 /**
  * Cámara por detrás del punto actual mirando hacia adelante; reacciona
  * a la pendiente (subiendo: alta y atrás · bajando: baja y pegada).
+ * La altitud se referencia al terreno renderizado (no al GPX) y se
+ * muestrean las crestas intermedias para no atravesar montañas.
  */
 function positionCamera(
   map: mapboxgl.Map,
   idx: TrackIndex,
   km: number,
   gradient: number,
+  cam: CamState,
 ) {
   const g = Math.max(-12, Math.min(12, gradient));
 
   const trailKm = 0.35 + Math.max(0, g) * 0.03;
   const lookaheadKm = 0.6 + Math.max(0, -g) * 0.05;
-  const heightM = 180 + Math.max(0, g) * 22 - Math.max(0, -g) * 6;
+  const heightM = 220 + Math.max(0, g) * 25;
 
   const behind = sampleAt(idx, km - trailKm);
   const ahead = sampleAt(idx, km + lookaheadKm);
 
+  // Terreno bajo la cámara y crestas entre la cámara y el corredor
+  let ground = groundElevation(map, behind);
+  for (let f = 0.25; f <= 1.001; f += 0.25) {
+    ground = Math.max(ground, groundElevation(map, sampleAt(idx, km - trailKm * (1 - f))));
+  }
+  const targetAlt = groundElevation(map, ahead);
+  const rawAlt = Math.max(ground + heightM, targetAlt + MIN_CLEARANCE_M);
+
+  const rawBearing = turf.bearing(
+    turf.point([behind.lng, behind.lat]),
+    turf.point([ahead.lng, ahead.lat]),
+  );
+
+  // Suavizado exponencial: el zigzag del GPX no debe dar tirones de cámara
+  if (!cam.initialized) {
+    cam.alt = rawAlt;
+    cam.bearing = rawBearing;
+    cam.initialized = true;
+  } else {
+    const k = 0.08;
+    cam.alt += (rawAlt - cam.alt) * k;
+    let db = rawBearing - cam.bearing;
+    if (db > 180) db -= 360;
+    if (db < -180) db += 360;
+    cam.bearing += db * k * 1.5;
+    cam.bearing = ((cam.bearing + 540) % 360) - 180;
+  }
+  // Aunque el suavizado vaya por detrás, nunca por debajo del terreno
+  const alt = Math.max(cam.alt, ground + 40);
+
+  // Pitch geométrico hacia el punto de mira A SU ALTITUD real
+  // (lookAtPoint apunta a cota 0 y provocaba picados hacia el mar)
+  const distM = Math.max(
+    1,
+    turf.distance(
+      turf.point([behind.lng, behind.lat]),
+      turf.point([ahead.lng, ahead.lat]),
+      { units: 'kilometers' },
+    ) * 1000,
+  );
+  const pitch = (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI;
+
   const camera = map.getFreeCameraOptions();
   camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
     { lng: behind.lng, lat: behind.lat },
-    behind.ele + heightM,
+    alt,
   );
-  camera.lookAtPoint({ lng: ahead.lng, lat: ahead.lat });
+  camera.setPitchBearing(Math.max(25, Math.min(83, pitch)), cam.bearing);
   map.setFreeCameraOptions(camera);
 }
 
@@ -214,6 +281,7 @@ export default function RouteFlight({
   const lastTsRef = useRef<number | null>(null);
   const kmRef = useRef(0);
   const frameRef = useRef(0);
+  const camRef = useRef<CamState>({ alt: 0, bearing: 0, initialized: false });
 
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(autoPlay);
@@ -233,7 +301,7 @@ export default function RouteFlight({
     const s = sampleAt(idx, km);
     const g = gradientAt(idx, km);
 
-    positionCamera(map, idx, km, g);
+    positionCamera(map, idx, km, g, camRef.current);
 
     const done = map.getSource('track-done') as mapboxgl.GeoJSONSource | undefined;
     if (done && km > 0.01) {
@@ -273,7 +341,7 @@ export default function RouteFlight({
         tileSize: 512,
         maxzoom: 14,
       });
-      map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.3 });
+      map.setTerrain({ source: 'mapbox-dem', exaggeration: TERRAIN_EXAGGERATION });
 
       map.addLayer({
         id: 'sky',
