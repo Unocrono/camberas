@@ -2760,6 +2760,7 @@ export type Database = {
           registration_closes: string | null
           registration_opens: string | null
           slug: string | null
+          subtitle: string | null
           updated_at: string
           utc_offset: number | null
         }
@@ -2788,6 +2789,7 @@ export type Database = {
           registration_closes?: string | null
           registration_opens?: string | null
           slug?: string | null
+          subtitle?: string | null
           updated_at?: string
           utc_offset?: number | null
         }
@@ -2816,6 +2818,7 @@ export type Database = {
           registration_closes?: string | null
           registration_opens?: string | null
           slug?: string | null
+          subtitle?: string | null
           updated_at?: string
           utc_offset?: number | null
         }
