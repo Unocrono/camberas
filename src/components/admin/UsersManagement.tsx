@@ -83,6 +83,9 @@ export function UsersManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [userToDelete, setUserToDelete] = useState<UserWithProfile | null>(null);
+  // Impacto del borrado (carreras que organiza, inscripciones vinculadas)
+  const [deleteImpact, setDeleteImpact] = useState<{ races: string[]; registrations: number } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [userToEdit, setUserToEdit] = useState<UserWithProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -251,13 +254,32 @@ export function UsersManagement() {
     }
   };
 
+  // Abrir el diálogo de borrado consultando antes qué arrastra el usuario
+  const openDeleteDialog = async (user: UserWithProfile) => {
+    setDeleteConfirmText("");
+    setDeleteImpact(null);
+    setUserToDelete(user);
+    try {
+      const [{ data: races }, { count }] = await Promise.all([
+        supabase.from("races").select("name").eq("organizer_id", user.id),
+        supabase.from("registrations").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      ]);
+      setDeleteImpact({
+        races: (races ?? []).map((r) => r.name),
+        registrations: count ?? 0,
+      });
+    } catch {
+      setDeleteImpact({ races: [], registrations: 0 });
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!userToDelete) return;
 
     setDeleting(true);
     try {
       const { data, error } = await supabase.functions.invoke("admin-delete-user", {
-        body: { userId: userToDelete.id },
+        body: { userId: userToDelete.id, confirm: true },
       });
 
       if (error) throw await extractFunctionError(error);
@@ -409,7 +431,7 @@ export function UsersManagement() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setUserToDelete(user)}
+                        onClick={() => openDeleteDialog(user)}
                         disabled={user.roles.includes("admin")}
                         title={user.roles.includes("admin") ? "No se puede eliminar un admin" : "Eliminar usuario"}
                       >
@@ -637,19 +659,59 @@ export function UsersManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar usuario?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente al usuario{" "}
-              <strong>{userToDelete?.email || userToDelete?.first_name}</strong> y todos sus datos asociados
-              (perfil, roles, conversaciones, planes de entrenamiento).
-              <br /><br />
-              Esta acción no se puede deshacer.
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Vas a eliminar permanentemente a{" "}
+                  <strong>{userToDelete?.email !== "—" ? userToDelete?.email : `${userToDelete?.first_name} ${userToDelete?.last_name}`}</strong>{" "}
+                  y sus datos asociados (perfil, roles, conversaciones, planes de entrenamiento).
+                </p>
+
+                {deleteImpact === null ? (
+                  <p className="text-sm flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Comprobando qué datos dependen de este usuario...
+                  </p>
+                ) : (
+                  <>
+                    {deleteImpact.races.length > 0 && (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+                        <p className="font-semibold">⚠️ Organiza {deleteImpact.races.length} carrera{deleteImpact.races.length > 1 ? "s" : ""}:</p>
+                        <ul className="list-disc pl-5 mt-1">
+                          {deleteImpact.races.map((name) => <li key={name}>{name}</li>)}
+                        </ul>
+                        <p className="mt-2 text-sm">
+                          Las carreras <strong>no se borrarán</strong>: quedarán sin organizador y podrás reasignarlas.
+                        </p>
+                      </div>
+                    )}
+                    {deleteImpact.registrations > 0 && (
+                      <p className="text-sm">
+                        Tiene <strong>{deleteImpact.registrations}</strong> inscripción(es) vinculadas a su cuenta.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                <div className="space-y-1 pt-1">
+                  <Label htmlFor="delete-confirm">
+                    Escribe <strong>ELIMINAR</strong> para confirmar
+                  </Label>
+                  <Input
+                    id="delete-confirm"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="ELIMINAR"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteUser}
-              disabled={deleting}
+              disabled={deleting || deleteConfirmText.trim().toUpperCase() !== "ELIMINAR"}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleting ? (

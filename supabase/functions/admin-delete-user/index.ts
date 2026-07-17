@@ -52,7 +52,7 @@ serve(async (req) => {
     }
 
     // Get the user ID to delete from the request body
-    const { userId } = await req.json();
+    const { userId, confirm } = await req.json();
     if (!userId) {
       return new Response(
         JSON.stringify({ error: "El userId es obligatorio" }),
@@ -72,6 +72,55 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    // ─── Controles de seguridad antes de borrar ───────────────────────
+
+    // No permitir eliminar al último administrador
+    const { data: targetRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId);
+    if ((targetRoles ?? []).some((r) => r.role === "admin")) {
+      const { count: adminCount } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("role", "admin");
+      if ((adminCount ?? 0) <= 1) {
+        return new Response(
+          JSON.stringify({ error: "No se puede eliminar al último administrador" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Evaluar el impacto: carreras que organiza e inscripciones vinculadas
+    const [{ data: ownedRaces }, { count: registrationsCount }] = await Promise.all([
+      supabaseAdmin.from("races").select("id, name").eq("organizer_id", userId),
+      supabaseAdmin.from("registrations").select("id", { count: "exact", head: true }).eq("user_id", userId),
+    ]);
+
+    const impact = {
+      races: (ownedRaces ?? []).map((r) => r.name),
+      registrations: registrationsCount ?? 0,
+    };
+
+    // Sin confirmación explícita, devolver el impacto para que el panel
+    // lo muestre — el borrado NO se ejecuta
+    if (confirm !== true) {
+      return new Response(
+        JSON.stringify({ requiresConfirmation: true, impact }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Las carreras del organizador NO se borran: quedan sin organizador
+    // (FK ON DELETE SET NULL) y pueden reasignarse después
+    if ((ownedRaces ?? []).length > 0) {
+      await supabaseAdmin
+        .from("races")
+        .update({ organizer_id: null })
+        .eq("organizer_id", userId);
+    }
 
     // First delete related data from public tables
     // Delete user_roles
