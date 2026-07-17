@@ -2747,6 +2747,7 @@ export type Database = {
           gpx_file_url: string | null
           id: string
           image_url: string | null
+          is_featured: boolean
           is_visible: boolean
           location: string
           logo_url: string | null
@@ -2776,6 +2777,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_featured?: boolean
           is_visible?: boolean
           location: string
           logo_url?: string | null
@@ -2805,6 +2807,7 @@ export type Database = {
           gpx_file_url?: string | null
           id?: string
           image_url?: string | null
+          is_featured?: boolean
           is_visible?: boolean
           location?: string
           logo_url?: string | null
