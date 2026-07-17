@@ -456,14 +456,20 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         startTime = `${formData.start_date}T${formData.start_time_value}`;
       }
 
-      // Build registration window timestamps
+      // Build registration window timestamps.
+      // La hora puede venir como HH:MM (input nuevo) o HH:MM:SS (cargada de un
+      // timestamp existente al editar) — normalizar para no duplicar los segundos.
+      const buildTimestamp = (date: string, time: string): string => {
+        const t = time.length === 5 ? `${time}:00` : time.slice(0, 8);
+        return `${date}T${t}`;
+      };
       let registrationOpens: string | null = null;
       let registrationCloses: string | null = null;
       if (formData.registration_opens_date && formData.registration_opens_time) {
-        registrationOpens = `${formData.registration_opens_date}T${formData.registration_opens_time}:00`;
+        registrationOpens = buildTimestamp(formData.registration_opens_date, formData.registration_opens_time);
       }
       if (formData.registration_closes_date && formData.registration_closes_time) {
-        registrationCloses = `${formData.registration_closes_date}T${formData.registration_closes_time}:00`;
+        registrationCloses = buildTimestamp(formData.registration_closes_date, formData.registration_closes_time);
       }
 
       const distanceData = {
