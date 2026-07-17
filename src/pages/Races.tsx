@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import RaceCard from "@/components/RaceCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mountain, Bike, Calendar, Trophy, Route, TrendingUp, Radio } from "lucide-react";
+import { Search, Mountain, Bike, Calendar, Trophy, MapPin } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import {
@@ -257,7 +257,6 @@ const Races = () => {
             <div className="-mt-4 mb-4 flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-primary px-8 py-5 shadow-elevated">
               {(featured.distancesFull || []).slice(0, 3).map((d: any, i: number) => (
                 <div key={i} className="flex items-center gap-3">
-                  {i === 0 ? <Route className="h-6 w-6 text-secondary" /> : i === 1 ? <Mountain className="h-6 w-6 text-secondary" /> : <TrendingUp className="h-6 w-6 text-secondary" />}
                   {d.km > 0 && (
                     <div className="font-archivo text-2xl text-secondary">
                       {d.km}<span className="text-xs">KM</span>
@@ -273,7 +272,7 @@ const Races = () => {
               ))}
               {featured.gpsEnabled && (
                 <div className="flex items-center gap-3">
-                  <Radio className="h-6 w-6 text-secondary" />
+                  <MapPin className="h-7 w-7 text-secondary fill-secondary" />
                   <div>
                     <div className="font-archivo text-lg text-primary-foreground">GPS</div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">En directo</div>
