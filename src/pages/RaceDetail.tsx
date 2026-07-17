@@ -678,6 +678,8 @@ const RaceDetail = () => {
         <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
           <Card className="shadow-elevated">
             <CardHeader>
+              <div className="flex flex-col gap-8 md:flex-row">
+                <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge variant="secondary" className="text-base py-1">
                   Trail
@@ -718,6 +720,29 @@ const RaceDetail = () => {
                   <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/gps`)}>
                     Mapa GPS en Vivo
                   </Button>
+                )}
+              </div>
+                </div>
+
+                {/* Cartel oficial (2:3) — su sitio es aquí, no en la portada */}
+                {race.poster_url && (
+                  <div className="w-full shrink-0 md:w-60">
+                    <a
+                      href={race.poster_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group block"
+                    >
+                      <img
+                        src={race.poster_url}
+                        alt={`Cartel de ${race.name}`}
+                        className="w-full rounded-xl border border-border shadow-md transition-transform duration-300 group-hover:scale-[1.02]"
+                      />
+                    </a>
+                    <p className="mt-2 text-center text-xs text-muted-foreground">
+                      Cartel oficial · clic para ampliar
+                    </p>
+                  </div>
                 )}
               </div>
             </CardHeader>

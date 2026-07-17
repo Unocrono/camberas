@@ -27,7 +27,6 @@ interface HomeRace {
   distances: string[];
   participants: number;
   imageUrl?: string;
-  posterUrl?: string;
   raceType: "trail" | "mtb";
   priceLabel: string | null;
   maxDistanceKm: number;
@@ -91,7 +90,6 @@ const Index = () => {
             distances: dists.map((d) => d.name),
             participants: count || 0,
             imageUrl: race.image_url || undefined,
-            posterUrl: (race as any).poster_url || undefined,
             raceType: (race.race_type as "trail" | "mtb") || "trail",
             priceLabel: priceRange(dists.map((d) => Number(d.price) || 0)),
             maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
@@ -189,10 +187,10 @@ const Index = () => {
 
               {/* Derecha — cartel */}
               <Link to={raceUrl(featured)} className="group relative block">
-                <div className={`relative overflow-hidden rounded-3xl bg-primary shadow-elevated ${featured.posterUrl ? 'aspect-[2/3]' : 'aspect-[4/3]'}`}>
-                  {(featured.posterUrl || featured.imageUrl) && (
+                <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                  {featured.imageUrl && (
                     <img
-                      src={featured.posterUrl || featured.imageUrl}
+                      src={featured.imageUrl}
                       alt={featured.name}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />

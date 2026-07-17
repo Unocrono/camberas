@@ -627,7 +627,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <div className="space-y-2">
                     <Label>Imagen Principal (16:9 - 1920x1080px)</Label>
                     <p className="text-xs text-muted-foreground">
-                      Foto apaisada para compartir en redes y respaldo del cartel.
+                      La que se ve en el listado de carreras y en el destacado de la
+                      portada. También se usa al compartir en redes.
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -741,8 +742,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <div className="space-y-2">
                     <Label>Cartel (2:3 - 800x1200px)</Label>
                     <p className="text-xs text-muted-foreground">
-                      El cartel oficial. Protagonista del listado: llena la card y el
-                      destacado de la portada. Si no lo subes, se usa la Imagen Principal.
+                      El cartel oficial vertical. Se muestra en la página de la carrera,
+                      junto a su información. Opcional.
                     </p>
                     <div className="flex gap-2">
                       <Button

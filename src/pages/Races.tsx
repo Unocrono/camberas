@@ -91,7 +91,6 @@ const Races = () => {
             distances: dists.map((d) => d.name),
             participants: count || 0,
             imageUrl: race.image_url,
-            posterUrl: (race as any).poster_url || undefined,
             raceType: race.race_type as 'trail' | 'mtb',
             priceLabel,
             isPast: race.date < new Date().toISOString().split("T")[0],
@@ -225,12 +224,12 @@ const Races = () => {
                 </div>
 
                 <Link to={raceUrl(featured)} className="group relative block">
-                  {/* Vertical solo si hay cartel 2:3; con la imagen 16:9 de respaldo
-                      un hueco tan alto la recortaría demasiado */}
-                  <div className={`relative overflow-hidden rounded-3xl bg-primary shadow-elevated ${featured.posterUrl ? 'aspect-[2/3]' : 'aspect-[4/3]'}`}>
-                    {(featured.posterUrl || featured.imageUrl) && (
+                  {/* Imagen principal apaisada — el cartel vertical se reserva
+                      para la página de detalle de la carrera */}
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                    {featured.imageUrl && (
                       <img
-                        src={featured.posterUrl || featured.imageUrl}
+                        src={featured.imageUrl}
                         alt={featured.name}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />

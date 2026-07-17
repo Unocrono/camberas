@@ -10,7 +10,6 @@ interface RaceCardProps {
   distances: string[];
   participants: number;
   imageUrl?: string;
-  posterUrl?: string;
   raceType?: 'trail' | 'mtb';
   priceLabel?: string | null;
   isPast?: boolean;
@@ -18,11 +17,9 @@ interface RaceCardProps {
 
 const RaceCard = ({
   id, slug, name, date, location, distances,
-  imageUrl, posterUrl, raceType = 'trail', priceLabel, isPast = false,
+  imageUrl, raceType = 'trail', priceLabel, isPast = false,
 }: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
-  // El cartel vertical manda; si no hay, la imagen principal 16:9
-  const cardImage = posterUrl || imageUrl;
 
   return (
     <Link
@@ -31,9 +28,9 @@ const RaceCard = ({
     >
       {/* El cartel es el protagonista */}
       <div className="relative h-56 overflow-hidden bg-muted">
-        {cardImage ? (
+        {imageUrl ? (
           <img
-            src={cardImage}
+            src={imageUrl}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
