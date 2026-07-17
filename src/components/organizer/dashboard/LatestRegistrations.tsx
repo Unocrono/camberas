@@ -22,6 +22,7 @@ interface Registration {
   id: string;
   bib_number: number | null;
   created_at: string;
+  payment_status: string;
   race_distance: {
     name: string;
     price: number;
@@ -48,10 +49,11 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
             first_name,
             last_name,
             gender,
+            payment_status,
             race_distance:race_distances(name, price)
           `)
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"])
+          .eq("status", "confirmed")
           .order("created_at", { ascending: false })
           .limit(5);
 
@@ -128,7 +130,13 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
                     {getName(reg)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {reg.race_distance?.price?.toFixed(0) || "0"}€
+                    {["paid", "completed"].includes(reg.payment_status) || !reg.race_distance?.price ? (
+                      <>{reg.race_distance?.price?.toFixed(0) || "0"}€</>
+                    ) : (
+                      <span className="text-amber-600" title="Pago pendiente">
+                        {reg.race_distance.price.toFixed(0)}€ ⏳
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="text-center">
                     {getGenderBadge(reg)}

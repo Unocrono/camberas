@@ -134,11 +134,28 @@ serve(async (req) => {
 
     // If successful, confirm the registration
     if (isSuccess && paymentIntent.registration_id) {
+      // Asignar dorsal AHORA que el pago está confirmado (las inscripciones
+      // de pago se crean sin dorsal para no quemar números con impagos)
+      const regData = paymentIntent.registrations;
+      let assignedBib: number | null = regData?.bib_number ?? null;
+      if (assignedBib == null && regData?.race_distance_id) {
+        const { data: newBib, error: bibErr } = await supabase
+          .rpc("assign_next_bib", { p_distance_id: regData.race_distance_id });
+        if (bibErr) {
+          console.error("assign_next_bib error:", bibErr.message);
+        } else {
+          assignedBib = newBib ?? null;
+        }
+      }
+
       const { error: regError } = await supabase
         .from("registrations")
         .update({
           status: "confirmed",
           payment_status: "paid",
+          ...(assignedBib != null && regData?.bib_number == null
+            ? { bib_number: assignedBib }
+            : {}),
         })
         .eq("id", paymentIntent.registration_id);
 
@@ -196,7 +213,7 @@ serve(async (req) => {
               distanceName: distance?.name ?? "",
               amount: paymentIntent.amount,
               orderNumber: orderNumber,
-              bibNumber: registration.bib_number,
+              bibNumber: assignedBib ?? registration.bib_number,
               formData,
               organizerEmail,
             }),

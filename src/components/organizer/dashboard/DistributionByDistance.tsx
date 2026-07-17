@@ -35,7 +35,7 @@ export function DistributionByDistance({ raceId }: DistributionByDistanceProps) 
           .from("registrations")
           .select("race_distance_id")
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (regError) throw regError;
 

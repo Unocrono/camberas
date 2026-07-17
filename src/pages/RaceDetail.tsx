@@ -440,9 +440,16 @@ const RaceDetail = () => {
 
         if (profileError) throw profileError;
 
-        // Dorsal atómico en servidor — evita duplicados con inscripciones simultáneas
-        const { data: assignedBib } = await supabase
-          .rpc("assign_next_bib", { p_distance_id: selectedDistance.id });
+        // Dorsal atómico en servidor — solo si la inscripción es gratuita.
+        // Las de pago lo reciben en redsys-webhook al confirmarse el cobro,
+        // para no quemar dorsales con inscripciones que nunca pagan.
+        const totalToPay = selectedDistance.currentPrice + fieldSupplement;
+        let assignedBib: number | null = null;
+        if (totalToPay <= 0) {
+          const { data } = await supabase
+            .rpc("assign_next_bib", { p_distance_id: selectedDistance.id });
+          assignedBib = data ?? null;
+        }
 
         // Create registration
         const { data: newRegistration, error: registrationError } = await supabase

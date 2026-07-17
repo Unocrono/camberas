@@ -115,14 +115,21 @@ serve(async (req) => {
     const supplement = (fields ?? []).reduce((sum, f) => sum + fieldFee(f, formData[f.field_name]), 0);
     const price = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
 
-    // Dorsal atómico
-    const { data: bibNumber, error: bibErr } = await supabase
-      .rpc("assign_next_bib", { p_distance_id: distanceId });
-    if (bibErr) {
-      console.error("assign_next_bib error:", bibErr.message);
-    }
-
     const isFree = !(price > 0);
+
+    // Dorsal atómico — SOLO para inscripciones gratuitas. Las de pago lo
+    // reciben en redsys-webhook al confirmarse el cobro, para no quemar
+    // dorsales con inscripciones que nunca llegan a pagar.
+    let bibNumber: number | null = null;
+    if (isFree) {
+      const { data, error: bibErr } = await supabase
+        .rpc("assign_next_bib", { p_distance_id: distanceId });
+      if (bibErr) {
+        console.error("assign_next_bib error:", bibErr.message);
+      } else {
+        bibNumber = data ?? null;
+      }
+    }
 
     // Crear la inscripción
     const { data: registration, error: regErr } = await supabase

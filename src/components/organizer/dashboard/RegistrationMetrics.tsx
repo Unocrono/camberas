@@ -64,10 +64,11 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
           .select(`
             id,
             status,
+            payment_status,
             race_distance:race_distances!inner(price)
           `)
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (error) throw error;
 
@@ -78,7 +79,10 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
         registrations?.forEach((reg: any) => {
           totalRegistrations++;
           const price = reg.race_distance?.price || 0;
-          totalRevenue += price;
+          // Solo cuenta como recaudación lo efectivamente pagado
+          if (["paid", "completed"].includes(reg.payment_status)) {
+            totalRevenue += price;
+          }
           if (price === 0) {
             freeRegistrations++;
           }

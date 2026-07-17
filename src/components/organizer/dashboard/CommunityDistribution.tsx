@@ -30,7 +30,7 @@ export function CommunityDistribution({ raceId }: CommunityDistributionProps) {
             profiles:user_id(autonomous_community)
           `)
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (regError) throw regError;
 

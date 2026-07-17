@@ -31,6 +31,7 @@ export function RegistrationChart({ raceId }: RegistrationChartProps) {
           .from("registrations")
           .select("created_at")
           .eq("race_id", raceId)
+          .eq("status", "confirmed")
           .gte("created_at", startDate.toISOString())
           .lte("created_at", endDate.toISOString());
 

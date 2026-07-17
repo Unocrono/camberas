@@ -57,7 +57,7 @@ export function TshirtSummary({ raceId }: TshirtSummaryProps) {
             )
           `)
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (regError) throw regError;
 

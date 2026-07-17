@@ -30,7 +30,7 @@ export function GenderCategoryDistribution({ raceId }: GenderCategoryDistributio
             gender_id
           `)
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (error) throw error;
 

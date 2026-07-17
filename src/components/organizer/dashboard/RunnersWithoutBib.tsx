@@ -22,7 +22,7 @@ export function RunnersWithoutBib({ raceId }: RunnersWithoutBibProps) {
           .from("registrations")
           .select("id, bib_number")
           .eq("race_id", raceId)
-          .in("status", ["confirmed", "pending"]);
+          .eq("status", "confirmed");
 
         if (error) throw error;
 
