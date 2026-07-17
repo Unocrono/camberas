@@ -676,7 +676,10 @@ export type Database = {
           accuracy: number | null
           altitude: number | null
           battery: number | null
+          bib_number: string | null
           device_id: string | null
+          event_id: string | null
+          heading: number | null
           id: string
           lat: number
           lng: number
@@ -689,7 +692,10 @@ export type Database = {
           accuracy?: number | null
           altitude?: number | null
           battery?: number | null
+          bib_number?: string | null
           device_id?: string | null
+          event_id?: string | null
+          heading?: number | null
           id?: string
           lat: number
           lng: number
@@ -702,7 +708,10 @@ export type Database = {
           accuracy?: number | null
           altitude?: number | null
           battery?: number | null
+          bib_number?: string | null
           device_id?: string | null
+          event_id?: string | null
+          heading?: number | null
           id?: string
           lat?: number
           lng?: number
