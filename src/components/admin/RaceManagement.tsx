@@ -511,7 +511,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   id="subtitle"
                   value={formData.subtitle}
                   onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                  placeholder="Ej: VIII Memorial Manuel Pérez Nestar"
+                  placeholder="Ej: Trofeo de Patrocinador"
                 />
                 <p className="text-xs text-muted-foreground">
                   Se muestra bajo el título en el listado y en la página de la carrera.
