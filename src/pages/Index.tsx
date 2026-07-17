@@ -35,6 +35,7 @@ interface HomeRace {
   plazas: number | null;
   gpsEnabled: boolean;
   isPast: boolean;
+  distancesFull: { name: string; km: number; elevation: number }[];
 }
 
 const formatDate = (d: string) =>
@@ -99,6 +100,11 @@ const Index = () => {
             plazas: race.max_participants || null,
             gpsEnabled: dists.some((d) => d.gps_tracking_enabled),
             isPast: false,
+            distancesFull: dists.map((d) => ({
+              name: d.name,
+              km: Number(d.distance_km) || 0,
+              elevation: Number(d.elevation_gain) || 0,
+            })),
           };
         })
       );
@@ -219,13 +225,18 @@ const Index = () => {
       {featured && !loading && (
         <div className="container mx-auto px-4">
           <div className="mx-auto -mt-6 flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-primary px-8 py-5 shadow-elevated">
-            {featured.distances.slice(0, 3).map((d, i) => (
+            {featured.distancesFull.slice(0, 3).map((d, i) => (
               <div key={i} className="flex items-center gap-3">
                 {i === 0 ? <Route className="h-6 w-6 text-secondary" /> : i === 1 ? <Mountain className="h-6 w-6 text-secondary" /> : <TrendingUp className="h-6 w-6 text-secondary" />}
+                {d.km > 0 && (
+                  <div className="font-archivo text-2xl text-secondary">
+                    {d.km}<span className="text-xs">KM</span>
+                  </div>
+                )}
                 <div>
-                  <div className="font-archivo text-xl text-primary-foreground">{d}</div>
+                  <div className="font-archivo text-xl text-primary-foreground">{d.name}</div>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">
-                    Recorrido
+                    {d.elevation > 0 ? `+${d.elevation} m desnivel` : "Recorrido"}
                   </div>
                 </div>
               </div>

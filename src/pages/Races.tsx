@@ -99,6 +99,11 @@ const Races = () => {
             maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),
             plazas: race.max_participants || null,
             gpsEnabled: dists.some((d) => d.gps_tracking_enabled),
+            distancesFull: dists.map((d) => ({
+              name: d.name,
+              km: Number(d.distance_km) || 0,
+              elevation: Number(d.elevation_gain) || 0,
+            })),
           };
         })
       );
@@ -250,12 +255,19 @@ const Races = () => {
           {/* Píldora de datos (banda oscura de acento) */}
           <div className="container mx-auto px-4">
             <div className="-mt-4 mb-4 flex flex-wrap items-center justify-between gap-6 rounded-2xl bg-primary px-8 py-5 shadow-elevated">
-              {featured.distances.slice(0, 3).map((d: string, i: number) => (
+              {(featured.distancesFull || []).slice(0, 3).map((d: any, i: number) => (
                 <div key={i} className="flex items-center gap-3">
                   {i === 0 ? <Route className="h-6 w-6 text-secondary" /> : i === 1 ? <Mountain className="h-6 w-6 text-secondary" /> : <TrendingUp className="h-6 w-6 text-secondary" />}
+                  {d.km > 0 && (
+                    <div className="font-archivo text-2xl text-secondary">
+                      {d.km}<span className="text-xs">KM</span>
+                    </div>
+                  )}
                   <div>
-                    <div className="font-archivo text-xl text-primary-foreground">{d}</div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">Recorrido</div>
+                    <div className="font-archivo text-xl text-primary-foreground">{d.name}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/60">
+                      {d.elevation > 0 ? `+${d.elevation} m desnivel` : "Recorrido"}
+                    </div>
                   </div>
                 </div>
               ))}
