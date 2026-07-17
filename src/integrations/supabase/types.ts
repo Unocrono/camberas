@@ -4070,7 +4070,7 @@ export type Database = {
       get_live_gps_positions: {
         Args: { p_distance_id?: string; p_race_id: string }
         Returns: {
-          bib_number: number
+          bib_number: string
           gps_id: string
           gps_timestamp: string
           heading: number
@@ -4079,7 +4079,38 @@ export type Database = {
           race_distance_id: string
           registration_id: string
           runner_name: string
+          speed: number
+          battery: number
+          source: string
         }[]
+      }
+      get_race_sos_alerts: {
+        Args: { p_race_id: string }
+        Returns: {
+          id: string
+          lat: number
+          lng: number
+          triggered_at: string
+          resolved_at: string | null
+          bib_number: string
+          runner_name: string
+        }[]
+      }
+      link_gps_token: {
+        Args: { p_token: string; p_device_id: string; p_force?: boolean }
+        Returns: {
+          id: string
+          bib_number: string
+          participant_name: string
+          event_id: string
+          device_id: string
+          linked_at: string
+          needs_transfer: boolean
+        }[]
+      }
+      unlink_gps_token: {
+        Args: { p_token_id: string; p_device_id: string }
+        Returns: boolean
       }
       get_organizer_requests: {
         Args: never

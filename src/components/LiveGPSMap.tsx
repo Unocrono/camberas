@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
+import { buildRouteIndex, projectOnRoute, RouteIndex, RouteProgress } from '@/lib/routeProgress';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play } from 'lucide-react';
@@ -26,10 +27,26 @@ interface RunnerPosition {
   latitude: number;
   longitude: number;
   timestamp: string;
-  bib_number: number | null;
+  bib_number: string | null;
   runner_name: string;
   heading: number | null;
+  speed: number | null;
+  battery: number | null;
+  source: string | null;
 }
+
+interface SosAlert {
+  id: string;
+  lat: number;
+  lng: number;
+  triggered_at: string;
+  resolved_at: string | null;
+  bib_number: string | null;
+  runner_name: string;
+}
+
+/** Sin actualización GPS en este tiempo → corredor "sin señal" */
+const STALE_MS = 5 * 60 * 1000;
 
 interface RunnerTrackPoint {
   latitude: number;
@@ -76,6 +93,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const roadbookMarkers = useRef<mapboxgl.Marker[]>([]);
   const routeCoordinates = useRef<[number, number][]>([]);
   const [runnerPositions, setRunnerPositions] = useState<RunnerPosition[]>([]);
+  const [routeIndex, setRouteIndex] = useState<RouteIndex | null>(null);
+  const [sosAlerts, setSosAlerts] = useState<SosAlert[]>([]);
+  const sosMarkers = useRef<mapboxgl.Marker[]>([]);
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [roadbookItems, setRoadbookItems] = useState<RoadbookItem[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
@@ -670,10 +690,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     });
 
     if (coordinates.length === 0) return;
-    
+
     // Store coordinates for map controls
     routeCoordinates.current = coordinates;
     setHasRoute(true);
+    // Índice de km acumulados → progreso/clasificación virtual
+    setRouteIndex(buildRouteIndex(coordinates));
 
     // Remove existing route if any
     if (map.current.getLayer('route')) {
@@ -735,15 +757,26 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       latitude: parseFloat(String(item.latitude)),
       longitude: parseFloat(String(item.longitude)),
       timestamp: item.gps_timestamp,
-      bib_number: item.bib_number,
+      bib_number: item.bib_number != null ? String(item.bib_number) : null,
       runner_name: item.runner_name || 'Corredor',
-      heading: item.heading ? parseFloat(String(item.heading)) : null,
+      heading: item.heading != null ? parseFloat(String(item.heading)) : null,
+      speed: item.speed != null ? parseFloat(String(item.speed)) : null,
+      battery: item.battery != null ? parseFloat(String(item.battery)) : null,
+      source: item.source ?? null,
     }));
 
     setRunnerPositions(positions);
     updateMarkers(positions);
   };
   const setupRealtimeSubscription = () => {
+    const onNewPosition = () => {
+      fetchInitialPositions();
+      // Also refresh runner track if one is selected
+      if (selectedRunner) {
+        fetchRunnerTrack(selectedRunner.registration_id);
+      }
+    };
+
     const channel = supabase
       .channel('gps_tracking_changes')
       .on(
@@ -754,20 +787,103 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           table: 'gps_tracking',
           filter: `race_id=eq.${raceId}`,
         },
-        () => {
-          fetchInitialPositions();
-          // Also refresh runner track if one is selected
-          if (selectedRunner) {
-            fetchRunnerTrack(selectedRunner.registration_id);
-          }
-        }
+        onNewPosition
+      )
+      .subscribe();
+
+    // Pipeline de la app Camberas Track (gps_positions).
+    // Filtramos por event_id (= race_distance_id) cuando hay distancia elegida.
+    const appChannel = supabase
+      .channel('gps_positions_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'gps_positions',
+          ...(distanceId ? { filter: `event_id=eq.${distanceId}` } : {}),
+        },
+        onNewPosition
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(appChannel);
+    };
+  };
+
+  // ── Alertas SOS ──────────────────────────────────────────────────────────
+  const fetchSosAlerts = async () => {
+    const { data, error } = await supabase.rpc('get_race_sos_alerts', {
+      p_race_id: raceId,
+    });
+    if (error) {
+      console.error('Error fetching SOS alerts:', error);
+      return;
+    }
+    setSosAlerts(
+      ((data as any[]) || []).map((a) => ({
+        id: a.id,
+        lat: parseFloat(String(a.lat)),
+        lng: parseFloat(String(a.lng)),
+        triggered_at: a.triggered_at,
+        resolved_at: a.resolved_at,
+        bib_number: a.bib_number != null ? String(a.bib_number) : null,
+        runner_name: a.runner_name || 'Corredor',
+      }))
+    );
+  };
+
+  useEffect(() => {
+    if (!mapReady) return;
+    fetchSosAlerts();
+
+    const channel = supabase
+      .channel('gps_sos_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'gps_sos_alerts' },
+        () => fetchSosAlerts()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  };
+  }, [raceId, mapReady]);
+
+  // Pintar marcadores SOS (solo alertas sin resolver)
+  useEffect(() => {
+    if (!map.current) return;
+    sosMarkers.current.forEach((m) => m.remove());
+    sosMarkers.current = [];
+
+    sosAlerts
+      .filter((a) => !a.resolved_at)
+      .forEach((alert) => {
+        const el = document.createElement('div');
+        el.className = 'sos-marker';
+        el.innerHTML = `
+          <div style="background-color: #dc2626; border: 3px solid white; box-shadow: 0 0 12px rgba(220,38,38,0.8);" class="rounded-full w-10 h-10 flex items-center justify-center text-white font-bold text-base animate-pulse">
+            🆘
+          </div>
+        `;
+        const marker = new mapboxgl.Marker(el)
+          .setLngLat([alert.lng, alert.lat])
+          .setPopup(
+            new mapboxgl.Popup({ offset: 25 }).setHTML(
+              `<div class="p-2">
+                <strong>🆘 SOS — ${alert.runner_name}</strong><br/>
+                Dorsal: ${alert.bib_number || 'N/A'}<br/>
+                ${formatLocalTime(alert.triggered_at)}
+              </div>`
+            )
+          )
+          .addTo(map.current!);
+        sosMarkers.current.push(marker);
+      });
+  }, [sosAlerts, mapReady]);
 
   // Setup realtime subscription for timing readings (checkpoint passes)
   const setupTimingReadingsSubscription = () => {
@@ -870,6 +986,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       } else {
         marker.setLngLat([position.longitude, position.latitude]);
       }
+
+      // Atenuar corredores sin señal reciente
+      const stale = Date.now() - new Date(position.timestamp).getTime() > STALE_MS;
+      marker.getElement().style.opacity = stale ? '0.4' : '1';
     });
 
     // Only fit bounds to runners if no GPX route is loaded
@@ -955,6 +1075,51 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     return formatLocalTime(timestamp);
   };
 
+  // ── Progreso sobre el recorrido + clasificación virtual ──────────────────
+  const progressByRunner = useMemo(() => {
+    const result = new Map<string, RouteProgress>();
+    if (!routeIndex) return result;
+    for (const runner of runnerPositions) {
+      const progress = projectOnRoute(routeIndex, runner.longitude, runner.latitude);
+      if (progress) result.set(runner.registration_id, progress);
+    }
+    return result;
+  }, [runnerPositions, routeIndex]);
+
+  const isStale = (runner: RunnerPosition) =>
+    Date.now() - new Date(runner.timestamp).getTime() > STALE_MS;
+
+  // Orden: primero por km recorridos (clasificación virtual), sin progreso al final
+  const sortedRunners = useMemo(() => {
+    return [...runnerPositions].sort((a, b) => {
+      const pa = progressByRunner.get(a.registration_id)?.km ?? -1;
+      const pb = progressByRunner.get(b.registration_id)?.km ?? -1;
+      return pb - pa;
+    });
+  }, [runnerPositions, progressByRunner]);
+
+  const formatSpeed = (speed: number | null) =>
+    speed != null && speed > 0.3 ? `${(speed * 3.6).toFixed(1)} km/h` : null;
+
+  const formatRemaining = (p: RouteProgress | undefined) => {
+    if (!p) return null;
+    return p.remainingKm >= 1
+      ? `${p.remainingKm.toFixed(1)} km a meta`
+      : `${Math.round(p.remainingKm * 1000)} m a meta`;
+  };
+
+  /** Línea de estadísticas compacta para las tarjetas de corredor */
+  const runnerStats = (runner: RunnerPosition) => {
+    const parts: string[] = [];
+    const p = progressByRunner.get(runner.registration_id);
+    const remaining = formatRemaining(p);
+    if (remaining) parts.push(remaining);
+    const speed = formatSpeed(runner.speed);
+    if (speed) parts.push(speed);
+    if (runner.battery != null) parts.push(`🔋${Math.round(runner.battery)}%`);
+    return parts.join(' · ');
+  };
+
   return (
     <div className={`relative w-full ${isMobile ? 'h-[calc(100vh-120px)]' : 'h-full min-h-[600px]'} flex flex-col md:flex-row`}>
       {/* Desktop Runners Panel - Left side */}
@@ -969,25 +1134,30 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           
           <ScrollArea className="flex-1">
             <div className="p-2 space-y-1">
-              {runnerPositions.length === 0 ? (
+              {sortedRunners.length === 0 ? (
                 <p className="text-sm text-muted-foreground p-2 text-center">
                   No hay datos GPS disponibles
                 </p>
               ) : (
-                runnerPositions.map((runner) => (
+                sortedRunners.map((runner, rankIdx) => (
                   <div
                     key={runner.registration_id}
                     className={`w-full p-2 rounded-lg transition-colors ${
                       selectedRunner?.registration_id === runner.registration_id
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted'
-                    }`}
+                    } ${isStale(runner) ? 'opacity-50' : ''}`}
                   >
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleSelectRunner(runner)}
                         className="flex items-center gap-2 flex-1 min-w-0 text-left"
                       >
+                        {progressByRunner.has(runner.registration_id) && (
+                          <span className="text-xs font-bold w-5 text-right flex-shrink-0 tabular-nums">
+                            {rankIdx + 1}º
+                          </span>
+                        )}
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                           selectedRunner?.registration_id === runner.registration_id
                             ? 'bg-primary-foreground text-primary'
@@ -996,14 +1166,27 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                           {runner.bib_number || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{runner.runner_name}</p>
+                          <p className="text-sm font-medium truncate">
+                            {runner.runner_name}
+                            {isStale(runner) && ' ⚠️'}
+                          </p>
                           <p className={`text-xs ${
                             selectedRunner?.registration_id === runner.registration_id
                               ? 'text-primary-foreground/80'
                               : 'text-muted-foreground'
                           }`}>
-                            {formatTime(runner.timestamp)}
+                            {isStale(runner)
+                              ? `Sin señal desde ${formatTime(runner.timestamp)}`
+                              : runnerStats(runner) || formatTime(runner.timestamp)}
                           </p>
+                          {progressByRunner.has(runner.registration_id) && (
+                            <div className="h-1 mt-1 rounded bg-muted-foreground/20 overflow-hidden">
+                              <div
+                                className="h-full bg-green-500 rounded"
+                                style={{ width: `${progressByRunner.get(runner.registration_id)!.pct.toFixed(1)}%` }}
+                              />
+                            </div>
+                          )}
                         </div>
                       </button>
                       <Button
@@ -1138,6 +1321,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                 <span>Track del corredor</span>
               </div>
             )}
+            {sosAlerts.some((a) => !a.resolved_at) && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#dc2626]" />
+                <span>Alerta SOS activa</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1169,10 +1358,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           </button>
 
           {/* Collapsed state - show mini list */}
-          {!isRunnersPanelExpanded && runnerPositions.length > 0 && (
+          {!isRunnersPanelExpanded && sortedRunners.length > 0 && (
             <div className="px-4 pb-3">
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-                {runnerPositions.slice(0, 5).map((runner) => (
+                {sortedRunners.slice(0, 5).map((runner) => (
                   <button
                     key={runner.registration_id}
                     onClick={() => {
@@ -1196,12 +1385,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                     </span>
                   </button>
                 ))}
-                {runnerPositions.length > 5 && (
+                {sortedRunners.length > 5 && (
                   <button
                     onClick={() => setIsRunnersPanelExpanded(true)}
                     className="flex-shrink-0 px-3 py-2 rounded-full bg-muted/50 border border-border text-sm text-muted-foreground"
                   >
-                    +{runnerPositions.length - 5} más
+                    +{sortedRunners.length - 5} más
                   </button>
                 )}
               </div>
@@ -1212,19 +1401,19 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           {isRunnersPanelExpanded && (
             <ScrollArea className="h-[calc(50vh-60px)]">
               <div className="p-4 space-y-2">
-                {runnerPositions.length === 0 ? (
+                {sortedRunners.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No hay datos GPS disponibles
                   </p>
                 ) : (
-                  runnerPositions.map((runner) => (
+                  sortedRunners.map((runner, rankIdx) => (
                     <div
                       key={runner.registration_id}
                       className={`w-full p-3 rounded-xl transition-colors ${
                         selectedRunner?.registration_id === runner.registration_id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted'
-                      }`}
+                      } ${isStale(runner) ? 'opacity-50' : ''}`}
                     >
                       <div className="flex items-center gap-3">
                         <button
@@ -1234,6 +1423,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                           }}
                           className="flex items-center gap-3 flex-1 min-w-0 text-left"
                         >
+                          {progressByRunner.has(runner.registration_id) && (
+                            <span className="text-sm font-bold w-6 text-right flex-shrink-0 tabular-nums">
+                              {rankIdx + 1}º
+                            </span>
+                          )}
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${
                             selectedRunner?.registration_id === runner.registration_id
                               ? 'bg-primary-foreground text-primary'
@@ -1242,14 +1436,27 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                             {runner.bib_number || '?'}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{runner.runner_name}</p>
+                            <p className="font-medium truncate">
+                              {runner.runner_name}
+                              {isStale(runner) && ' ⚠️'}
+                            </p>
                             <p className={`text-sm ${
                               selectedRunner?.registration_id === runner.registration_id
                                 ? 'text-primary-foreground/80'
                                 : 'text-muted-foreground'
                             }`}>
-                              Última actualización: {formatTime(runner.timestamp)}
+                              {isStale(runner)
+                                ? `Sin señal desde ${formatTime(runner.timestamp)}`
+                                : runnerStats(runner) || `Última actualización: ${formatTime(runner.timestamp)}`}
                             </p>
+                            {progressByRunner.has(runner.registration_id) && (
+                              <div className="h-1.5 mt-1 rounded bg-muted-foreground/20 overflow-hidden">
+                                <div
+                                  className="h-full bg-green-500 rounded"
+                                  style={{ width: `${progressByRunner.get(runner.registration_id)!.pct.toFixed(1)}%` }}
+                                />
+                              </div>
+                            )}
                           </div>
                         </button>
                         <Button
@@ -1291,6 +1498,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         .playback-marker {
           cursor: pointer;
           z-index: 20;
+        }
+        .sos-marker {
+          cursor: pointer;
+          z-index: 30;
         }
         .scrollbar-hide::-webkit-scrollbar {
           display: none;

@@ -32,7 +32,7 @@ interface TrackPlaybackControlsProps {
   trackPoints: TrackPoint[];
   onPositionChange: (index: number, point: TrackPoint) => void;
   runnerName: string;
-  bibNumber: number | null;
+  bibNumber: string | null;
 }
 
 export function TrackPlaybackControls({
