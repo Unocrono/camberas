@@ -61,8 +61,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* En app nativa, redirigir "/" a "/track" */}
-          <Route path="/" element={<Navigate to={isNativePlatform ? "/track" : "/races"} replace />} />
+          <Route path="/" element={<Navigate to="/races" replace />} />
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
@@ -85,7 +84,7 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/support" element={<Support />} />
           <Route path="/timing" element={<TimingApp />} />
-          <Route path="/track" element={<GPSTrackerApp />} />
+          <Route path="/track" element={<TrackLanding />} />
           <Route path="/ayuda" element={<Help />} />
           <Route path="/guia-organizador" element={<OrganizerGuide />} />
           <Route path="/legal" element={<Legal />} />
@@ -114,8 +113,6 @@ const App = () => (
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/live" element={<CamberasTrackLive />} />
-          <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
-  
 
         
           {/* Otras rutas con parámetros */}
