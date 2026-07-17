@@ -627,7 +627,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <div className="space-y-2">
                     <Label>Imagen Principal (16:9 - 1920x1080px)</Label>
                     <p className="text-xs text-muted-foreground">
-                      Banda ancha de cabecera en la página de la carrera.
+                      La que se ve en el listado de carreras y en el destacado de la
+                      portada. También se usa al compartir en redes.
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -665,8 +666,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <div className="space-y-2">
                     <Label>Imagen de Portada (2.4:1 - 1920x800px)</Label>
                     <p className="text-xs text-muted-foreground">
-                      La que se ve en el listado de carreras y en el destacado de la
-                      portada. También se usa al compartir en redes.
+                      Banda ancha de cabecera en la página de la carrera.
                     </p>
                     <div className="flex gap-2">
                       <Button

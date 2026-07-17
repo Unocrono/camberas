@@ -195,10 +195,10 @@ const Index = () => {
 
               {/* Derecha — cartel */}
               <Link to={raceUrl(featured)} className="group relative block">
-                <div className={`relative ${featured.coverImageUrl ? 'aspect-[2.4/1]' : 'aspect-video'} overflow-hidden rounded-3xl bg-primary shadow-elevated`}>
-                  {(featured.coverImageUrl || featured.imageUrl) && (
+                <div className="relative aspect-video overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                  {(featured.imageUrl || featured.coverImageUrl) && (
                     <img
-                      src={featured.coverImageUrl || featured.imageUrl}
+                      src={featured.imageUrl || featured.coverImageUrl}
                       alt={featured.name}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />

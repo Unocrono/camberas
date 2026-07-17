@@ -636,7 +636,7 @@ const RaceDetail = () => {
         {/* Hero Cover Image */}
         <div className="relative h-[60vh] overflow-hidden">
           <img
-            src={race.image_url || race.cover_image_url || raceScene}
+            src={race.cover_image_url || race.image_url || raceScene}
             alt={race.name}
             className="w-full h-full object-cover"
           />

@@ -21,11 +21,10 @@ const RaceCard = ({
   coverImageUrl, imageUrl, raceType = 'trail', priceLabel, isPast = false,
 }: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
-  // La Imagen de Portada manda en el listado; la Principal es el respaldo.
-  // El hueco toma la proporción de la que se muestre, para que entre
-  // completa tal y como se recortó en el formulario.
-  const cardImage = coverImageUrl || imageUrl;
-  const cardAspect = coverImageUrl ? 'aspect-[2.4/1]' : 'aspect-video';
+  // El listado usa la Imagen Principal (16:9); la Portada queda para la
+  // cabecera de la página de la carrera.
+  const cardImage = imageUrl || coverImageUrl;
+  const cardAspect = imageUrl ? 'aspect-video' : 'aspect-[2.4/1]';
 
   return (
     <Link
