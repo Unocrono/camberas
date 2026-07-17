@@ -13,7 +13,7 @@ import LiveResults from "./pages/LiveResults";
 import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
 import CamberasTrackLive from "./pages/CamberasTrackLive";
-import RunnerGPSTracker from "./pages/RunnerGPSTracker";
+import TrackLanding from "./pages/TrackLanding";
 import TimingShop from "./pages/TimingShop";
 import Auth from "./pages/Auth";
 import OrganizerAuth from "./pages/OrganizerAuth";
@@ -36,7 +36,6 @@ import Contact from "./pages/Contact";
 import Support from "./pages/Support";
 import TimingApp from "./pages/TimingApp";
 import StartControl from "./pages/StartControl";
-import GPSTrackerApp from "./pages/GPSTrackerApp";
 import Help from "./pages/Help";
 import OrganizerGuide from "./pages/OrganizerGuide";
 import Legal from "./pages/Legal";
@@ -55,26 +54,6 @@ import LiveTracking from "./pages/LiveTracking";
 
 const queryClient = new QueryClient();
 
-// Detectar si estamos en una app nativa - usando URL parameters para evitar
-// cargar Capacitor en páginas de overlay donde causa conflictos
-const checkIsNativePlatform = (): boolean => {
-  // En overlays web, nunca redirigir
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/overlay')) {
-    return false;
-  }
-  
-  // Lazy check - solo importar Capacitor si realmente lo necesitamos
-  try {
-    // Check for Capacitor native bridge
-    const win = window as any;
-    return !!(win.Capacitor?.isNativePlatform?.());
-  } catch {
-    return false;
-  }
-};
-
-const isNativePlatform = checkIsNativePlatform();
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -82,8 +61,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* En app nativa, redirigir "/" a "/track" */}
-          <Route path="/" element={<Navigate to={isNativePlatform ? "/track" : "/races"} replace />} />
+          <Route path="/" element={<Navigate to="/races" replace />} />
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
@@ -106,7 +84,7 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/support" element={<Support />} />
           <Route path="/timing" element={<TimingApp />} />
-          <Route path="/track" element={<GPSTrackerApp />} />
+          <Route path="/track" element={<TrackLanding />} />
           <Route path="/ayuda" element={<Help />} />
           <Route path="/guia-organizador" element={<OrganizerGuide />} />
           <Route path="/legal" element={<Legal />} />
@@ -135,8 +113,6 @@ const App = () => (
           <Route path="/race/:id/live" element={<LiveResults />} />
           <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
           <Route path="/race/:id/live" element={<CamberasTrackLive />} />
-          <Route path="/race/:id/tracker" element={<RunnerGPSTracker />} />
-  
 
         
           {/* Otras rutas con parámetros */}
