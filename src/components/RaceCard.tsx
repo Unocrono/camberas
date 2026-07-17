@@ -21,16 +21,18 @@ const RaceCard = ({
   coverImageUrl, imageUrl, raceType = 'trail', priceLabel, isPast = false,
 }: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
-  // La Imagen de Portada manda en el listado; la Principal es el respaldo
+  // La Imagen de Portada manda en el listado; la Principal es el respaldo.
+  // El hueco toma la proporción de la que se muestre, para que entre
+  // completa tal y como se recortó en el formulario.
   const cardImage = coverImageUrl || imageUrl;
+  const cardAspect = coverImageUrl ? 'aspect-[2.4/1]' : 'aspect-video';
 
   return (
     <Link
       to={raceUrl}
       className="group flex flex-col overflow-hidden rounded-2xl bg-card border border-border shadow-sm hover:shadow-elevated hover:-translate-y-1 transition-all duration-300"
     >
-      {/* El cartel es el protagonista */}
-      <div className="relative h-56 overflow-hidden bg-muted">
+      <div className={`relative ${cardAspect} overflow-hidden bg-muted`}>
         {cardImage ? (
           <img
             src={cardImage}

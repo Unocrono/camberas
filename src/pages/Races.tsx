@@ -227,7 +227,7 @@ const Races = () => {
                 <Link to={raceUrl(featured)} className="group relative block">
                   {/* Imagen de Portada (2.4:1) — el cartel vertical se reserva
                       para la página de detalle de la carrera */}
-                  <div className="relative aspect-video overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                  <div className={`relative ${featured.coverImageUrl ? 'aspect-[2.4/1]' : 'aspect-video'} overflow-hidden rounded-3xl bg-primary shadow-elevated`}>
                     {(featured.coverImageUrl || featured.imageUrl) && (
                       <img
                         src={featured.coverImageUrl || featured.imageUrl}
@@ -235,17 +235,12 @@ const Races = () => {
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/20 to-transparent" />
+                    {/* Sin texto encima: el nombre ya está al lado y taparía
+                        la franja panorámica */}
                     <span className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-secondary/90 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-secondary-foreground">
                       <Calendar className="h-3.5 w-3.5" />
                       {featured.date}
                     </span>
-                    <div className="absolute bottom-0 left-0 right-0 p-6">
-                      <div className="font-archivo text-2xl uppercase text-white md:text-3xl">{featured.name}</div>
-                      <div className="mt-1 font-medium text-white/80">
-                        {featured.location} · {featured.raceType === "mtb" ? "MTB" : "Trail"}
-                      </div>
-                    </div>
                   </div>
                 </Link>
               </div>
