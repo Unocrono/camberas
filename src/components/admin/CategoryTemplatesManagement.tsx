@@ -156,7 +156,7 @@ export function CategoryTemplatesManagement() {
         .order("display_order");
 
       if (error) throw error;
-      setTemplateItems(data || []);
+      setTemplateItems((data || []) as CategoryTemplateItem[]);
     } catch (error: any) {
       toast({
         title: "Error",

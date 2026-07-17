@@ -14,7 +14,7 @@
 export interface FeeConfigField {
   field_name: string;
   field_type: string;
-  field_options: any;
+  field_options?: any;
 }
 
 const cfg = (field: FeeConfigField) => {
