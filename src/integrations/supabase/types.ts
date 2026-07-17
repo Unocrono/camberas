@@ -313,6 +313,7 @@ export type Database = {
       }
       category_template_items: {
         Row: {
+          age_calculation_method: string
           age_dependent: boolean | null
           created_at: string | null
           display_order: number | null
@@ -326,6 +327,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          age_calculation_method?: string
           age_dependent?: boolean | null
           created_at?: string | null
           display_order?: number | null
@@ -339,6 +341,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          age_calculation_method?: string
           age_dependent?: boolean | null
           created_at?: string | null
           display_order?: number | null
@@ -857,6 +860,77 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      help_faqs: {
+        Row: {
+          answer: string
+          created_at: string
+          display_order: number
+          id: string
+          is_visible: boolean
+          question: string
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          question: string
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_visible?: boolean
+          question?: string
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "help_faqs_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "help_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      help_sections: {
+        Row: {
+          created_at: string
+          display_order: number
+          icon: string
+          id: string
+          is_visible: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_visible?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       menu_items: {
         Row: {
@@ -2681,6 +2755,7 @@ export type Database = {
           official_website_url: string | null
           organizer_email: string | null
           organizer_id: string | null
+          poster_url: string | null
           race_type: string
           registration_closes: string | null
           registration_opens: string | null
@@ -2708,6 +2783,7 @@ export type Database = {
           official_website_url?: string | null
           organizer_email?: string | null
           organizer_id?: string | null
+          poster_url?: string | null
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
@@ -2735,6 +2811,7 @@ export type Database = {
           official_website_url?: string | null
           organizer_email?: string | null
           organizer_id?: string | null
+          poster_url?: string | null
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
