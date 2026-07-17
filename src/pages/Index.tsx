@@ -26,6 +26,7 @@ interface HomeRace {
   location: string;
   distances: string[];
   participants: number;
+  coverImageUrl?: string;
   imageUrl?: string;
   raceType: "trail" | "mtb";
   priceLabel: string | null;
@@ -89,6 +90,7 @@ const Index = () => {
             location: race.location,
             distances: dists.map((d) => d.name),
             participants: count || 0,
+            coverImageUrl: race.cover_image_url || undefined,
             imageUrl: race.image_url || undefined,
             raceType: (race.race_type as "trail" | "mtb") || "trail",
             priceLabel: priceRange(dists.map((d) => Number(d.price) || 0)),
@@ -187,10 +189,10 @@ const Index = () => {
 
               {/* Derecha — cartel */}
               <Link to={raceUrl(featured)} className="group relative block">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-primary shadow-elevated">
-                  {featured.imageUrl && (
+                <div className="relative aspect-video overflow-hidden rounded-3xl bg-primary shadow-elevated">
+                  {(featured.coverImageUrl || featured.imageUrl) && (
                     <img
-                      src={featured.imageUrl}
+                      src={featured.coverImageUrl || featured.imageUrl}
                       alt={featured.name}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
