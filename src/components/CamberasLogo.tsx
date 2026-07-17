@@ -1,7 +1,7 @@
 /**
  * Logo de Camberas — "C" de doble arco (naranja arriba, verde abajo)
- * sobre círculo azul noche. Recreado como SVG vectorial: nítido a
- * cualquier tamaño y sin peticiones de imagen.
+ * sobre círculo azul noche. Paths vectoriales finales editados en
+ * Illustrator: nítido a cualquier tamaño y sin peticiones de imagen.
  */
 
 interface CamberasLogoProps {
@@ -11,27 +11,25 @@ interface CamberasLogoProps {
 }
 
 export function CamberasLogo({ size = 36, className }: CamberasLogoProps) {
-  // Arcos de la C: abiertos por la derecha (~55°) y con un corte
-  // horizontal a la izquierda que separa la mitad naranja de la verde
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 100 100"
+      viewBox="0 0 512 512"
       className={className}
       role="img"
       aria-label="Camberas"
     >
-      <circle cx="50" cy="50" r="50" fill="#1E2A3A" />
+      <circle cx="256" cy="256" r="256" fill="#1E2A3A" />
       {/* Mitad superior — naranja */}
-      <g stroke="#E8892E" strokeWidth="6" fill="none" strokeLinecap="butt">
-        <path d="M 67.2 27.9 A 28 28 0 0 0 22.1 47.6" />
-        <path d="M 59.8 34.3 A 18.5 18.5 0 0 0 31.6 48.4" />
+      <g fill="#E8892E">
+        <path d="M355.97,133.32c-69-54.06-172.23-44.38-226.29,24.62-18.97,24.21-30.34,59.58-33.02,90.21h31.66c6.21-70.42,68.52-125.88,138.94-119.67,24.63,2.17,48.11,11.43,67.59,26.66l21.12-21.82Z" />
+        <path d="M321.81,168.49c-53.4-40.35-126.91-22.97-159.11,28.6-9.14,14.63-14.71,33.88-16.26,51.06l30.72-.11c4.16-43.63,42.91-75.63,86.54-71.46,12.17,1.16,26.16,7.26,36.54,13.7l21.57-21.79Z" />
       </g>
       {/* Mitad inferior — verde */}
-      <g stroke="#2E8B4A" strokeWidth="6" fill="none" strokeLinecap="butt">
-        <path d="M 22.1 52.4 A 28 28 0 0 0 67.2 72.1" />
-        <path d="M 31.6 51.6 A 18.5 18.5 0 0 0 59.8 65.7" />
+      <g fill="#2E8B4A">
+        <path d="M335.17,360.51c-19.48,15.23-42.96,24.49-67.59,26.66-70.42,6.21-132.73-49.25-138.94-119.67h-31.66c2.68,30.64,14.05,66,33.02,90.21,54.06,69,157.28,78.68,226.29,24.62l-21.12-21.82Z" />
+        <path d="M300.56,325.37c-10.39,6.44-24.38,12.54-36.54,13.7-43.63,4.16-82.38-27.83-86.54-71.46l-30.72-.11c1.55,17.18,7.12,36.43,16.26,51.06,32.2,51.57,105.72,68.95,159.11,28.6l-21.57-21.79Z" />
       </g>
     </svg>
   );
