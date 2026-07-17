@@ -95,6 +95,7 @@ const Races = () => {
             imageUrl: race.image_url,
             raceType: race.race_type as 'trail' | 'mtb',
             priceLabel,
+            isFeatured: (race as any).is_featured === true,
             isPast: race.date < new Date().toISOString().split("T")[0],
             maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
             maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),
@@ -117,10 +118,12 @@ const Races = () => {
     }
   };
 
-  // Carrera destacada para el hero: la próxima (más cercana en el futuro)
+  // Carrera del hero: la próxima marcada como destacada; si no hay
+  // ninguna destacada, la próxima en el calendario
   const featured = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    return allRaces.find((r) => r.rawDate >= today) || null;
+    const upcoming = allRaces.filter((r) => r.rawDate >= today);
+    return upcoming.find((r) => r.isFeatured) || upcoming[0] || null;
   }, [allRaces]);
 
   // El hero solo se muestra en la vista limpia (sin filtros ni búsqueda)

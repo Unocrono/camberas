@@ -73,6 +73,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     additional_info: "",
     race_type: "trail" as "trail" | "mtb",
     is_visible: true,
+    is_featured: false,
     slug: "",
     utc_offset: "+1:00",
     organizer_id: "" as string,
@@ -164,6 +165,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         additional_info: (race as any).additional_info || "",
         race_type: (race as any).race_type || "trail",
         is_visible: race.is_visible ?? true,
+        is_featured: (race as any).is_featured ?? false,
         slug: race.slug || "",
         utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
         organizer_id: race.organizer_id || "",
@@ -184,6 +186,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         additional_info: "",
         race_type: "trail",
         is_visible: true,
+        is_featured: false,
         slug: "",
         utc_offset: "+1:00",
         organizer_id: "",
@@ -322,6 +325,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           additional_info: formData.additional_info || null,
           race_type: formData.race_type,
           is_visible: formData.is_visible,
+          is_featured: formData.is_featured,
           utc_offset: parseUtcOffset(formData.utc_offset),
         };
         
@@ -383,6 +387,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             additional_info: formData.additional_info || null,
             race_type: formData.race_type,
             is_visible: formData.is_visible,
+            is_featured: formData.is_featured,
             utc_offset: parseUtcOffset(formData.utc_offset),
           }])
           .select('id')
@@ -832,6 +837,22 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   id="is_visible"
                   checked={formData.is_visible}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_visible: checked })}
+                />
+              </div>
+
+              <div className="flex items-center justify-between border-t pt-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="is_featured" className="flex items-center gap-2">
+                    ⭐ Carrera destacada
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Las carreras destacadas tienen prioridad en el escaparate de la portada
+                  </p>
+                </div>
+                <Switch
+                  id="is_featured"
+                  checked={formData.is_featured}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
                 />
               </div>
 
