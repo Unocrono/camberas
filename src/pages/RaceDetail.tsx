@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft } from "lucide-react";
+import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane } from "lucide-react";
 import { formatLocalTime } from "@/lib/timezoneUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import raceScene from "@/assets/race-scene.jpg";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RoutePreviewMap } from "@/components/RoutePreviewMap";
+import { RouteFlightViewer } from "@/components/RouteFlightViewer";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 
 const RaceDetail = () => {
@@ -904,10 +905,38 @@ const RaceDetail = () => {
                                     {distance.distance_km} km {distance.elevation_gain && `• +${distance.elevation_gain}m desnivel`}
                                   </DialogDescription>
                                 </DialogHeader>
-                                <RoutePreviewMap 
-                                  gpxUrl={distance.gpx_file_url} 
+                                <RoutePreviewMap
+                                  gpxUrl={distance.gpx_file_url}
                                   distanceName={distance.name}
                                 />
+                              </DialogContent>
+                            </Dialog>
+                          )}
+
+                          {/* Vuelo 3D sobre el recorrido */}
+                          {distance.gpx_file_url && distance.show_route_map !== false && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                >
+                                  <Plane className="h-4 w-4 mr-2" />
+                                  Vuelo 3D
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-5xl max-h-[92vh]">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <Plane className="h-5 w-5 text-primary" />
+                                    Vuelo sobre el recorrido - {distance.name}
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    {distance.distance_km} km {distance.elevation_gain && `• +${distance.elevation_gain}m desnivel`} · vista 3D del terreno
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <RouteFlightViewer gpxUrl={distance.gpx_file_url} />
                               </DialogContent>
                             </Dialog>
                           )}
