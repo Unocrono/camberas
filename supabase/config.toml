@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.gps-webhook]
 verify_jwt = false
+
+[functions.contact-organizer]
+verify_jwt = false

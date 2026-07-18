@@ -17,6 +17,7 @@ import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RoutePreviewMap } from "@/components/RoutePreviewMap";
 import { RouteFlightViewer } from "@/components/RouteFlightViewer";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
+import { ContactOrganizerDialog } from "@/components/ContactOrganizerDialog";
 
 const RaceDetail = () => {
   const { id, slug } = useParams();
@@ -714,13 +715,8 @@ const RaceDetail = () => {
                     </a>
                   </Button>
                 )}
-                {race.organizer_email && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={`mailto:${race.organizer_email}`}>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Contactar Organizador
-                    </a>
-                  </Button>
+                {(race.organizer_email || race.organizer_id) && (
+                  <ContactOrganizerDialog raceId={race.id} raceName={race.name} />
                 )}
               </div>
 
