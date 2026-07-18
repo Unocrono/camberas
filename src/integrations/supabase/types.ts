@@ -4070,6 +4070,7 @@ export type Database = {
       get_live_gps_positions: {
         Args: { p_distance_id?: string; p_race_id: string }
         Returns: {
+          battery: number
           bib_number: string
           gps_id: string
           gps_timestamp: string
@@ -4079,38 +4080,9 @@ export type Database = {
           race_distance_id: string
           registration_id: string
           runner_name: string
-          speed: number
-          battery: number
           source: string
+          speed: number
         }[]
-      }
-      get_race_sos_alerts: {
-        Args: { p_race_id: string }
-        Returns: {
-          id: string
-          lat: number
-          lng: number
-          triggered_at: string
-          resolved_at: string | null
-          bib_number: string
-          runner_name: string
-        }[]
-      }
-      link_gps_token: {
-        Args: { p_token: string; p_device_id: string; p_force?: boolean }
-        Returns: {
-          id: string
-          bib_number: string
-          participant_name: string
-          event_id: string
-          device_id: string
-          linked_at: string
-          needs_transfer: boolean
-        }[]
-      }
-      unlink_gps_token: {
-        Args: { p_token_id: string; p_device_id: string }
-        Returns: boolean
       }
       get_organizer_requests: {
         Args: never
@@ -4129,6 +4101,18 @@ export type Database = {
       get_race_category: {
         Args: { p_birth_date: string; p_gender: string; p_race_id: string }
         Returns: string
+      }
+      get_race_sos_alerts: {
+        Args: { p_race_id: string }
+        Returns: {
+          bib_number: string
+          id: string
+          lat: number
+          lng: number
+          resolved_at: string
+          runner_name: string
+          triggered_at: string
+        }[]
       }
       get_registration_gender: {
         Args: { p_registration_id: string }
@@ -4154,6 +4138,18 @@ export type Database = {
         Args: { _race_id: string; _user_id: string }
         Returns: boolean
       }
+      link_gps_token: {
+        Args: { p_device_id: string; p_force?: boolean; p_token: string }
+        Returns: {
+          bib_number: string
+          device_id: string
+          event_id: string
+          id: string
+          linked_at: string
+          needs_transfer: boolean
+          participant_name: string
+        }[]
+      }
       process_event_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -4169,6 +4165,10 @@ export type Database = {
       seed_default_registration_fields_for_distance: {
         Args: { p_distance_id: string }
         Returns: undefined
+      }
+      unlink_gps_token: {
+        Args: { p_device_id: string; p_token_id: string }
+        Returns: boolean
       }
       user_has_gps_registration: {
         Args: { distance_id: string }
