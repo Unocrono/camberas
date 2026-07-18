@@ -200,7 +200,7 @@ export default function BlogPost() {
           </Badge>
 
           {/* Title */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
+          <h1 className="font-archivo text-3xl uppercase leading-[0.98] md:text-4xl lg:text-5xl mb-4">
             {post.title}
           </h1>
 

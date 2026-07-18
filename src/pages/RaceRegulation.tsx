@@ -178,7 +178,7 @@ const RaceRegulation = () => {
                 <FileText className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-3xl">Reglamento</CardTitle>
+                <CardTitle className="font-archivo text-3xl uppercase">Reglamento</CardTitle>
                 <p className="text-lg text-muted-foreground">{race.name}</p>
               </div>
             </div>

@@ -199,7 +199,7 @@ const OrganizerGuide = () => {
               <Rocket className="h-3 w-3 mr-1" />
               Guía Completa
             </Badge>
-            <h1 className="text-4xl font-bold mb-4">Guía para Organizadores</h1>
+            <h1 className="font-archivo text-4xl uppercase leading-[0.98] mb-4">Guía para Organizadores</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Aprende paso a paso cómo crear y gestionar tu carrera en Camberas,
               desde la configuración inicial hasta la publicación de resultados.

@@ -268,7 +268,7 @@ const Profile = () => {
         <div className="max-w-4xl mx-auto space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Mi Perfil</CardTitle>
+              <CardTitle className="font-archivo text-2xl uppercase">Mi Perfil</CardTitle>
               <CardDescription>
                 Actualiza tu información personal y de contacto
               </CardDescription>
@@ -466,7 +466,7 @@ const Profile = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Mis Inscripciones</CardTitle>
+              <CardTitle className="font-archivo text-2xl uppercase">Mis Inscripciones</CardTitle>
               <CardDescription>
                 Carreras en las que estás inscrito
               </CardDescription>

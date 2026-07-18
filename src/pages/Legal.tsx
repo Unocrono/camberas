@@ -11,7 +11,7 @@ const Legal = () => {
       <main className="container mx-auto px-4 py-12 max-w-4xl">
         <div className="flex items-center gap-3 mb-8">
           <FileText className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold text-foreground">Aviso Legal</h1>
+          <h1 className="font-archivo text-3xl uppercase text-foreground">Aviso Legal</h1>
         </div>
 
         <Card className="mb-8">

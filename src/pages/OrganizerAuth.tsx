@@ -180,7 +180,7 @@ const OrganizerAuth = () => {
               </Link>
             </div>
             
-            <h1 className="text-3xl font-bold mb-4">
+            <h1 className="font-archivo text-3xl uppercase leading-[0.98] mb-4">
               Únete como Organizador
             </h1>
             <p className="text-muted-foreground mb-8">

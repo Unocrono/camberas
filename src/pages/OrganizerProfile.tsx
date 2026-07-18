@@ -164,7 +164,8 @@ const OrganizerProfile = () => {
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="max-w-4xl mx-auto space-y-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Perfil de Organizador</h1>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Organizadores</p>
+            <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Perfil de Organizador</h1>
             <p className="text-muted-foreground">
               Gestiona tu información personal y visualiza tus permisos
             </p>
