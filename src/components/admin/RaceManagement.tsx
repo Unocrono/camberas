@@ -77,6 +77,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     slug: "",
     utc_offset: "+1:00",
     organizer_id: "" as string,
+    organizer_email: "",
   });
   
   // Image cropper states
@@ -169,6 +170,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         slug: race.slug || "",
         utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
         organizer_id: race.organizer_id || "",
+        organizer_email: (race as any).organizer_email || "",
       });
     } else {
       setEditingRace(null);
@@ -190,6 +192,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         slug: "",
         utc_offset: "+1:00",
         organizer_id: "",
+        organizer_email: "",
       });
     }
     setIsDialogOpen(true);
@@ -327,6 +330,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           is_visible: formData.is_visible,
           is_featured: formData.is_featured,
           utc_offset: parseUtcOffset(formData.utc_offset),
+          organizer_email: formData.organizer_email.trim() || null,
         };
         
         // Allow admin to change organizer
@@ -389,6 +393,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             is_visible: formData.is_visible,
             is_featured: formData.is_featured,
             utc_offset: parseUtcOffset(formData.utc_offset),
+            organizer_email: formData.organizer_email.trim() || null,
           }])
           .select('id')
           .single();
@@ -556,6 +561,23 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   </p>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="organizer_email">Email del organizador (público)</Label>
+                <Input
+                  id="organizer_email"
+                  type="email"
+                  placeholder="info@cluborganizador.com"
+                  value={formData.organizer_email}
+                  onChange={(e) => setFormData({ ...formData, organizer_email: e.target.value })}
+                  autoComplete="off"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Aparece como botón "Contactar Organizador" en la página de la carrera y recibe
+                  copia de cada inscripción pagada. Usa una dirección de cara al público, no un
+                  correo personal.
+                </p>
+              </div>
 
               <div className="space-y-2">
                 <Label>Tipo de Carrera *</Label>
