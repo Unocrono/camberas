@@ -86,7 +86,8 @@ export default function Blog() {
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Noticias y Entrevistas</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Actualidad</p>
+          <h1 className="font-archivo mt-2 text-3xl uppercase leading-[0.98] mb-2 md:text-4xl">Noticias y Entrevistas</h1>
           <p className="text-muted-foreground">
             Descubre las últimas novedades del mundo del trail running y MTB
           </p>

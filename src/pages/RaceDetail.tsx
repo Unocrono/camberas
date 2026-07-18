@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Trophy, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane } from "lucide-react";
 import { formatLocalTime } from "@/lib/timezoneUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -666,23 +666,23 @@ const RaceDetail = () => {
           
           {/* Countdown Timer */}
           <div className="absolute bottom-8 right-8 bg-background/95 backdrop-blur-sm rounded-lg p-6 shadow-lg">
-            <p className="text-sm text-muted-foreground mb-2 text-center">Cuenta atrás</p>
+            <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-[0.14em] text-secondary">Cuenta atrás</p>
             <div className="flex gap-4">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{countdown.days}</div>
-                <div className="text-xs text-muted-foreground">días</div>
+                <div className="font-archivo text-3xl text-primary">{countdown.days}</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">días</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{countdown.hours}</div>
-                <div className="text-xs text-muted-foreground">hrs</div>
+                <div className="font-archivo text-3xl text-primary">{countdown.hours}</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">hrs</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{countdown.minutes}</div>
-                <div className="text-xs text-muted-foreground">min</div>
+                <div className="font-archivo text-3xl text-primary">{countdown.minutes}</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">min</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">{countdown.seconds}</div>
-                <div className="text-xs text-muted-foreground">seg</div>
+                <div className="font-archivo text-3xl text-primary">{countdown.seconds}</div>
+                <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">seg</div>
               </div>
             </div>
           </div>
@@ -694,13 +694,13 @@ const RaceDetail = () => {
               <div className="flex flex-col gap-8 md:flex-row">
                 <div className="min-w-0 flex-1">
               <div className="flex flex-wrap gap-2 mb-4">
-                <Badge variant="secondary" className="text-base py-1">
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide">
                   Trail
                 </Badge>
               </div>
-              <CardTitle className="text-4xl md:text-5xl mb-1">{race.name}</CardTitle>
+              <CardTitle className="font-archivo text-4xl uppercase leading-[0.98] md:text-5xl mb-1">{race.name}</CardTitle>
               {race.subtitle && (
-                <p className="text-xl font-semibold text-primary mb-3">{race.subtitle}</p>
+                <p className="mt-2 text-lg font-bold uppercase tracking-wide text-secondary mb-3">{race.subtitle}</p>
               )}
               <CardDescription className="text-lg">{race.description || "Información no disponible"}</CardDescription>
               
@@ -771,7 +771,7 @@ const RaceDetail = () => {
                     <Calendar className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Fecha</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Fecha</p>
                     <p className="font-semibold">
                       {new Date(race.date).toLocaleDateString("es-ES", {
                         year: "numeric",
@@ -787,7 +787,7 @@ const RaceDetail = () => {
                     <MapPin className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Ubicación</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Ubicación</p>
                     <p className="font-semibold">{race.location}</p>
                   </div>
                 </div>
@@ -797,7 +797,7 @@ const RaceDetail = () => {
                     <Users className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Capacidad</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Capacidad</p>
                     <p className="font-semibold">
                       {race.max_participants ? `${race.max_participants} plazas` : "Sin límite"}
                     </p>
@@ -807,9 +807,9 @@ const RaceDetail = () => {
 
               {/* Recorridos */}
               <div>
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <Trophy className="h-6 w-6 text-primary" />
-                  Elige tu Recorrido
+                <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Recorridos</p>
+                <h2 className="font-archivo mt-1 mb-6 text-3xl uppercase text-foreground">
+                  Elige tu recorrido
                 </h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -824,16 +824,16 @@ const RaceDetail = () => {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
-                          <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground font-bold text-base px-3 py-1">
+                          <Badge className="absolute top-3 right-3 rounded-full bg-secondary px-3 py-1 font-archivo text-base text-secondary-foreground">
                             {distance.currentPrice}€
                           </Badge>
                         </div>
                       )}
                       
                       <CardHeader className="pb-3">
-                        <CardTitle className="text-2xl text-primary">{distance.name}</CardTitle>
+                        <CardTitle className="font-archivo text-2xl uppercase text-primary">{distance.name}</CardTitle>
                         {!distance.image_url && (
-                          <div className="text-3xl font-bold text-primary mt-2">{distance.currentPrice}€</div>
+                          <div className="font-archivo text-3xl text-secondary mt-2">{distance.currentPrice}€</div>
                         )}
                       </CardHeader>
                       <CardContent className="space-y-4 flex-1 flex flex-col">
@@ -1006,7 +1006,7 @@ const RaceDetail = () => {
                                 className="w-full"
                                 onClick={() => handleRegisterClick(distance)}
                                 disabled={distance.availablePlaces === 0 || !distance.isRegistrationOpen}
-                                variant={!distance.isRegistrationOpen ? "secondary" : "default"}
+                                variant={!distance.isRegistrationOpen ? "outline" : "secondary"}
                               >
                                 {distance.availablePlaces === 0 
                                   ? "Completo" 

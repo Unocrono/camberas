@@ -143,7 +143,8 @@ export default function Contact() {
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4 text-foreground">{settings.page_title}</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Estamos aquí</p>
+          <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-4 text-foreground">{settings.page_title}</h1>
           <p className="text-lg text-muted-foreground">
             {settings.page_description}
           </p>

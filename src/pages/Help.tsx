@@ -65,7 +65,8 @@ const Help = () => {
       <main className="container mx-auto px-4 pt-24 pb-16">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">Centro de Ayuda</h1>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Soporte</p>
+            <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-4">Centro de Ayuda</h1>
             <p className="text-lg text-muted-foreground">
               Encuentra respuestas a las preguntas más frecuentes sobre cómo usar Camberas
             </p>

@@ -197,7 +197,8 @@ const Dashboard = () => {
       
       <div className="container mx-auto px-4 py-24">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Mi Dashboard</h1>
+          <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Mi espacio</p>
+          <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Mi Dashboard</h1>
           <p className="text-muted-foreground">Gestiona tus inscripciones y carreras</p>
         </div>
 

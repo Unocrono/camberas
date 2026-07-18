@@ -192,7 +192,8 @@ const Auth = () => {
       <div className="flex-1 flex items-center justify-center p-4 bg-gradient-subtle">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Bienvenido a Camberas</CardTitle>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Tu cuenta</p>
+            <CardTitle className="font-archivo text-3xl uppercase leading-[0.98]">Bienvenido a Camberas</CardTitle>
             <CardDescription>
               Inicia sesión o crea una cuenta para inscribirte en carreras
             </CardDescription>
@@ -228,7 +229,7 @@ const Auth = () => {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" variant="secondary" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -302,7 +303,7 @@ const Auth = () => {
                       Mínimo 8 caracteres, con mayúscula, minúscula y número
                     </p>
                   </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" variant="secondary" className="w-full" disabled={isLoading}>
                     {isLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

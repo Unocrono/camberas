@@ -367,7 +367,7 @@ const Races = () => {
       <div className={showHero ? "pb-16" : "pt-24 pb-16"}>
         <div className="container mx-auto px-4">
           <div className={showHero ? "text-center mb-12 mt-8" : "text-center mb-12"}>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+            <h1 className="font-archivo text-4xl uppercase leading-[0.98] text-foreground mb-4 md:text-5xl">
               {getPageTitle()}
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
