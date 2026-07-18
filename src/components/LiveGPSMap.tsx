@@ -100,6 +100,19 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [roadbookItems, setRoadbookItems] = useState<RoadbookItem[]>([]);
   const [gpxUrl, setGpxUrl] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [isBikeRace, setIsBikeRace] = useState(false);
+
+  // Modalidad: en bici la velocidad se muestra en km/h; a pie, ritmo min/km
+  useEffect(() => {
+    supabase
+      .from('races')
+      .select('race_type')
+      .eq('id', raceId)
+      .single()
+      .then(({ data }) => {
+        setIsBikeRace(/mtb|btt|bici|bike|cicl/i.test(data?.race_type ?? ''));
+      });
+  }, [raceId]);
   
   // New state for runner track
   const [selectedRunner, setSelectedRunner] = useState<RunnerPosition | null>(null);
@@ -1098,8 +1111,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     });
   }, [runnerPositions, progressByRunner]);
 
-  const formatSpeed = (speed: number | null) =>
-    speed != null && speed > 0.3 ? `${(speed * 3.6).toFixed(1)} km/h` : null;
+  const formatSpeed = (speed: number | null) => {
+    if (speed == null || speed <= 0.3) return null;
+    if (isBikeRace) return `${(speed * 3.6).toFixed(1)} km/h`;
+    // Ritmo para carreras a pie (trail/running/marcha)
+    const secPerKm = 1000 / speed;
+    const m = Math.floor(secPerKm / 60);
+    const s = Math.round(secPerKm % 60);
+    return `${m}:${String(s).padStart(2, '0')} min/km`;
+  };
 
   const formatRemaining = (p: RouteProgress | undefined) => {
     if (!p) return null;
