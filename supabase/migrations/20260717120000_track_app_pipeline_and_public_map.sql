@@ -47,7 +47,7 @@ DECLARE
 BEGIN
   SELECT g.* INTO tok
   FROM gps_tokens g
-  WHERE g.token = p_token AND g.active IS TRUE;
+  WHERE g.token = p_token::uuid AND g.active IS TRUE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Token no válido o inactivo';
