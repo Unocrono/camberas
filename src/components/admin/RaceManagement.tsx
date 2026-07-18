@@ -16,6 +16,16 @@ import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
 
+// Texto de ejemplo insertable con el botón "+" junto a Información Adicional
+const ADDITIONAL_INFO_EXAMPLE = [
+  "• Cronometraje electrónico con chip",
+  "• Avituallamientos líquidos y sólidos en carrera",
+  "• Servicio médico en carrera y meta",
+  "• Seguro de accidentes incluido",
+  "• Camiseta técnica para todos los participantes",
+  "• Trofeos para los 3 primeros de cada categoría",
+].join("\n");
+
 const raceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
   description: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
@@ -832,7 +842,26 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
               </div>
 
               <div className="space-y-2 border-t pt-4">
-                <Label htmlFor="additional_info">Información Adicional</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="additional_info">Información Adicional</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-6 w-6"
+                    title="Insertar el texto de ejemplo"
+                    onClick={() =>
+                      setFormData({
+                        ...formData,
+                        additional_info: formData.additional_info.trim()
+                          ? `${formData.additional_info.trimEnd()}\n${ADDITIONAL_INFO_EXAMPLE}`
+                          : ADDITIONAL_INFO_EXAMPLE,
+                      })
+                    }
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
                 <Textarea
                   id="additional_info"
                   value={formData.additional_info}
