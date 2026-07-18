@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activa tu dorsal — Camberas Track</title>
+<meta property="og:title" content="Activa tu dorsal — Camberas Track">
+<meta property="og:description" content="Tu seguridad en carrera: la organización verá tu posición y podrás pedir ayuda con un toque. Pulsa para vincular tu dorsal.">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="robots" content="noindex">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e; color: #fff; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card { max-width: 420px; width: 100%; text-align: center; }
+  .logo { font-size: 34px; font-weight: 800; letter-spacing: 8px; }
+  .logo-sub { color: #e94560; font-size: 14px; letter-spacing: 11px; margin-top: -4px; }
+  .box { background: #16213e; border-radius: 14px; padding: 22px; margin: 28px 0 22px; text-align: left; }
+  .box p.lead { color: #fff; font-weight: 600; text-align: center; margin-bottom: 14px; }
+  .bullet { color: #aab; font-size: 14px; line-height: 20px; margin-bottom: 9px; }
+  .btn {
+    display: block; width: 100%; padding: 16px; border: 0; border-radius: 12px;
+    background: #e94560; color: #fff; font-size: 16px; font-weight: 700;
+    letter-spacing: 2px; text-decoration: none; cursor: pointer; text-align: center;
+  }
+  .btn.secondary {
+    background: transparent; border: 1px solid #444; color: #ccc;
+    font-size: 14px; letter-spacing: 1px; margin-top: 10px;
+  }
+  .stores { display: none; margin-top: 24px; }
+  .stores.visible { display: block; }
+  .stores h2 { font-size: 15px; margin-bottom: 12px; color: #fff; }
+  .hint { color: #667; font-size: 12px; line-height: 18px; margin-top: 26px; }
+  .error { background: #2e1620; border: 1px solid #e94560; border-radius: 12px;
+           padding: 18px; color: #f0a0b0; font-size: 14px; margin-top: 24px; display: none; }
+  .desktop-note { display: none; color: #99a; font-size: 14px; line-height: 21px;
+                  background: #16213e; border-radius: 12px; padding: 16px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">CAMBERAS</div>
+  <div class="logo-sub">TRACK</div>
+
+  <div id="content" style="display:none">
+    <div class="box">
+      <p class="lead">Compite con la tranquilidad de que la organización sabe dónde estás.</p>
+      <div class="bullet">🛡&nbsp; El equipo de seguridad ve tu posición en todo momento</div>
+      <div class="bullet">🆘&nbsp; Botón SOS: pide ayuda con un toque, con tus coordenadas exactas</div>
+      <div class="bullet">📍&nbsp; Tus familiares pueden seguir tu carrera en directo</div>
+    </div>
+
+    <a class="btn" id="openApp" href="#">ACTIVAR MI DORSAL</a>
+    <button class="btn secondary" id="noApp" type="button">¿No tienes la app todavía?</button>
+
+    <div class="stores" id="stores">
+      <h2>Descarga Camberas Track y vuelve a pulsar el botón:</h2>
+      <a class="btn" href="https://expo.dev/artifacts/eas/Nv7vakKthd6zYuEev_5FrWVHmJ_xBOzjlkrTh2D6jqw.apk">📱&nbsp; ANDROID — DESCARGAR APK</a>
+      <a class="btn secondary" href="https://testflight.apple.com/">&nbsp; iPHONE — TESTFLIGHT (beta)</a>
+    </div>
+
+    <div class="desktop-note" id="desktopNote">
+      Estás viendo esta página en un ordenador.<br>
+      <strong>Ábrela desde el móvil</strong> con el que correrás (el mismo enlace)
+      para vincular tu dorsal automáticamente.
+    </div>
+
+    <p class="hint">Sin registro · Sin datos personales · Solo tu dorsal y tu posición durante la carrera</p>
+  </div>
+
+  <div class="error" id="errorBox">
+    Este enlace de vinculación no es válido o está incompleto.<br><br>
+    Usa el enlace exacto que te ha enviado la organización, o escanea el
+    código QR de tu dorsal desde la app.
+  </div>
+
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var token = (params.get('t') || params.get('token') || '').trim().toLowerCase();
+      var valid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(token);
+
+      if (!valid) {
+        document.getElementById('errorBox').style.display = 'block';
+        return;
+      }
+
+      var deepLink = 'camberas://activate/' + token;
+      document.getElementById('content').style.display = 'block';
+      document.getElementById('openApp').setAttribute('href', deepLink);
+
+      var isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (!isMobile) {
+        document.getElementById('desktopNote').style.display = 'block';
+        document.getElementById('openApp').style.display = 'none';
+        document.getElementById('noApp').style.display = 'none';
+        return;
+      }
+
+      setTimeout(function () { window.location.href = deepLink; }, 400);
+      setTimeout(function () {
+        if (!document.hidden) document.getElementById('stores').classList.add('visible');
+      }, 2500);
+
+      document.getElementById('noApp').addEventListener('click', function () {
+        document.getElementById('stores').classList.add('visible');
+        this.style.display = 'none';
+      });
+    })();
+  </script>
+</div>
+</body>
+</html>
