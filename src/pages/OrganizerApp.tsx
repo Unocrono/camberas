@@ -168,10 +168,10 @@ interface MenuButton {
   route?: string | null;
 }
 
-// Grupo "Usuario": estos no están en menu_items, son navegación fija
+// Grupo "Mi Perfil": no está en menu_items, es navegación fija.
+// (Diseñador de Dorsales fuera: no se puede usar desde el móvil)
 const ORG_USER_ITEMS: MenuButton[] = [
   { id: "u-profile", title: "Mi Perfil", icon: "UserCircle", route: "/profile" },
-  { id: "u-bibs", title: "Diseñador de Dorsales", icon: "RectangleHorizontal", route: "/organizer/bib-designer" },
   { id: "u-site", title: "Volver al sitio", icon: "Home", route: "/" },
 ];
 
@@ -315,7 +315,7 @@ const OrganizerApp = () => {
 
   const activeGroup =
     openGroup === "usuario"
-      ? { key: "usuario", label: "Usuario", icon: UserCircle, items: userItems }
+      ? { key: "usuario", label: "Mi Perfil", icon: UserCircle, items: userItems }
       : openGroup === "mas"
         ? { key: "mas", label: "Más", icon: LucideIcons.LayoutGrid, items: extraItems }
         : orgGroups.find((g) => g.key === openGroup);
@@ -562,7 +562,7 @@ const OrganizerApp = () => {
                       className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
                     >
                       <UserCircle className="h-6 w-6 shrink-0 text-secondary" />
-                      <span className="font-archivo text-sm uppercase leading-tight">Usuario</span>
+                      <span className="font-archivo text-sm uppercase leading-tight">Mi Perfil</span>
                     </button>
                   )}
                 </div>
