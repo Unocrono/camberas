@@ -24,7 +24,11 @@ import {
 } from "@/components/ui/select";
 import { CamberasLogo } from "@/components/CamberasLogo";
 import * as LucideIcons from "lucide-react";
-import { Loader2, Volume2, VolumeX, Bell, RefreshCw } from "lucide-react";
+import {
+  Loader2, Volume2, VolumeX, Bell, RefreshCw, AlertCircle, ChevronRight, ChevronLeft,
+  LayoutDashboard, Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface DistanceSummary {
   distance_id: string;
@@ -60,6 +64,9 @@ interface RaceOption {
   id: string;
   name: string;
   date: string;
+  cover_image_url: string | null;
+  image_url: string | null;
+  logo_url: string | null;
 }
 
 /** "Clinc" de caja registradora con WebAudio (sin assets) */
@@ -131,6 +138,43 @@ const CLINC_LABEL: Record<ClincMode, string> = {
   off: "Silencio",
 };
 
+/**
+ * Menú de dos niveles de la app: primer nivel = grupos; al pulsar uno,
+ * se muestran sus opciones. Los items reales (etiqueta, view_name/route)
+ * salen de la tabla menu_items; aquí solo definimos AGRUPACIÓN y orden
+ * por view_name, para tener una portada limpia. Lo que no esté mapeado
+ * cae en un grupo "Más" para no perder nada.
+ */
+interface OrgGroupDef {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  views: string[];
+}
+
+const ORG_GROUP_DEFS: OrgGroupDef[] = [
+  { key: "carreras", label: "Carreras", icon: Flag, views: ["races", "regulations", "race-faqs", "storage"] },
+  { key: "recorridos", label: "Recorridos", icon: RouteIcon, views: ["distances", "roadbooks", "checkpoints", "timing-points", "waves"] },
+  { key: "corredores", label: "Corredores", icon: Users, views: ["registrations", "form-fields", "categories", "tshirt-sizes"] },
+  { key: "resultados", label: "Resultados", icon: Trophy, views: ["results", "splits", "timing-readings", "gps-readings", "bib-chips", "timer-assignments"] },
+  { key: "gps", label: "Seguimiento GPS", icon: MapPin, views: ["camberas-track", "motos", "moto-map"] },
+];
+
+interface MenuButton {
+  id: string;
+  title: string;
+  icon: string;
+  view_name?: string | null;
+  route?: string | null;
+}
+
+// Grupo "Usuario": estos no están en menu_items, son navegación fija
+const ORG_USER_ITEMS: MenuButton[] = [
+  { id: "u-profile", title: "Mi Perfil", icon: "UserCircle", route: "/profile" },
+  { id: "u-bibs", title: "Diseñador de Dorsales", icon: "RectangleHorizontal", route: "/organizer/bib-designer" },
+  { id: "u-site", title: "Volver al sitio", icon: "Home", route: "/" },
+];
+
 const OrganizerApp = () => {
   const { user, isAdmin, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -140,6 +184,8 @@ const OrganizerApp = () => {
   const [races, setRaces] = useState<RaceOption[]>([]);
   const [raceId, setRaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<RaceSummary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [clincMode, setClincMode] = useState<ClincMode>(
     () => (localStorage.getItem("org-clinc-mode") as ClincMode) || "each",
@@ -160,7 +206,10 @@ const OrganizerApp = () => {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      let query = supabase.from("races").select("id, name, date").order("date", { ascending: false });
+      let query = supabase
+        .from("races")
+        .select("id, name, date, cover_image_url, image_url, logo_url")
+        .order("date", { ascending: false });
       if (!isAdmin) query = query.eq("organizer_id", user.id);
       const { data } = await query;
       setRaces(data || []);
@@ -181,8 +230,10 @@ const OrganizerApp = () => {
     });
     if (error) {
       console.error("Resumen no disponible:", error.message);
+      setSummaryError(error.message);
       return;
     }
+    setSummaryError(null);
     const s = data as RaceSummary;
     // Si han entrado pagos nuevos desde la última lectura: aviso visual
     // siempre, y clinc según el modo elegido (cada / hitos / silencio)
@@ -208,6 +259,8 @@ const OrganizerApp = () => {
     if (!raceId) return;
     paidCountRef.current = null;
     setSummary(null);
+    setSummaryError(null);
+    setOpenGroup(null);
     fetchSummary(raceId);
   }, [raceId, fetchSummary]);
 
@@ -231,6 +284,41 @@ const OrganizerApp = () => {
     const Icon = (LucideIcons as any)[iconName];
     return Icon || LucideIcons.Circle;
   };
+
+  const selectedRace = races.find((r) => r.id === raceId);
+  const coverImage = selectedRace?.cover_image_url || selectedRace?.image_url || null;
+
+  // Todos los items del menú de BD, planos
+  const allItems = groupedItems.flatMap((g) => g.items);
+  const itemByView = (v: string) => allItems.find((i) => i.view_name === v);
+
+  // El "Panel de Organizador" (dashboard) va aparte, como botón destacado
+  const dashboardItem = allItems.find((i) => i.view_name === "dashboard");
+
+  // Grupos de primer nivel (solo los que tienen algún item disponible)
+  const orgGroups = ORG_GROUP_DEFS.map((def) => ({
+    ...def,
+    items: def.views.map(itemByView).filter(Boolean) as typeof allItems,
+  })).filter((g) => g.items.length > 0);
+
+  // Grupo "Usuario": navegación fija de la app
+  const userItems = ORG_USER_ITEMS;
+
+  // Items no mapeados en ningún grupo → "Más", para no perder nada
+  const mappedViews = new Set(ORG_GROUP_DEFS.flatMap((d) => d.views).concat("dashboard"));
+  const extraItems = allItems.filter((i) => i.view_name && !mappedViews.has(i.view_name));
+
+  const openItem = (item: MenuButton) => {
+    if (item.view_name) navigate(`/organizer?view=${item.view_name}`);
+    else if (item.route) navigate(item.route);
+  };
+
+  const activeGroup =
+    openGroup === "usuario"
+      ? { key: "usuario", label: "Usuario", icon: UserCircle, items: userItems }
+      : openGroup === "mas"
+        ? { key: "mas", label: "Más", icon: LucideIcons.LayoutGrid, items: extraItems }
+        : orgGroups.find((g) => g.key === openGroup);
 
   if (authLoading || loading) {
     return (
@@ -309,9 +397,49 @@ const OrganizerApp = () => {
           </Select>
         )}
 
-        {raceId && !summary && (
+        {/* Imagen de portada de la carrera */}
+        {raceId && (
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            {coverImage ? (
+              <img src={coverImage} alt={selectedRace?.name} className="aspect-[2.4/1] w-full object-cover" />
+            ) : (
+              <div className="flex aspect-[2.4/1] w-full items-center justify-center bg-primary/10">
+                <span className="px-4 text-center font-archivo uppercase text-primary">{selectedRace?.name}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Botón destacado: Panel de Organizador */}
+        {raceId && dashboardItem && (
+          <button
+            onClick={() => navigate(`/organizer?view=dashboard`)}
+            className="flex w-full items-center justify-between rounded-2xl border-2 border-secondary bg-secondary/5 px-5 py-4 transition-colors hover:bg-secondary/10"
+          >
+            <span className="flex items-center gap-3">
+              <LayoutDashboard className="h-6 w-6 text-secondary" />
+              <span className="font-archivo text-lg uppercase">Panel de Organizador</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-secondary" />
+          </button>
+        )}
+
+        {/* Informe: cargando / error */}
+        {raceId && !summary && !summaryError && (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-secondary" />
+          </div>
+        )}
+        {summaryError && (
+          <div className="flex items-start gap-3 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">No se pudo cargar el informe</p>
+              <p className="text-sm text-muted-foreground">{summaryError}</p>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => raceId && fetchSummary(raceId)}>
+                Reintentar
+              </Button>
+            </div>
           </div>
         )}
 
@@ -402,29 +530,69 @@ const OrganizerApp = () => {
           </>
         )}
 
-        {/* Menú del panel: mismos items de BD que el sidebar */}
-        {groupedItems.length > 0 && (
+        {/* Menú de dos niveles: grupos → opciones */}
+        {allItems.length > 0 && (
           <section>
-            <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Panel completo</p>
-            <div className="grid grid-cols-3 gap-2">
-              {groupedItems.flatMap((g) => g.items).map((item) => {
-                const Icon = getIcon(item.icon);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() =>
-                      item.view_name
-                        ? navigate(`/organizer?view=${item.view_name}`)
-                        : item.route && navigate(item.route)
-                    }
-                    className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-center transition-colors hover:border-secondary"
-                  >
-                    <Icon className="h-5 w-5 text-primary" />
-                    <span className="text-[11px] font-medium leading-tight">{item.title}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {!activeGroup ? (
+              <>
+                <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Gestión</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {orgGroups.map((g) => (
+                    <button
+                      key={g.key}
+                      onClick={() => setOpenGroup(g.key)}
+                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                    >
+                      <g.icon className="h-6 w-6 shrink-0 text-secondary" />
+                      <span className="font-archivo text-sm uppercase leading-tight">{g.label}</span>
+                    </button>
+                  ))}
+                  {extraItems.length > 0 && (
+                    <button
+                      onClick={() => setOpenGroup("mas")}
+                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                    >
+                      <LucideIcons.LayoutGrid className="h-6 w-6 shrink-0 text-secondary" />
+                      <span className="font-archivo text-sm uppercase leading-tight">Más</span>
+                    </button>
+                  )}
+                  {userItems.length > 0 && (
+                    <button
+                      onClick={() => setOpenGroup("usuario")}
+                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                    >
+                      <UserCircle className="h-6 w-6 shrink-0 text-secondary" />
+                      <span className="font-archivo text-sm uppercase leading-tight">Usuario</span>
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setOpenGroup(null)}
+                  className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-secondary"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  {activeGroup.label}
+                </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {activeGroup.items.map((item) => {
+                    const Icon = getIcon(item.icon);
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => openItem(item)}
+                        className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-center transition-colors hover:border-secondary"
+                      >
+                        <Icon className="h-5 w-5 text-primary" />
+                        <span className="text-[11px] font-medium leading-tight">{item.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </section>
         )}
       </main>
