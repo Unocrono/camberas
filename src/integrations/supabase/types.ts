@@ -4084,6 +4084,7 @@ export type Database = {
           speed: number
         }[]
       }
+      get_organizer_race_summary: { Args: { p_race_id: string }; Returns: Json }
       get_organizer_requests: {
         Args: never
         Returns: {
