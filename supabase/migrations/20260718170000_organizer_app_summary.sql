@@ -23,7 +23,7 @@ begin
   select exists (
     select 1 from races r
     where r.id = p_race_id
-      and (r.organizer_id = v_uid or public.has_role('admin', v_uid))
+      and (r.organizer_id = v_uid or public.has_role(v_uid, 'admin'::app_role))
   ) into v_allowed;
 
   if not v_allowed then
