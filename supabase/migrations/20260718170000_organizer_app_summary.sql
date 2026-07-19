@@ -10,7 +10,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn$
 declare
   v_uid uuid := auth.uid();
   v_allowed boolean;
@@ -103,16 +103,16 @@ begin
 
   return v_result;
 end;
-$$;
+$fn$;
 
 grant execute on function public.get_organizer_race_summary(uuid) to authenticated;
 revoke execute on function public.get_organizer_race_summary(uuid) from anon;
 
 -- Realtime para el "clinc": registrations en la publicacion realtime
 -- (los eventos llegan filtrados por las politicas RLS del suscriptor)
-do $$
+do $pub$
 begin
   alter publication supabase_realtime add table public.registrations;
 exception when duplicate_object then
   null;
-end $$;
+end $pub$;
