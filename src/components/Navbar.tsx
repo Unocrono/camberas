@@ -9,7 +9,6 @@ import { CamberasLogo } from "@/components/CamberasLogo";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer } = useAuth();
-  const isTrainingPlanEnabled = useIsFunctionEnabled("generate-training-plan");
   const isSupportChatEnabled = useIsFunctionEnabled("support-chat");
 
   return (
@@ -55,7 +54,6 @@ const Navbar = () => {
                     <Mail className="h-4 w-4" />
                     Contacto
                   </NavLink>
-                  {user && isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
                   {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
                   {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
                   {isOrganizer && (
@@ -97,7 +95,6 @@ const Navbar = () => {
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
             
-            {user && isTrainingPlanEnabled && <NavLink to="/training-plan">Plan de Entrenamiento</NavLink>}
             {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             {isOrganizer && <NavLink to="/timing-shop">Cronometraje</NavLink>}
             {isOrganizer && (

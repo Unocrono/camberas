@@ -29,6 +29,10 @@ export const useEdgeFunctionFlags = () => {
 };
 
 export const useIsFunctionEnabled = (functionName: string) => {
-  const { data: flags } = useEdgeFunctionFlags();
-  return flags?.get(functionName) ?? true; // Default to enabled if not found
+  const { data: flags, isLoading } = useEdgeFunctionFlags();
+  // Mientras cargan los flags: oculto (evita el parpadeo de opciones de
+  // menú que aparecen y desaparecen al arrancar). Una vez cargados, una
+  // función sin flag en la tabla se considera activada.
+  if (isLoading || !flags) return false;
+  return flags.get(functionName) ?? true;
 };

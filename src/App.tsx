@@ -22,7 +22,6 @@ import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
-import TrainingPlan from "./pages/TrainingPlan";
 import AiSupportChat from "./pages/AiSupportChat";
 import SupportChat from "./pages/SupportChat";
 import Faqs from "./pages/Faqs";
@@ -77,7 +76,6 @@ const App = () => (
           <Route path="/admin/support" element={<SupportChat />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
           <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
-          <Route path="/training-plan" element={<TrainingPlan />} />
           <Route path="/support-chat" element={<AiSupportChat />} />
           <Route path="/faqs" element={<Faqs />} />
           <Route path="/organizer-profile" element={<OrganizerProfile />} />
