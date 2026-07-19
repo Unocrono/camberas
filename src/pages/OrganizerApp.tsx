@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { CamberasLogo } from "@/components/CamberasLogo";
 import * as LucideIcons from "lucide-react";
-import { Loader2, Volume2, VolumeX, RefreshCw } from "lucide-react";
+import { Loader2, Volume2, VolumeX, Bell, RefreshCw } from "lucide-react";
 
 interface DistanceSummary {
   distance_id: string;
@@ -99,6 +99,38 @@ function timeAgo(iso: string): string {
 const euro = (n: number) =>
   n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: n % 1 === 0 ? 0 : 2 });
 
+type ClincMode = "each" | "milestones" | "off";
+
+const CLINC_MILESTONE = 10; // suena al cruzar cada 10 pagados en modo "hitos"
+const CLINC_LOW_PLACES = 10; // ...o cuando a un recorrido le quedan pocas plazas
+
+/**
+ * ¿Debe sonar el clinc al pasar de prevPaid a s.paid_registrations?
+ * - each: siempre que entre un pago nuevo
+ * - milestones: solo al cruzar un múltiplo de 10, o si un recorrido baja
+ *   de 10 plazas libres (evita el spam en la avalancha de inscripciones)
+ * - off: nunca
+ */
+function shouldClinc(mode: ClincMode, prevPaid: number, s: RaceSummary): boolean {
+  if (mode === "off") return false;
+  if (mode === "each") return true;
+  const crossedMilestone =
+    Math.floor(s.paid_registrations / CLINC_MILESTONE) > Math.floor(prevPaid / CLINC_MILESTONE);
+  const nearlyFull = s.by_distance.some(
+    (d) =>
+      d.max_participants !== null &&
+      d.max_participants - d.count > 0 &&
+      d.max_participants - d.count <= CLINC_LOW_PLACES,
+  );
+  return crossedMilestone || nearlyFull;
+}
+
+const CLINC_LABEL: Record<ClincMode, string> = {
+  each: "Cada inscripción",
+  milestones: "Solo hitos",
+  off: "Silencio",
+};
+
 const OrganizerApp = () => {
   const { user, isAdmin, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -109,16 +141,20 @@ const OrganizerApp = () => {
   const [raceId, setRaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<RaceSummary | null>(null);
   const [loading, setLoading] = useState(true);
-  const [soundOn, setSoundOn] = useState(() => localStorage.getItem("org-clinc") !== "off");
+  const [clincMode, setClincMode] = useState<ClincMode>(
+    () => (localStorage.getItem("org-clinc-mode") as ClincMode) || "each",
+  );
   const paidCountRef = useRef<number | null>(null);
+  const clincModeRef = useRef<ClincMode>(clincMode);
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth?returnTo=/org");
   }, [authLoading, user, navigate]);
 
   useEffect(() => {
-    localStorage.setItem("org-clinc", soundOn ? "on" : "off");
-  }, [soundOn]);
+    localStorage.setItem("org-clinc-mode", clincMode);
+    clincModeRef.current = clincMode;
+  }, [clincMode]);
 
   // Carreras del organizador (admin: todas)
   useEffect(() => {
@@ -148,13 +184,14 @@ const OrganizerApp = () => {
       return;
     }
     const s = data as RaceSummary;
-    // Clinc si han entrado pagos nuevos desde la última lectura
+    // Si han entrado pagos nuevos desde la última lectura: aviso visual
+    // siempre, y clinc según el modo elegido (cada / hitos / silencio)
     if (
       paidCountRef.current !== null &&
       s.paid_registrations > paidCountRef.current
     ) {
       const last = s.last_registrations.find((r) => r.payment_status === "paid");
-      if (localStorage.getItem("org-clinc") !== "off") playClinc();
+      if (shouldClinc(clincModeRef.current, paidCountRef.current, s)) playClinc();
       toast({
         title: "💶 ¡Nueva inscripción pagada!",
         description: last
@@ -227,12 +264,22 @@ const OrganizerApp = () => {
           </div>
           <div className="flex items-center gap-1">
             <Button
-              variant="ghost"
-              size="icon"
-              title={soundOn ? "Silenciar el clinc" : "Activar el clinc"}
-              onClick={() => setSoundOn((s) => !s)}
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              title="Modo de aviso sonoro: cada inscripción, solo hitos o silencio"
+              onClick={() =>
+                setClincMode((m) => (m === "each" ? "milestones" : m === "milestones" ? "off" : "each"))
+              }
             >
-              {soundOn ? <Volume2 className="h-5 w-5 text-secondary" /> : <VolumeX className="h-5 w-5 text-muted-foreground" />}
+              {clincMode === "each" ? (
+                <Volume2 className="h-4 w-4 text-secondary" />
+              ) : clincMode === "milestones" ? (
+                <Bell className="h-4 w-4 text-secondary" />
+              ) : (
+                <VolumeX className="h-4 w-4 text-muted-foreground" />
+              )}
+              <span className="text-xs">{CLINC_LABEL[clincMode]}</span>
             </Button>
             <Button variant="ghost" size="icon" title="Actualizar" onClick={() => raceId && fetchSummary(raceId)}>
               <RefreshCw className="h-5 w-5" />
