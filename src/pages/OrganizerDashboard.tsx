@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,10 @@ const OrganizerDashboard = () => {
   const { toast } = useToast();
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
-  const [currentView, setCurrentView] = useState<OrganizerView>("dashboard");
+  const [searchParams] = useSearchParams();
+  const [currentView, setCurrentView] = useState<OrganizerView>(
+    searchParams.get("view") || "dashboard",
+  );
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const {

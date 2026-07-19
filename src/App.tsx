@@ -22,6 +22,7 @@ import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
+import OrganizerApp from "./pages/OrganizerApp";
 import AiSupportChat from "./pages/AiSupportChat";
 import SupportChat from "./pages/SupportChat";
 import Faqs from "./pages/Faqs";
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/admin/:view" element={<AdminDashboard />} />
           <Route path="/admin/support" element={<SupportChat />} />
           <Route path="/organizer" element={<OrganizerDashboard />} />
+          <Route path="/org" element={<OrganizerApp />} />
           <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
           <Route path="/support-chat" element={<AiSupportChat />} />
           <Route path="/faqs" element={<Faqs />} />

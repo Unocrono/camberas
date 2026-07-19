@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "robots.txt", "timing-icon-192.png", "timing-icon-512.png", "gps-icon-192.png", "gps-icon-512.png"],
+      includeAssets: ["favicon.ico", "robots.txt", "timing-icon-192.png", "timing-icon-512.png", "gps-icon-192.png", "gps-icon-512.png", "org-icon-192.png", "org-icon-512.png"],
       manifest: false, // We'll handle manifests manually for multiple PWAs
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
           },
         ],
         navigateFallback: "/index.html",
-        navigateFallbackAllowlist: [/^\/timing/, /^\/track/],
+        navigateFallbackAllowlist: [/^\/timing/, /^\/track/, /^\/org$/, /^\/org\//],
       },
     }),
   ].filter(Boolean),
