@@ -110,7 +110,7 @@ const emptyFormData: RegistrationFormData = {
   bib_number: "",
 };
 
-type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "actions";
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions";
 
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "bib_number", label: "Dorsal" },
@@ -124,6 +124,7 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "club", label: "Club" },
   { key: "team", label: "Equipo" },
   { key: "country", label: "País" },
+  { key: "created_at", label: "Fecha y hora" },
   { key: "type", label: "Tipo" },
   { key: "distance", label: "Distancia" },
   { key: "status", label: "Estado" },
@@ -131,7 +132,7 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "actions", label: "Acciones" },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "status", "payment", "actions"];
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "status", "payment", "actions"];
 
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   const { toast } = useToast();
@@ -1699,6 +1700,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     </TableHead>
                   )}
                   {visibleColumns.has("country") && <TableHead>País</TableHead>}
+                  {visibleColumns.has("created_at") && <TableHead>Fecha y hora</TableHead>}
                   {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
                   {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
                   {visibleColumns.has("status") && (
@@ -1825,6 +1827,19 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                         )}
                         {visibleColumns.has("country") && (
                           <TableCell>{country || "-"}</TableCell>
+                        )}
+                        {visibleColumns.has("created_at") && (
+                          <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                            {reg.created_at
+                              ? new Date(reg.created_at).toLocaleString("es-ES", {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  year: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "-"}
+                          </TableCell>
                         )}
                         {visibleColumns.has("type") && (
                           <TableCell>

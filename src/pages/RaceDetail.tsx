@@ -464,8 +464,19 @@ const RaceDetail = () => {
             // Origen para facturación: la de pago va por la pasarela
             source: totalToPay > 0 ? "gateway" : "free",
             bib_number: assignedBib ?? null,
+            // Campos del formulario que tienen columna propia: se copian
+            // para que el panel, los informes y los exports los vean
             tshirt_size: customFormData.tshirt_size
               ? String(customFormData.tshirt_size)
+              : null,
+            club: customFormData.club ? String(customFormData.club) : null,
+            team: customFormData.team ? String(customFormData.team) : null,
+            country: customFormData.country ? String(customFormData.country) : null,
+            address: customFormData.address ? String(customFormData.address) : null,
+            city: customFormData.city ? String(customFormData.city) : null,
+            province: customFormData.province ? String(customFormData.province) : null,
+            autonomous_community: customFormData.autonomous_community
+              ? String(customFormData.autonomous_community)
               : null,
           })
           .select()

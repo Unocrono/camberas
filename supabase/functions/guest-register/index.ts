@@ -149,9 +149,18 @@ serve(async (req) => {
         birth_date: birthDate || null,
         gender: gender || null,
         bib_number: bibNumber ?? null,
-        // La talla llega como campo del formulario (field_name: tshirt_size);
-        // se copia a la columna para que informes y exports la vean
+        // Estos llegan como campos del formulario; se copian a sus columnas
+        // para que el panel, los informes y los exports los vean
         tshirt_size: formData.tshirt_size ? String(formData.tshirt_size) : null,
+        club: formData.club ? String(formData.club) : null,
+        team: formData.team ? String(formData.team) : null,
+        country: formData.country ? String(formData.country) : null,
+        address: formData.address ? String(formData.address) : null,
+        city: formData.city ? String(formData.city) : null,
+        province: formData.province ? String(formData.province) : null,
+        autonomous_community: formData.autonomous_community
+          ? String(formData.autonomous_community)
+          : null,
       })
       .select("id, bib_number")
       .single();
