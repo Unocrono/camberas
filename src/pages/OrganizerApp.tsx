@@ -393,6 +393,10 @@ const OrganizerApp = () => {
       </header>
 
       <main className="mx-auto max-w-lg space-y-6 px-4 pt-4">
+        {/* Portada: solo cuando no hay un grupo abierto. Al entrar en un
+            grupo la pantalla queda limpia, solo con sus botones. */}
+        {!activeGroup && (
+        <>
         {/* Selector de carrera */}
         {races.length === 0 ? (
           <p className="py-12 text-center text-muted-foreground">
@@ -567,6 +571,8 @@ const OrganizerApp = () => {
               </div>
             )}
           </section>
+        )}
+        </>
         )}
 
         {/* Menú de dos niveles: grupos → opciones */}
