@@ -53,7 +53,8 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
             race_distance:race_distances(name, price)
           `)
           .eq("race_id", raceId)
-          .eq("status", "confirmed")
+          // También las pendientes: el ⏳ del importe las distingue
+          .in("status", ["confirmed", "pending"])
           .order("created_at", { ascending: false })
           .limit(5);
 

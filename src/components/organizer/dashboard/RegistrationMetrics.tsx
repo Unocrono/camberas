@@ -2,11 +2,12 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Euro, Users, Gift } from "lucide-react";
+import { Euro, Users, Gift, Clock } from "lucide-react";
 
 interface Metrics {
   totalRevenue: number;
   totalRegistrations: number;
+  pendingRegistrations: number;
   freeRegistrations: number;
 }
 
@@ -68,17 +69,23 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
             race_distance:race_distances!inner(price)
           `)
           .eq("race_id", raceId)
-          .eq("status", "confirmed");
+          // Confirmadas Y pendientes: el contador debe reflejar a todo el
+          // que se inscribió, aunque se quedara a medias pagando
+          .in("status", ["confirmed", "pending"]);
 
         if (error) throw error;
 
         let totalRevenue = 0;
         let totalRegistrations = 0;
+        let pendingRegistrations = 0;
         let freeRegistrations = 0;
 
         registrations?.forEach((reg: any) => {
           totalRegistrations++;
           const price = reg.race_distance?.price || 0;
+          if (reg.status === "pending") {
+            pendingRegistrations++;
+          }
           // Solo cuenta como recaudación lo efectivamente pagado
           if (["paid", "completed"].includes(reg.payment_status)) {
             totalRevenue += price;
@@ -91,6 +98,7 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
         setMetrics({
           totalRevenue,
           totalRegistrations,
+          pendingRegistrations,
           freeRegistrations,
         });
       } catch (error) {
@@ -107,8 +115,8 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
 
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardContent className="p-6">
               <Skeleton className="h-4 w-24 mb-2" />
@@ -138,17 +146,25 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
       bgColor: "bg-blue-500/10",
     },
     {
+      label: "Pendientes de Pago",
+      value: metrics?.pendingRegistrations || 0,
+      prefix: "",
+      icon: Clock,
+      color: "text-amber-600",
+      bgColor: "bg-amber-500/10",
+    },
+    {
       label: "Inscripciones Gratuitas",
       value: metrics?.freeRegistrations || 0,
       prefix: "",
       icon: Gift,
-      color: "text-amber-500",
-      bgColor: "bg-amber-500/10",
+      color: "text-purple-500",
+      bgColor: "bg-purple-500/10",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
       {items.map((item) => (
         <Card key={item.label} className="overflow-hidden">
           <CardContent className="p-6">

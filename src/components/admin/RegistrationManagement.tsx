@@ -1519,11 +1519,16 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Recalcular categorías por edad
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setBulkDeleteDialog(true)} className="text-destructive focus:text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Eliminar seleccionadas
-              </DropdownMenuItem>
+              {/* Borrado solo para admin: el organizador cambia estados, no elimina */}
+              {!isOrganizer && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setBulkDeleteDialog(true)} className="text-destructive focus:text-destructive">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar seleccionadas
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -1897,6 +1902,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 <Pencil className="h-4 w-4" />
                               </Button>
 
+                              {/* Borrado solo para admin: el organizador cambia estados, no elimina */}
+                              {!isOrganizer && (
                               <AlertDialog open={deleteDialogId === reg.id} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
                                 <AlertDialogTrigger asChild>
                                   <Button variant="outline" size="sm" onClick={() => setDeleteDialogId(reg.id)}>
@@ -1923,7 +1930,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                   </AlertDialogFooter>
                                 </AlertDialogContent>
                               </AlertDialog>
-                              
+                              )}
+
                               <RegistrationResponsesView registrationId={reg.id} />
                             </div>
                           </TableCell>
