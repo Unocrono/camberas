@@ -1112,6 +1112,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         status: formData.status,
         payment_status: formData.payment_status,
         bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
+        // Alta desde el panel: no pasa por la pasarela, no factura comisión
+        source: "manual",
       };
 
       const { error } = await supabase.from("registrations").insert(insertData);

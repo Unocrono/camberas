@@ -139,6 +139,8 @@ serve(async (req) => {
         race_distance_id: distanceId,
         status: isFree ? "confirmed" : "pending",
         payment_status: isFree ? "not_required" : "pending",
+        // Origen para facturación: la de pago va por la pasarela
+        source: isFree ? "free" : "gateway",
         first_name: firstName,
         last_name: lastName,
         email,

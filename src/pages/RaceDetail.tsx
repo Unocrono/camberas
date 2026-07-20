@@ -461,6 +461,8 @@ const RaceDetail = () => {
             race_distance_id: selectedDistance.id,
             status: "pending",
             payment_status: "pending",
+            // Origen para facturación: la de pago va por la pasarela
+            source: totalToPay > 0 ? "gateway" : "free",
             bib_number: assignedBib ?? null,
             tshirt_size: customFormData.tshirt_size
               ? String(customFormData.tshirt_size)

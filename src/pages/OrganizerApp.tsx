@@ -47,7 +47,16 @@ interface LastRegistration {
   payment_status: string;
   bib_number: number | null;
   distance_name: string;
+  source: string | null;
   amount: number | null;
+}
+
+/** Origen de la inscripción, para facturación */
+interface SourceSummary {
+  source: string;
+  count: number;
+  paid: number;
+  revenue: number;
 }
 
 interface RaceSummary {
@@ -57,8 +66,15 @@ interface RaceSummary {
   registrations_today: number;
   revenue_today: number;
   by_distance: DistanceSummary[];
+  by_source?: SourceSummary[];
   last_registrations: LastRegistration[];
 }
+
+const SOURCE_LABEL: Record<string, string> = {
+  gateway: "Pasarela",
+  manual: "Alta manual",
+  free: "Gratuitas",
+};
 
 interface RaceOption {
   id: string;
@@ -488,6 +504,26 @@ const OrganizerApp = () => {
                 ))}
               </div>
             </section>
+
+            {/* Por origen — para facturación (pasarela vs alta manual) */}
+            {summary.by_source && summary.by_source.length > 0 && (
+              <section>
+                <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Por origen</p>
+                <div className="space-y-2">
+                  {summary.by_source.map((s) => (
+                    <div key={s.source} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+                      <div>
+                        <p className="font-archivo uppercase">{SOURCE_LABEL[s.source] ?? s.source}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {s.count} inscripciones · {s.paid} pagadas
+                        </p>
+                      </div>
+                      <p className="font-archivo text-lg text-secondary">{euro(s.revenue)}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
           </>
         )}
