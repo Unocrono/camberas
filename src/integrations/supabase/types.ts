@@ -3214,6 +3214,7 @@ export type Database = {
           race_category_id: string | null
           race_distance_id: string
           race_id: string
+          source: string | null
           status: string
           team: string | null
           tshirt_size: string | null
@@ -3243,6 +3244,7 @@ export type Database = {
           race_category_id?: string | null
           race_distance_id: string
           race_id: string
+          source?: string | null
           status?: string
           team?: string | null
           tshirt_size?: string | null
@@ -3272,6 +3274,7 @@ export type Database = {
           race_category_id?: string | null
           race_distance_id?: string
           race_id?: string
+          source?: string | null
           status?: string
           team?: string | null
           tshirt_size?: string | null
