@@ -18,6 +18,19 @@ const requestSchema = z.object({
   formData: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullish()),
 });
 
+/**
+ * Texto del formulario -> gender_id de la tabla genders (1=M, 2=F, 3=X).
+ * Las estadísticas del panel usan gender_id, no el texto.
+ */
+function genderToId(value: unknown): number | null {
+  const v = String(value ?? "").trim().toUpperCase();
+  if (!v) return null;
+  if (v.startsWith("M")) return 1; // M / Masculino / Male
+  if (v.startsWith("F")) return 2; // F / Femenino / Female
+  if (v.startsWith("X")) return 3; // X / Mixto / Otro
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -148,6 +161,9 @@ serve(async (req) => {
         dni_passport: documentNumber,
         birth_date: birthDate || null,
         gender: gender || null,
+        // gender_id es lo que usan las estadísticas (1=M, 2=F, 3=X).
+        // Sin esto, el panel contaba a todo el mundo como "X".
+        gender_id: genderToId(gender),
         bib_number: bibNumber ?? null,
         // Estos llegan como campos del formulario; se copian a sus columnas
         // para que el panel, los informes y los exports los vean

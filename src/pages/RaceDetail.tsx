@@ -19,6 +19,19 @@ import { RouteFlightViewer } from "@/components/RouteFlightViewer";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { ContactOrganizerDialog } from "@/components/ContactOrganizerDialog";
 
+/**
+ * Texto del formulario -> gender_id de la tabla genders (1=M, 2=F, 3=X).
+ * Las estadísticas del panel usan gender_id, no el texto.
+ */
+function genderToId(value: unknown): number | null {
+  const v = String(value ?? "").trim().toUpperCase();
+  if (!v) return null;
+  if (v.startsWith("M")) return 1;
+  if (v.startsWith("F")) return 2;
+  if (v.startsWith("X")) return 3;
+  return null;
+}
+
 const RaceDetail = () => {
   const { id, slug } = useParams();
   const [raceId, setRaceId] = useState<string | null>(null);
@@ -466,6 +479,9 @@ const RaceDetail = () => {
             bib_number: assignedBib ?? null,
             // Campos del formulario que tienen columna propia: se copian
             // para que el panel, los informes y los exports los vean
+            gender: customFormData.gender ? String(customFormData.gender) : null,
+            // gender_id es lo que usan las estadísticas (1=M, 2=F, 3=X)
+            gender_id: genderToId(customFormData.gender),
             tshirt_size: customFormData.tshirt_size
               ? String(customFormData.tshirt_size)
               : null,
