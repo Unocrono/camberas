@@ -60,8 +60,11 @@ interface SourceSummary {
 }
 
 interface RaceSummary {
+  /** Solo inscripciones con el pago resuelto (pagadas o gratuitas) */
   total_registrations: number;
   paid_registrations: number;
+  /** Pendientes de pago: no cuentan en los informes, solo se avisan */
+  pending_registrations?: number;
   revenue_total: number;
   registrations_today: number;
   revenue_today: number;
@@ -470,7 +473,11 @@ const OrganizerApp = () => {
               <div className="rounded-xl border border-border bg-card p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Inscritos</p>
                 <p className="font-archivo text-3xl text-primary">{summary.total_registrations}</p>
-                <p className="text-xs text-muted-foreground">{summary.paid_registrations} pagados</p>
+                <p className="text-xs text-muted-foreground">
+                  {summary.pending_registrations
+                    ? `+${summary.pending_registrations} sin pagar`
+                    : "pago confirmado"}
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-card p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Recaudación</p>
