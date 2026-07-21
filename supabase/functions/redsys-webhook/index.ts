@@ -218,6 +218,29 @@ serve(async (req) => {
               organizerEmail,
             }),
           });
+
+          // "Clinc" con la app cerrada: push al organizador de la carrera
+          if (race?.organizer_id) {
+            try {
+              const runner = [registration.first_name, registration.last_name]
+                .filter(Boolean).join(" ") || "Nueva inscripción";
+              await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({
+                  userId: race.organizer_id,
+                  title: "💶 ¡Nueva inscripción pagada!",
+                  body: `${runner} — ${distance?.name ?? ""} · ${paymentIntent.amount}€`,
+                  url: "/org",
+                }),
+              });
+            } catch (pushError) {
+              console.error("Error sending push:", pushError);
+            }
+          }
         }
       } catch (emailError) {
         console.error("Error sending confirmation email:", emailError);

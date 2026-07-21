@@ -25,10 +25,11 @@ import {
 import { CamberasLogo } from "@/components/CamberasLogo";
 import * as LucideIcons from "lucide-react";
 import {
-  Loader2, Volume2, VolumeX, Bell, RefreshCw, AlertCircle, ChevronRight, ChevronLeft,
+  Loader2, Volume2, VolumeX, Bell, BellRing, RefreshCw, AlertCircle, ChevronRight, ChevronLeft,
   LayoutDashboard, Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { enablePush, pushPermission } from "@/lib/pushNotifications";
 
 interface DistanceSummary {
   distance_id: string;
@@ -209,6 +210,7 @@ const OrganizerApp = () => {
   const [clincMode, setClincMode] = useState<ClincMode>(
     () => (localStorage.getItem("org-clinc-mode") as ClincMode) || "each",
   );
+  const [pushState, setPushState] = useState(() => pushPermission());
   const paidCountRef = useRef<number | null>(null);
   const clincModeRef = useRef<ClincMode>(clincMode);
 
@@ -388,6 +390,26 @@ const OrganizerApp = () => {
               )}
               <span className="text-xs">{CLINC_LABEL[clincMode]}</span>
             </Button>
+            {/* Avisos con la app cerrada */}
+            {pushState !== "unsupported" && pushState !== "granted" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Recibir avisos con la app cerrada"
+                onClick={async () => {
+                  if (!user) return;
+                  const err = await enablePush(user.id);
+                  setPushState(pushPermission());
+                  toast(
+                    err
+                      ? { title: "No se activaron los avisos", description: err, variant: "destructive" }
+                      : { title: "Avisos activados", description: "Te avisaremos aunque la app esté cerrada." },
+                  );
+                }}
+              >
+                <BellRing className="h-5 w-5 text-muted-foreground" />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" title="Actualizar" onClick={() => raceId && fetchSummary(raceId)}>
               <RefreshCw className="h-5 w-5" />
             </Button>
