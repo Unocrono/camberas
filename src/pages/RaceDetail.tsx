@@ -32,6 +32,29 @@ function genderToId(value: unknown): number | null {
   return null;
 }
 
+/** Minutos que se le reserva la plaza a quien está pagando */
+const CHECKOUT_HOLD_MINUTES = 30;
+
+/**
+ * ¿Esta inscripción ocupa una plaza?
+ * - Cancelada: no
+ * - Pago resuelto (pagada o gratuita): sí
+ * - Pendiente de pago: solo durante los primeros CHECKOUT_HOLD_MINUTES,
+ *   para no perder la plaza mientras se está en la pasarela. Pasado ese
+ *   rato se considera carrito abandonado y la plaza se libera sola.
+ */
+function occupiesPlace(reg: {
+  status?: string | null;
+  payment_status?: string | null;
+  created_at?: string | null;
+}): boolean {
+  if (reg.status === "cancelled") return false;
+  if (reg.payment_status === "paid" || reg.payment_status === "not_required") return true;
+  if (!reg.created_at) return false;
+  const ageMin = (Date.now() - new Date(reg.created_at).getTime()) / 60000;
+  return ageMin < CHECKOUT_HOLD_MINUTES;
+}
+
 const RaceDetail = () => {
   const { id, slug } = useParams();
   const [raceId, setRaceId] = useState<string | null>(null);
@@ -164,7 +187,7 @@ const RaceDetail = () => {
 
       const { data: registrationsData, error: registrationsError } = await supabase
         .from("registrations")
-        .select("race_distance_id")
+        .select("race_distance_id, status, payment_status, created_at")
         .eq("race_id", raceId);
 
       if (registrationsError) throw registrationsError;
@@ -189,7 +212,7 @@ const RaceDetail = () => {
 
       const distancesWithAvailability = distancesData.map((distance: any) => {
         const registeredCount = registrationsData.filter(
-          (reg: any) => reg.race_distance_id === distance.id
+          (reg: any) => reg.race_distance_id === distance.id && occupiesPlace(reg)
         ).length;
         const availablePlaces = distance.max_participants 
           ? distance.max_participants - registeredCount 

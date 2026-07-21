@@ -67,12 +67,29 @@ serve(async (req) => {
     // La distancia debe pertenecer a la carrera indicada
     const { data: distance, error: distErr } = await supabase
       .from("race_distances")
-      .select("id, race_id, name, price")
+      .select("id, race_id, name, price, max_participants")
       .eq("id", distanceId)
       .eq("race_id", raceId)
       .single();
     if (distErr || !distance) {
       return json({ error: "Distancia no encontrada" }, 404);
+    }
+
+    // Aforo, comprobado en servidor (la UI sola no basta: se podría
+    // saltar llamando directamente a la función). Ocupan plaza las de
+    // pago resuelto y las pendientes recientes (reserva de 30 min
+    // mientras se paga); los carritos abandonados no.
+    if (distance.max_participants) {
+      const holdCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const { count: taken } = await supabase
+        .from("registrations")
+        .select("id", { count: "exact", head: true })
+        .eq("race_distance_id", distanceId)
+        .neq("status", "cancelled")
+        .or(`payment_status.in.(paid,not_required),created_at.gte.${holdCutoff}`);
+      if ((taken ?? 0) >= distance.max_participants) {
+        return json({ error: "No quedan plazas disponibles en este recorrido" }, 409);
+      }
     }
 
     // Duplicado: mismo email en la misma carrera (con service role el
