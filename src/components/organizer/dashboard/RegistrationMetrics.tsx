@@ -59,50 +59,34 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
     async function fetchMetrics() {
       setLoading(true);
       try {
-        // Get all registrations with their distance prices
-        const { data: registrations, error } = await supabase
-          .from("registrations")
-          .select(`
-            id,
-            status,
-            payment_status,
-            race_distance:race_distances!inner(price)
-          `)
-          .eq("race_id", raceId)
-          // Confirmadas Y pendientes: el contador debe reflejar a todo el
-          // que se inscribió, aunque se quedara a medias pagando
-          .in("status", ["confirmed", "pending"]);
+        // Misma fuente que la app /org: el RPC suma los COBROS REALES de
+        // payment_intents. Antes se multiplicaba el precio base del
+        // recorrido por el nº de inscritos, y eso se perdía las tarifas
+        // por tramos y los suplementos del formulario (455€ vs 470€
+        // reales en la Peña Prieta).
+        const { data, error } = await (supabase as any).rpc(
+          "get_organizer_race_summary",
+          { p_race_id: raceId },
+        );
 
         if (error) throw error;
 
-        let totalRevenue = 0;
-        let totalRegistrations = 0;
-        let pendingRegistrations = 0;
-        let freeRegistrations = 0;
-
-        registrations?.forEach((reg: any) => {
-          const price = reg.race_distance?.price || 0;
-          // Inscrito = pago resuelto (pagada o gratuita). Los que se
-          // quedaron a medias van aparte, en su propia tarjeta.
-          const settled = ["paid", "completed", "not_required"].includes(reg.payment_status);
-          if (!settled) {
-            pendingRegistrations++;
-            return;
-          }
-          totalRegistrations++;
-          if (["paid", "completed"].includes(reg.payment_status)) {
-            totalRevenue += price;
-          }
-          if (price === 0) {
-            freeRegistrations++;
-          }
-        });
+        const s = data as {
+          total_registrations: number;
+          paid_registrations: number;
+          pending_registrations?: number;
+          revenue_total: number;
+        };
 
         setMetrics({
-          totalRevenue,
-          totalRegistrations,
-          pendingRegistrations,
-          freeRegistrations,
+          totalRevenue: s.revenue_total ?? 0,
+          totalRegistrations: s.total_registrations ?? 0,
+          pendingRegistrations: s.pending_registrations ?? 0,
+          // Inscrito con pago resuelto que no pagó = gratuita
+          freeRegistrations: Math.max(
+            0,
+            (s.total_registrations ?? 0) - (s.paid_registrations ?? 0),
+          ),
         });
       } catch (error) {
         console.error("Error fetching metrics:", error);
