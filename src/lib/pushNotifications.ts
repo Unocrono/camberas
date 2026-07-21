@@ -35,7 +35,29 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * Pide permiso, se suscribe y guarda la suscripción en la BD.
  * Devuelve un mensaje de error o null si fue bien.
  */
-export async function enablePush(userId: string): Promise<string | null> {
+export type ClincMode = "each" | "milestones" | "off";
+
+/**
+ * Sincroniza el modo de aviso con el servidor. El push lo decide el
+ * servidor, así que el modo tiene que vivir junto a la suscripción y
+ * no solo en el localStorage del móvil.
+ */
+export async function syncPushMode(mode: ClincMode): Promise<void> {
+  if (!isPushSupported()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    await (supabase as any)
+      .from("push_subscriptions")
+      .update({ clinc_mode: mode })
+      .eq("endpoint", sub.endpoint);
+  } catch (err) {
+    console.error("No se pudo sincronizar el modo de aviso:", err);
+  }
+}
+
+export async function enablePush(userId: string, mode: ClincMode = "each"): Promise<string | null> {
   if (!isPushSupported()) {
     return "Este navegador no admite notificaciones push";
   }
@@ -68,6 +90,7 @@ export async function enablePush(userId: string): Promise<string | null> {
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
       user_agent: navigator.userAgent.slice(0, 300),
+      clinc_mode: mode,
     },
     { onConflict: "endpoint" },
   );

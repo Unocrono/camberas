@@ -29,7 +29,7 @@ import {
   LayoutDashboard, Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { enablePush, pushPermission } from "@/lib/pushNotifications";
+import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 
 interface DistanceSummary {
   distance_id: string;
@@ -221,6 +221,8 @@ const OrganizerApp = () => {
   useEffect(() => {
     localStorage.setItem("org-clinc-mode", clincMode);
     clincModeRef.current = clincMode;
+    // El push lo decide el servidor: hay que llevarle el modo elegido
+    syncPushMode(clincMode);
   }, [clincMode]);
 
   // Carreras del organizador (admin: todas)
@@ -398,7 +400,7 @@ const OrganizerApp = () => {
                 title="Recibir avisos con la app cerrada"
                 onClick={async () => {
                   if (!user) return;
-                  const err = await enablePush(user.id);
+                  const err = await enablePush(user.id, clincMode);
                   setPushState(pushPermission());
                   toast(
                     err

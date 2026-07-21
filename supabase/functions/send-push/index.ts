@@ -29,7 +29,7 @@ serve(async (req) => {
       return json({ error: "No autorizado" }, 401);
     }
 
-    const { userId, title, body, url } = await req.json();
+    const { userId, title, body, url, raceId } = await req.json();
     if (!userId || !title) {
       return json({ error: "Faltan userId o title" }, 400);
     }
@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const { data: subs, error } = await supabase
       .from("push_subscriptions")
-      .select("id, endpoint, p256dh, auth")
+      .select("id, endpoint, p256dh, auth, clinc_mode")
       .eq("user_id", userId);
 
     if (error) {
@@ -64,11 +64,53 @@ serve(async (req) => {
       return json({ sent: 0, reason: "sin suscripciones" });
     }
 
+    // ¿Este pago es un "hito"? Solo se calcula si alguna suscripción está
+    // en modo milestones, para no hacer consultas de más.
+    let isMilestone = false;
+    const needsMilestone = subs.some((s: any) => (s.clinc_mode ?? "each") === "milestones");
+    if (needsMilestone && raceId) {
+      // Hito 1: cruzar cada 10 pagados (el contador sube de uno en uno)
+      const { count: paidCount } = await supabase
+        .from("registrations")
+        .select("id", { count: "exact", head: true })
+        .eq("race_id", raceId)
+        .eq("payment_status", "paid");
+      const crossedTen = !!paidCount && paidCount > 0 && paidCount % 10 === 0;
+
+      // Hito 2: a algún recorrido le quedan pocas plazas
+      let lowPlaces = false;
+      const { data: dists } = await supabase
+        .from("race_distances")
+        .select("id, max_participants")
+        .eq("race_id", raceId);
+      for (const d of dists ?? []) {
+        if (!d.max_participants) continue;
+        const { count: taken } = await supabase
+          .from("registrations")
+          .select("id", { count: "exact", head: true })
+          .eq("race_distance_id", d.id)
+          .in("payment_status", ["paid", "not_required"]);
+        const left = d.max_participants - (taken ?? 0);
+        if (left > 0 && left <= 10) {
+          lowPlaces = true;
+          break;
+        }
+      }
+      isMilestone = crossedTen || lowPlaces;
+    }
+
     const payload = JSON.stringify({ title, body: body ?? "", url: url ?? "/org" });
     let sent = 0;
+    let skipped = 0;
     const dead: string[] = [];
 
     for (const s of subs) {
+      // El modo de aviso manda: se decide aquí, en el servidor
+      const mode = (s as any).clinc_mode ?? "each";
+      if (mode === "off" || (mode === "milestones" && !isMilestone)) {
+        skipped++;
+        continue;
+      }
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -89,7 +131,7 @@ serve(async (req) => {
       await supabase.from("push_subscriptions").delete().in("id", dead);
     }
 
-    return json({ sent, removed: dead.length });
+    return json({ sent, skipped, removed: dead.length });
   } catch (err: any) {
     console.error("Error en send-push:", err);
     return json({ error: "Error procesando la solicitud" }, 500);

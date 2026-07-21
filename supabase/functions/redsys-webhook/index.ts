@@ -235,6 +235,8 @@ serve(async (req) => {
                   title: "💶 ¡Nueva inscripción pagada!",
                   body: `${runner} — ${distance?.name ?? ""} · ${paymentIntent.amount}€`,
                   url: "/org",
+                  // Necesario para el modo "solo hitos"
+                  raceId: registration.race_id,
                 }),
               });
             } catch (pushError) {
