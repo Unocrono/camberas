@@ -145,7 +145,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Filters
   const [selectedRace, setSelectedRace] = useState<string>("all");
   const [selectedDistance, setSelectedDistance] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  // El organizador arranca viendo solo confirmadas: los intentos de
+  // inscripción abandonados le ensucian la lista. El admin sigue viendo
+  // todo de entrada, que para eso da soporte. Ambos pueden cambiarlo.
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    isOrganizer ? "confirmed" : "all",
+  );
   const [searchTerm, setSearchTerm] = useState("");
   
   // Column filters
