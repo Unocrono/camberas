@@ -309,7 +309,9 @@ const OrganizerApp = () => {
   };
 
   const selectedRace = races.find((r) => r.id === raceId);
-  const coverImage = selectedRace?.cover_image_url || selectedRace?.image_url || null;
+  // La misma que el índice de /races: la Imagen Principal (16:9). Se
+  // recorta a esa proporción en el admin, así que encaja sin deformar.
+  const coverImage = selectedRace?.image_url || selectedRace?.cover_image_url || null;
 
   // Todos los items del menú de BD, planos
   const allItems = groupedItems.flatMap((g) => g.items);
@@ -448,9 +450,9 @@ const OrganizerApp = () => {
         {raceId && (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
             {coverImage ? (
-              <img src={coverImage} alt={selectedRace?.name} className="aspect-[2.4/1] w-full object-cover" />
+              <img src={coverImage} alt={selectedRace?.name} className="aspect-video w-full object-cover" />
             ) : (
-              <div className="flex aspect-[2.4/1] w-full items-center justify-center bg-primary/10">
+              <div className="flex aspect-video w-full items-center justify-center bg-primary/10">
                 <span className="px-4 text-center font-archivo uppercase text-primary">{selectedRace?.name}</span>
               </div>
             )}
