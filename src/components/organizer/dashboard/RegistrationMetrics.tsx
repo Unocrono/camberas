@@ -81,12 +81,15 @@ export function RegistrationMetrics({ raceId }: RegistrationMetricsProps) {
         let freeRegistrations = 0;
 
         registrations?.forEach((reg: any) => {
-          totalRegistrations++;
           const price = reg.race_distance?.price || 0;
-          if (reg.status === "pending") {
+          // Inscrito = pago resuelto (pagada o gratuita). Los que se
+          // quedaron a medias van aparte, en su propia tarjeta.
+          const settled = ["paid", "completed", "not_required"].includes(reg.payment_status);
+          if (!settled) {
             pendingRegistrations++;
+            return;
           }
-          // Solo cuenta como recaudación lo efectivamente pagado
+          totalRegistrations++;
           if (["paid", "completed"].includes(reg.payment_status)) {
             totalRevenue += price;
           }
