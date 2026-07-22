@@ -677,6 +677,7 @@ export type Database = {
           altitude: number | null
           battery: number | null
           bib_number: string | null
+          created_at: string
           device_id: string | null
           event_id: string | null
           heading: number | null
@@ -693,6 +694,7 @@ export type Database = {
           altitude?: number | null
           battery?: number | null
           bib_number?: string | null
+          created_at?: string
           device_id?: string | null
           event_id?: string | null
           heading?: number | null
@@ -709,6 +711,7 @@ export type Database = {
           altitude?: number | null
           battery?: number | null
           bib_number?: string | null
+          created_at?: string
           device_id?: string | null
           event_id?: string | null
           heading?: number | null
