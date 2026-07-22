@@ -53,8 +53,11 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
             race_distance:race_distances(name, price)
           `)
           .eq("race_id", raceId)
-          // También las pendientes: el ⏳ del importe las distingue
-          .in("status", ["confirmed", "pending"])
+          .neq("status", "cancelled")
+          // Solo inscritos de verdad: pago resuelto (pagada o gratuita). Las
+          // que se quedaron a medias pagando tienen su propia tarjeta y no
+          // deben ensuciar este listado (aparecían sin dorsal).
+          .in("payment_status", ["paid", "completed", "not_required"])
           .order("created_at", { ascending: false })
           .limit(5);
 
@@ -131,13 +134,7 @@ export function LatestRegistrations({ raceId }: LatestRegistrationsProps) {
                     {getName(reg)}
                   </TableCell>
                   <TableCell className="text-right">
-                    {["paid", "completed"].includes(reg.payment_status) || !reg.race_distance?.price ? (
-                      <>{reg.race_distance?.price?.toFixed(0) || "0"}€</>
-                    ) : (
-                      <span className="text-amber-600" title="Pago pendiente">
-                        {reg.race_distance.price.toFixed(0)}€ ⏳
-                      </span>
-                    )}
+                    {reg.race_distance?.price?.toFixed(0) || "0"}€
                   </TableCell>
                   <TableCell className="text-center">
                     {getGenderBadge(reg)}
