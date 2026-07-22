@@ -654,17 +654,18 @@ const OrganizerApp = () => {
                   <ChevronLeft className="h-4 w-4" />
                   {activeGroup.label}
                 </button>
-                <div className="grid grid-cols-3 gap-2">
+                {/* Mismo formato que los grupos de la portada */}
+                <div className="grid grid-cols-2 gap-3">
                   {activeGroup.items.map((item) => {
                     const Icon = getIcon(item.icon);
                     return (
                       <button
                         key={item.id}
                         onClick={() => openItem(item)}
-                        className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card px-2 py-3 text-center transition-colors hover:border-secondary"
+                        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
                       >
-                        <Icon className="h-5 w-5 text-primary" />
-                        <span className="text-[11px] font-medium leading-tight">{item.title}</span>
+                        <Icon className="h-6 w-6 shrink-0 text-secondary" />
+                        <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
                       </button>
                     );
                   })}
