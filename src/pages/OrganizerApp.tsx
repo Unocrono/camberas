@@ -654,7 +654,8 @@ const OrganizerApp = () => {
                   <ChevronLeft className="h-4 w-4" />
                   {activeGroup.label}
                 </button>
-                {/* Mismo formato que los grupos de la portada */}
+                {/* Mismo formato que los grupos de la portada, pero con el
+                    icono en verde para distinguir que es el segundo nivel */}
                 <div className="grid grid-cols-2 gap-3">
                   {activeGroup.items.map((item) => {
                     const Icon = getIcon(item.icon);
@@ -664,7 +665,7 @@ const OrganizerApp = () => {
                         onClick={() => openItem(item)}
                         className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
                       >
-                        <Icon className="h-6 w-6 shrink-0 text-secondary" />
+                        <Icon className="h-6 w-6 shrink-0 text-primary" />
                         <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
                       </button>
                     );
