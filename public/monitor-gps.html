@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monitor GPS — pruebas Camberas Track</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#1a1a2e; color:#fff; padding:24px; }
+  h1 { font-size:20px; letter-spacing:2px; margin-bottom:4px; }
+  .sub { color:#667; font-size:12px; margin-bottom:20px; }
+  .cards { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+  .card { background:#16213e; border-radius:14px; padding:18px 22px; min-width:300px; flex:1; border:2px solid transparent; }
+  .card.ok    { border-color:#4ade80; }
+  .card.warn  { border-color:#f59e0b; }
+  .card.dead  { border-color:#ef4444; }
+  .bib { font-size:26px; font-weight:800; }
+  .name { color:#94a3b8; font-size:13px; margin-bottom:10px; }
+  .big { font-size:40px; font-weight:800; line-height:1; margin:6px 0; }
+  .ok   .big { color:#4ade80; }
+  .warn .big { color:#f59e0b; }
+  .dead .big { color:#ef4444; }
+  .row { display:flex; justify-content:space-between; color:#aab; font-size:13px; padding:3px 0; border-top:1px solid #223; }
+  .row b { color:#fff; font-weight:600; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; color:#667; font-weight:600; padding:6px 8px; border-bottom:1px solid #333; }
+  td { padding:5px 8px; border-bottom:1px solid #1f2b45; color:#cdd; font-variant-numeric:tabular-nums; }
+  .late { color:#f59e0b; }
+  .verylate { color:#ef4444; }
+  h2 { font-size:14px; letter-spacing:1px; color:#94a3b8; margin:18px 0 8px; }
+  #status { color:#667; font-size:11px; margin-top:16px; }
+</style>
+</head>
+<body>
+<h1>MONITOR GPS · CAMBERAS TRACK</h1>
+<div class="sub">Consulta la BD cada 5 s · «llegó hace» = tiempo desde la última posición recibida en el servidor · verde &lt;45 s · ámbar &lt;3 min · rojo más</div>
+<div class="cards" id="cards"></div>
+<h2>ÚLTIMAS LLEGADAS AL SERVIDOR</h2>
+<table>
+  <thead><tr><th>Dorsal</th><th>Capturada</th><th>Llegó al servidor</th><th>Retraso</th><th>Batería</th><th>Precisión</th></tr></thead>
+  <tbody id="log"></tbody>
+</table>
+<div id="status">iniciando…</div>
+
+<script>
+const URL_ = 'https://rsahtxjpisnldxnsmupk.supabase.co';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYWh0eGpwaXNubGR4bnNtdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mjg5MDAsImV4cCI6MjA3OTIwNDkwMH0.MwUTZs3BxPMsy0YtEgM92o4U3xw2SrMmpZ-GFNC03dE';
+const DISPOSITIVOS = { '999': 'ANDROID', '998': 'iPHONE' };
+
+const parse = s => { if (!s) return null; s = s.replace(' ', 'T'); if (s.endsWith('+00')) s = s.slice(0, -3) + 'Z'; return new Date(s); };
+const fmtAge = ms => { const s = Math.floor(ms / 1000); if (s < 60) return `${s} s`; const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')} min`; };
+const fmtHora = d => d ? d.toLocaleTimeString('es-ES') : '—';
+
+async function poll() {
+  try {
+    const r = await fetch(`${URL_}/rest/v1/gps_positions?select=bib_number,timestamp,uploaded_at,created_at,battery,accuracy&order=uploaded_at.desc.nullslast&limit=40`, {
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+    });
+    const rows = await r.json();
+    const now = Date.now();
+
+    // Tarjeta por dispositivo
+    const cards = document.getElementById('cards');
+    cards.innerHTML = '';
+    for (const [bib, nombre] of Object.entries(DISPOSITIVOS)) {
+      const mias = rows.filter(x => String(x.bib_number) === bib);
+      const card = document.createElement('div');
+      if (!mias.length) {
+        card.className = 'card dead';
+        card.innerHTML = `<div class="bib">${bib} <span class="name">${nombre}</span></div><div class="big">sin datos</div>`;
+      } else {
+        const ult = mias[0];
+        const llegada = parse(ult.uploaded_at || ult.created_at);
+        const captura = parse(ult.timestamp);
+        const edad = now - llegada.getTime();
+        const retraso = llegada - captura;
+        const cls = edad < 45000 ? 'ok' : edad < 180000 ? 'warn' : 'dead';
+        card.className = `card ${cls}`;
+        card.innerHTML = `
+          <div class="bib">${bib} <span class="name">${nombre}</span></div>
+          <div class="big">llegó hace ${fmtAge(edad)}</div>
+          <div class="row"><span>capturada</span><b>${fmtHora(captura)}</b></div>
+          <div class="row"><span>retraso captura→servidor</span><b>${fmtAge(Math.max(0, retraso))}</b></div>
+          <div class="row"><span>batería</span><b>${ult.battery ?? '—'} %</b></div>`;
+      }
+      cards.appendChild(card);
+    }
+
+    // Log de llegadas
+    const log = document.getElementById('log');
+    log.innerHTML = rows.slice(0, 15).map(x => {
+      const cap = parse(x.timestamp), lle = parse(x.uploaded_at || x.created_at);
+      const ret = lle && cap ? lle - cap : 0;
+      const cls = ret > 180000 ? 'verylate' : ret > 45000 ? 'late' : '';
+      return `<tr><td>${x.bib_number}</td><td>${fmtHora(cap)}</td><td>${fmtHora(lle)}</td><td class="${cls}">${fmtAge(Math.max(0, ret))}</td><td>${x.battery ?? '—'} %</td><td>${x.accuracy ? Math.round(x.accuracy) + ' m' : '—'}</td></tr>`;
+    }).join('');
+
+    document.getElementById('status').textContent = `última consulta: ${new Date().toLocaleTimeString('es-ES')} · ${rows.length} filas leídas`;
+  } catch (e) {
+    document.getElementById('status').textContent = 'ERROR consultando la BD: ' + e.message;
+  }
+}
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>
