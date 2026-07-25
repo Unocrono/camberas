@@ -45,7 +45,7 @@
 <script>
 const URL_ = 'https://rsahtxjpisnldxnsmupk.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYWh0eGpwaXNubGR4bnNtdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mjg5MDAsImV4cCI6MjA3OTIwNDkwMH0.MwUTZs3BxPMsy0YtEgM92o4U3xw2SrMmpZ-GFNC03dE';
-const DISPOSITIVOS = { '999': 'ANDROID', '998': 'iPHONE' };
+const DISPOSITIVOS = { '999': 'ANDROID', '998': 'iPHONE', '997': 'WP18' };
 
 const parse = s => { if (!s) return null; s = s.replace(' ', 'T'); if (s.endsWith('+00')) s = s.slice(0, -3) + 'Z'; return new Date(s); };
 const fmtAge = ms => { const s = Math.floor(ms / 1000); if (s < 60) return `${s} s`; const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, '0')} min`; };
