@@ -105,6 +105,7 @@ const LiveGPSTracking = () => {
         .select('id, name, distance_km, gps_tracking_enabled, gps_update_frequency, gpx_file_url')
         .eq('race_id', raceId)
         .or('gps_tracking_enabled.eq.true,gpx_file_url.neq.null')
+        .order('display_order', { ascending: true, nullsFirst: false })
         .order('distance_km', { ascending: true });
 
       if (distancesError) throw distancesError;

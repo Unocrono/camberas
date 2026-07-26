@@ -130,6 +130,7 @@ const RaceResults = () => {
         .select("id, name, distance_km")
         .eq("race_id", id)
         .eq("is_visible", true)
+        .order("display_order", { ascending: true, nullsFirst: false })
         .order("distance_km", { ascending: true });
 
       if (distancesError) throw distancesError;
