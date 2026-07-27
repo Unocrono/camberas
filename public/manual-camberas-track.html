@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de usuario — Camberas Track</title>
+<meta name="robots" content="index,follow">
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         max-width: 720px; margin: 0 auto; padding: 32px 20px; line-height: 1.6;
+         color: #222; }
+  h1 { font-size: 26px; } h2 { font-size: 19px; margin-top: 32px; }
+  .sub { color: #777; font-size: 15px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 15px; }
+  th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; }
+  .aviso { background: #fff4e5; border-left: 4px solid #f59e0b; padding: 10px 14px;
+           border-radius: 6px; margin: 14px 0; }
+  .ok { background: #eefaf0; border-left: 4px solid #4ade80; padding: 10px 14px;
+        border-radius: 6px; margin: 14px 0; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #16161d; color: #ddd; }
+    a { color: #7ab8ff; }
+    th { background: #23232e; }
+    th, td { border-color: #444; }
+    .aviso { background: #2a2115; }
+    .ok { background: #16231a; }
+  }
+</style>
+</head>
+<body>
+<h1>Manual de usuario — Camberas Track</h1>
+<p class="sub">App de seguridad para participantes en carreras de montaña · Android e iPhone</p>
+
+<h2>1. ¿Qué es Camberas Track?</h2>
+<p>Camberas Track envía tu posición a la organización de la carrera mientras
+participas, para que el equipo de seguridad pueda localizarte en todo momento y
+asistirte si lo necesitas.</p>
+<p><strong>Qué comparte:</strong> tu dorsal, posición GPS, velocidad, rumbo y nivel de
+batería — solo mientras el seguimiento está activo.<br>
+<strong>Qué NO pide:</strong> registro, nombre, email, teléfono ni ningún dato personal.</p>
+
+<h2>2. Instalación</h2>
+<ul>
+  <li><strong>Android:</strong> Google Play → busca «Camberas Track» → Instalar</li>
+  <li><strong>iPhone:</strong> App Store → busca «Camberas Track» → Obtener</li>
+</ul>
+
+<h2>3. Vincular tu dorsal</h2>
+<ol>
+  <li>La organización te da un <strong>código QR</strong> (en el dorsal, el email de confirmación o la mesa de recogida).</li>
+  <li>Abre la app → <strong>Escanear QR</strong> → apunta al código.</li>
+  <li>La app muestra tu dorsal, tu nombre y la prueba. ¡Listo!</li>
+</ol>
+<p>También puedes abrir el <strong>enlace de activación</strong> que te envíe la
+organización: hace lo mismo sin escanear.</p>
+
+<h2>4. Permisos que pedirá la app (y por qué)</h2>
+<table>
+  <tr><th>Permiso</th><th>Para qué</th></tr>
+  <tr><td>Ubicación (mientras se usa)</td><td>Es el corazón de la app: sin él no hay seguimiento</td></tr>
+  <tr><td>Cámara</td><td>Solo para escanear el QR de tu dorsal</td></tr>
+  <tr><td>Notificaciones (Android)</td><td>La notificación fija «Camberas Track — protegido» que mantiene vivo el GPS</td></tr>
+  <tr><td>Alarmas y recordatorios (Android 14+)</td><td>Garantiza el envío puntual de tu posición aunque el sistema restrinja la red</td></tr>
+  <tr><td>Ignorar optimización de batería (Android)</td><td>Evita que el ahorro de energía corte el envío con la pantalla apagada</td></tr>
+</table>
+<p class="ok">Consejo: acéptalos todos. Cada uno existe por una razón de seguridad
+comprobada en carreras reales.</p>
+
+<h2>5. Activar el seguimiento</h2>
+<ol>
+  <li><strong>En la salida</strong> (no durante el viaje — gasta batería), pulsa <strong>ACTIVAR SEGUIMIENTO</strong>.</li>
+  <li>Verás el estado <strong>«Protegido»</strong>, el reloj de última sincronización y tu ritmo o velocidad.</li>
+  <li>Android: aparece la notificación fija. iPhone: verás el indicador de ubicación del sistema.</li>
+  <li>Guarda el móvil y corre. <strong>Puedes apagar la pantalla</strong>: el seguimiento continúa.</li>
+</ol>
+<p><strong>La pantalla principal:</strong> «✓ al día» = tu posición llega en tiempo
+real · «N por subir» = posiciones guardadas esperando cobertura (normal en montaña) ·
+Ritmo (min/km) en carreras a pie o velocidad (km/h) en BTT · Mapa con el recorrido
+oficial y los puntos de control · Botón SOS siempre en el centro.</p>
+
+<h2>6. El botón SOS</h2>
+<ol>
+  <li>Pulsa <strong>SOS</strong> → confirma.</li>
+  <li>La organización recibe una alerta con tu posición exacta y tu dorsal.</li>
+</ol>
+<p class="aviso">⚠️ El SOS avisa a la organización, <strong>NO a los servicios de
+emergencia</strong>. Si la situación es grave, llama también al <strong>112</strong>:
+funciona incluso sin cobertura de tu operadora.</p>
+
+<h2>7. ¿Y si no tengo cobertura?</h2>
+<p>Tranquilidad: la app <strong>guarda todas tus posiciones</strong> en el móvil y
+las envía automáticamente al recuperar señal. No se pierde nada — en pruebas reales
+ha recuperado tramos de más de una hora sin cobertura. La organización verá tu
+«última posición conocida» mientras tanto.</p>
+
+<h2>8. Detener el seguimiento</h2>
+<p>Al cruzar la meta (o si abandonas): <strong>mantén pulsado</strong> el botón
+<strong>DETENER</strong> durante 2,5 segundos (evita paradas accidentales con el
+móvil en el bolsillo). Para desvincular el dorsal del todo: opción
+<strong>Desvincular</strong> en la pantalla principal.</p>
+
+<h2>9. Consejos para el día de la carrera</h2>
+<ol>
+  <li><strong>Sal con la batería por encima del 50%</strong> — con batería baja, Android activa el ahorro de energía y puede recortar el GPS. La app consume poco (2-4% por hora), pero el día es largo.</li>
+  <li><strong>Desactiva el «ahorro de energía»</strong> del sistema durante la prueba.</li>
+  <li><strong>Activa el seguimiento en la salida</strong>, no en casa ni en el coche.</li>
+  <li><strong>Detén el seguimiento al terminar</strong> — si lo olvidas, seguirá enviando (y gastando) hasta que lo pares.</li>
+  <li>En móviles chinos (Xiaomi, realme, Oppo…) la app ya incluye la tecnología necesaria para que el fabricante no corte el envío — no necesitas configurar nada.</li>
+</ol>
+
+<h2>10. Diferencias entre Android y iPhone</h2>
+<table>
+  <tr><th></th><th>Android</th><th>iPhone</th></tr>
+  <tr><td>Señal de que funciona</td><td>Notificación fija «protegido»</td><td>Indicador de ubicación del sistema</td></tr>
+  <tr><td>Pantalla apagada</td><td>✅ sigue enviando</td><td>✅ sigue enviando</td></tr>
+  <tr><td>Si estás parado un rato</td><td>Sigue enviando cada 15 s</td><td>Puede espaciar los envíos (los reanuda solo al moverte — tu posición sigue siendo la correcta)</td></tr>
+  <tr><td>Batería</td><td>~2-4 %/hora</td><td>~3-5 %/hora</td></tr>
+</table>
+
+<h2>11. Preguntas frecuentes</h2>
+<p><strong>¿Cuándo se comparte mi ubicación?</strong><br>
+Solo desde que pulsas ACTIVAR hasta que detienes el seguimiento. Ni antes ni después.</p>
+<p><strong>¿Quién puede ver mi posición?</strong><br>
+El equipo de seguridad de la organización y el mapa público de la carrera
+(solo tu dorsal, sin datos personales).</p>
+<p><strong>¿Es obligatorio usar la app?</strong><br>
+Depende de la organización de cada prueba. Aunque sea opcional, te recomendamos
+llevarla: es tu seguridad.</p>
+<p><strong>¿Funciona con cualquier operadora?</strong><br>
+Sí — cualquier SIM con datos. Probada con varias operadoras en zonas de montaña.</p>
+<p><strong>¿Qué pasa si se me apaga el móvil?</strong><br>
+La organización conserva tu última posición conocida. Al encenderlo y abrir la app,
+el seguimiento se reanuda y sube lo pendiente.</p>
+
+<h2>12. Privacidad</h2>
+<p>Sin registro ni cuenta. Solo se envían dorsal, posición y estado durante el
+seguimiento activo, y se usan exclusivamente para la seguridad de la prueba.
+Política completa: <a href="https://camberas.com/privacidad-camberas-track.html">
+política de privacidad</a>.</p>
+
+<h2>13. Soporte</h2>
+<p>¿Problemas con la app? Escribe a la organización de tu carrera o a
+<a href="mailto:info@camberas.com">info@camberas.com</a> indicando tu modelo de
+móvil y tu dorsal.</p>
+</body>
+</html>
