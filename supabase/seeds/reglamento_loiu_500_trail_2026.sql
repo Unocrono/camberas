@@ -2,7 +2,7 @@
 -- Volcado del documento oficial bilingüe "REGLAMENTO – ARAUDIA"
 -- (se importa la versión en castellano).
 -- Idempotente: si la carrera ya tiene secciones de reglamento, no hace nada.
-DO $$
+DO $reg$
 DECLARE
   v_race_id uuid := 'f5f7ed25-dc74-4a2d-8be9-5f6fb023307a';
   v_reg_id uuid;
@@ -51,4 +51,4 @@ E'Las personas que traten de participar sin dorsal podrán ser retiradas por el 
 E'Las fotografías de los participantes, además de ser publicadas en Facebook (página Loiu 500 Trail) para que se puedan descargar de manera gratuita, podrán ser utilizadas para realizar carteles publicitarios en ediciones futuras.\n\nSi alguien no desea alguna de estas publicaciones, deberá manifestarlo por escrito a la organización.', 10, true);
 
   RAISE NOTICE 'Reglamento de Loiu 500 Trail creado con 10 secciones (sin publicar — revísalo y publícalo desde el admin).';
-END $$;
+END $reg$;
