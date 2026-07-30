@@ -91,7 +91,8 @@ export const useRaceSelection = ({ type, userId }: UseRaceSelectionOptions) => {
         .from("race_distances")
         .select("id, name, distance_km")
         .eq("race_id", selectedRaceId)
-        .order("distance_km", { ascending: false });
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .order("distance_km", { ascending: true });
 
       if (error) throw error;
       setDistances(data || []);

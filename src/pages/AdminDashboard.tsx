@@ -309,11 +309,44 @@ const AdminDashboard = () => {
             {currentView === "newsletter-subscribers" && <NewsletterSubscribersManagement />}
             {currentView === "newsletter-campaigns" && <NewsletterCampaignsManagement />}
             {currentView === "camberas-track" && (
-              <CamberasTrackMap
-                eventId={selectedRaceId || undefined}
-                showSOSPanel={true}
-                height="75vh"
-              />
+              selectedRaceId ? (
+                <div className="space-y-3">
+                  {/* Eventos de la carrera, junto al selector — filtran mapa, corredores y SOS */}
+                  {distances.length > 1 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant={!selectedDistanceId ? "default" : "outline"}
+                        onClick={() => setSelectedDistanceId("")}
+                      >
+                        Todos los eventos
+                      </Button>
+                      {distances.map(d => (
+                        <Button
+                          key={d.id}
+                          size="sm"
+                          variant={selectedDistanceId === d.id ? "default" : "outline"}
+                          onClick={() => setSelectedDistanceId(d.id)}
+                        >
+                          {d.name}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  <CamberasTrackMap
+                    eventId={selectedDistanceId || selectedRaceId}
+                    showSOSPanel={true}
+                    height="75vh"
+                    showDistanceSelector={false}
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">
+                    Selecciona una carrera para ver su seguimiento GPS
+                  </p>
+                </div>
+              )
             )}
           </main>
         </div>
