@@ -133,18 +133,44 @@ export function CamberasTrackMap({
   const [effectiveEventIds, setEffectiveEventIds] = useState<string[] | null>(
     eventId ? null : []
   );
+  // Eventos (pruebas) de la carrera, cada uno con su propio GPX
+  const [raceDistances, setRaceDistances] = useState<
+    { id: string; name: string; gpx_file_url: string | null }[]
+  >([]);
+  const [selectedDistanceId, setSelectedDistanceId] = useState(''); // '' = todos
 
   useEffect(() => {
-    if (!eventId) { setEffectiveEventIds([]); return; }
+    if (!eventId) { setEffectiveEventIds([]); setRaceDistances([]); return; }
     setEffectiveEventIds(null);
-    supabase
-      .from('race_distances')
-      .select('id')
-      .eq('race_id', eventId)
-      .then(({ data }) => {
-        setEffectiveEventIds([eventId, ...(data?.map(d => d.id) ?? [])]);
-      });
+    setSelectedDistanceId('');
+    (async () => {
+      // eventId puede ser una carrera (race_id) o una prueba (race_distance_id)
+      let { data: dists } = await supabase
+        .from('race_distances')
+        .select('id, name, gpx_file_url')
+        .eq('race_id', eventId)
+        .order('display_order', { ascending: true, nullsFirst: false });
+      if (!dists || dists.length === 0) {
+        const { data: single } = await supabase
+          .from('race_distances')
+          .select('id, name, gpx_file_url')
+          .eq('id', eventId);
+        dists = single ?? [];
+      }
+      setRaceDistances(dists);
+      setEffectiveEventIds([eventId, ...dists.map(d => d.id)]);
+    })();
   }, [eventId]);
+
+  // El selector de evento acota el filtro de corredores/SOS/recorrido
+  useEffect(() => {
+    if (!eventId || raceDistances.length === 0) return;
+    setEffectiveEventIds(
+      selectedDistanceId
+        ? [selectedDistanceId]
+        : [eventId, ...raceDistances.map(d => d.id)]
+    );
+  }, [selectedDistanceId, raceDistances, eventId]);
 
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
 
@@ -362,8 +388,6 @@ export function CamberasTrackMap({
 
   // ── Auto-detectar roadbook si no se pasa ─────────────────────────────────
   const [detectedRoadbookId, setDetectedRoadbookId] = useState(roadbookId || '');
-  // GPX de la prueba: fallback de recorrido cuando no existe rutómetro
-  const [gpxUrl, setGpxUrl] = useState('');
 
   useEffect(() => {
     if (roadbookId) { setDetectedRoadbookId(roadbookId); return; }
@@ -404,19 +428,8 @@ export function CamberasTrackMap({
         setDetectedRoadbookId(allRoadbooks[0].id);
         return;
       }
-      // Si hay más de uno, no auto-detectamos para evitar confusión
-
-      // Sin rutómetro: usar el GPX de la prueba como recorrido
-      // (eventId puede ser race_id o race_distance_id)
-      const { data: gpxDists } = await supabase
-        .from('race_distances')
-        .select('id, gpx_file_url')
-        .or(`race_id.eq.${eventId},id.eq.${eventId}`)
-        .not('gpx_file_url', 'is', null)
-        .limit(1);
-      if (gpxDists && gpxDists.length > 0 && gpxDists[0].gpx_file_url) {
-        setGpxUrl(gpxDists[0].gpx_file_url);
-      }
+      // Si hay más de uno, no auto-detectamos para evitar confusión.
+      // Sin rutómetro, el recorrido sale de los GPX de las pruebas (efecto aparte).
     };
 
     findRoadbook();
@@ -527,59 +540,84 @@ export function CamberasTrackMap({
     loadRoute();
   }, [mapReady, detectedRoadbookId]);
 
-  // ── Recorrido desde el GPX (cuando no hay rutómetro) ─────────────────────
+  // ── Recorridos desde los GPX (cuando no hay rutómetro) ───────────────────
+  // Una carrera puede tener varios eventos, cada uno con su GPX: se pintan
+  // TODOS a la vez (un color por evento) o solo el elegido en el selector.
 
   useEffect(() => {
-    if (!mapReady || !map.current || detectedRoadbookId || !gpxUrl) return;
+    if (!mapReady || !map.current || detectedRoadbookId) return;
 
-    const loadGpx = async () => {
-      try {
-        const res = await fetch(gpxUrl);
-        const xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
-        const pts = Array.from(xml.getElementsByTagName('trkpt'));
-        const coordinates = pts
-          .map(p => [parseFloat(p.getAttribute('lon') || ''), parseFloat(p.getAttribute('lat') || '')])
-          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
-        if (coordinates.length < 2) return;
+    const GPX_COLORS = ['#e94560', '#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ec4899'];
+    const toDraw = raceDistances
+      .filter(d => d.gpx_file_url)
+      .filter(d => !selectedDistanceId || d.id === selectedDistanceId);
 
-        const geojson: any = {
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates },
-        };
+    let cancelled = false;
 
-        if (map.current!.getLayer('roadbook-route-line')) map.current!.removeLayer('roadbook-route-line');
-        if (map.current!.getLayer('roadbook-route-outline')) map.current!.removeLayer('roadbook-route-outline');
-        if (map.current!.getSource('roadbook-route')) map.current!.removeSource('roadbook-route');
-
-        map.current!.addSource('roadbook-route', { type: 'geojson', data: geojson });
-        map.current!.addLayer({
-          id: 'roadbook-route-outline',
-          type: 'line',
-          source: 'roadbook-route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#1a1a2e', 'line-width': 6, 'line-opacity': 0.6 },
-        });
-        map.current!.addLayer({
-          id: 'roadbook-route-line',
-          type: 'line',
-          source: 'roadbook-route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#e94560', 'line-width': 3, 'line-opacity': 0.85 },
-        });
-
-        if (runners.length === 0) {
-          const bounds = new mapboxgl.LngLatBounds();
-          coordinates.forEach(c => bounds.extend(c as [number, number]));
-          map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
-        }
-      } catch (e) {
-        console.error('[TrackMap] Error cargando GPX:', e);
+    const clearGpxLayers = () => {
+      const style = map.current!.getStyle();
+      for (const layer of style.layers ?? []) {
+        if (layer.id.startsWith('gpx-route-')) map.current!.removeLayer(layer.id);
+      }
+      for (const srcId of Object.keys(style.sources ?? {})) {
+        if (srcId.startsWith('gpx-route-')) map.current!.removeSource(srcId);
       }
     };
 
-    loadGpx();
-  }, [mapReady, detectedRoadbookId, gpxUrl]);
+    const loadAll = async () => {
+      clearGpxLayers();
+      const bounds = new mapboxgl.LngLatBounds();
+      let total = 0;
+
+      for (let i = 0; i < toDraw.length; i++) {
+        const dist = toDraw[i];
+        try {
+          const res = await fetch(dist.gpx_file_url!);
+          const xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+          const coordinates = Array.from(xml.getElementsByTagName('trkpt'))
+            .map(p => [parseFloat(p.getAttribute('lon') || ''), parseFloat(p.getAttribute('lat') || '')])
+            .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
+          if (cancelled || coordinates.length < 2) continue;
+
+          const srcId = `gpx-route-${dist.id}`;
+          map.current!.addSource(srcId, {
+            type: 'geojson',
+            data: {
+              type: 'Feature',
+              properties: {},
+              geometry: { type: 'LineString', coordinates },
+            } as any,
+          });
+          map.current!.addLayer({
+            id: `${srcId}-outline`,
+            type: 'line',
+            source: srcId,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': '#1a1a2e', 'line-width': 6, 'line-opacity': 0.5 },
+          });
+          map.current!.addLayer({
+            id: `${srcId}-line`,
+            type: 'line',
+            source: srcId,
+            layout: { 'line-join': 'round', 'line-cap': 'round' },
+            paint: { 'line-color': GPX_COLORS[i % GPX_COLORS.length], 'line-width': 3, 'line-opacity': 0.9 },
+          });
+
+          coordinates.forEach(c => bounds.extend(c as [number, number]));
+          total += coordinates.length;
+        } catch (e) {
+          console.error(`[TrackMap] Error cargando GPX de ${dist.name}:`, e);
+        }
+      }
+
+      if (!cancelled && total > 0 && runners.length === 0) {
+        map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+      }
+    };
+
+    loadAll();
+    return () => { cancelled = true; };
+  }, [mapReady, detectedRoadbookId, raceDistances, selectedDistanceId]);
 
   // ── Marcadores SOS en el mapa ─────────────────────────────────────────────
 
@@ -625,6 +663,22 @@ export function CamberasTrackMap({
             </span>
           )}
         </div>
+
+        {/* Selector de evento (cuando la carrera tiene varios) */}
+        {raceDistances.length > 1 && (
+          <div className="absolute top-12 left-3 z-10">
+            <select
+              value={selectedDistanceId}
+              onChange={e => setSelectedDistanceId(e.target.value)}
+              className="bg-black/70 text-white text-xs rounded-full px-3 py-1.5 border border-white/20 outline-none cursor-pointer"
+            >
+              <option value="">Todos los eventos</option>
+              {raceDistances.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Popup de corredor seleccionado */}
         {selectedRunner && (
