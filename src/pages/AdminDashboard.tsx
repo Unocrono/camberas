@@ -69,8 +69,9 @@ const AdminDashboard = () => {
     }
   }, [urlView]);
 
-  // Conmutador de centrado del mapa de Camberas Track
+  // Centrado del mapa de Camberas Track: conmutador auto + orden puntual
   const [trackAutoCenter, setTrackAutoCenter] = useState(true);
+  const [trackCenterSignal, setTrackCenterSignal] = useState(0);
 
   const {
     selectedRaceId,
@@ -340,11 +341,19 @@ const AdminDashboard = () => {
                     )}
                     <Button
                       size="sm"
+                      variant="secondary"
+                      onClick={() => setTrackCenterSignal(s => s + 1)}
+                      title="Encuadrar el mapa en el recorrido ahora mismo"
+                    >
+                      🎯 Centrar recorrido
+                    </Button>
+                    <Button
+                      size="sm"
                       variant={trackAutoCenter ? "default" : "outline"}
                       onClick={() => setTrackAutoCenter(v => !v)}
-                      title="Activado: el mapa se encuadra al recorrido. Desactivado: muévete libremente"
+                      title="Auto activado: el mapa se re-encuadra al recorrido al cargar o cambiar de evento"
                     >
-                      🎯 Centrar recorrido {trackAutoCenter ? "ON" : "OFF"}
+                      Auto {trackAutoCenter ? "ON" : "OFF"}
                     </Button>
                   </div>
                   <CamberasTrackMap
@@ -353,6 +362,7 @@ const AdminDashboard = () => {
                     height="75vh"
                     showDistanceSelector={false}
                     autoCenter={trackAutoCenter}
+                    centerSignal={trackCenterSignal}
                   />
                 </div>
               ) : (

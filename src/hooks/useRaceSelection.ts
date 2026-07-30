@@ -96,6 +96,11 @@ export const useRaceSelection = ({ type, userId }: UseRaceSelectionOptions) => {
 
       if (error) throw error;
       setDistances(data || []);
+      // Al cambiar de carrera, el evento seleccionado de la anterior no es
+      // válido: conservarlo solo si pertenece a la nueva carrera
+      setSelectedDistanceId(prev =>
+        (data || []).some(d => d.id === prev) ? prev : ""
+      );
     } catch (error) {
       console.error("Error fetching distances:", error);
     }

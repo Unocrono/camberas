@@ -43,6 +43,7 @@ interface CamberasTrackMapProps {
   showSOSPanel?: boolean;  // solo para organizador
   showDistanceSelector?: boolean; // ocultar si el padre pone su propio selector
   autoCenter?: boolean;    // centrado controlado desde fuera (oculta el conmutador interno)
+  centerSignal?: number;   // incrementarlo desde fuera = "centrar el mapa AHORA"
   height?: string;
   roadbookId?: string;     // roadbook para mostrar el recorrido
 }
@@ -92,6 +93,7 @@ export function CamberasTrackMap({
   showSOSPanel = false,
   showDistanceSelector = true,
   autoCenter: autoCenterProp,
+  centerSignal,
   height = '600px',
   roadbookId,
 }: CamberasTrackMapProps) {
@@ -116,6 +118,36 @@ export function CamberasTrackMap({
       map.current.fitBounds(routeBounds.current, { padding: 60, maxZoom: 14 });
     }
   }, [autoCenterProp]);
+
+  // Orden imperativa desde fuera: "centrar el mapa AHORA"
+  useEffect(() => {
+    if (!centerSignal) return;
+    if (routeBounds.current && map.current) {
+      map.current.fitBounds(routeBounds.current, { padding: 60, maxZoom: 14 });
+    }
+  }, [centerSignal]);
+
+  // Marcadores de Salida/Meta del recorrido (para limpiarlos al cambiar)
+  const routeMarkers = useRef<mapboxgl.Marker[]>([]);
+
+  // Limpiar recorridos anteriores: capas del rutómetro y de los GPX + S/M.
+  // Sin esto, al cambiar de carrera se quedaban pintados los de la anterior.
+  const clearRouteArtifacts = useCallback(() => {
+    if (!map.current) return;
+    routeMarkers.current.forEach(m => m.remove());
+    routeMarkers.current = [];
+    const style = map.current.getStyle();
+    for (const layer of style.layers ?? []) {
+      if (layer.id.startsWith('gpx-route-') || layer.id.startsWith('roadbook-route-')) {
+        map.current.removeLayer(layer.id);
+      }
+    }
+    for (const srcId of Object.keys(style.sources ?? {})) {
+      if (srcId.startsWith('gpx-route-') || srcId === 'roadbook-route') {
+        map.current.removeSource(srcId);
+      }
+    }
+  }, []);
   const [mapboxToken, setMapboxToken] = useState(mapboxTokenProp || '');
 
   // Cargar token de app_settings si no se pasó como prop
@@ -166,10 +198,18 @@ export function CamberasTrackMap({
     if (!eventId) { setEffectiveEventIds([]); setRaceDistances([]); return; }
     setEffectiveEventIds(null);
     setSelectedDistanceId('');
-    // cambia la carrera: resetear el encuadre
+    // cambia la carrera: limpiar TODO lo de la anterior de inmediato
+    // (corredores, alertas, encuadre y rutómetro detectado — si no, se
+    // quedaban pegados hasta que llegaba el fetch de la nueva)
+    setRunners([]);
+    setSosAlerts([]);
+    setSelectedRunner(null);
+    setDetectedRoadbookId(roadbookId || '');
     routeBounds.current = null;
     didInitialFit.current = false;
     setHasRoute(false);
+
+    let cancelled = false; // cambio rápido de carrera: descartar respuestas viejas
     (async () => {
       // eventId puede ser una carrera (race_id) o una prueba (race_distance_id)
       let { data: dists } = await supabase
@@ -184,10 +224,12 @@ export function CamberasTrackMap({
           .eq('id', eventId);
         dists = single ?? [];
       }
+      if (cancelled) return;
       setRaceDistances(dists);
       setEffectiveEventIds([eventId, ...dists.map(d => d.id)]);
     })();
-  }, [eventId]);
+    return () => { cancelled = true; };
+  }, [eventId, roadbookId]);
 
   // El selector de evento acota el filtro de corredores/SOS/recorrido
   useEffect(() => {
@@ -422,6 +464,7 @@ export function CamberasTrackMap({
   useEffect(() => {
     if (roadbookId) { setDetectedRoadbookId(roadbookId); return; }
     if (!eventId) return;
+    let cancelled = false;
 
     // Intentar encontrar roadbook via race_distances → roadbooks
     // O buscar directamente si el eventId está en roadbooks o race_distances
@@ -439,11 +482,13 @@ export function CamberasTrackMap({
           .select('id')
           .in('race_distance_id', distIds)
           .limit(1);
+        if (cancelled) return;
         if (rbs && rbs.length > 0) {
           setDetectedRoadbookId(rbs[0].id);
           return;
         }
       }
+      if (cancelled) return;
 
       // 2. Buscar en gps_tokens los race_distance_id asociados al evento
       //    El eventId podría no ser un race_id real, así que buscamos roadbooks
@@ -453,7 +498,7 @@ export function CamberasTrackMap({
         .select('id, name')
         .limit(20);
 
-      if (allRoadbooks && allRoadbooks.length === 1) {
+      if (allRoadbooks && allRoadbooks.length === 1 && !cancelled) {
         // Solo hay un roadbook, úsalo
         setDetectedRoadbookId(allRoadbooks[0].id);
         return;
@@ -463,6 +508,7 @@ export function CamberasTrackMap({
     };
 
     findRoadbook();
+    return () => { cancelled = true; };
   }, [eventId, roadbookId]);
 
   // ── Recorrido del roadbook ───────────────────────────────────────────────
@@ -506,16 +552,8 @@ export function CamberasTrackMap({
         },
       };
 
-      // Eliminar fuente/capa anterior si existe
-      if (map.current!.getLayer('roadbook-route-line')) {
-        map.current!.removeLayer('roadbook-route-line');
-      }
-      if (map.current!.getLayer('roadbook-route-outline')) {
-        map.current!.removeLayer('roadbook-route-outline');
-      }
-      if (map.current!.getSource('roadbook-route')) {
-        map.current!.removeSource('roadbook-route');
-      }
+      // Eliminar cualquier recorrido anterior (rutómetro o GPX)
+      clearRouteArtifacts();
 
       // Añadir fuente y capas
       map.current!.addSource('roadbook-route', {
@@ -547,17 +585,21 @@ export function CamberasTrackMap({
 
       const startEl = document.createElement('div');
       startEl.innerHTML = `<div style="background:#4ade80;color:#000;font-weight:bold;font-size:11px;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">S</div>`;
-      new mapboxgl.Marker(startEl)
-        .setLngLat([start.longitude, start.latitude])
-        .setPopup(new mapboxgl.Popup().setHTML('<b>🏁 Salida</b>'))
-        .addTo(map.current!);
+      routeMarkers.current.push(
+        new mapboxgl.Marker(startEl)
+          .setLngLat([start.longitude, start.latitude])
+          .setPopup(new mapboxgl.Popup().setHTML('<b>🏁 Salida</b>'))
+          .addTo(map.current!)
+      );
 
       const endEl = document.createElement('div');
       endEl.innerHTML = `<div style="background:#e94560;color:#fff;font-weight:bold;font-size:11px;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)">M</div>`;
-      new mapboxgl.Marker(endEl)
-        .setLngLat([end.longitude, end.latitude])
-        .setPopup(new mapboxgl.Popup().setHTML('<b>🏆 Meta</b>'))
-        .addTo(map.current!);
+      routeMarkers.current.push(
+        new mapboxgl.Marker(endEl)
+          .setLngLat([end.longitude, end.latitude])
+          .setPopup(new mapboxgl.Popup().setHTML('<b>🏆 Meta</b>'))
+          .addTo(map.current!)
+      );
 
       // Centrar en el recorrido (es el marco de referencia de la carrera)
       if (coordinates.length > 0) {
@@ -572,7 +614,7 @@ export function CamberasTrackMap({
     };
 
     loadRoute();
-  }, [mapReady, detectedRoadbookId]);
+  }, [mapReady, detectedRoadbookId, clearRouteArtifacts]);
 
   // ── Recorridos desde los GPX (cuando no hay rutómetro) ───────────────────
   // Una carrera puede tener varios eventos, cada uno con su GPX: se pintan
@@ -588,18 +630,8 @@ export function CamberasTrackMap({
 
     let cancelled = false;
 
-    const clearGpxLayers = () => {
-      const style = map.current!.getStyle();
-      for (const layer of style.layers ?? []) {
-        if (layer.id.startsWith('gpx-route-')) map.current!.removeLayer(layer.id);
-      }
-      for (const srcId of Object.keys(style.sources ?? {})) {
-        if (srcId.startsWith('gpx-route-')) map.current!.removeSource(srcId);
-      }
-    };
-
     const loadAll = async () => {
-      clearGpxLayers();
+      clearRouteArtifacts();
       const bounds = new mapboxgl.LngLatBounds();
       let total = 0;
 
@@ -655,7 +687,7 @@ export function CamberasTrackMap({
 
     loadAll();
     return () => { cancelled = true; };
-  }, [mapReady, detectedRoadbookId, raceDistances, selectedDistanceId]);
+  }, [mapReady, detectedRoadbookId, raceDistances, selectedDistanceId, clearRouteArtifacts]);
 
   // ── Marcadores SOS en el mapa ─────────────────────────────────────────────
 
