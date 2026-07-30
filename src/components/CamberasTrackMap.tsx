@@ -124,9 +124,32 @@ export function CamberasTrackMap({
     return () => clearInterval(id);
   }, []);
 
+  // ── Resolver el filtro de evento ─────────────────────────────────────────
+  // El eventId puede ser un race_id (panel admin) o un race_distance_id
+  // (página pública), pero los tokens llevan SIEMPRE el race_distance_id.
+  // Resolvemos: si es una carrera, el filtro incluye todas sus pruebas.
+  // null = resolviendo · [] = sin filtro · [ids] = filtrar por estos
+
+  const [effectiveEventIds, setEffectiveEventIds] = useState<string[] | null>(
+    eventId ? null : []
+  );
+
+  useEffect(() => {
+    if (!eventId) { setEffectiveEventIds([]); return; }
+    setEffectiveEventIds(null);
+    supabase
+      .from('race_distances')
+      .select('id')
+      .eq('race_id', eventId)
+      .then(({ data }) => {
+        setEffectiveEventIds([eventId, ...(data?.map(d => d.id) ?? [])]);
+      });
+  }, [eventId]);
+
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
 
   const fetchPositions = useCallback(async () => {
+    if (effectiveEventIds === null) return; // aún resolviendo el filtro
     // Obtener última posición de cada token
     let query = supabase
       .from('gps_positions')
@@ -138,8 +161,8 @@ export function CamberasTrackMap({
       .eq('gps_tokens.active', true)
       .order('timestamp', { ascending: false });
 
-    if (eventId) {
-      query = query.eq('gps_tokens.event_id', eventId);
+    if (effectiveEventIds.length > 0) {
+      query = query.in('gps_tokens.event_id', effectiveEventIds);
     }
 
     const { data, error } = await query;
@@ -168,20 +191,27 @@ export function CamberasTrackMap({
 
     setRunners(Array.from(byToken.values()));
     setLastUpdate(new Date());
-  }, [eventId]);
+  }, [effectiveEventIds]);
 
   // ── Fetch alertas SOS ─────────────────────────────────────────────────────
 
   const fetchSOS = useCallback(async () => {
-    const { data, error } = await supabase
+    if (effectiveEventIds === null) return; // aún resolviendo el filtro
+    let query = supabase
       .from('gps_sos_alerts')
       .select(`
         id, token_id, lat, lng, triggered_at,
-        gps_tokens(bib_number, participant_name)
+        gps_tokens!inner(bib_number, participant_name, event_id)
       `)
       .is('resolved_at', null)
       .order('triggered_at', { ascending: false });
 
+    // Sin este filtro, el panel mostraba las alertas de TODAS las carreras
+    if (effectiveEventIds.length > 0) {
+      query = query.in('gps_tokens.event_id', effectiveEventIds);
+    }
+
+    const { data, error } = await query;
     if (error || !data) return;
 
     setSosAlerts(data.map((a: any) => ({
@@ -199,7 +229,7 @@ export function CamberasTrackMap({
       ...r,
       hasSOS: data.some((a: any) => a.token_id === r.token_id),
     })));
-  }, []);
+  }, [effectiveEventIds]);
 
   // ── Inicializar mapa ──────────────────────────────────────────────────────
 
@@ -253,7 +283,10 @@ export function CamberasTrackMap({
             .single();
 
           if (!tokenData?.active) return;
-          if (eventId && tokenData.event_id !== eventId) return;
+          if (
+            effectiveEventIds === null ||
+            (effectiveEventIds.length > 0 && !effectiveEventIds.includes(tokenData.event_id))
+          ) return;
 
           setRunners(prev => {
             const updated = prev.filter(r => r.token_id !== pos.token_id);
@@ -282,7 +315,7 @@ export function CamberasTrackMap({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [eventId, fetchSOS]);
+  }, [effectiveEventIds, fetchSOS]);
 
   // ── Actualizar marcadores en el mapa ──────────────────────────────────────
 
@@ -329,6 +362,8 @@ export function CamberasTrackMap({
 
   // ── Auto-detectar roadbook si no se pasa ─────────────────────────────────
   const [detectedRoadbookId, setDetectedRoadbookId] = useState(roadbookId || '');
+  // GPX de la prueba: fallback de recorrido cuando no existe rutómetro
+  const [gpxUrl, setGpxUrl] = useState('');
 
   useEffect(() => {
     if (roadbookId) { setDetectedRoadbookId(roadbookId); return; }
@@ -367,8 +402,21 @@ export function CamberasTrackMap({
       if (allRoadbooks && allRoadbooks.length === 1) {
         // Solo hay un roadbook, úsalo
         setDetectedRoadbookId(allRoadbooks[0].id);
+        return;
       }
       // Si hay más de uno, no auto-detectamos para evitar confusión
+
+      // Sin rutómetro: usar el GPX de la prueba como recorrido
+      // (eventId puede ser race_id o race_distance_id)
+      const { data: gpxDists } = await supabase
+        .from('race_distances')
+        .select('id, gpx_file_url')
+        .or(`race_id.eq.${eventId},id.eq.${eventId}`)
+        .not('gpx_file_url', 'is', null)
+        .limit(1);
+      if (gpxDists && gpxDists.length > 0 && gpxDists[0].gpx_file_url) {
+        setGpxUrl(gpxDists[0].gpx_file_url);
+      }
     };
 
     findRoadbook();
@@ -478,6 +526,60 @@ export function CamberasTrackMap({
 
     loadRoute();
   }, [mapReady, detectedRoadbookId]);
+
+  // ── Recorrido desde el GPX (cuando no hay rutómetro) ─────────────────────
+
+  useEffect(() => {
+    if (!mapReady || !map.current || detectedRoadbookId || !gpxUrl) return;
+
+    const loadGpx = async () => {
+      try {
+        const res = await fetch(gpxUrl);
+        const xml = new DOMParser().parseFromString(await res.text(), 'application/xml');
+        const pts = Array.from(xml.getElementsByTagName('trkpt'));
+        const coordinates = pts
+          .map(p => [parseFloat(p.getAttribute('lon') || ''), parseFloat(p.getAttribute('lat') || '')])
+          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
+        if (coordinates.length < 2) return;
+
+        const geojson: any = {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates },
+        };
+
+        if (map.current!.getLayer('roadbook-route-line')) map.current!.removeLayer('roadbook-route-line');
+        if (map.current!.getLayer('roadbook-route-outline')) map.current!.removeLayer('roadbook-route-outline');
+        if (map.current!.getSource('roadbook-route')) map.current!.removeSource('roadbook-route');
+
+        map.current!.addSource('roadbook-route', { type: 'geojson', data: geojson });
+        map.current!.addLayer({
+          id: 'roadbook-route-outline',
+          type: 'line',
+          source: 'roadbook-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#1a1a2e', 'line-width': 6, 'line-opacity': 0.6 },
+        });
+        map.current!.addLayer({
+          id: 'roadbook-route-line',
+          type: 'line',
+          source: 'roadbook-route',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#e94560', 'line-width': 3, 'line-opacity': 0.85 },
+        });
+
+        if (runners.length === 0) {
+          const bounds = new mapboxgl.LngLatBounds();
+          coordinates.forEach(c => bounds.extend(c as [number, number]));
+          map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+        }
+      } catch (e) {
+        console.error('[TrackMap] Error cargando GPX:', e);
+      }
+    };
+
+    loadGpx();
+  }, [mapReady, detectedRoadbookId, gpxUrl]);
 
   // ── Marcadores SOS en el mapa ─────────────────────────────────────────────
 
