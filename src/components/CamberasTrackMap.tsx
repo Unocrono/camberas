@@ -42,6 +42,7 @@ interface CamberasTrackMapProps {
   mapboxToken?: string;    // si no se pasa, se carga de Supabase Edge Function
   showSOSPanel?: boolean;  // solo para organizador
   showDistanceSelector?: boolean; // ocultar si el padre pone su propio selector
+  autoCenter?: boolean;    // centrado controlado desde fuera (oculta el conmutador interno)
   height?: string;
   roadbookId?: string;     // roadbook para mostrar el recorrido
 }
@@ -90,6 +91,7 @@ export function CamberasTrackMap({
   mapboxToken: mapboxTokenProp,
   showSOSPanel = false,
   showDistanceSelector = true,
+  autoCenter: autoCenterProp,
   height = '600px',
   roadbookId,
 }: CamberasTrackMapProps) {
@@ -102,8 +104,18 @@ export function CamberasTrackMap({
   const [hasRoute, setHasRoute] = useState(false);
   // Conmutador: con el centrado activado, el mapa se encuadra al recorrido
   // cada vez que este (re)carga; desactivado, el operador manda
-  const [autoCenter, setAutoCenter] = useState(true);
-  const autoCenterRef = useRef(true);
+  const [autoCenter, setAutoCenter] = useState(autoCenterProp ?? true);
+  const autoCenterRef = useRef(autoCenterProp ?? true);
+
+  // Modo controlado: el padre (panel admin) maneja el conmutador
+  useEffect(() => {
+    if (autoCenterProp === undefined) return;
+    autoCenterRef.current = autoCenterProp;
+    setAutoCenter(autoCenterProp);
+    if (autoCenterProp && routeBounds.current && map.current) {
+      map.current.fitBounds(routeBounds.current, { padding: 60, maxZoom: 14 });
+    }
+  }, [autoCenterProp]);
   const [mapboxToken, setMapboxToken] = useState(mapboxTokenProp || '');
 
   // Cargar token de app_settings si no se pasó como prop
@@ -690,8 +702,9 @@ export function CamberasTrackMap({
           )}
         </div>
 
-        {/* Conmutador de centrado en el recorrido (un GPS lejano no debe mandar) */}
-        {hasRoute && (
+        {/* Conmutador de centrado en el recorrido (un GPS lejano no debe mandar).
+            Oculto en modo controlado: el padre pone su propio botón */}
+        {hasRoute && autoCenterProp === undefined && (
           <div className="absolute bottom-6 right-3 z-10">
             <button
               onClick={() => {

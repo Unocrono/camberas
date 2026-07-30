@@ -69,6 +69,9 @@ const AdminDashboard = () => {
     }
   }, [urlView]);
 
+  // Conmutador de centrado del mapa de Camberas Track
+  const [trackAutoCenter, setTrackAutoCenter] = useState(true);
+
   const {
     selectedRaceId,
     setSelectedRaceId,
@@ -311,33 +314,45 @@ const AdminDashboard = () => {
             {currentView === "camberas-track" && (
               selectedRaceId ? (
                 <div className="space-y-3">
-                  {/* Eventos de la carrera, junto al selector — filtran mapa, corredores y SOS */}
-                  {distances.length > 1 && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={!selectedDistanceId ? "default" : "outline"}
-                        onClick={() => setSelectedDistanceId("")}
-                      >
-                        Todos los eventos
-                      </Button>
-                      {distances.map(d => (
+                  {/* Eventos de la carrera + centrado, junto al selector */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {distances.length > 1 && (
+                      <>
                         <Button
-                          key={d.id}
                           size="sm"
-                          variant={selectedDistanceId === d.id ? "default" : "outline"}
-                          onClick={() => setSelectedDistanceId(d.id)}
+                          variant={!selectedDistanceId ? "default" : "outline"}
+                          onClick={() => setSelectedDistanceId("")}
                         >
-                          {d.name}
+                          Todos los eventos
                         </Button>
-                      ))}
-                    </div>
-                  )}
+                        {distances.map(d => (
+                          <Button
+                            key={d.id}
+                            size="sm"
+                            variant={selectedDistanceId === d.id ? "default" : "outline"}
+                            onClick={() => setSelectedDistanceId(d.id)}
+                          >
+                            {d.name}
+                          </Button>
+                        ))}
+                        <div className="w-px h-6 bg-border mx-1" />
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant={trackAutoCenter ? "default" : "outline"}
+                      onClick={() => setTrackAutoCenter(v => !v)}
+                      title="Activado: el mapa se encuadra al recorrido. Desactivado: muévete libremente"
+                    >
+                      🎯 Centrar recorrido {trackAutoCenter ? "ON" : "OFF"}
+                    </Button>
+                  </div>
                   <CamberasTrackMap
                     eventId={selectedDistanceId || selectedRaceId}
                     showSOSPanel={true}
                     height="75vh"
                     showDistanceSelector={false}
+                    autoCenter={trackAutoCenter}
                   />
                 </div>
               ) : (
