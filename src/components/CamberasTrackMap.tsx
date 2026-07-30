@@ -93,6 +93,11 @@ export function CamberasTrackMap({
 }: CamberasTrackMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
+  // Límites del recorrido pintado (para el botón de centrar) y control del
+  // encuadre inicial único
+  const routeBounds = useRef<mapboxgl.LngLatBounds | null>(null);
+  const didInitialFit = useRef(false);
+  const [hasRoute, setHasRoute] = useState(false);
   const [mapboxToken, setMapboxToken] = useState(mapboxTokenProp || '');
 
   // Cargar token de app_settings si no se pasó como prop
@@ -143,6 +148,10 @@ export function CamberasTrackMap({
     if (!eventId) { setEffectiveEventIds([]); setRaceDistances([]); return; }
     setEffectiveEventIds(null);
     setSelectedDistanceId('');
+    // cambia la carrera: resetear el encuadre
+    routeBounds.current = null;
+    didInitialFit.current = false;
+    setHasRoute(false);
     (async () => {
       // eventId puede ser una carrera (race_id) o una prueba (race_distance_id)
       let { data: dists } = await supabase
@@ -378,8 +387,11 @@ export function CamberasTrackMap({
       }
     }
 
-    // Ajustar vista si hay corredores
-    if (runners.length > 0) {
+    // Encuadre inicial UNA sola vez y solo si no hay recorrido pintado:
+    // un GPS lejano (pruebas a 1.000 km) no debe arrastrar la vista, y los
+    // reencuadres continuos pisaban el zoom manual del operador
+    if (runners.length > 0 && !didInitialFit.current && !routeBounds.current) {
+      didInitialFit.current = true;
       const bounds = new mapboxgl.LngLatBounds();
       runners.forEach(r => bounds.extend([r.lng, r.lat]));
       map.current.fitBounds(bounds, { padding: 80, maxZoom: 14 });
@@ -529,10 +541,12 @@ export function CamberasTrackMap({
         .setPopup(new mapboxgl.Popup().setHTML('<b>🏆 Meta</b>'))
         .addTo(map.current!);
 
-      // Si no hay corredores aún, centrar en el recorrido
-      if (runners.length === 0 && coordinates.length > 0) {
+      // Centrar en el recorrido (es el marco de referencia de la carrera)
+      if (coordinates.length > 0) {
         const bounds = new mapboxgl.LngLatBounds();
         coordinates.forEach(c => bounds.extend(c as [number, number]));
+        routeBounds.current = bounds;
+        setHasRoute(true);
         map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
       }
     };
@@ -610,7 +624,9 @@ export function CamberasTrackMap({
         }
       }
 
-      if (!cancelled && total > 0 && runners.length === 0) {
+      if (!cancelled && total > 0) {
+        routeBounds.current = bounds;
+        setHasRoute(true);
         map.current!.fitBounds(bounds, { padding: 60, maxZoom: 14 });
       }
     };
@@ -663,6 +679,22 @@ export function CamberasTrackMap({
             </span>
           )}
         </div>
+
+        {/* Centrar el mapa en el recorrido (un GPS lejano no debe mandar) */}
+        {hasRoute && (
+          <div className="absolute bottom-4 right-3 z-10">
+            <button
+              onClick={() => {
+                if (routeBounds.current && map.current) {
+                  map.current.fitBounds(routeBounds.current, { padding: 60, maxZoom: 14 });
+                }
+              }}
+              className="bg-black/70 text-white text-xs rounded-full px-3 py-1.5 border border-white/20 hover:bg-black/90 cursor-pointer"
+            >
+              🎯 Centrar recorrido
+            </button>
+          </div>
+        )}
 
         {/* Selector de evento (cuando la carrera tiene varios) */}
         {raceDistances.length > 1 && (
