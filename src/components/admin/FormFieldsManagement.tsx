@@ -246,6 +246,55 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
   );
 }
 
+/** Una opción (XS, S, M…) arrastrable para reordenar dentro del editor */
+function SortableOption({
+  id, option, index, feeEnabled, feeValue, onFeeChange, onRemove,
+}: {
+  id: string;
+  option: string;
+  index: number;
+  feeEnabled: boolean;
+  feeValue: string;
+  onFeeChange: (index: number, value: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || "transform 200ms ease",
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted p-2 rounded">
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing touch-none rounded p-0.5 hover:bg-muted-foreground/10"
+        aria-label="Arrastrar para reordenar"
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <span className="flex-1">{option}</span>
+      {feeEnabled && (
+        <div className="flex items-center gap-1">
+          <Input
+            type="number"
+            step="0.01"
+            value={feeValue}
+            onChange={(e) => onFeeChange(index, e.target.value)}
+            className="w-24 h-8 text-right"
+          />
+          <span className="text-sm text-muted-foreground">€</span>
+        </div>
+      )}
+      <Button type="button" variant="ghost" size="sm" onClick={() => onRemove(index)}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
 export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }: FormFieldsManagementProps) {
   const { toast } = useToast();
   const [fields, setFields] = useState<FormField[]>([]);
@@ -531,6 +580,23 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     const fees = [...formData.fees];
     fees[index] = value;
     setFormData({ ...formData, fees });
+  };
+
+  // Reordenar opciones arrastrando (mueve opción e importe a la vez)
+  const handleOptionsDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const from = Number(active.id);
+    const to = Number(over.id);
+    setFormData((prev) => {
+      const fees = [...prev.fees];
+      while (fees.length < prev.options.length) fees.push("0");
+      return {
+        ...prev,
+        options: arrayMove(prev.options, from, to),
+        fees: arrayMove(fees, from, to),
+      };
+    });
   };
 
   const handleToggleVisibility = async (field: FormField) => {
@@ -922,34 +988,32 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                         Añadir
                       </Button>
                     </div>
-                    <div className="space-y-2 mt-2">
-                      {formData.options.map((option, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-muted p-2 rounded">
-                          <GripVertical className="h-4 w-4 text-muted-foreground" />
-                          <span className="flex-1">{option}</span>
-                          {formData.fee_enabled && (
-                            <div className="flex items-center gap-1">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={formData.fees[index] ?? "0"}
-                                onChange={(e) => handleFeeChange(index, e.target.value)}
-                                className="w-24 h-8 text-right"
-                              />
-                              <span className="text-sm text-muted-foreground">€</span>
-                            </div>
-                          )}
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveOption(index)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                    <p className="text-xs text-muted-foreground">Arrastra ⠿ para reordenar las opciones.</p>
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleOptionsDragEnd}
+                    >
+                      <SortableContext
+                        items={formData.options.map((_, i) => String(i))}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        <div className="space-y-2 mt-2">
+                          {formData.options.map((option, index) => (
+                            <SortableOption
+                              key={index}
+                              id={String(index)}
+                              option={option}
+                              index={index}
+                              feeEnabled={formData.fee_enabled}
+                              feeValue={formData.fees[index] ?? "0"}
+                              onFeeChange={handleFeeChange}
+                              onRemove={handleRemoveOption}
+                            />
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </SortableContext>
+                    </DndContext>
                   </div>
                 )}
 
