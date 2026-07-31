@@ -2001,6 +2001,7 @@ export type Database = {
       push_subscriptions: {
         Row: {
           auth: string
+          clinc_mode: string
           created_at: string
           endpoint: string
           id: string
@@ -2010,6 +2011,7 @@ export type Database = {
         }
         Insert: {
           auth: string
+          clinc_mode?: string
           created_at?: string
           endpoint: string
           id?: string
@@ -2019,6 +2021,7 @@ export type Database = {
         }
         Update: {
           auth?: string
+          clinc_mode?: string
           created_at?: string
           endpoint?: string
           id?: string
