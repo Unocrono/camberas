@@ -91,7 +91,7 @@ const TimingShop = () => {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-16">
-            <h1 className="font-archivo text-4xl uppercase leading-[0.98] text-foreground mb-4 md:text-5xl">
+            <h1 className="font-archivo text-4xl leading-[0.98] text-foreground mb-4 md:text-5xl">
               Ponme cuarto y mitad de Camberas
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
