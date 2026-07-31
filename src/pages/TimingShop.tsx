@@ -19,16 +19,19 @@ const TimingShop = () => {
       tagline: "Hasta 20 · controla tu salida y a los tuyos",
       image: timingSystem1,
       features: [
-        "APP de Organizador",
-        "APP para la Grupetta",
-        "Mapa en vivo: os veis todos en tiempo real",
-        "Funciona con la pantalla apagada",
-        "Os unís con un QR, sin registros ni contraseñas",
-        "Aviso si alguien se descuelga del grupo",
-        "Ruta del día compartida para toda la grupeta",
-        "Botón de Pinchazo/Avería ",
+        { group: "Panel web · Capo de la Grupetta" },
+        "Horario, punto de encuentro y ruta",
+        "App del Capo: todo en tu móvil",
+        "El Capo no pierde a nadie por el camino",
         "Sin cuentas, sin publicidad — gratis de verdad",
-        "Soporte técnico para crear tu Grupetta",
+        { group: "App de localización · miembros de la Grupetta" },
+        "Mapa en vivo: os veis todos, en tiempo real",
+        "Todos en el mapa, como las estrellas",
+        "Funciona con la pantalla apagada (sin gastar batería)",
+        "Os unís con un QR — sin registros ni contraseñas",
+        "Botón de pinchazo / avería: que nadie se quede tirado en la cuneta",
+        "Aviso si alguien se descuelga del grupo",
+        "Distancia y hueco entre compañeros",
       ],
     },
     {
@@ -102,7 +105,7 @@ const TimingShop = () => {
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
                   <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary text-secondary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
-                    {"\n"}
+                    La favorita
                   </Badge>
                 )}
 
@@ -129,12 +132,20 @@ const TimingShop = () => {
 
                 <CardContent>
                   <ul className="space-y-3">
-                    {pkg.features.map((feature, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-foreground">{feature}</span>
-                      </li>
-                    ))}
+                    {pkg.features.map((feature, i) =>
+                      typeof feature === "object" ? (
+                        <li key={i} className="pt-2 first:pt-0">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">
+                            {feature.group}
+                          </span>
+                        </li>
+                      ) : (
+                        <li key={i} className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-foreground">{feature}</span>
+                        </li>
+                      )
+                    )}
                   </ul>
                 </CardContent>
 
