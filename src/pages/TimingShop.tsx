@@ -26,7 +26,7 @@ const TimingShop = () => {
         "Os unís con un QR, sin registros ni contraseñas",
         "Aviso si alguien se descuelga del grupo",
         "Ruta del día compartida para toda la grupeta",
-        "Software de gestión básico",
+        "Botón de Pinchazo/Avería ",
         "Sin cuentas, sin publicidad — gratis de verdad",
         "Soporte técnico para crear tu Grupetta",
       ],
