@@ -42,16 +42,16 @@ const TimingShop = () => {
       image: timingSystem2,
       features: [
         "App de Organizador",
-        "Cronómetro-Reloj en meta",
-        "50 dorsales · panel inferior exclusivo Camberas",
-        "Inscripciones online con tu propia página",
+        "App Seguimiento participànte",
+        "50 dorsales · Publicidad inferior exclusivo Camberas",
+        "Inscripciones online free\u00a0",
         "Cobra con tarjeta — pasarela de pago incluida",
-        "Infinitos puntos de cronometraje manual",
+        "Puntos de cronometraje manual",
         "Software de gestión avanzado",
         "Clasificaciones en tiempo real",
         "Seguimiento GPS en vivo de los participantes",
         "Diseñador de dorsales y reglamento online",
-        "Soporte técnico para crear tu Quedada",
+        "Soporte técnico para crear tu Quedada en Camberas",
       ],
     },
     {
@@ -102,7 +102,7 @@ const TimingShop = () => {
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
                   <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary text-secondary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
-                    La favorita
+                    {"\n"}
                   </Badge>
                 )}
 
