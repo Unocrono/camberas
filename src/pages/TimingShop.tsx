@@ -66,17 +66,17 @@ const TimingShop = () => {
       tagline: "Hasta 500 participantes",
       image: timingSystem3,
       features: [
+        { group: "Todo lo de la Quedada, y además:" },
         "Sistema de cronometraje Profesional",
         "Cronómetro-Reloj en meta",
         "500 chips desechables incluidos",
         "Cronometraje electrónico en meta",
-        "Streaming de la cámara de línea de meta",
         "2 puntos intermedios con cronometraje electrónico",
+        "Streaming de la cámara de línea de meta",
         "Streaming de la cámara de puntos intermedios",
         "Infinitos puntos de cronometraje manual",
-        "Software profesional de cronometraje",
-        "Seguimiento live y GPS",
         "Clasificaciones en tiempo real",
+        "Seguimiento live y GPS",
         "Técnico de cronometraje en la carrera",
         "Soporte técnico previo al evento",
       ],
@@ -103,12 +103,6 @@ const TimingShop = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {timingPackages.map((pkg, index) => (
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
-                {pkg.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary text-secondary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
-                    La favorita
-                  </Badge>
-                )}
-
                 <div className="relative h-48 overflow-hidden rounded-t-lg group">
                   <img 
                     src={pkg.image} 
