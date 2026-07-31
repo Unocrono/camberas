@@ -102,7 +102,7 @@ const TimingShop = () => {
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
                   <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary text-secondary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
-                    La favorita
+                    {"\n"}
                   </Badge>
                 )}
 
