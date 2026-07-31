@@ -11,66 +11,72 @@ import timingSystem3 from "@/assets/timing-system3.jpg";
 const TimingShop = () => {
   const timingPackages = [
     {
-      name: "Básico",
-      description: "Perfecto para carreras pequeñas hasta 200 participantes",
-      price: "350€",
+      name: "Grupetta",
+      description: "Para rodar con los tuyos, sin líos",
+      price: "0€",
+      priceNote: "gratis, para siempre",
+      cta: "Empezar gratis",
+      tagline: "Hasta 20 · controla tu salida y a los tuyos",
       image: timingSystem1,
       features: [
-        "0% comosión inscripciones",
-        "Sistema de cronometraje RFID timing",
-        "Cronometro-Reloj en meta",
-        "200 chips desechables incluidos",
-        "Cronometraje electrónico en meta",
-        "Infinitos puntos de Cronometraje manual",
+        "APP de Organizador",
+        "APP para la Grupetta",
+        "Mapa en vivo: os veis todos en tiempo real",
+        "Funciona con la pantalla apagada",
+        "Os unís con un QR, sin registros ni contraseñas",
+        "Aviso si alguien se descuelga del grupo",
+        "Ruta del día compartida para toda la grupeta",
         "Software de gestión básico",
-        "Clasificaciones en tiempo real",
-        "Grabación en vídeo de la meta",
-        "Soporte técnico durante el evento",
+        "Sin cuentas, sin publicidad — gratis de verdad",
+        "Soporte técnico para crear tu Grupetta",
       ],
-      maxParticipants: "200",
     },
     {
-      name: "Standard",
-      description: "Ideal para carreras medianas hasta 350 participantes",
-      price: "500€",
+      name: "Quedada",
+      description: "Ideal para la versión beta de tu carrera",
+      price: "50€",
+      priceNote: "por evento",
+      cta: "Quiero mi Quedada",
       popular: true,
+      tagline: "Hasta 50 participantes",
       image: timingSystem2,
       features: [
-        "Sistema de cronometraje RFID premium",
-        "Cronometro-Reloj en meta",
-        "350 chips desechables incluidos",
-        "Cronometraje electrónico en meta",
-        "Infinitos puntos de Cronometraje manual",
+        "App de Organizador",
+        "Cronómetro-Reloj en meta",
+        "50 dorsales · panel inferior exclusivo Camberas",
+        "Inscripciones online con tu propia página",
+        "Cobra con tarjeta — pasarela de pago incluida",
+        "Infinitos puntos de cronometraje manual",
         "Software de gestión avanzado",
         "Clasificaciones en tiempo real",
-        "1 Punto intermedio Cronometraje electrónico",
-        "Streaming de la cámara de línea de meta",
-        "Soporte técnico durante el evento",
+        "Seguimiento GPS en vivo de los participantes",
+        "Diseñador de dorsales y reglamento online",
+        "Soporte técnico para crear tu Quedada",
       ],
-      maxParticipants: "300",
     },
     {
       name: "Profesional",
       description: "Para grandes eventos",
       price: "700€",
+      priceNote: "por evento",
+      cta: "Solicitar información",
+      tagline: "Hasta 500 participantes",
       image: timingSystem3,
       features: [
-        "Sistema de cronometraje RFID ULTRA",
-        "Cronometro Reloj en meta",
+        "Sistema de cronometraje Profesional",
+        "Cronómetro-Reloj en meta",
         "500 chips desechables incluidos",
         "Cronometraje electrónico en meta",
         "Streaming de la cámara de línea de meta",
-        "2 puntos intermedios con Cronometraje electrónico ",
-        "Streaming de la cámara de puntos de intermedios",
-        "Infinitos puntos de Cronometraje manual",
+        "2 puntos intermedios con cronometraje electrónico",
+        "Streaming de la cámara de puntos intermedios",
+        "Infinitos puntos de cronometraje manual",
         "Software profesional de cronometraje",
-        "Seguimiento live",
-        "Seguimiento GPS",
+        "Seguimiento live y GPS",
         "Clasificaciones en tiempo real",
-        "Una persona técnico de cronometraje en la carrera",
+        "Técnico de cronometraje en la carrera",
         "Soporte técnico previo al evento",
       ],
-      maxParticipants: "500",
     },
   ];
 
@@ -82,12 +88,11 @@ const TimingShop = () => {
         <div className="container mx-auto px-4">
           {/* Header */}
           <div className="text-center mb-16">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Alquiler de Sistemas de Cronometraje
+            <h1 className="font-archivo text-4xl uppercase leading-[0.98] text-foreground mb-4 md:text-5xl">
+              Ponme cuarto y mitad de Camberas
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Equipos profesionales de cronometraje RFID para tu carrera de trail. Precisión, fiabilidad y
-              resultados en tiempo real.
+              Conocer Camberas es sencillo: tres opciones para dar el salto. Empieza gratis con tu grupeta y sube de nivel cuando quieras.
             </p>
           </div>
 
@@ -96,8 +101,8 @@ const TimingShop = () => {
             {timingPackages.map((pkg, index) => (
               <Card key={index} className={`relative ${pkg.popular ? "border-2 border-primary shadow-elevated" : ""}`}>
                 {pkg.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
-                    Más Popular
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-secondary text-secondary-foreground shadow-lg font-semibold px-4 py-1 text-sm z-10">
+                    La favorita
                   </Badge>
                 )}
 
@@ -111,13 +116,13 @@ const TimingShop = () => {
                 </div>
 
                 <CardHeader>
-                  <CardTitle className="text-2xl">{pkg.name}</CardTitle>
+                  <CardTitle className="font-archivo text-2xl uppercase">{pkg.name}</CardTitle>
                   <CardDescription>{pkg.description}</CardDescription>
                   <div className="pt-4">
-                    <p className="text-4xl font-bold text-primary">{pkg.price}</p>
-                    <p className="text-sm text-muted-foreground mt-1">por evento</p>
+                    <p className="font-archivo text-4xl text-secondary">{pkg.price}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{pkg.priceNote}</p>
                     <Badge variant="outline" className="mt-2">
-                      Hasta {pkg.maxParticipants} participantes
+                      {pkg.tagline}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -134,8 +139,8 @@ const TimingShop = () => {
                 </CardContent>
 
                 <CardFooter>
-                  <Button className="w-full" variant={pkg.popular ? "default" : "outline"} asChild>
-                    <Link to="/contact">Solicitar Información</Link>
+                  <Button className="w-full" variant={pkg.popular ? "secondary" : "outline"} asChild>
+                    <Link to="/contact">{pkg.cta}</Link>
                   </Button>
                 </CardFooter>
               </Card>
