@@ -50,12 +50,12 @@ const Navbar = () => {
                     Ayuda
                   </NavLink>
                   {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
+                  <NavLink to="/timing-shop">Planes</NavLink>
                   <NavLink to="/contact">
                     <Mail className="h-4 w-4" />
                     Contacto
                   </NavLink>
                   {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
-                  <NavLink to="/timing-shop">Planes</NavLink>
                   {isOrganizer && (
                     <NavLink to="/organizer" className="flex items-center gap-2">
                       <Briefcase className="h-4 w-4" />
@@ -93,10 +93,10 @@ const Navbar = () => {
             <NavLink to="/noticias">Noticias</NavLink>
             <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
-            <NavLink to="/contact">Contacto</NavLink>
-            
-            {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             <NavLink to="/timing-shop">Planes</NavLink>
+            <NavLink to="/contact">Contacto</NavLink>
+
+            {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
                 <Briefcase className="h-4 w-4" />
