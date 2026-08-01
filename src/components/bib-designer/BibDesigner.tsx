@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Canvas as FabricCanvas, Rect, IText, FabricImage } from "fabric";
+import { Canvas as FabricCanvas, Rect, IText, FabricImage, FabricText } from "fabric";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,12 @@ const CANVAS_HEIGHT = 450;
 const WIDTH_CM = 20;
 const HEIGHT_CM = 15;
 
+// Faldón inferior fijo camberas.app: presente en TODOS los dorsales y no
+// editable. Vive fuera del JSON guardado (excludeFromExport) y se re-inyecta
+// tras cada carga/undo/redo; los exports PNG/PDF sí lo incluyen.
+const FALDON_HEIGHT = 54;
+const FALDON_FLAG = "faldonCamberas";
+
 export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -45,6 +51,56 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
   const [isSaving, setIsSaving] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+
+  // Inyecta (o re-inyecta) el faldón fijo camberas.app
+  const addFaldonCamberas = useCallback(async (canvas: FabricCanvas) => {
+    canvas.getObjects()
+      .filter((o: any) => o[FALDON_FLAG])
+      .forEach((o) => canvas.remove(o));
+
+    const y0 = CANVAS_HEIGHT - FALDON_HEIGHT;
+    const marcar = <T,>(o: T): T => {
+      (o as any)[FALDON_FLAG] = true;
+      (o as any).set({
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        hoverCursor: "default",
+      });
+      return o;
+    };
+
+    const banda = marcar(new Rect({
+      left: 0, top: y0, width: CANVAS_WIDTH, height: FALDON_HEIGHT, fill: "#1a1a2e",
+    }));
+    const filo = marcar(new Rect({
+      left: 0, top: y0, width: CANVAS_WIDTH, height: 4, fill: "#e94560",
+    }));
+    const wordmark = marcar(new FabricText("camberas.app", {
+      left: 62, top: y0 + FALDON_HEIGHT / 2 + 2, originY: "center",
+      fontSize: 22, fontWeight: "bold", fontFamily: "Arial", fill: "#ffffff",
+    }));
+    const tagline = marcar(new FabricText("inscripciones · cronometraje · GPS en vivo", {
+      left: CANVAS_WIDTH - 16, top: y0 + FALDON_HEIGHT / 2 + 2,
+      originX: "right", originY: "center",
+      fontSize: 13, fontFamily: "Arial", fill: "#8b93a7",
+    }));
+    canvas.add(banda, filo, wordmark, tagline);
+
+    try {
+      const logo = await FabricImage.fromURL("/gps-icon-512.png");
+      const lado = 36;
+      logo.scaleToWidth(lado);
+      logo.set({ left: 16, top: y0 + (FALDON_HEIGHT - lado) / 2 + 2 });
+      marcar(logo);
+      canvas.add(logo);
+    } catch { /* si el logo no carga, el faldón sale sin él */ }
+
+    canvas.getObjects()
+      .filter((o: any) => o[FALDON_FLAG])
+      .forEach((o) => canvas.bringObjectToFront(o));
+    canvas.renderAll();
+  }, []);
 
   // Initialize canvas
   useEffect(() => {
@@ -58,6 +114,15 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
     });
 
     setFabricCanvas(canvas);
+    addFaldonCamberas(canvas);
+
+    // El faldón siempre por encima de lo que añada el organizador
+    canvas.on("object:added", (e: any) => {
+      if (e.target?.[FALDON_FLAG]) return;
+      canvas.getObjects()
+        .filter((o: any) => o[FALDON_FLAG])
+        .forEach((o) => canvas.bringObjectToFront(o));
+    });
 
     // Save initial state
     setTimeout(() => {
@@ -91,6 +156,7 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
         
         if (data.canvas_json && Object.keys(data.canvas_json).length > 0) {
           fabricCanvas.loadFromJSON(data.canvas_json as object).then(() => {
+            addFaldonCamberas(fabricCanvas);
             fabricCanvas.renderAll();
           });
         }
@@ -122,20 +188,22 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
     
     const newIndex = historyIndex - 1;
     fabricCanvas.loadFromJSON(JSON.parse(history[newIndex])).then(() => {
+      addFaldonCamberas(fabricCanvas);
       fabricCanvas.renderAll();
       setHistoryIndex(newIndex);
     });
-  }, [fabricCanvas, history, historyIndex]);
+  }, [fabricCanvas, history, historyIndex, addFaldonCamberas]);
 
   const redo = useCallback(() => {
     if (!fabricCanvas || historyIndex >= history.length - 1) return;
     
     const newIndex = historyIndex + 1;
     fabricCanvas.loadFromJSON(JSON.parse(history[newIndex])).then(() => {
+      addFaldonCamberas(fabricCanvas);
       fabricCanvas.renderAll();
       setHistoryIndex(newIndex);
     });
-  }, [fabricCanvas, history, historyIndex]);
+  }, [fabricCanvas, history, historyIndex, addFaldonCamberas]);
 
   const addText = (text: string, fontSize: number, options?: { fontWeight?: string }) => {
     if (!fabricCanvas) return;
