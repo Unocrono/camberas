@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike } from "lucide-react";
+import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import planGrupetta from "@/assets/plan-grupetta.svg";
@@ -48,6 +48,7 @@ const GrupettaCapo = () => {
   const [lugarSalida, setLugarSalida] = useState("");
   const [misGrupettas, setMisGrupettas] = useState<MiGrupetta[]>([]);
   const [subiendo, setSubiendo] = useState<string | null>(null);
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   // Auth
   const [email, setEmail] = useState("");
@@ -115,6 +116,22 @@ const GrupettaCapo = () => {
     } catch (e: any) {
       toast({ title: "No se pudo actualizar", description: e.message, variant: "destructive" });
       return false;
+    }
+  };
+
+  const borrar = async (g: MiGrupetta) => {
+    const aviso =
+      g.miembros > 0
+        ? `¿Borrar "${g.nombre}"?\n\nSe eliminarán el grupo, su código y las rutas de sus ${g.miembros} miembros (también las guardadas en Mis salidas).\n\nEsta acción no se puede deshacer.`
+        : `¿Borrar "${g.nombre}"?\n\nEsta acción no se puede deshacer.`;
+    if (!window.confirm(aviso)) return;
+    try {
+      const { error } = await supabase.rpc("borrar_grupetta", { p_race_id: g.race_id });
+      if (error) throw error;
+      toast({ title: "Grupetta borrada 🗑️" });
+      await cargarMisGrupettas();
+    } catch (e: any) {
+      toast({ title: "No se pudo borrar", description: e.message, variant: "destructive" });
     }
   };
 
@@ -322,9 +339,30 @@ const GrupettaCapo = () => {
                                 {g.publicada ? "Publicada" : "Borrador"}
                               </Badge>
                               <Badge variant="outline">{g.miembros}/20</Badge>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setAbierta(abierta === g.race_id ? null : g.race_id)}
+                              >
+                                {abierta === g.race_id ? (
+                                  <>Cerrar <ChevronUp className="h-4 w-4 ml-1" /></>
+                                ) : (
+                                  <>Gestionar <ChevronDown className="h-4 w-4 ml-1" /></>
+                                )}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => borrar(g)}
+                                title="Borrar grupetta"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </div>
 
+                          {abierta === g.race_id && (<>
                           <p className="font-archivo text-4xl tracking-[0.3em] text-center text-secondary">
                             {g.join_code}
                           </p>
@@ -446,6 +484,7 @@ const GrupettaCapo = () => {
                               verán en su app y en el mapa del grupo
                             </p>
                           )}
+                          </>)}
                         </div>
                       ))}
                     </div>
