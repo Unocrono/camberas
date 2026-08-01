@@ -331,32 +331,47 @@ const GrupettaCapo = () => {
 
                           {/* Editar salida: escribe en los campos nativos del evento */}
                           <form
-                            className="grid grid-cols-[110px_1fr_auto] gap-2 items-end"
+                            className="border rounded-lg p-3 space-y-2"
                             onSubmit={(e) => {
                               e.preventDefault();
                               const fd = new FormData(e.currentTarget);
                               actualizar(g.race_id, {
+                                p_fecha: (fd.get("fecha") as string) || null,
                                 p_hora: (fd.get("hora") as string) || null,
                                 p_lugar: (fd.get("lugar") as string) || null,
                               }).then((ok) => ok && toast({ title: "Salida actualizada 🕘" }));
                             }}
                           >
-                            <div>
-                              <Label className="text-xs">Hora</Label>
-                              <Input name="hora" type="time" defaultValue={g.hora ?? ""} />
+                            <p className="font-semibold text-xs uppercase tracking-wide">Editar la salida</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <Label className="text-xs">Fecha</Label>
+                                <Input
+                                  name="fecha"
+                                  type="date"
+                                  defaultValue={g.fecha}
+                                  min={new Date().toISOString().slice(0, 10)}
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Hora</Label>
+                                <Input name="hora" type="time" defaultValue={g.hora ?? ""} />
+                              </div>
                             </div>
-                            <div>
-                              <Label className="text-xs">Lugar de salida</Label>
-                              <Input
-                                name="lugar"
-                                maxLength={120}
-                                defaultValue={g.lugar === "Por concretar" ? "" : g.lugar ?? ""}
-                                placeholder="Punto de encuentro"
-                              />
+                            <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+                              <div>
+                                <Label className="text-xs">Lugar de salida</Label>
+                                <Input
+                                  name="lugar"
+                                  maxLength={120}
+                                  defaultValue={g.lugar === "Por concretar" ? "" : g.lugar ?? ""}
+                                  placeholder="Punto de encuentro"
+                                />
+                              </div>
+                              <Button size="sm" type="submit" variant="outline">
+                                Guardar
+                              </Button>
                             </div>
-                            <Button size="sm" type="submit" variant="outline">
-                              Guardar
-                            </Button>
                           </form>
 
                           {/* Inscritos: el capo ve quién se ha unido */}
