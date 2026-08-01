@@ -74,7 +74,7 @@ const Planes = () => {
         "Cronómetro-Reloj en meta",
         "500 chips desechables incluidos",
         "Cronometraje electrónico en meta",
-        "2 puntos intermedios con cronometraje electrónico",
+        "1 punto intermedio con cronometraje electrónico",
         "Streaming de la cámara de línea de meta",
         "Streaming de la cámara de puntos intermedios",
         "Infinitos puntos de cronometraje manual",
