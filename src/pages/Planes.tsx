@@ -16,7 +16,7 @@ const Planes = () => {
       price: "0€",
       priceNote: "gratis, para siempre",
       cta: "Empezar gratis",
-      ctaLink: "/grupetta",
+      ctaLink: "/grupetta/capo",
       tagline: "Hasta 20 · controla tu salida y a los tuyos",
       image: planGrupetta,
       features: [
