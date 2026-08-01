@@ -8,7 +8,7 @@ import { Check } from "lucide-react";
 import planGrupetta from "@/assets/plan-grupetta.svg";
 import planQuedada from "@/assets/plan-quedada.svg";
 import planProfesional from "@/assets/plan-profesional.svg";
-const TimingShop = () => {
+const Planes = () => {
   const timingPackages = [
     {
       name: "Grupetta",
@@ -198,4 +198,4 @@ const TimingShop = () => {
   );
 };
 
-export default TimingShop;
+export default Planes;

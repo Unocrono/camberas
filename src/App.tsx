@@ -14,7 +14,7 @@ import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
 import CamberasTrackLive from "./pages/CamberasTrackLive";
 import TrackLanding from "./pages/TrackLanding";
-import TimingShop from "./pages/TimingShop";
+import Planes from "./pages/Planes";
 import Auth from "./pages/Auth";
 import OrganizerAuth from "./pages/OrganizerAuth";
 import OrganizersLanding from "./pages/OrganizersLanding";
@@ -91,7 +91,8 @@ const App = () => (
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/cookies" element={<Cookies />} />
-          <Route path="/timing-shop" element={<TimingShop />} />
+          <Route path="/planes" element={<Planes />} />
+          <Route path="/timing-shop" element={<Navigate to="/planes" replace />} />
           <Route path="/start" element={<StartControl />} />
           <Route path="/live" element={<LiveTracking />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />

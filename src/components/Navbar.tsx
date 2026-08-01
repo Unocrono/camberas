@@ -50,7 +50,7 @@ const Navbar = () => {
                     Ayuda
                   </NavLink>
                   {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
-                  <NavLink to="/timing-shop">Planes</NavLink>
+                  <NavLink to="/planes">Planes</NavLink>
                   <NavLink to="/contact">
                     <Mail className="h-4 w-4" />
                     Contacto
@@ -93,7 +93,7 @@ const Navbar = () => {
             <NavLink to="/noticias">Noticias</NavLink>
             <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
-            <NavLink to="/timing-shop">Planes</NavLink>
+            <NavLink to="/planes">Planes</NavLink>
             <NavLink to="/contact">Contacto</NavLink>
 
             {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
