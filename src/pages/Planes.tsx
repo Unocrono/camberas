@@ -16,6 +16,7 @@ const Planes = () => {
       price: "0€",
       priceNote: "gratis, para siempre",
       cta: "Empezar gratis",
+      ctaLink: "/grupetta",
       tagline: "Hasta 20 · controla tu salida y a los tuyos",
       image: planGrupetta,
       features: [
@@ -145,7 +146,7 @@ const Planes = () => {
 
                 <CardFooter>
                   <Button className="w-full" variant={pkg.popular ? "secondary" : "outline"} asChild>
-                    <Link to="/contact">{pkg.cta}</Link>
+                    <Link to={(pkg as any).ctaLink ?? "/contact"}>{pkg.cta}</Link>
                   </Button>
                 </CardFooter>
               </Card>
