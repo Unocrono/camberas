@@ -72,9 +72,10 @@ BEGIN
           'Grupo Grupetta (autoservicio)', 20, v_capo)
   RETURNING id INTO v_race_id;
 
-  INSERT INTO race_distances (race_id, name, distance_km, gps_tracking_enabled,
-                              gps_update_frequency, is_visible)
-  VALUES (v_race_id, 'Ruta', 0, true, 15, true)
+  -- price y max_participants: NOT NULL en race_distances
+  INSERT INTO race_distances (race_id, name, distance_km, price, max_participants,
+                              gps_tracking_enabled, gps_update_frequency, is_visible)
+  VALUES (v_race_id, 'Ruta', 0, 0, 20, true, 15, true)
   RETURNING id INTO v_dist_id;
 
   RETURN jsonb_build_object(
