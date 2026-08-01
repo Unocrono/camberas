@@ -367,22 +367,40 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const fetchRunnerTrack = async (registrationId: string) => {
     setLoadingTrack(true);
     try {
-      const { data, error } = await supabase
-        .from('gps_tracking')
-        .select('latitude, longitude, timestamp, speed, altitude')
-        .eq('registration_id', registrationId)
-        .eq('race_id', raceId)
-        .order('timestamp', { ascending: true });
+      // Pipeline app (camberas-track): registration_id es el token → RPC propio
+      const runner = runnerPositions.find(r => r.registration_id === registrationId);
+      let trackPoints: RunnerTrackPoint[];
 
-      if (error) throw error;
+      if (runner?.source === 'app') {
+        const { data, error } = await supabase.rpc('get_token_track', {
+          p_token_id: registrationId,
+        });
+        if (error) throw error;
+        trackPoints = ((data as any[]) || []).map(point => ({
+          latitude: parseFloat(String(point.lat)),
+          longitude: parseFloat(String(point.lng)),
+          timestamp: point.ts,
+          speed: point.speed != null ? parseFloat(String(point.speed)) : null,
+          altitude: null,
+        }));
+      } else {
+        const { data, error } = await supabase
+          .from('gps_tracking')
+          .select('latitude, longitude, timestamp, speed, altitude')
+          .eq('registration_id', registrationId)
+          .eq('race_id', raceId)
+          .order('timestamp', { ascending: true });
 
-      const trackPoints: RunnerTrackPoint[] = (data || []).map(point => ({
-        latitude: parseFloat(String(point.latitude)),
-        longitude: parseFloat(String(point.longitude)),
-        timestamp: point.timestamp,
-        speed: point.speed ? parseFloat(String(point.speed)) : null,
-        altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
-      }));
+        if (error) throw error;
+
+        trackPoints = (data || []).map(point => ({
+          latitude: parseFloat(String(point.latitude)),
+          longitude: parseFloat(String(point.longitude)),
+          timestamp: point.timestamp,
+          speed: point.speed ? parseFloat(String(point.speed)) : null,
+          altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
+        }));
+      }
 
       setRunnerTrack(trackPoints);
       addRunnerTrackToMap(trackPoints);
@@ -1111,6 +1129,32 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     });
   }, [runnerPositions, progressByRunner]);
 
+  // Km del que va en cabeza — referencia para los gaps
+  const leaderKm = useMemo(() => {
+    for (const r of sortedRunners) {
+      const p = progressByRunner.get(r.registration_id);
+      if (p) return p.km;
+    }
+    return null;
+  }, [sortedRunners, progressByRunner]);
+
+  /** Gap sobre la ruta respecto al primero: "+180 m (~40 s)" / "cabeza" */
+  const formatGap = (runner: RunnerPosition): string | null => {
+    if (leaderKm == null || progressByRunner.size < 2) return null;
+    const p = progressByRunner.get(runner.registration_id);
+    if (!p) return null;
+    const gapM = (leaderKm - p.km) * 1000;
+    if (gapM < 15) return '🚩 cabeza';
+    const dist = gapM >= 1000 ? `+${(gapM / 1000).toFixed(1)} km` : `+${Math.round(gapM)} m`;
+    // Estimación en tiempo al ritmo actual del corredor
+    if (runner.speed != null && runner.speed > 0.3) {
+      const s = gapM / runner.speed;
+      const eta = s < 60 ? `~${Math.round(s)} s` : `~${Math.round(s / 60)} min`;
+      return `${dist} (${eta})`;
+    }
+    return dist;
+  };
+
   const formatSpeed = (speed: number | null) => {
     if (speed == null || speed <= 0.3) return null;
     if (isBikeRace) return `${(speed * 3.6).toFixed(1)} km/h`;
@@ -1131,6 +1175,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   /** Línea de estadísticas compacta para las tarjetas de corredor */
   const runnerStats = (runner: RunnerPosition) => {
     const parts: string[] = [];
+    const gap = formatGap(runner);
+    if (gap) parts.push(gap);
     const p = progressByRunner.get(runner.registration_id);
     const remaining = formatRemaining(p);
     if (remaining) parts.push(remaining);
