@@ -117,9 +117,20 @@ const Grupetta = () => {
         },
       });
       if (error) throw error;
+
+      // Email de bienvenida en castellano, como el resto de usuarios
+      try {
+        await supabase.functions.invoke("send-welcome-email", {
+          body: { email, firstName: nombreCapo },
+        });
+      } catch (emailErr) {
+        console.error("Failed to send welcome email:", emailErr);
+      }
+
       toast({
-        title: "¡Cuenta de Capo creada!",
-        description: "Revisa tu email si te pide confirmación, y adelante.",
+        title: "¡Cuenta de Capo creada! 👑",
+        description:
+          "Te hemos enviado un email de bienvenida. Confirma tu correo si te lo pide y ya puedes crear tu grupetta.",
       });
     } catch (e: any) {
       toast({ title: "No se pudo crear la cuenta", description: e.message, variant: "destructive" });
