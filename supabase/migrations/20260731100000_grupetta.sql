@@ -19,7 +19,9 @@ ALTER TABLE races ADD CONSTRAINT races_group_type_check
 ALTER TABLE races ADD COLUMN IF NOT EXISTS join_code text UNIQUE;
 
 -- 3. Crear una grupetta (autoservicio, máx 20; las quedadas se crean
---    desde el panel como cualquier carrera)
+--    desde el panel como cualquier carrera).
+--    Requiere CUENTA (el "Capo"): registro instantáneo, sin aprobación.
+--    Tope anti-abuso: 3 grupettas vivas (48 h) por capo.
 CREATE OR REPLACE FUNCTION crear_grupetta(p_nombre text)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -30,9 +32,22 @@ DECLARE
   v_dist_id uuid;
   v_slug text;
   v_intentos int := 0;
+  v_capo uuid := auth.uid();
+  v_activas int;
 BEGIN
+  IF v_capo IS NULL THEN
+    RAISE EXCEPTION 'Necesitas una cuenta de Capo para crear una grupetta';
+  END IF;
   IF length(trim(p_nombre)) < 3 THEN
     RAISE EXCEPTION 'El nombre debe tener al menos 3 caracteres';
+  END IF;
+
+  SELECT count(*) INTO v_activas FROM races
+   WHERE organizer_id = v_capo
+     AND group_type = 'grupetta'
+     AND created_at > now() - interval '48 hours';
+  IF v_activas >= 3 THEN
+    RAISE EXCEPTION 'Máximo 3 grupettas activas por capo (caducan a las 48 h)';
   END IF;
 
   -- Código de 6 caracteres legibles (sin 0/1/O/I/L)
@@ -49,10 +64,10 @@ BEGIN
 
   INSERT INTO races (name, date, location, race_type, group_type, is_visible,
                      gps_tracking_enabled, gps_update_frequency, join_code, slug,
-                     description, max_participants)
+                     description, max_participants, organizer_id)
   VALUES (left(trim(p_nombre), 60), current_date, 'Grupetta', 'btt', 'grupetta', false,
           true, 15, v_code, v_slug,
-          'Grupo Grupetta (autoservicio)', 20)
+          'Grupo Grupetta (autoservicio)', 20, v_capo)
   RETURNING id INTO v_race_id;
 
   INSERT INTO race_distances (race_id, name, distance_km, gps_tracking_enabled,
@@ -69,7 +84,8 @@ BEGIN
 END;
 $fn$;
 
-GRANT EXECUTE ON FUNCTION crear_grupetta(text) TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION crear_grupetta(text) FROM anon;
+GRANT EXECUTE ON FUNCTION crear_grupetta(text) TO authenticated;
 
 -- 4. Unirse a una grupetta con el código
 CREATE OR REPLACE FUNCTION unirse_grupetta(p_code text, p_nombre text)

@@ -62,28 +62,12 @@
   <a class="enlace" id="linkMapaMiembro" href="#" target="_blank"></a>
 </div>
 
-<!-- ── Crear ── -->
-<div class="card" id="cardCrear">
-  <h2>✨ Crea una grupetta nueva</h2>
-  <label>Nombre del grupo</label>
-  <input id="nombreGrupo" maxlength="60" placeholder="Ej: Dominguera de Loiu">
-  <button id="btnCrear">CREAR GRUPETTA</button>
-  <div class="error" id="errCrear"></div>
-  <p class="nota">Hasta 20 participantes. El grupo admite uniones durante 48 horas.
-  Sin registro: solo un nombre.</p>
-</div>
-
-<div class="resultado" id="resCrear">
-  <h2>🎉 Grupetta creada</h2>
-  <p>Comparte el código con tu grupo:</p>
-  <div class="code" id="codeOut"></div>
-  <p>📲 Enlace de unión (pégalo en el WhatsApp del grupo):</p>
-  <a class="enlace" id="linkUnion" href="#"></a>
-  <button class="btncopiar" id="btnCopiarUnion">COPIAR ENLACE DE UNIÓN</button>
-  <p style="margin-top:16px">🗺️ Mapa en vivo del grupo:</p>
-  <a class="enlace" id="linkMapa" href="#" target="_blank"></a>
-  <button class="btncopiar" id="btnCopiarMapa">COPIAR ENLACE DEL MAPA</button>
-  <p class="nota">Tú también tienes que unirte con el código para salir en el mapa.</p>
+<!-- ── Capo → página con cuenta ── -->
+<div class="card">
+  <h2>👑 ¿Eres el capo?</h2>
+  <p class="nota" style="font-size:14px">El capo crea la grupetta y reparte el código.
+  Cuenta gratuita e instantánea.</p>
+  <a href="/grupetta"><button>CREAR MI GRUPETTA</button></a>
 </div>
 
 <p class="pie">Camberas Track · UNO Cronometraje — tu grupetta, tu mapa, tu seguridad</p>
@@ -106,32 +90,6 @@ async function rpc(fn, params) {
 // Prefijar código si viene en la URL (?c=ABC123)
 const params = new URLSearchParams(location.search);
 if (params.get('c')) document.getElementById('codigo').value = params.get('c').toUpperCase();
-
-// ── Crear ──
-document.getElementById('btnCrear').onclick = async () => {
-  const btn = document.getElementById('btnCrear');
-  const err = document.getElementById('errCrear');
-  err.style.display = 'none';
-  btn.disabled = true;
-  try {
-    const res = await rpc('crear_grupetta', {
-      p_nombre: document.getElementById('nombreGrupo').value,
-    });
-    const union = `https://camberas.com/grupetta.html?c=${res.join_code}`;
-    const mapa = `https://camberas.com/${res.slug}/gps`;
-    document.getElementById('codeOut').textContent = res.join_code;
-    const lu = document.getElementById('linkUnion'); lu.textContent = union; lu.href = union;
-    const lm = document.getElementById('linkMapa'); lm.textContent = mapa; lm.href = mapa;
-    document.getElementById('btnCopiarUnion').onclick = () => navigator.clipboard.writeText(union);
-    document.getElementById('btnCopiarMapa').onclick = () => navigator.clipboard.writeText(mapa);
-    document.getElementById('resCrear').style.display = 'block';
-    document.getElementById('cardCrear').style.display = 'none';
-    document.getElementById('codigo').value = res.join_code;
-  } catch (e) {
-    err.textContent = e.message;
-    err.style.display = 'block';
-  } finally { btn.disabled = false; }
-};
 
 // ── Unirse ──
 document.getElementById('btnUnirse').onclick = async () => {

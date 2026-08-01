@@ -12,6 +12,7 @@ import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
 import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
+import Grupetta from "./pages/Grupetta";
 import CamberasTrackLive from "./pages/CamberasTrackLive";
 import TrackLanding from "./pages/TrackLanding";
 import Planes from "./pages/Planes";
@@ -65,6 +66,7 @@ const App = () => (
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
+          <Route path="/grupetta" element={<Grupetta />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/organizer" element={<OrganizerAuth />} />
           <Route path="/organizers" element={<OrganizersLanding />} />
