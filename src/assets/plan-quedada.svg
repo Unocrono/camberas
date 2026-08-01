@@ -1,0 +1,27 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Quedada">
+  <rect width="640" height="360" fill="#FCEBD6"/>
+  <circle cx="118" cy="84" r="42" fill="#F6C89A"/>
+  <!-- colinas -->
+  <path d="M0 250 Q170 180 340 236 T640 216 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 298 Q190 238 380 288 T640 273 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 342 Q210 305 430 336 T640 322 V360 H0 Z" fill="#1E5B38"/>
+  <!-- ruta serpenteante (el recorrido) -->
+  <path d="M70 336 C 170 312, 190 250, 300 250 S 470 258, 540 178" fill="none" stroke="#FAF6EC" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <!-- banderines de balizaje a lo largo del recorrido -->
+  <g stroke="#0E2419" stroke-width="3">
+    <line x1="150" y1="300" x2="150" y2="258"/>
+    <line x1="278" y1="252" x2="278" y2="210"/>
+    <line x1="410" y1="248" x2="410" y2="206"/>
+    <line x1="520" y1="196" x2="520" y2="156"/>
+  </g>
+  <path d="M150 258 L150 276 L176 267 Z" fill="#EC7C2B"/>
+  <path d="M278 210 L278 228 L304 219 Z" fill="#C8E85C"/>
+  <path d="M410 206 L410 224 L436 215 Z" fill="#EC7C2B"/>
+  <path d="M520 156 L520 174 L546 165 Z" fill="#2E8B4A"/>
+  <!-- poste indicador del recorrido -->
+  <g transform="translate(300 200)">
+    <line x1="0" y1="0" x2="0" y2="52" stroke="#0E2419" stroke-width="6" stroke-linecap="round"/>
+    <path d="M2 4 L46 4 L58 16 L46 28 L2 28 Z" fill="#0E2419"/>
+    <text x="26" y="21" font-family="Arial, sans-serif" font-weight="800" font-size="13" fill="#C8E85C" text-anchor="middle">RUTA</text>
+  </g>
+</svg>

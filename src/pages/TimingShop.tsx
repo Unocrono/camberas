@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
-import timingSystem1 from "@/assets/timing-system1.jpg";
-import timingSystem2 from "@/assets/timing-system2.jpg";
-import timingSystem3 from "@/assets/timing-system3.jpg";
+import planGrupetta from "@/assets/plan-grupetta.svg";
+import planQuedada from "@/assets/plan-quedada.svg";
+import planProfesional from "@/assets/plan-profesional.svg";
 const TimingShop = () => {
   const timingPackages = [
     {
@@ -17,7 +17,7 @@ const TimingShop = () => {
       priceNote: "gratis, para siempre",
       cta: "Empezar gratis",
       tagline: "Hasta 20 · controla tu salida y a los tuyos",
-      image: timingSystem1,
+      image: planGrupetta,
       features: [
         { group: "Panel web · Capo de la Grupetta" },
         "Horario, punto de encuentro y ruta",
@@ -42,7 +42,7 @@ const TimingShop = () => {
       cta: "Quiero mi Quedada",
       popular: true,
       tagline: "Hasta 50 participantes",
-      image: timingSystem2,
+      image: planQuedada,
       features: [
         "App de Organizador",
         "App Seguimiento participànte",
@@ -64,7 +64,7 @@ const TimingShop = () => {
       priceNote: "por evento",
       cta: "Solicitar información",
       tagline: "Hasta 500 participantes",
-      image: timingSystem3,
+      image: planProfesional,
       features: [
         { group: "Todo lo de la Quedada, y además:" },
         "Sistema de cronometraje Profesional",

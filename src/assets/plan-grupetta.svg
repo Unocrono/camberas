@@ -1,0 +1,25 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grupetta">
+  <rect width="640" height="360" fill="#E9F6C6"/>
+  <circle cx="520" cy="90" r="46" fill="#C8E85C"/>
+  <!-- colinas -->
+  <path d="M0 250 Q160 170 330 235 T640 210 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 300 Q180 235 360 290 T640 270 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 340 Q200 300 420 335 T640 320 V360 H0 Z" fill="#1E5B38"/>
+  <!-- ruta discontinua -->
+  <path d="M60 330 C 180 300, 200 240, 330 250 S 520 220, 600 150" fill="none" stroke="#FAF6EC" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <!-- conexiones entre pines -->
+  <path d="M250 208 L330 190 L410 176" fill="none" stroke="#0E2419" stroke-width="2.5" stroke-dasharray="3 7" opacity="0.45"/>
+  <!-- pines -->
+  <g>
+    <path d="M250 210 c-16 0 -28 12 -28 27 c0 20 28 45 28 45 s28 -25 28 -45 c0 -15 -12 -27 -28 -27 Z" fill="#0E2419"/>
+    <circle cx="250" cy="236" r="11" fill="#C8E85C"/>
+  </g>
+  <g>
+    <path d="M330 192 c-18 0 -31 13 -31 30 c0 22 31 50 31 50 s31 -28 31 -50 c0 -17 -13 -30 -31 -30 Z" fill="#EC7C2B"/>
+    <circle cx="330" cy="221" r="12" fill="#FAF6EC"/>
+  </g>
+  <g>
+    <path d="M410 178 c-16 0 -28 12 -28 27 c0 20 28 45 28 45 s28 -25 28 -45 c0 -15 -12 -27 -28 -27 Z" fill="#0E2419"/>
+    <circle cx="410" cy="204" r="11" fill="#EC7C2B"/>
+  </g>
+</svg>
