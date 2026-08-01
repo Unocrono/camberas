@@ -41,6 +41,7 @@ const Planes = () => {
       price: "50€",
       priceNote: "por evento",
       cta: "Quiero mi Quedada",
+      ctaLink: "/auth/organizer",
       popular: true,
       tagline: "Hasta 50 participantes",
       image: planQuedada,
@@ -64,6 +65,7 @@ const Planes = () => {
       price: "700€",
       priceNote: "por evento",
       cta: "Solicitar información",
+      ctaLink: "/auth/organizer",
       tagline: "Hasta 500 participantes",
       image: planProfesional,
       features: [
