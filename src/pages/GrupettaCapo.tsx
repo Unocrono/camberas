@@ -258,7 +258,7 @@ const GrupettaCapo = () => {
                           value={nombreGrupo}
                           onChange={(e) => setNombreGrupo(e.target.value)}
                           maxLength={60}
-                          placeholder="Ej: Dominguera de Loiu"
+                          placeholder="Ej: Salida del domingo"
                         />
                       </div>
                       <div>
@@ -286,7 +286,7 @@ const GrupettaCapo = () => {
                           value={lugarSalida}
                           onChange={(e) => setLugarSalida(e.target.value)}
                           maxLength={120}
-                          placeholder="Ej: Bar La Plaza, Loiu"
+                          placeholder="Ej: La Plaza"
                         />
                       </div>
                     </div>
