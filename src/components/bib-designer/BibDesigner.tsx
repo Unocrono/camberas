@@ -30,17 +30,23 @@ interface BibDesignerProps {
   onSave?: (designId: string) => void;
 }
 
-// Canvas dimensions in pixels (20x15cm at 96 DPI ≈ 756x567px, scaled for display)
+// Dorsal real: 200 x 140 mm → lienzo 600x420 (proporción exacta 10:7)
 const CANVAS_WIDTH = 600;
-const CANVAS_HEIGHT = 450;
+const CANVAS_HEIGHT = 420;
 const WIDTH_CM = 20;
-const HEIGHT_CM = 15;
+const HEIGHT_CM = 14;
 
-// Faldón inferior fijo camberas.app: presente en TODOS los dorsales y no
-// editable. Vive fuera del JSON guardado (excludeFromExport) y se re-inyecta
-// tras cada carga/undo/redo; los exports PNG/PDF sí lo incluyen.
-const FALDON_HEIGHT = 54;
+// Estructura del dorsal: CABECERA (imagen del organizador, misma altura que
+// el faldón) + NÚMERO centrado + FALDÓN Camberas.app fijo.
+// El faldón no es editable, vive fuera del JSON guardado (excludeFromExport)
+// y se re-inyecta tras cada carga/undo/redo; los exports PNG/PDF lo incluyen.
+const FALDON_HEIGHT = 100;
+const HEADER_HEIGHT = 100;
 const FALDON_FLAG = "faldonCamberas";
+const HEADER_FLAG = "cabeceraOrganizador";
+const VERDE_CAMBERAS = "#235940";   // primary hsl(150 45% 25%)
+const CREMA_CAMBERAS = "#FDF7E9";   // primary-foreground
+const NARANJA_CAMBERAS = "#EE7C2B"; // secondary hsl(25 85% 55%)
 
 export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -70,31 +76,39 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
       return o;
     };
 
+    // Diseño v3 aprobado: banda verde con raya arena separadora y
+    // "𝐂amberas.app" centrado (la C es el logo oficial en crema)
     const banda = marcar(new Rect({
-      left: 0, top: y0, width: CANVAS_WIDTH, height: FALDON_HEIGHT, fill: "#1a1a2e",
+      left: 0, top: y0, width: CANVAS_WIDTH, height: FALDON_HEIGHT,
+      fill: VERDE_CAMBERAS,
     }));
-    const filo = marcar(new Rect({
-      left: 0, top: y0, width: CANVAS_WIDTH, height: 4, fill: "#e94560",
+    const raya = marcar(new Rect({
+      left: 0, top: y0 - 5, width: CANVAS_WIDTH, height: 5,
+      fill: NARANJA_CAMBERAS,
     }));
-    const wordmark = marcar(new FabricText("camberas.app", {
-      left: 62, top: y0 + FALDON_HEIGHT / 2 + 2, originY: "center",
-      fontSize: 22, fontWeight: "bold", fontFamily: "Arial", fill: "#ffffff",
-    }));
-    const tagline = marcar(new FabricText("inscripciones · cronometraje · GPS en vivo", {
-      left: CANVAS_WIDTH - 16, top: y0 + FALDON_HEIGHT / 2 + 2,
-      originX: "right", originY: "center",
-      fontSize: 13, fontFamily: "Arial", fill: "#8b93a7",
-    }));
-    canvas.add(banda, filo, wordmark, tagline);
+    canvas.add(banda, raya);
+
+    const cy = y0 + FALDON_HEIGHT / 2;
+    const wordmark = new FabricText("amberas.app", {
+      top: cy + 2, originY: "center",
+      fontSize: 52, fontWeight: "bold", fontFamily: "Arial",
+      fill: CREMA_CAMBERAS,
+    });
+    const cLado = FALDON_HEIGHT * 0.8; // la C destaca: 80% del faldón
+    const solape = 12;
+    const total = cLado - solape + (wordmark.width ?? 300);
+    const x0 = (CANVAS_WIDTH - total) / 2;
+    wordmark.set({ left: x0 + cLado - solape });
+    marcar(wordmark);
+    canvas.add(wordmark);
 
     try {
-      const logo = await FabricImage.fromURL("/gps-icon-512.png");
-      const lado = 36;
-      logo.scaleToWidth(lado);
-      logo.set({ left: 16, top: y0 + (FALDON_HEIGHT - lado) / 2 + 2 });
-      marcar(logo);
-      canvas.add(logo);
-    } catch { /* si el logo no carga, el faldón sale sin él */ }
+      const cLogo = await FabricImage.fromURL("/camberas-c-crema.png");
+      cLogo.scaleToWidth(cLado);
+      cLogo.set({ left: x0, top: cy - cLado / 2 });
+      marcar(cLogo);
+      canvas.add(cLogo);
+    } catch { /* si la C no carga, queda el wordmark */ }
 
     canvas.getObjects()
       .filter((o: any) => o[FALDON_FLAG])
@@ -225,16 +239,71 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
     saveToHistory(fabricCanvas);
   };
 
+  // Número del dorsal: grande y centrado en la zona entre cabecera y faldón
   const addBibNumber = () => {
-    addText("001", 120, { fontWeight: "bold" });
-  };
-
-  const addParticipantName = () => {
-    addText("NOMBRE", 32, { fontWeight: "bold" });
+    if (!fabricCanvas) return;
+    const numero = new IText("001", {
+      left: CANVAS_WIDTH / 2,
+      top: HEADER_HEIGHT + (CANVAS_HEIGHT - HEADER_HEIGHT - FALDON_HEIGHT) / 2,
+      fontSize: 170,
+      fill: selectedColor,
+      fontFamily: "Arial",
+      fontWeight: "bold",
+      originX: "center",
+      originY: "center",
+    });
+    fabricCanvas.add(numero);
+    fabricCanvas.setActiveObject(numero);
+    fabricCanvas.renderAll();
+    saveToHistory(fabricCanvas);
   };
 
   const addRaceTitle = () => {
     addText(raceName.toUpperCase(), 28, { fontWeight: "bold" });
+  };
+
+  // Cabecera del organizador: imagen a todo lo ancho, misma altura que el
+  // faldón, anclada arriba (se puede borrar para sustituirla, no mover)
+  const handleHeaderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!fabricCanvas || !e.target.files?.[0]) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      const img = await FabricImage.fromURL(dataUrl);
+
+      // sustituir cabecera anterior si la hay
+      fabricCanvas.getObjects()
+        .filter((o: any) => o[HEADER_FLAG])
+        .forEach((o) => fabricCanvas.remove(o));
+
+      // escalar para CUBRIR la franja 600x100 y recortar lo que sobre
+      const escala = Math.max(
+        CANVAS_WIDTH / (img.width || CANVAS_WIDTH),
+        HEADER_HEIGHT / (img.height || HEADER_HEIGHT)
+      );
+      img.scale(escala);
+      img.set({
+        left: CANVAS_WIDTH / 2,
+        top: HEADER_HEIGHT / 2,
+        originX: "center",
+        originY: "center",
+        lockMovementX: true,
+        lockMovementY: true,
+        hasControls: false,
+        clipPath: new Rect({
+          left: 0, top: 0, width: CANVAS_WIDTH, height: HEADER_HEIGHT,
+          absolutePositioned: true,
+        }),
+      });
+      (img as any)[HEADER_FLAG] = true;
+      fabricCanvas.add(img);
+      fabricCanvas.sendObjectToBack(img);
+      fabricCanvas.renderAll();
+      saveToHistory(fabricCanvas);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   const addCustomText = () => {
@@ -456,29 +525,44 @@ export const BibDesigner = ({ raceId, raceName, designId, onSave }: BibDesignerP
 
             <TabsContent value="elements" className="space-y-3 pt-3">
               <div className="space-y-2">
+                <Label className="text-sm font-medium">Cabecera (imagen a todo lo ancho)</Label>
+                <div className="relative">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeaderUpload}
+                    className="hidden"
+                    id="header-upload"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                    className="w-full justify-start cursor-pointer"
+                  >
+                    <label htmlFor="header-upload">
+                      <Image className="h-4 w-4 mr-2" />
+                      Subir cabecera
+                    </label>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label className="text-sm font-medium">Texto</Label>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={addBibNumber}
                     className="justify-start"
                   >
                     <Type className="h-4 w-4 mr-2" />
                     Número
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={addParticipantName}
-                    className="justify-start"
-                  >
-                    <Type className="h-4 w-4 mr-2" />
-                    Nombre
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={addRaceTitle}
                     className="justify-start"
                   >
