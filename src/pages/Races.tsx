@@ -122,7 +122,7 @@ const Races = () => {
       const { data: racesData, error: racesError } = await supabase
         .from("races")
         .select("*")
-        .eq("group_type", "carrera") // grupettas y quedadas no salen en el listado público
+        .neq("group_type", "grupetta") // carreras y quedadas sí; grupettas no
         .order("date", { ascending: true });
 
       if (racesError) throw racesError;

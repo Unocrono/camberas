@@ -67,14 +67,10 @@
   <h2>✨ Crea una grupetta nueva</h2>
   <label>Nombre del grupo</label>
   <input id="nombreGrupo" maxlength="60" placeholder="Ej: Dominguera de Loiu">
-  <label>Tamaño</label>
-  <select id="tipo">
-    <option value="grupetta">Grupetta — hasta 20</option>
-    <option value="quedada">Quedada — hasta 50</option>
-  </select>
   <button id="btnCrear">CREAR GRUPETTA</button>
   <div class="error" id="errCrear"></div>
-  <p class="nota">El grupo admite uniones durante 48 horas. Sin registro: solo un nombre.</p>
+  <p class="nota">Hasta 20 participantes. El grupo admite uniones durante 48 horas.
+  Sin registro: solo un nombre.</p>
 </div>
 
 <div class="resultado" id="resCrear">
@@ -120,7 +116,6 @@ document.getElementById('btnCrear').onclick = async () => {
   try {
     const res = await rpc('crear_grupetta', {
       p_nombre: document.getElementById('nombreGrupo').value,
-      p_tipo: document.getElementById('tipo').value,
     });
     const union = `https://camberas.com/grupetta.html?c=${res.join_code}`;
     const mapa = `https://camberas.com/${res.slug}/gps`;

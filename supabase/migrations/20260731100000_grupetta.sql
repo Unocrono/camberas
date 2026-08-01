@@ -1,7 +1,9 @@
 -- ============================================================
 -- GRUPETTA — grupos autoservicio sobre la infraestructura de carreras
--- Categorías de agrupación: 1 carrera (defecto) · 2 quedada (máx 50)
--- · 3 grupetta (máx 20)
+-- Categorías de agrupación: 1 carrera (defecto) · 2 quedada · 3 grupetta
+--  · Carrera y Quedada: MISMA estructura (evento de organizador, panel,
+--    inscripciones). La quedada es simplemente una carrera de <50.
+--  · Grupetta: autoservicio (máx 20), se crea sola con los RPCs de abajo.
 -- La app móvil NO cambia: una grupetta es una "carrera" oculta cuyos
 -- tokens se crean al unirse. El mapa del grupo es /:slug/gps.
 -- OJO editor SQL de Supabase: delimitadores $fn$, no $$.
@@ -16,8 +18,9 @@ ALTER TABLE races ADD CONSTRAINT races_group_type_check
 -- 2. Código de unión (solo grupetta/quedada)
 ALTER TABLE races ADD COLUMN IF NOT EXISTS join_code text UNIQUE;
 
--- 3. Crear una grupetta (o quedada)
-CREATE OR REPLACE FUNCTION crear_grupetta(p_nombre text, p_tipo text DEFAULT 'grupetta')
+-- 3. Crear una grupetta (autoservicio, máx 20; las quedadas se crean
+--    desde el panel como cualquier carrera)
+CREATE OR REPLACE FUNCTION crear_grupetta(p_nombre text)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $fn$
@@ -28,9 +31,6 @@ DECLARE
   v_slug text;
   v_intentos int := 0;
 BEGIN
-  IF p_tipo NOT IN ('grupetta', 'quedada') THEN
-    RAISE EXCEPTION 'Tipo no válido (grupetta o quedada)';
-  END IF;
   IF length(trim(p_nombre)) < 3 THEN
     RAISE EXCEPTION 'El nombre debe tener al menos 3 caracteres';
   END IF;
@@ -50,10 +50,9 @@ BEGIN
   INSERT INTO races (name, date, location, race_type, group_type, is_visible,
                      gps_tracking_enabled, gps_update_frequency, join_code, slug,
                      description, max_participants)
-  VALUES (left(trim(p_nombre), 60), current_date, 'Grupetta', 'btt', p_tipo, false,
+  VALUES (left(trim(p_nombre), 60), current_date, 'Grupetta', 'btt', 'grupetta', false,
           true, 15, v_code, v_slug,
-          'Grupo Grupetta (autoservicio)',
-          CASE p_tipo WHEN 'grupetta' THEN 20 ELSE 50 END)
+          'Grupo Grupetta (autoservicio)', 20)
   RETURNING id INTO v_race_id;
 
   INSERT INTO race_distances (race_id, name, distance_km, gps_tracking_enabled,
@@ -70,7 +69,7 @@ BEGIN
 END;
 $fn$;
 
-GRANT EXECUTE ON FUNCTION crear_grupetta(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION crear_grupetta(text) TO anon, authenticated;
 
 -- 4. Unirse a una grupetta con el código
 CREATE OR REPLACE FUNCTION unirse_grupetta(p_code text, p_nombre text)
@@ -91,7 +90,7 @@ BEGIN
 
   SELECT * INTO v_race FROM races
    WHERE join_code = upper(trim(p_code))
-     AND group_type IN ('grupetta', 'quedada');
+     AND group_type = 'grupetta';
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Código no válido';
   END IF;
@@ -104,7 +103,7 @@ BEGIN
   SELECT id INTO v_dist_id FROM race_distances
    WHERE race_id = v_race.id ORDER BY created_at LIMIT 1;
 
-  v_max := CASE v_race.group_type WHEN 'grupetta' THEN 20 ELSE 50 END;
+  v_max := 20;
   SELECT count(*) INTO v_count FROM gps_tokens WHERE event_id = v_dist_id;
   IF v_count >= v_max THEN
     RAISE EXCEPTION 'Grupo completo (máximo % participantes)', v_max;

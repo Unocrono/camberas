@@ -64,7 +64,7 @@ const Index = () => {
       const { data: racesData, error } = await supabase
         .from("races")
         .select("*")
-        .eq("group_type", "carrera") // grupettas y quedadas no salen en la portada
+        .neq("group_type", "grupetta") // carreras y quedadas sí; grupettas no
         .gte("date", new Date().toISOString().split("T")[0])
         .order("date", { ascending: true });
       if (error) throw error;
