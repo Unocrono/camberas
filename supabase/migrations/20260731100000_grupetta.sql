@@ -123,3 +123,28 @@ END;
 $fn$;
 
 GRANT EXECUTE ON FUNCTION unirse_grupetta(text, text) TO anon, authenticated;
+
+-- 5. Quedadas y grupettas: UN solo evento (no se puede crear un segundo)
+CREATE OR REPLACE FUNCTION check_single_distance_group()
+RETURNS trigger
+LANGUAGE plpgsql SET search_path = public
+AS $fn$
+DECLARE
+  v_group text;
+  v_count int;
+BEGIN
+  SELECT group_type INTO v_group FROM races WHERE id = NEW.race_id;
+  IF v_group IN ('quedada', 'grupetta') THEN
+    SELECT count(*) INTO v_count FROM race_distances WHERE race_id = NEW.race_id;
+    IF v_count >= 1 THEN
+      RAISE EXCEPTION 'Una % solo puede tener un evento', v_group;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+DROP TRIGGER IF EXISTS trg_single_distance_group ON race_distances;
+CREATE TRIGGER trg_single_distance_group
+  BEFORE INSERT ON race_distances
+  FOR EACH ROW EXECUTE FUNCTION check_single_distance_group();
