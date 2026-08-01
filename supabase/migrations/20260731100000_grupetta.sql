@@ -65,7 +65,9 @@ BEGIN
   INSERT INTO races (name, date, location, race_type, group_type, is_visible,
                      gps_tracking_enabled, gps_update_frequency, join_code, slug,
                      description, max_participants, organizer_id)
-  VALUES (left(trim(p_nombre), 60), current_date, 'Grupetta', 'btt', 'grupetta', false,
+  -- race_type 'mtb': el CHECK de races solo admite trail/mtb, y ademas la
+  -- app muestra km/h (no ritmo) para la grupeta ciclista
+  VALUES (left(trim(p_nombre), 60), current_date, 'Grupetta', 'mtb', 'grupetta', false,
           true, 15, v_code, v_slug,
           'Grupo Grupetta (autoservicio)', 20, v_capo)
   RETURNING id INTO v_race_id;
