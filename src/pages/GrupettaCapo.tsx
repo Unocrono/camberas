@@ -27,11 +27,13 @@ interface MiGrupetta {
   join_code: string;
   slug: string;
   fecha: string;
-  hora_punto: string | null;
+  hora: string | null;
+  lugar: string | null;
   publicada: boolean;
   imagen: string | null;
   gpx: string | null;
   miembros: number;
+  inscritos: { dorsal: string; nombre: string }[];
 }
 
 const GrupettaCapo = () => {
@@ -42,7 +44,8 @@ const GrupettaCapo = () => {
   // Crear
   const [nombreGrupo, setNombreGrupo] = useState("");
   const [fechaSalida, setFechaSalida] = useState(new Date().toISOString().slice(0, 10));
-  const [horaPunto, setHoraPunto] = useState("");
+  const [horaSalida, setHoraSalida] = useState("");
+  const [lugarSalida, setLugarSalida] = useState("");
   const [misGrupettas, setMisGrupettas] = useState<MiGrupetta[]>([]);
   const [subiendo, setSubiendo] = useState<string | null>(null);
 
@@ -81,7 +84,8 @@ const GrupettaCapo = () => {
       const { error } = await supabase.rpc("crear_grupetta", {
         p_nombre: nombreGrupo,
         p_fecha: fechaSalida,
-        p_hora_punto: horaPunto || null,
+        p_hora: horaSalida || null,
+        p_lugar: lugarSalida || null,
       });
       if (error) throw error;
       toast({
@@ -89,7 +93,8 @@ const GrupettaCapo = () => {
         description: "Completa la ficha si quieres y pulsa PUBLICAR para abrir las uniones.",
       });
       setNombreGrupo("");
-      setHoraPunto("");
+      setHoraSalida("");
+      setLugarSalida("");
       await cargarMisGrupettas();
     } catch (e: any) {
       toast({ title: "No se pudo crear", description: e.message, variant: "destructive" });
@@ -266,14 +271,24 @@ const GrupettaCapo = () => {
                         />
                       </div>
                     </div>
-                    <div>
-                      <Label>Hora y punto de encuentro (opcional)</Label>
-                      <Input
-                        value={horaPunto}
-                        onChange={(e) => setHoraPunto(e.target.value)}
-                        maxLength={120}
-                        placeholder="Ej: 09:00 · Bar La Plaza, Loiu"
-                      />
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div>
+                        <Label>Hora de salida (opcional)</Label>
+                        <Input
+                          type="time"
+                          value={horaSalida}
+                          onChange={(e) => setHoraSalida(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Lugar de salida (opcional)</Label>
+                        <Input
+                          value={lugarSalida}
+                          onChange={(e) => setLugarSalida(e.target.value)}
+                          maxLength={120}
+                          placeholder="Ej: Bar La Plaza, Loiu"
+                        />
+                      </div>
                     </div>
                     <Button
                       variant="secondary"
@@ -298,7 +313,8 @@ const GrupettaCapo = () => {
                                 {new Date(g.fecha + "T00:00:00").toLocaleDateString("es-ES", {
                                   weekday: "long", day: "numeric", month: "long",
                                 })}
-                                {g.hora_punto && g.hora_punto !== "Grupetta" ? ` · ${g.hora_punto}` : ""}
+                                {g.hora ? ` · ${g.hora} h` : ""}
+                                {g.lugar && g.lugar !== "Por concretar" ? ` · ${g.lugar}` : ""}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -312,6 +328,53 @@ const GrupettaCapo = () => {
                           <p className="font-archivo text-4xl tracking-[0.3em] text-center text-secondary">
                             {g.join_code}
                           </p>
+
+                          {/* Editar salida: escribe en los campos nativos del evento */}
+                          <form
+                            className="grid grid-cols-[110px_1fr_auto] gap-2 items-end"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const fd = new FormData(e.currentTarget);
+                              actualizar(g.race_id, {
+                                p_hora: (fd.get("hora") as string) || null,
+                                p_lugar: (fd.get("lugar") as string) || null,
+                              }).then((ok) => ok && toast({ title: "Salida actualizada 🕘" }));
+                            }}
+                          >
+                            <div>
+                              <Label className="text-xs">Hora</Label>
+                              <Input name="hora" type="time" defaultValue={g.hora ?? ""} />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Lugar de salida</Label>
+                              <Input
+                                name="lugar"
+                                maxLength={120}
+                                defaultValue={g.lugar === "Por concretar" ? "" : g.lugar ?? ""}
+                                placeholder="Punto de encuentro"
+                              />
+                            </div>
+                            <Button size="sm" type="submit" variant="outline">
+                              Guardar
+                            </Button>
+                          </form>
+
+                          {/* Inscritos: el capo ve quién se ha unido */}
+                          {g.inscritos?.length > 0 && (
+                            <div className="text-sm border rounded-lg p-3 bg-muted/40">
+                              <p className="font-semibold text-xs uppercase tracking-wide mb-1">
+                                Inscritos ({g.miembros}/20)
+                              </p>
+                              <ul className="grid grid-cols-2 gap-x-4">
+                                {g.inscritos.map((m) => (
+                                  <li key={m.dorsal} className="flex gap-2">
+                                    <span className="text-secondary font-mono w-6 text-right">{m.dorsal}</span>
+                                    <span className="truncate">{m.nombre}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
 
                           <div className="grid grid-cols-2 gap-2">
                             <Button size="sm" onClick={() => copiar(urlUnion(g.join_code))}>

@@ -105,11 +105,11 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
 
   const fetchOrganizers = async () => {
     try {
-      // Get all users with organizer role
+      // Organizadores y capos (los capos figuran como organizador de sus grupettas)
       const { data: organizerRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id")
-        .eq("role", "organizer")
+        .in("role", ["organizer", "capo"])
         .eq("status", "approved");
 
       if (rolesError) throw rolesError;
