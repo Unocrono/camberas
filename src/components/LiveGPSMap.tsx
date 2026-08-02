@@ -6,13 +6,14 @@ import { parseGpxFile } from '@/lib/gpxParser';
 import { buildRouteIndex, projectOnRoute, RouteIndex, RouteProgress } from '@/lib/routeProgress';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play } from 'lucide-react';
+import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatLocalTime } from '@/lib/timezoneUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapControls } from '@/components/MapControls';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TrackPlaybackControls } from '@/components/TrackPlaybackControls';
+import { GroupPlaybackControls } from '@/components/GroupPlaybackControls';
 
 interface CheckpointNotification {
   id: string;
@@ -123,6 +124,17 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [isPlaybackMode, setIsPlaybackMode] = useState(false);
   const [pendingPlayback, setPendingPlayback] = useState(false);
   const playbackMarker = useRef<mapboxgl.Marker | null>(null);
+
+  // Repetición del grupo (reloj maestro)
+  const [isGroupPlayback, setIsGroupPlayback] = useState(false);
+  const groupPlaybackRef = useRef(false);
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupTracks, setGroupTracks] = useState<Map<string, RunnerTrackPoint[]>>(new Map());
+  const groupTracksRef = useRef<Map<string, RunnerTrackPoint[]>>(new Map());
+  const [replayPositions, setReplayPositions] = useState<RunnerPosition[] | null>(null);
+  const [hiddenInReplay, setHiddenInReplay] = useState<Set<string>>(new Set());
+  const hiddenInReplayRef = useRef<Set<string>>(new Set());
+  const lastPanelUpdateRef = useRef(0);
   
   // Mobile panel state
   const isMobile = useIsMobile();
@@ -364,44 +376,46 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     setIsPlaybackMode(false);
   };
 
+  /** Carga el track completo de un corredor, del pipeline que corresponda */
+  const loadTrackPoints = async (runner: RunnerPosition): Promise<RunnerTrackPoint[]> => {
+    if (runner.source === 'app') {
+      // Pipeline app (camberas-track): registration_id es el token → RPC propio
+      const { data, error } = await supabase.rpc('get_token_track', {
+        p_token_id: runner.registration_id,
+      });
+      if (error) throw error;
+      return ((data as any[]) || []).map(point => ({
+        latitude: parseFloat(String(point.lat)),
+        longitude: parseFloat(String(point.lng)),
+        timestamp: point.ts,
+        speed: point.speed != null ? parseFloat(String(point.speed)) : null,
+        altitude: null,
+      }));
+    }
+    const { data, error } = await supabase
+      .from('gps_tracking')
+      .select('latitude, longitude, timestamp, speed, altitude')
+      .eq('registration_id', runner.registration_id)
+      .eq('race_id', raceId)
+      .order('timestamp', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map(point => ({
+      latitude: parseFloat(String(point.latitude)),
+      longitude: parseFloat(String(point.longitude)),
+      timestamp: point.timestamp,
+      speed: point.speed ? parseFloat(String(point.speed)) : null,
+      altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
+    }));
+  };
+
   const fetchRunnerTrack = async (registrationId: string) => {
     setLoadingTrack(true);
     try {
-      // Pipeline app (camberas-track): registration_id es el token → RPC propio
       const runner = runnerPositions.find(r => r.registration_id === registrationId);
-      let trackPoints: RunnerTrackPoint[];
-
-      if (runner?.source === 'app') {
-        const { data, error } = await supabase.rpc('get_token_track', {
-          p_token_id: registrationId,
-        });
-        if (error) throw error;
-        trackPoints = ((data as any[]) || []).map(point => ({
-          latitude: parseFloat(String(point.lat)),
-          longitude: parseFloat(String(point.lng)),
-          timestamp: point.ts,
-          speed: point.speed != null ? parseFloat(String(point.speed)) : null,
-          altitude: null,
-        }));
-      } else {
-        const { data, error } = await supabase
-          .from('gps_tracking')
-          .select('latitude, longitude, timestamp, speed, altitude')
-          .eq('registration_id', registrationId)
-          .eq('race_id', raceId)
-          .order('timestamp', { ascending: true });
-
-        if (error) throw error;
-
-        trackPoints = (data || []).map(point => ({
-          latitude: parseFloat(String(point.latitude)),
-          longitude: parseFloat(String(point.longitude)),
-          timestamp: point.timestamp,
-          speed: point.speed ? parseFloat(String(point.speed)) : null,
-          altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
-        }));
-      }
-
+      if (!runner) return;
+      const trackPoints = await loadTrackPoints(runner);
       setRunnerTrack(trackPoints);
       addRunnerTrackToMap(trackPoints);
     } catch (error) {
@@ -797,7 +811,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     }));
 
     setRunnerPositions(positions);
-    updateMarkers(positions);
+    // Durante la repetición del grupo, los marcadores los mueve el reloj maestro
+    if (!groupPlaybackRef.current) updateMarkers(positions);
   };
   const setupRealtimeSubscription = () => {
     const onNewPosition = () => {
@@ -1033,8 +1048,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       marker.getElement().style.opacity = stale ? '0.4' : '1';
     });
 
-    // Only fit bounds to runners if no GPX route is loaded
-    if (positions.length > 0 && !gpxUrl) {
+    // Only fit bounds to runners if no GPX route is loaded (nunca durante la repetición)
+    if (positions.length > 0 && !gpxUrl && !groupPlaybackRef.current) {
       const bounds = new mapboxgl.LngLatBounds();
       positions.forEach((pos) => {
         bounds.extend([pos.longitude, pos.latitude]);
@@ -1055,6 +1070,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   }, [runnerPositions]);
 
   const handleSelectRunner = (runner: RunnerPosition) => {
+    // En repetición de grupo, el toque alterna ocultar/mostrar al corredor
+    if (groupPlaybackRef.current) {
+      toggleHiddenInReplay(runner.registration_id);
+      return;
+    }
     setSelectedRunner(runner);
   };
 
@@ -1073,12 +1093,144 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
   const handleQuickPlayback = (runner: RunnerPosition, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (groupPlaybackRef.current) stopGroupPlayback();
     setSelectedRunner(runner);
     setPendingPlayback(true);
     if (isMobile) {
       setIsRunnersPanelExpanded(false);
     }
   };
+
+  // ── Repetición del grupo: reloj maestro sobre todos los tracks ───────────
+  const startGroupPlayback = async () => {
+    setGroupLoading(true);
+    try {
+      handleClearSelection();
+      const entries = await Promise.all(
+        runnerPositions.map(async runner => {
+          try {
+            return [runner.registration_id, await loadTrackPoints(runner)] as const;
+          } catch {
+            return [runner.registration_id, [] as RunnerTrackPoint[]] as const;
+          }
+        })
+      );
+      const tracks = new Map(entries.filter(([, pts]) => pts.length >= 2));
+      if (tracks.size === 0) {
+        toast.info('Ningún participante tiene track para reproducir');
+        return;
+      }
+      groupTracksRef.current = tracks;
+      setGroupTracks(tracks);
+      hiddenInReplayRef.current = new Set();
+      setHiddenInReplay(new Set());
+      groupPlaybackRef.current = true;
+      setIsGroupPlayback(true);
+      if (isMobile) setIsRunnersPanelExpanded(false);
+    } finally {
+      setGroupLoading(false);
+    }
+  };
+
+  const stopGroupPlayback = () => {
+    groupPlaybackRef.current = false;
+    setIsGroupPlayback(false);
+    setReplayPositions(null);
+    // Restaurar los marcadores a las posiciones en vivo
+    markers.current.forEach(m => (m.getElement().style.display = ''));
+    updateMarkers(runnerPositions);
+  };
+
+  const toggleHiddenInReplay = (registrationId: string) => {
+    const next = new Set(hiddenInReplayRef.current);
+    if (next.has(registrationId)) next.delete(registrationId);
+    else next.add(registrationId);
+    hiddenInReplayRef.current = next;
+    setHiddenInReplay(next);
+  };
+
+  /** Rumbo entre dos puntos, en grados desde el norte */
+  const bearingDeg = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+    const y = Math.sin(Δλ) * Math.cos(φ2);
+    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+    return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+  };
+
+  const handleGroupTimeChange = useCallback(
+    (timeMs: number) => {
+      if (!groupPlaybackRef.current) return;
+      const liveById = new Map(runnerPositions.map(r => [r.registration_id, r]));
+      const positions: RunnerPosition[] = [];
+
+      groupTracksRef.current.forEach((pts, id) => {
+        const marker = markers.current.get(id);
+        if (hiddenInReplayRef.current.has(id)) {
+          if (marker) marker.getElement().style.display = 'none';
+          return;
+        }
+        const start = +new Date(pts[0].timestamp);
+        if (timeMs < start) {
+          // Aún no había empezado a emitir
+          if (marker) marker.getElement().style.display = 'none';
+          return;
+        }
+        // Segmento que contiene el instante (búsqueda binaria)
+        let lo = 0;
+        let hi = pts.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          if (+new Date(pts[mid].timestamp) <= timeMs) lo = mid;
+          else hi = mid - 1;
+        }
+        let latitude: number;
+        let longitude: number;
+        let heading: number | null = null;
+        const speed = pts[lo].speed;
+        if (lo >= pts.length - 1) {
+          latitude = pts[lo].latitude;
+          longitude = pts[lo].longitude;
+        } else {
+          const a = pts[lo];
+          const b = pts[lo + 1];
+          const ta = +new Date(a.timestamp);
+          const tb = +new Date(b.timestamp);
+          const f = tb > ta ? (timeMs - ta) / (tb - ta) : 0;
+          latitude = a.latitude + (b.latitude - a.latitude) * f;
+          longitude = a.longitude + (b.longitude - a.longitude) * f;
+          if (Math.abs(b.latitude - a.latitude) > 1e-6 || Math.abs(b.longitude - a.longitude) > 1e-6) {
+            heading = bearingDeg(a.latitude, a.longitude, b.latitude, b.longitude);
+          }
+        }
+        if (marker) marker.getElement().style.display = '';
+        const live = liveById.get(id);
+        positions.push({
+          id,
+          registration_id: id,
+          latitude,
+          longitude,
+          timestamp: new Date(timeMs).toISOString(),
+          bib_number: live?.bib_number ?? null,
+          runner_name: live?.runner_name ?? 'Corredor',
+          heading,
+          speed,
+          battery: null,
+          source: live?.source ?? null,
+        });
+      });
+
+      updateMarkers(positions);
+      // El panel (clasificación + gaps) se refresca a ritmo más tranquilo
+      const now = Date.now();
+      if (now - lastPanelUpdateRef.current > 300) {
+        lastPanelUpdateRef.current = now;
+        setReplayPositions(positions);
+      }
+    },
+    [runnerPositions]
+  );
 
   const handlePlaybackPositionChange = useCallback((index: number, point: RunnerTrackPoint) => {
     if (!map.current) return;
@@ -1117,27 +1269,30 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   };
 
   // ── Progreso sobre el recorrido + clasificación virtual ──────────────────
+  // En repetición de grupo, el panel refleja el instante del reloj maestro
+  const displayPositions = replayPositions ?? runnerPositions;
+
   const progressByRunner = useMemo(() => {
     const result = new Map<string, RouteProgress>();
     if (!routeIndex) return result;
-    for (const runner of runnerPositions) {
+    for (const runner of displayPositions) {
       const progress = projectOnRoute(routeIndex, runner.longitude, runner.latitude);
       if (progress) result.set(runner.registration_id, progress);
     }
     return result;
-  }, [runnerPositions, routeIndex]);
+  }, [displayPositions, routeIndex]);
 
   const isStale = (runner: RunnerPosition) =>
-    Date.now() - new Date(runner.timestamp).getTime() > STALE_MS;
+    replayPositions == null && Date.now() - new Date(runner.timestamp).getTime() > STALE_MS;
 
   // Orden: primero por km recorridos (clasificación virtual), sin progreso al final
   const sortedRunners = useMemo(() => {
-    return [...runnerPositions].sort((a, b) => {
+    return [...displayPositions].sort((a, b) => {
       const pa = progressByRunner.get(a.registration_id)?.km ?? -1;
       const pb = progressByRunner.get(b.registration_id)?.km ?? -1;
       return pb - pa;
     });
-  }, [runnerPositions, progressByRunner]);
+  }, [displayPositions, progressByRunner]);
 
   // Km del que va en cabeza — referencia para los gaps
   const leaderKm = useMemo(() => {
@@ -1164,6 +1319,17 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     }
     return dist;
   };
+
+  // Rango temporal del reloj maestro (primer y último punto de todos los tracks)
+  const groupTimeRange = useMemo(() => {
+    let t0 = Infinity;
+    let t1 = -Infinity;
+    groupTracks.forEach(pts => {
+      t0 = Math.min(t0, +new Date(pts[0].timestamp));
+      t1 = Math.max(t1, +new Date(pts[pts.length - 1].timestamp));
+    });
+    return t0 < t1 ? { t0, t1 } : null;
+  }, [groupTracks]);
 
   const formatSpeed = (speed: number | null) => {
     if (speed == null || speed <= 0.3) return null;
@@ -1201,11 +1367,29 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       {/* Desktop Runners Panel - Left side */}
       {!isMobile && (
         <div className="w-64 bg-card border-r flex flex-col shrink-0">
-          <div className="p-3 border-b">
+          <div className="p-3 border-b flex items-center justify-between gap-2">
             <h3 className="font-semibold text-sm flex items-center gap-2">
               <User className="h-4 w-4" />
               Corredores ({runnerPositions.length})
             </h3>
+            {runnerPositions.length > 1 && !isGroupPlayback && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
+                onClick={startGroupPlayback}
+                disabled={groupLoading}
+                title="Repetición del grupo"
+              >
+                {groupLoading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Play className="h-3.5 w-3.5 mr-1" /> Grupo
+                  </>
+                )}
+              </Button>
+            )}
           </div>
           
           <ScrollArea className="flex-1">
@@ -1222,7 +1406,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                       selectedRunner?.registration_id === runner.registration_id
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-muted'
-                    } ${isStale(runner) ? 'opacity-50' : ''}`}
+                    } ${isStale(runner) || hiddenInReplay.has(runner.registration_id) ? 'opacity-50' : ''}`}
                   >
                     <div className="flex items-center gap-2">
                       <button
@@ -1360,6 +1544,28 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           </div>
         )}
 
+        {/* Group Playback Controls Panel */}
+        {isGroupPlayback && groupTimeRange && (
+          <div className="absolute top-4 left-4 right-4 max-w-md z-10">
+            <div className="relative">
+              <Button
+                size="icon"
+                variant="secondary"
+                onClick={stopGroupPlayback}
+                className="absolute -top-2 -right-2 h-8 w-8 rounded-full bg-white shadow-md z-10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <GroupPlaybackControls
+                t0={groupTimeRange.t0}
+                t1={groupTimeRange.t1}
+                participantes={groupTracks.size - hiddenInReplay.size}
+                onTimeChange={handleGroupTimeChange}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Playback Controls Panel */}
         {selectedRunner && isPlaybackMode && runnerTrack.length > 0 && (
           <div className="absolute top-4 left-4 right-4 max-w-md z-10">
@@ -1424,6 +1630,24 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
                 <span className="font-semibold text-sm">Corredores ({runnerPositions.length})</span>
+                {runnerPositions.length > 1 && !isGroupPlayback && (
+                  <span
+                    role="button"
+                    className="inline-flex items-center h-7 px-2 text-xs border rounded-md bg-background"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startGroupPlayback();
+                    }}
+                  >
+                    {groupLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <>
+                        <Play className="h-3.5 w-3.5 mr-1" /> Grupo
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
               {isRunnersPanelExpanded ? (
                 <ChevronDown className="h-5 w-5 text-muted-foreground" />
@@ -1489,7 +1713,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
                         selectedRunner?.registration_id === runner.registration_id
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/50 hover:bg-muted'
-                      } ${isStale(runner) ? 'opacity-50' : ''}`}
+                      } ${isStale(runner) || hiddenInReplay.has(runner.registration_id) ? 'opacity-50' : ''}`}
                     >
                       <div className="flex items-center gap-3">
                         <button
