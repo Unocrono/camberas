@@ -1,0 +1,29 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MTB">
+  <rect width="640" height="360" fill="#E9F6C6"/>
+  <circle cx="112" cy="86" r="42" fill="#C8E85C"/>
+  <!-- colinas -->
+  <path d="M0 250 Q160 170 330 235 T640 210 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 300 Q180 235 360 290 T640 270 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 340 Q200 300 420 335 T640 320 V360 H0 Z" fill="#1E5B38"/>
+  <!-- rodada -->
+  <path d="M60 330 C 190 300, 260 262, 380 268 S 560 250, 610 200"
+        fill="none" stroke="#FAF6EC" stroke-width="7" stroke-linecap="round" stroke-dasharray="14 12"/>
+  <!-- biker -->
+  <g transform="translate(280 236) rotate(-7) scale(1.35)">
+    <g stroke="#0E2419" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <circle cx="0" cy="0" r="18"/>
+      <circle cx="58" cy="0" r="18"/>
+      <path d="M0 0 L24 -28 L52 -30 L58 0"/>
+      <path d="M0 0 L30 -4 L52 -30"/>
+      <path d="M24 -28 L20 -36 M14 -36 L28 -36"/>
+      <path d="M52 -30 L58 -42 M52 -42 L64 -42"/>
+      <path d="M20 -38 L48 -64"/>
+      <path d="M44 -60 L58 -42"/>
+      <path d="M20 -38 L34 -20 L31 -3"/>
+      <path d="M20 -38 L14 -18 L27 -8"/>
+    </g>
+    <circle cx="30" cy="-4" r="4" fill="#0E2419"/>
+    <circle cx="56" cy="-76" r="10" fill="#0E2419"/>
+    <circle cx="36" cy="-52" r="6" fill="#EC7C2B"/>
+  </g>
+</svg>

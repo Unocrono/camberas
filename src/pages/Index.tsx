@@ -97,6 +97,7 @@ const Index = () => {
             coverImageUrl: race.cover_image_url || undefined,
             imageUrl: race.image_url || undefined,
             raceType: (race.race_type as "trail" | "mtb") || "trail",
+            groupType: ((race as any).group_type ?? "carrera") as "carrera" | "quedada" | "grupetta",
             priceLabel: priceRange(dists.map((d) => Number(d.price) || 0)),
             maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
             maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),

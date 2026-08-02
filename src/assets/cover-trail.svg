@@ -1,0 +1,27 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Trail">
+  <rect width="640" height="360" fill="#FCEBD6"/>
+  <circle cx="530" cy="84" r="44" fill="#F6C89A"/>
+  <!-- montañas -->
+  <path d="M40 262 L200 104 L360 262 Z" fill="#2E8B4A"/>
+  <path d="M176 128 L200 104 L224 128 L212 122 L200 134 L188 122 Z" fill="#FAF6EC"/>
+  <path d="M250 262 L390 140 L530 262 Z" fill="#3CA15B"/>
+  <!-- colinas -->
+  <path d="M0 252 Q170 182 340 238 T640 218 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 300 Q190 240 380 290 T640 275 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 344 Q210 306 430 338 T640 324 V360 H0 Z" fill="#1E5B38"/>
+  <!-- sendero -->
+  <path d="M70 338 C 190 306, 230 262, 330 264 S 520 244, 590 172"
+        fill="none" stroke="#FAF6EC" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <!-- corredor: zancada con rodilla alta -->
+  <g transform="translate(388 240)">
+    <g stroke="#0E2419" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M0 0 L10 -34"/>
+      <path d="M10 -32 L24 -22 L34 -32"/>
+      <path d="M10 -32 L-6 -26 L-14 -14"/>
+      <path d="M0 0 L24 2 L20 26"/>
+      <path d="M0 0 L-16 14 L-30 34"/>
+    </g>
+    <circle cx="16" cy="-46" r="12" fill="#0E2419"/>
+    <circle cx="6" cy="-19" r="7" fill="#EC7C2B"/>
+  </g>
+</svg>

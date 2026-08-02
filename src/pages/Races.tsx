@@ -168,6 +168,7 @@ const Races = () => {
             coverImageUrl: race.cover_image_url,
             imageUrl: race.image_url,
             raceType: race.race_type as 'trail' | 'mtb',
+            groupType: ((race as any).group_type ?? 'carrera') as 'carrera' | 'quedada' | 'grupetta',
             priceLabel,
             isFeatured: (race as any).is_featured === true,
             isPast: race.date < new Date().toISOString().split("T")[0],

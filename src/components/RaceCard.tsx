@@ -1,5 +1,9 @@
 import { Calendar, MapPin, Mountain, Bike, Trophy, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import coverTrail from "@/assets/cover-trail.svg";
+import coverMtb from "@/assets/cover-mtb.svg";
+import coverQuedada from "@/assets/cover-quedada.svg";
+import coverGrupetta from "@/assets/cover-grupetta.svg";
 
 interface RaceCardProps {
   id: string;
@@ -13,19 +17,26 @@ interface RaceCardProps {
   coverImageUrl?: string;
   imageUrl?: string;
   raceType?: 'trail' | 'mtb';
+  groupType?: 'carrera' | 'quedada' | 'grupetta';
   priceLabel?: string | null;
   isPast?: boolean;
 }
 
 const RaceCard = ({
   id, slug, name, subtitle, date, location, distances,
-  coverImageUrl, imageUrl, raceType = 'trail', priceLabel, isPast = false,
+  coverImageUrl, imageUrl, raceType = 'trail', groupType = 'carrera',
+  priceLabel, isPast = false,
 }: RaceCardProps) => {
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
+  // Sin imagen subida, cada tipo tiene su ilustración de la casa
+  const defaultCover =
+    groupType === 'grupetta' ? coverGrupetta :
+    groupType === 'quedada' ? coverQuedada :
+    raceType === 'mtb' ? coverMtb : coverTrail;
   // El listado usa la Imagen Principal (16:9); la Portada queda para la
   // cabecera de la página de la carrera.
-  const cardImage = imageUrl || coverImageUrl;
-  const cardAspect = imageUrl ? 'aspect-video' : 'aspect-[2.4/1]';
+  const cardImage = imageUrl || coverImageUrl || defaultCover;
+  const cardAspect = !imageUrl && coverImageUrl ? 'aspect-[2.4/1]' : 'aspect-video';
 
   return (
     <Link
@@ -33,15 +44,11 @@ const RaceCard = ({
       className="group flex flex-col overflow-hidden rounded-2xl bg-card border border-border shadow-sm hover:shadow-elevated hover:-translate-y-1 transition-all duration-300"
     >
       <div className={`relative ${cardAspect} overflow-hidden bg-muted`}>
-        {cardImage ? (
-          <img
-            src={cardImage}
-            alt={name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-hero" />
-        )}
+        <img
+          src={cardImage}
+          alt={name}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
         {/* Estado */}
         <span
           className={`absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${

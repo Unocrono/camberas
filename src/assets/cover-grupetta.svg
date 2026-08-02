@@ -1,0 +1,47 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grupetta">
+  <rect width="640" height="360" fill="#E9F6C6"/>
+  <circle cx="530" cy="88" r="44" fill="#C8E85C"/>
+  <!-- colinas -->
+  <path d="M0 250 Q160 170 330 235 T640 210 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 300 Q180 235 360 290 T640 270 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 340 Q200 300 420 335 T640 320 V360 H0 Z" fill="#1E5B38"/>
+  <!-- ruta -->
+  <path d="M40 322 C 180 296, 340 268, 610 236"
+        fill="none" stroke="#FAF6EC" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <!-- paceline: 2 gregarios + capo en cabeza con corona -->
+  <g transform="translate(120 288) rotate(-4) scale(0.82)">
+    <g stroke="#0E2419" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <circle cx="0" cy="0" r="18"/><circle cx="58" cy="0" r="18"/>
+      <path d="M0 0 L24 -28 L52 -30 L58 0 M0 0 L30 -4 L52 -30"/>
+      <path d="M24 -28 L20 -36 M14 -36 L28 -36 M52 -30 L58 -42 M52 -42 L64 -42"/>
+      <path d="M20 -38 L48 -64 M44 -60 L58 -42"/>
+      <path d="M20 -38 L34 -20 L31 -3 M20 -38 L14 -18 L27 -8"/>
+    </g>
+    <circle cx="56" cy="-76" r="10" fill="#0E2419"/>
+    <circle cx="36" cy="-52" r="6" fill="#C8E85C"/>
+  </g>
+  <g transform="translate(270 276) rotate(-4) scale(0.82)">
+    <g stroke="#0E2419" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <circle cx="0" cy="0" r="18"/><circle cx="58" cy="0" r="18"/>
+      <path d="M0 0 L24 -28 L52 -30 L58 0 M0 0 L30 -4 L52 -30"/>
+      <path d="M24 -28 L20 -36 M14 -36 L28 -36 M52 -30 L58 -42 M52 -42 L64 -42"/>
+      <path d="M20 -38 L48 -64 M44 -60 L58 -42"/>
+      <path d="M20 -38 L34 -20 L31 -3 M20 -38 L14 -18 L27 -8"/>
+    </g>
+    <circle cx="56" cy="-76" r="10" fill="#0E2419"/>
+    <circle cx="36" cy="-52" r="6" fill="#FAF6EC"/>
+  </g>
+  <g transform="translate(420 264) rotate(-4) scale(0.82)">
+    <g stroke="#0E2419" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <circle cx="0" cy="0" r="18"/><circle cx="58" cy="0" r="18"/>
+      <path d="M0 0 L24 -28 L52 -30 L58 0 M0 0 L30 -4 L52 -30"/>
+      <path d="M24 -28 L20 -36 M14 -36 L28 -36 M52 -30 L58 -42 M52 -42 L64 -42"/>
+      <path d="M20 -38 L48 -64 M44 -60 L58 -42"/>
+      <path d="M20 -38 L34 -20 L31 -3 M20 -38 L14 -18 L27 -8"/>
+    </g>
+    <circle cx="56" cy="-76" r="10" fill="#0E2419"/>
+    <circle cx="36" cy="-52" r="6" fill="#EC7C2B"/>
+    <!-- corona del capo -->
+    <path d="M46 -88 L66 -88 L66 -98 L61 -92 L56 -101 L51 -92 L46 -98 Z" fill="#EC7C2B"/>
+  </g>
+</svg>
