@@ -62,17 +62,17 @@ export function MapControls({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            size="icon"
+            size="sm"
             variant="secondary"
-            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+            className="h-8 px-2 justify-start bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs"
             onClick={onCenterRoute}
             disabled={!hasRoute}
           >
-            <Route className="h-4 w-4" />
+            <Route className="h-4 w-4 mr-1" /> Recorrido
           </Button>
         </TooltipTrigger>
         <TooltipContent side="left">
-          <p>Centrar en recorrido</p>
+          <p>Centrar en el recorrido</p>
         </TooltipContent>
       </Tooltip>
 
@@ -80,17 +80,17 @@ export function MapControls({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            size="icon"
+            size="sm"
             variant="secondary"
-            className="h-8 w-8 bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50"
+            className="h-8 px-2 justify-start bg-white shadow-md border border-gray-200 text-gray-700 hover:bg-gray-50 text-xs"
             onClick={onCenterRunners}
             disabled={!hasRunners}
           >
-            <Users className="h-4 w-4" />
+            <Users className="h-4 w-4 mr-1" /> Grupo
           </Button>
         </TooltipTrigger>
         <TooltipContent side="left">
-          <p>Centrar en participantes</p>
+          <p>Centrar en los participantes</p>
         </TooltipContent>
       </Tooltip>
 

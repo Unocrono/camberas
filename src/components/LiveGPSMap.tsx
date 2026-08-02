@@ -985,11 +985,14 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         el.className = 'runner-marker';
         const hasHeading = position.heading !== null && position.heading !== undefined;
         const rotation = hasHeading ? position.heading : 0;
+        // La flecha de rumbo gira alrededor del dorsal; el número queda siempre vertical
         el.innerHTML = `
-          <div class="flex flex-col items-center" style="transform: rotate(${rotation}deg);">
-            <div class="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg relative">
+          <div class="relative w-8 h-8">
+            <div class="marker-heading" style="position: absolute; inset: -8px; transform: rotate(${rotation}deg); display: ${hasHeading ? 'block' : 'none'};">
+              <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid hsl(var(--primary));"></div>
+            </div>
+            <div class="bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm shadow-lg">
               ${position.bib_number || '?'}
-              ${hasHeading ? '<div style="position: absolute; top: -6px; left: 50%; transform: translateX(-50%) rotate(0deg); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid hsl(var(--primary));"></div>' : ''}
             </div>
           </div>
         `;
@@ -1016,6 +1019,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         markers.current.set(position.registration_id, marker);
       } else {
         marker.setLngLat([position.longitude, position.latitude]);
+        // Actualizar el rumbo de la flecha (antes se quedaba congelado al crear)
+        const headingEl = marker.getElement().querySelector('.marker-heading') as HTMLElement | null;
+        if (headingEl) {
+          const hasHeading = position.heading !== null && position.heading !== undefined;
+          headingEl.style.display = hasHeading ? 'block' : 'none';
+          if (hasHeading) headingEl.style.transform = `rotate(${position.heading}deg)`;
+        }
       }
 
       // Atenuar corredores sin señal reciente
