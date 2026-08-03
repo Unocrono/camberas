@@ -87,15 +87,12 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [motos, setMotos] = useState<Moto[]>([]);
-  const [users, setUsers] = useState<UserOption[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedMoto, setSelectedMoto] = useState<Moto | null>(null);
-  const [newMotoEmail, setNewMotoEmail] = useState("");
-  const [addingRole, setAddingRole] = useState(false);
   // Tokens de activación (patrón QR de camberas-track aplicado a las motos)
   const [motoTokens, setMotoTokens] = useState<Record<string, { token: string; bib: string; activo: boolean }>>({});
   const [qrDialogMoto, setQrDialogMoto] = useState<Moto | null>(null);
@@ -113,7 +110,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
   useEffect(() => {
     if (selectedRaceId) {
       fetchMotos();
-      fetchUsers();
       fetchDistances();
       fetchMotoTokens();
     }
@@ -194,37 +190,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      // Fetch users with MOTO role only
-      const { data: motoRoles, error: mrError } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "moto");
-
-      if (mrError) throw mrError;
-
-      const motoUserIds = motoRoles?.map(mr => mr.user_id) || [];
-
-      if (motoUserIds.length === 0) {
-        setUsers([]);
-        return;
-      }
-
-      // Fetch profiles for these users
-      const { data: profiles, error: pError } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name")
-        .in("id", motoUserIds);
-
-      if (pError) throw pError;
-
-      setUsers(profiles || []);
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
-    }
-  };
-
   const fetchDistances = async () => {
     try {
       const { data, error } = await supabase
@@ -248,7 +213,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         name_tv: moto.name_tv || "",
         color: moto.color,
         description: moto.description || "",
-        user_id: moto.user_id || "",
         race_distance_id: moto.race_distance_id || "",
         is_active: moto.is_active,
       });
@@ -259,7 +223,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         name_tv: "",
         color: PRESET_COLORS[motos.length % PRESET_COLORS.length],
         description: "",
-        user_id: "",
         race_distance_id: distances.length > 0 ? distances[0].id : "",
         is_active: true,
       });
@@ -286,7 +249,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         name_tv: formData.name_tv.trim() || null,
         color: formData.color,
         description: formData.description.trim() || null,
-        user_id: formData.user_id || null,
         is_active: formData.is_active,
       };
 
@@ -388,97 +350,11 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
     }
   };
 
-  const getUserName = (userId: string | null) => {
-    if (!userId) return "Sin asignar";
-    const user = users.find(u => u.id === userId);
-    if (!user) return "Usuario desconocido";
-    return `${user.first_name || ""} ${user.last_name || ""}`.trim() || "Sin nombre";
-  };
-
   const getDistanceName = (distanceId: string | null) => {
     if (!distanceId) return "Sin asignar";
     const distance = distances.find(d => d.id === distanceId);
     if (!distance) return "Desconocido";
     return `${distance.name} (${distance.distance_km}km)`;
-  };
-
-  const handleAddMotoRole = async () => {
-    if (!newMotoEmail.trim()) {
-      toast({
-        title: "Error",
-        description: "Ingresa un email válido",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setAddingRole(true);
-    try {
-      // Find user by email using RPC
-      const { data: usersWithEmails, error: usersError } = await supabase.rpc(
-        "get_users_with_emails"
-      );
-
-      if (usersError) throw usersError;
-
-      const foundUser = usersWithEmails?.find(
-        (u: { user_id: string; email: string }) =>
-          u.email.toLowerCase() === newMotoEmail.toLowerCase().trim()
-      );
-
-      if (!foundUser) {
-        toast({
-          title: "Usuario no encontrado",
-          description: "No existe un usuario con ese email",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Check if user already has moto role
-      const { data: existingRole } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", foundUser.user_id)
-        .eq("role", "moto")
-        .maybeSingle();
-
-      if (existingRole) {
-        toast({
-          title: "Ya es motero",
-          description: "Este usuario ya tiene el rol de motero",
-        });
-        setNewMotoEmail("");
-        fetchUsers();
-        return;
-      }
-
-      // Add moto role
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: foundUser.user_id,
-        role: "moto",
-        status: "approved",
-      });
-
-      if (roleError) throw roleError;
-
-      toast({
-        title: "Rol asignado",
-        description: `Se ha asignado el rol de motero a ${newMotoEmail}`,
-      });
-
-      setNewMotoEmail("");
-      fetchUsers();
-    } catch (error: any) {
-      console.error("Error adding moto role:", error);
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo asignar el rol",
-        variant: "destructive",
-      });
-    } finally {
-      setAddingRole(false);
-    }
   };
 
   if (loading) {
@@ -498,7 +374,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
             Motos GPS
           </h2>
           <p className="text-muted-foreground">
-            Gestiona las motos de seguimiento GPS y asigna moteros
+            Gestiona las motos de seguimiento GPS — cada moto se vincula con su QR, sin usuarios
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
@@ -506,34 +382,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
           Nueva Moto
         </Button>
       </div>
-
-      {/* Add new moto user section */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <UserPlus className="h-4 w-4" />
-            Añadir Motero
-          </CardTitle>
-          <CardDescription>
-            Asigna el rol de motero a un usuario existente para que pueda usar la app GPS
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <Input
-              type="email"
-              placeholder="Email del usuario"
-              value={newMotoEmail}
-              onChange={(e) => setNewMotoEmail(e.target.value)}
-              className="flex-1"
-            />
-            <Button onClick={handleAddMotoRole} disabled={addingRole}>
-              {addingRole && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Añadir Rol
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {motos.length === 0 ? (
         <Card>
@@ -563,7 +411,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                   <TableHead>Nombre TV</TableHead>
                   <TableHead>Recorrido</TableHead>
                   <TableHead>Color</TableHead>
-                  <TableHead>Usuario GPS</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -593,12 +440,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                           style={{ backgroundColor: moto.color }}
                         />
                         <span className="text-xs text-muted-foreground">{moto.color}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span>{getUserName(moto.user_id)}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -713,29 +554,6 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                 />
                 <span className="text-xs text-muted-foreground">{formData.color}</span>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="user_id">Usuario GPS</Label>
-              <Select
-                value={formData.user_id || "none"}
-                onValueChange={(value) => setFormData({ ...formData, user_id: value === "none" ? "" : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un usuario" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {`${user.first_name || ""} ${user.last_name || ""}`.trim() || "Sin nombre"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Usuario que llevará el GPS en esta moto
-              </p>
             </div>
 
             <div className="space-y-2">
