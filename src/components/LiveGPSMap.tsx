@@ -132,6 +132,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
   const [groupTracks, setGroupTracks] = useState<Map<string, RunnerTrackPoint[]>>(new Map());
   const groupTracksRef = useRef<Map<string, RunnerTrackPoint[]>>(new Map());
   const [replayPositions, setReplayPositions] = useState<RunnerPosition[] | null>(null);
+  const [finalizadoMode, setFinalizadoMode] = useState(false);
   const [hiddenInReplay, setHiddenInReplay] = useState<Set<string>>(new Set());
   const hiddenInReplayRef = useRef<Set<string>>(new Set());
   const lastPanelUpdateRef = useRef(0);
@@ -786,7 +787,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
   const fetchInitialPositions = async () => {
     // Use RPC function to get positions with runner info (bypasses RLS)
-    const { data, error } = await supabase.rpc('get_live_gps_positions', {
+    let { data, error } = await supabase.rpc('get_live_gps_positions', {
       p_race_id: raceId,
       p_distance_id: distanceId || null
     });
@@ -794,6 +795,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     if (error) {
       console.error('Error fetching positions:', error);
       return;
+    }
+
+    // Ventana de captura cerrada: modo finalizado — participantes con track
+    // (7 días tras el evento) para poder ver y reproducir los recorridos
+    if (!data || data.length === 0) {
+      const replay = await supabase.rpc('get_event_participants_replay', {
+        p_race_id: raceId,
+        p_distance_id: distanceId || null,
+      });
+      if (!replay.error && replay.data && replay.data.length > 0) {
+        data = replay.data;
+        setFinalizadoMode(true);
+      } else {
+        setFinalizadoMode(false);
+      }
+    } else {
+      setFinalizadoMode(false);
     }
 
     const positions: RunnerPosition[] = (data || []).map((item: any) => ({
@@ -1368,10 +1386,17 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       {!isMobile && (
         <div className="w-64 bg-card border-r flex flex-col shrink-0">
           <div className="p-3 border-b flex items-center justify-between gap-2">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Corredores ({runnerPositions.length})
-            </h3>
+            <div>
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Corredores ({runnerPositions.length})
+              </h3>
+              {finalizadoMode && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Evento finalizado — repetición disponible
+                </p>
+              )}
+            </div>
             {runnerPositions.length > 1 && !isGroupPlayback && (
               <Button
                 size="sm"
@@ -1629,7 +1654,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
-                <span className="font-semibold text-sm">Corredores ({runnerPositions.length})</span>
+                <span className="font-semibold text-sm">
+                  Corredores ({runnerPositions.length})
+                  {finalizadoMode && <span className="font-normal text-muted-foreground"> · finalizado</span>}
+                </span>
                 {runnerPositions.length > 1 && !isGroupPlayback && (
                   <span
                     role="button"
