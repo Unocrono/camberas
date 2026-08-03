@@ -8,6 +8,7 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
+  const [isCapo, setIsCapo] = useState(false);
   const [rolesLoaded, setRolesLoaded] = useState(false);
   const rolesCheckedForUserId = useRef<string | null>(null);
 
@@ -21,17 +22,20 @@ export const useAuth = () => {
     try {
       setRolesLoaded(false);
 
-      const [adminResult, organizerResult] = await Promise.all([
+      const [adminResult, organizerResult, capoResult] = await Promise.all([
         supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
         supabase.rpc("has_role", { _user_id: userId, _role: "organizer" }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "capo" }),
       ]);
 
       setIsAdmin(adminResult.data || false);
       setIsOrganizer(organizerResult.data || false);
+      setIsCapo(capoResult.data || false);
     } catch (error) {
       console.error("Error checking user roles:", error);
       setIsAdmin(false);
       setIsOrganizer(false);
+      setIsCapo(false);
     } finally {
       setRolesLoaded(true);
     }
@@ -77,6 +81,7 @@ export const useAuth = () => {
           rolesCheckedForUserId.current = null;
           setIsAdmin(false);
           setIsOrganizer(false);
+          setIsCapo(false);
           setRolesLoaded(true);
         }
       }
@@ -93,6 +98,7 @@ export const useAuth = () => {
     rolesCheckedForUserId.current = null;
     setIsAdmin(false);
     setIsOrganizer(false);
+    setIsCapo(false);
     setRolesLoaded(false);
     setUser(null);
     setSession(null);
@@ -106,5 +112,5 @@ export const useAuth = () => {
     }
   };
 
-  return { user, session, loading, signOut, isAdmin, isOrganizer, rolesLoaded };
+  return { user, session, loading, signOut, isAdmin, isOrganizer, isCapo, rolesLoaded };
 };
