@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Newspaper, Crown } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Newspaper } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,12 +56,7 @@ const Navbar = () => {
                     Contacto
                   </NavLink>
                   {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
-                  {isCapo && (
-                    <NavLink to="/grupetta/capo" className="flex items-center gap-2">
-                      <Crown className="h-4 w-4" />
-                      Capo
-                    </NavLink>
-                  )}
+                  {isCapo && <NavLink to="/grupetta/capo">Capo</NavLink>}
                   {isOrganizer && (
                     <NavLink to="/organizer" className="flex items-center gap-2">
                       <Briefcase className="h-4 w-4" />
@@ -103,12 +98,7 @@ const Navbar = () => {
             <NavLink to="/contact">Contacto</NavLink>
 
             {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
-            {isCapo && (
-              <NavLink to="/grupetta/capo" className="flex items-center gap-1">
-                <Crown className="h-4 w-4" />
-                Capo
-              </NavLink>
-            )}
+            {isCapo && <NavLink to="/grupetta/capo">Capo</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
                 <Briefcase className="h-4 w-4" />
