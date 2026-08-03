@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { parseGpxFile } from "@/lib/gpxParser";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import planGrupetta from "@/assets/plan-grupetta.svg";
@@ -32,9 +33,39 @@ interface MiGrupetta {
   publicada: boolean;
   imagen: string | null;
   gpx: string | null;
+  distancia: number | null;
+  desnivel: number | null;
   miembros: number;
   inscritos: { dorsal: string; nombre: string }[];
 }
+
+/** Km y desnivel positivo de un GPX (para no pedírselos al capo) */
+const statsFromGpx = (gpxText: string): { km: number; desnivel: number } | null => {
+  try {
+    const gpx = parseGpxFile(gpxText);
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    let km = 0;
+    let up = 0;
+    for (const track of gpx.tracks) {
+      const pts = track.points;
+      for (let i = 1; i < pts.length; i++) {
+        const dLat = toRad(pts[i].lat - pts[i - 1].lat);
+        const dLon = toRad(pts[i].lon - pts[i - 1].lon);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(pts[i - 1].lat)) * Math.cos(toRad(pts[i].lat)) * Math.sin(dLon / 2) ** 2;
+        km += 2 * 6371 * Math.asin(Math.sqrt(a));
+        const e0 = pts[i - 1].ele;
+        const e1 = pts[i].ele;
+        if (e0 != null && e1 != null && e1 - e0 > 1) up += e1 - e0;
+      }
+    }
+    if (km <= 0) return null;
+    return { km: Math.round(km * 10) / 10, desnivel: Math.round(up) };
+  } catch {
+    return null;
+  }
+};
 
 const GrupettaCapo = () => {
   const { toast } = useToast();
@@ -151,8 +182,22 @@ const GrupettaCapo = () => {
       });
       if (upErr) throw upErr;
       const { data } = supabase.storage.from(bucket).getPublicUrl(ruta);
-      const ok = await actualizar(g.race_id, { [campo]: data.publicUrl });
-      if (ok) toast({ title: bucket === "race-gpx" ? "Ruta GPX subida 🗺️" : "Imagen subida 🖼️" });
+
+      // Del GPX salen gratis los km y el desnivel — a los campos nativos
+      const stats = bucket === "race-gpx" ? statsFromGpx(await file.text()) : null;
+      const ok = await actualizar(g.race_id, {
+        [campo]: data.publicUrl,
+        ...(stats ? { p_distancia_km: stats.km, p_desnivel: stats.desnivel } : {}),
+      });
+      if (ok)
+        toast({
+          title:
+            bucket === "race-gpx"
+              ? stats
+                ? `Ruta GPX subida 🗺️ — ${stats.km} km, +${stats.desnivel} m`
+                : "Ruta GPX subida 🗺️"
+              : "Imagen subida 🖼️",
+        });
     } catch (e: any) {
       toast({ title: "No se pudo subir", description: e.message, variant: "destructive" });
     } finally {
@@ -332,6 +377,9 @@ const GrupettaCapo = () => {
                                 })}
                                 {g.hora ? ` · ${g.hora} h` : ""}
                                 {g.lugar && g.lugar !== "Por concretar" ? ` · ${g.lugar}` : ""}
+                                {g.distancia && Number(g.distancia) > 0
+                                  ? ` · ${Number(g.distancia)} km${g.desnivel ? ` (+${g.desnivel} m)` : ""}`
+                                  : ""}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
