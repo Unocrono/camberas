@@ -42,7 +42,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User, UserPlus } from "lucide-react";
+import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User, UserPlus, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 
 interface Moto {
   id: string;
@@ -95,6 +96,11 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
   const [selectedMoto, setSelectedMoto] = useState<Moto | null>(null);
   const [newMotoEmail, setNewMotoEmail] = useState("");
   const [addingRole, setAddingRole] = useState(false);
+  // Tokens de activación (patrón QR de camberas-track aplicado a las motos)
+  const [motoTokens, setMotoTokens] = useState<Record<string, { token: string; bib: string; activo: boolean }>>({});
+  const [qrDialogMoto, setQrDialogMoto] = useState<Moto | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [generandoToken, setGenerandoToken] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     name_tv: "",
@@ -109,8 +115,61 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
       fetchMotos();
       fetchUsers();
       fetchDistances();
+      fetchMotoTokens();
     }
   }, [selectedRaceId]);
+
+  const fetchMotoTokens = async () => {
+    const { data, error } = await supabase.rpc("tokens_motos_carrera", {
+      p_race_id: selectedRaceId,
+    });
+    if (!error && data) {
+      const map: Record<string, { token: string; bib: string; activo: boolean }> = {};
+      for (const t of data as any[]) {
+        map[t.race_moto_id] = { token: t.token, bib: t.bib, activo: t.activo };
+      }
+      setMotoTokens(map);
+    }
+  };
+
+  const generarToken = async (moto: Moto) => {
+    setGenerandoToken(true);
+    try {
+      const { data, error } = await supabase.rpc("generar_token_moto", {
+        p_race_moto_id: moto.id,
+      });
+      if (error) throw error;
+      const d = data as any;
+      const tok = { token: d.token as string, bib: d.bib as string, activo: true };
+      setMotoTokens((prev) => ({ ...prev, [moto.id]: tok }));
+      return tok;
+    } catch (e: any) {
+      toast({ title: "No se pudo generar el token", description: e.message, variant: "destructive" });
+      return null;
+    } finally {
+      setGenerandoToken(false);
+    }
+  };
+
+  const abrirQr = async (moto: Moto) => {
+    let tok = motoTokens[moto.id];
+    if (!tok || !tok.activo) {
+      const nuevo = await generarToken(moto);
+      if (!nuevo) return;
+      tok = nuevo;
+    }
+    setQrDialogMoto(moto);
+    setQrDataUrl(await QRCode.toDataURL(tok.token, { width: 360, margin: 1 }));
+  };
+
+  const regenerarToken = async () => {
+    if (!qrDialogMoto) return;
+    const tok = await generarToken(qrDialogMoto);
+    if (tok) {
+      setQrDataUrl(await QRCode.toDataURL(tok.token, { width: 360, margin: 1 }));
+      toast({ title: "Token regenerado — el anterior queda revocado" });
+    }
+  };
 
   const fetchMotos = async () => {
     setLoading(true);
@@ -556,6 +615,14 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => abrirQr(moto)}
+                          title={motoTokens[moto.id]?.activo ? "Ver QR de activación" : "Generar token y QR"}
+                        >
+                          <QrCode className={`h-4 w-4 ${motoTokens[moto.id]?.activo ? "text-primary" : ""}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleOpenDialog(moto)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -749,6 +816,50 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* QR de activación de la moto (patrón token de camberas-track) */}
+      <Dialog open={!!qrDialogMoto} onOpenChange={(o) => !o && setQrDialogMoto(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" />
+              {qrDialogMoto?.name}
+              {qrDialogMoto && motoTokens[qrDialogMoto.id] && (
+                <Badge variant="secondary">{motoTokens[qrDialogMoto.id].bib}</Badge>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Escanéalo con la app Camberas Motos para vincular esta moto.
+              Sin usuarios ni contraseñas: el token identifica a la MOTO.
+            </DialogDescription>
+          </DialogHeader>
+          {qrDataUrl && (
+            <img src={qrDataUrl} alt="QR de activación" className="mx-auto rounded-lg border w-64 h-64" />
+          )}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                if (qrDialogMoto && motoTokens[qrDialogMoto.id]) {
+                  navigator.clipboard.writeText(motoTokens[qrDialogMoto.id].token);
+                  toast({ title: "Token copiado al portapapeles" });
+                }
+              }}
+            >
+              Copiar token
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={regenerarToken}
+              disabled={generandoToken}
+            >
+              {generandoToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Regenerar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
