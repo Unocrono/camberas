@@ -7,6 +7,35 @@
 -- Los tokens de participante mantienen su ventana intacta.
 -- ============================================================
 
+-- 0. La ventana la manda la FECHA DE LA CARRERA + la hora de la oleada.
+--    Antes se usaba race_waves.start_time tal cual: si se cambiaba la fecha
+--    de la carrera sin tocar la oleada, la ventana se quedaba en el día viejo.
+CREATE OR REPLACE FUNCTION gps_capture_window(p_distance_id text,
+  OUT t_ini timestamptz, OUT t_fin timestamptz)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $win$
+  SELECT
+    COALESCE(s.salida, (r.date::text || ' 00:00')::timestamp AT TIME ZONE 'Europe/Madrid')
+      - interval '24 hours',
+    CASE WHEN s.salida IS NOT NULL THEN
+      s.salida + gps_cutoff_interval(d.cutoff_time, r.group_type) + interval '2 hours'
+    ELSE
+      -- Sin hora de salida: el día completo del evento
+      (r.date::text || ' 23:59')::timestamp AT TIME ZONE 'Europe/Madrid' + interval '2 hours'
+    END
+  FROM race_distances d
+  JOIN races r ON r.id = d.race_id
+  LEFT JOIN race_waves w ON w.race_distance_id = d.id
+  CROSS JOIN LATERAL (
+    SELECT CASE WHEN w.start_time IS NULL THEN NULL
+      ELSE (r.date::text || ' ' ||
+            to_char(w.start_time AT TIME ZONE 'Europe/Madrid', 'HH24:MI')
+           )::timestamp AT TIME ZONE 'Europe/Madrid'
+    END AS salida
+  ) s
+  WHERE d.id::text = p_distance_id
+$win$;
+
 DROP POLICY IF EXISTS "App inserts gps_positions (token válido)" ON public.gps_positions;
 CREATE POLICY "App inserts gps_positions (token válido)"
   ON public.gps_positions FOR INSERT
