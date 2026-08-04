@@ -53,8 +53,12 @@ Tres decisiones que se apartan del plan de abajo, por lo que se encontró en el 
    direcciones, lo guarda y vincula el dispositivo con `link_gps_token`
    (con confirmación de traspaso si el puesto ya estaba en otro móvil).
 
-El login por email y el rol `timer` siguen funcionando en paralelo: la pantalla
-de acceso ofrece las dos vías.
+**Retirada del acceso por usuario (4-ago, tras validarlo en el Trail de Loiu):**
+`/timing` ya no tiene formulario de email — la única entrada es el QR del
+puesto. Queda la escotilla del organizador/admin: si llega con la sesión del
+panel, entra a elegir carrera y punto. El rol `timer` deja de dar acceso a la
+app; `timer_assignments` y el rol siguen en la BD y la pantalla
+*Cronometradores* sigue en el panel, sin uso, por si hay que volver atrás.
 
 Pendiente: aplicar la migración en Supabase, regenerar `types.ts` (las RPCs
 nuevas van casteadas mientras tanto) y probar un puesto real en evento.

@@ -19,7 +19,6 @@ import {
   Timer,
   RefreshCw,
   LogOut,
-  LogIn,
   CheckCircle,
   Clock,
   MapPin,
@@ -42,7 +41,6 @@ import {
 } from "@/components/ui/dialog";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Pencil, Trash2, QrCode } from "lucide-react";
-import { AuthModal } from "@/components/AuthModal";
 import type { LecturaRow } from "@/lib/timingToken";
 import {
   extraerToken,
@@ -136,7 +134,6 @@ const TimingApp = () => {
   const [loading, setLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isOrganizerOrAdmin, setIsOrganizerOrAdmin] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Token de puesto (QR): la identidad es el PUESTO, no la persona
   const [token, setToken] = useState<string | null>(null);
@@ -401,14 +398,13 @@ const TimingApp = () => {
     setTokenInput("");
   };
 
+  /**
+   * Los cronometradores ya no entran con usuario: el puesto se activa con su QR.
+   * Queda la escotilla del organizador/admin, que llega aquí con la sesión del
+   * panel para supervisar o cronometrar sin repartirse un QR.
+   */
   const checkTimerRole = async (userId: string) => {
     try {
-      // Check if user is timer or organizer
-      const { data: hasTimer } = await supabase.rpc("has_role", {
-        _user_id: userId,
-        _role: "timer",
-      });
-
       const { data: hasOrganizer } = await supabase.rpc("has_role", {
         _user_id: userId,
         _role: "organizer",
@@ -422,27 +418,14 @@ const TimingApp = () => {
       const isOrgOrAdmin = !!hasOrganizer || !!hasAdmin;
       setIsOrganizerOrAdmin(isOrgOrAdmin);
 
-      if (hasTimer || hasOrganizer || hasAdmin) {
+      if (isOrgOrAdmin) {
         setIsAuthorized(true);
         setCurrentView("select");
-        
-        // Fetch assignments for timers
-        let assignments: { race_id: string; checkpoint_id: string | null }[] = [];
-        if (!isOrgOrAdmin) {
-          const { data: assignmentsData } = await supabase
-            .from("timer_assignments")
-            .select("race_id, checkpoint_id")
-            .eq("user_id", userId);
-          assignments = assignmentsData || [];
-          setUserAssignments(assignments);
-        }
-        
-        // Pass assignments directly to fetchRaces to avoid state timing issues
-        await fetchRaces(userId, isOrgOrAdmin, assignments);
+        await fetchRaces(userId, true, []);
       } else {
         toast({
-          title: "Acceso denegado",
-          description: "No tienes permisos de cronometrador",
+          title: "Activa el puesto con su QR",
+          description: "El cronometraje ya no va por usuario: escanea el QR del puesto",
           variant: "destructive",
         });
         setIsAuthorized(false);
@@ -455,11 +438,6 @@ const TimingApp = () => {
   const loadStoredContext = async (stored: any) => {
     // Load race and timing point from storage
     try {
-      // First load user's assignments if they're a timer
-      const { data: hasTimer } = await supabase.rpc("has_role", {
-        _user_id: stored.user_id,
-        _role: "timer",
-      });
       const { data: hasOrganizer } = await supabase.rpc("has_role", {
         _user_id: stored.user_id,
         _role: "organizer",
@@ -468,19 +446,11 @@ const TimingApp = () => {
         _user_id: stored.user_id,
         _role: "admin",
       });
-      
+
       const isOrgOrAdmin = !!hasOrganizer || !!hasAdmin;
       setIsOrganizerOrAdmin(isOrgOrAdmin);
-      
-      let assignments: { race_id: string; checkpoint_id: string | null }[] = [];
-      if (!isOrgOrAdmin) {
-        const { data: assignmentsData } = await supabase
-          .from("timer_assignments")
-          .select("race_id, checkpoint_id")
-          .eq("user_id", stored.user_id);
-        assignments = assignmentsData || [];
-        setUserAssignments(assignments);
-      }
+
+      const assignments: { race_id: string; checkpoint_id: string | null }[] = [];
 
       const { data: race } = await supabase
         .from("races")
@@ -1478,33 +1448,6 @@ const TimingApp = () => {
     });
   };
 
-  // Login form
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        title: "Error de login",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -1563,62 +1506,10 @@ const TimingApp = () => {
             </CardContent>
           </Card>
 
-          <Card className="w-full max-w-sm">
-            <CardHeader className="text-center">
-              <CardTitle>Acceso Cronometradores</CardTitle>
-              <CardDescription>
-                Inicia sesión con tu cuenta de cronometrador
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu@email.com"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loginLoading}>
-                  {loginLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Timer className="h-4 w-4 mr-2" />
-                  )}
-                  Entrar
-                </Button>
-                <div className="text-center pt-2">
-                  <button 
-                    type="button"
-                    onClick={() => setShowAuthModal(true)}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    ¿No tienes cuenta? Regístrate
-                  </button>
-                </div>
-              </form>
-              
-              <AuthModal
-                isOpen={showAuthModal}
-                onClose={() => setShowAuthModal(false)}
-                appName="Camberas Timing"
-              />
-            </CardContent>
-          </Card>
+          <p className="text-xs text-muted-foreground text-center max-w-sm">
+            ¿Eres el organizador? Entra por el panel con tu cuenta y desde ahí
+            genera los QR de cada puesto.
+          </p>
 
           {/* El puesto ya estaba en otro móvil: hay que confirmar el traspaso */}
           <Dialog open={!!transferToken} onOpenChange={(o) => !o && setTransferToken(null)}>
