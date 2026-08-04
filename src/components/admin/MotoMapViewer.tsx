@@ -398,6 +398,14 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
         return;
       }
 
+      // Posiciones del pipeline común (mismo origen que el mapa en vivo):
+      // así el mapa sigue funcionando aunque se haya regenerado el QR y el
+      // móvil emita con un token distinto al apuntado en race_motos.
+      const { data: livePositions } = await supabase.rpc('get_live_gps_positions', {
+        p_race_id: selectedRaceId,
+        p_distance_id: null,
+      });
+
       // Get latest position for each moto
       const positions: MotoPosition[] = [];
 
@@ -410,24 +418,21 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
         let heading: number | null = null;
         let distanceFromStart: number | null = null;
 
-        // 1) Pipeline común: la app de motos emite a gps_positions con su token
-        if ((moto as any).token_id) {
-          const { data: gp } = await supabase
-            .from('gps_positions')
-            .select('id, lat, lng, timestamp, speed, heading')
-            .eq('token_id', (moto as any).token_id)
-            .order('timestamp', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        // 1) App de la moto: por token o, si no cuadra, por dorsal (M1, M2…)
+        const live = ((livePositions as any[]) || []).find(
+          (p) =>
+            (p.registration_id && p.registration_id === (moto as any).token_id) ||
+            p.bib_number === `M${moto.moto_order}` ||
+            (p.runner_name && p.runner_name === moto.name)
+        );
 
-          if (gp) {
-            rowId = gp.id;
-            lat = parseFloat(String(gp.lat));
-            lon = parseFloat(String(gp.lng));
-            timestamp = gp.timestamp as string;
-            speed = gp.speed != null ? parseFloat(String(gp.speed)) : null;
-            heading = gp.heading != null ? parseFloat(String(gp.heading)) : null;
-          }
+        if (live) {
+          rowId = live.gps_id;
+          lat = parseFloat(String(live.latitude));
+          lon = parseFloat(String(live.longitude));
+          timestamp = live.gps_timestamp as string;
+          speed = live.speed != null ? parseFloat(String(live.speed)) : null;
+          heading = live.heading != null ? parseFloat(String(live.heading)) : null;
         }
 
         // 2) Rastreadores GPS de hardware (webhook → moto_gps_tracking),
