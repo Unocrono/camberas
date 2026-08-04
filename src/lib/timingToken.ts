@@ -10,6 +10,7 @@
  * (migración 20260804120000_cronometrador_tokens.sql).
  */
 import { supabase } from "@/integrations/supabase/client";
+import { parseCamberasToken } from "@/lib/camberasToken";
 
 // El cliente tipado no conoce las RPCs nuevas hasta regenerar types.ts
 type RpcResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
@@ -82,12 +83,13 @@ export function getDeviceId(): string {
   return id;
 }
 
-/** Extrae el UUID del token de un QR, un enlace (/timing?t=UUID) o el UUID pelado. */
+/**
+ * Extrae el UUID del token de un QR, un enlace (/timing?t=UUID) o el UUID
+ * pelado. Delega en la lectura unificada de tokens de Camberas, común a
+ * corredores, motos y cronometraje (src/lib/camberasToken.ts).
+ */
 export function extraerToken(texto: string): string | null {
-  const m = texto
-    .trim()
-    .match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-  return m ? m[0].toLowerCase() : null;
+  return parseCamberasToken(texto)?.token ?? null;
 }
 
 /**
