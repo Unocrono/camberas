@@ -39,7 +39,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical, UserPlus, User, Loader2 } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical, UserPlus, User, Loader2, QrCode, Smartphone } from "lucide-react";
+import QRCode from "qrcode";
+import { rpc } from "@/lib/timingToken";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import GpxParser from "gpxparser";
@@ -73,6 +75,26 @@ interface TimingPoint {
   created_at: string;
 }
 
+// Token de activación del puesto (patrón QR de camberas-track / motos):
+// la identidad es el PUESTO, no la persona que lo atiende.
+interface PuestoToken {
+  token: string;
+  bib: string;
+  activo: boolean;
+  device_id: string | null;
+}
+
+interface TokenPuestoRow {
+  timing_point_id: string;
+  nombre: string;
+  bib: string;
+  token: string;
+  activo: boolean;
+  distance_id: string;
+  device_id: string | null;
+  linked_at: string | null;
+}
+
 interface TimerAssignment {
   id: string;
   user_id: string;
@@ -93,11 +115,13 @@ interface TimingPointsManagementProps {
 interface SortableRowProps {
   point: TimingPoint;
   assignments: TimerAssignment[];
+  token?: PuestoToken;
   onEdit: (point: TimingPoint) => void;
   onDelete: (point: TimingPoint) => void;
+  onQr: (point: TimingPoint) => void;
 }
 
-function SortableRow({ point, assignments, onEdit, onDelete }: SortableRowProps) {
+function SortableRow({ point, assignments, token, onEdit, onDelete, onQr }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -156,7 +180,31 @@ function SortableRow({ point, assignments, onEdit, onDelete }: SortableRowProps)
         )}
       </TableCell>
       <TableCell>
+        {token?.activo ? (
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant="secondary" className="text-xs">{token.bib}</Badge>
+            {token.device_id ? (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Smartphone className="h-3 w-3" /> Vinculado
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground text-xs">Sin vincular</span>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground text-sm">Sin token</span>
+        )}
+      </TableCell>
+      <TableCell>
         <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onQr(point)}
+            title={token?.activo ? "Ver QR de activación" : "Generar token y QR"}
+          >
+            <QrCode className={`h-4 w-4 ${token?.activo ? "text-primary" : ""}`} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -193,6 +241,10 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
   const [addingRole, setAddingRole] = useState(false);
   const [selectedTimerUserId, setSelectedTimerUserId] = useState("");
   const [trackCoords, setTrackCoords] = useState<[number, number][]>([]);
+  const [puestoTokens, setPuestoTokens] = useState<Record<string, PuestoToken>>({});
+  const [qrDialogPoint, setQrDialogPoint] = useState<TimingPoint | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [generandoToken, setGenerandoToken] = useState(false);
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const formMapContainer = useRef<HTMLDivElement>(null);
@@ -225,6 +277,7 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       fetchTimingPoints();
       fetchTimerAssignments();
       fetchTimerUsers();
+      fetchPuestoTokens();
     }
   }, [selectedRaceId]);
 
@@ -389,6 +442,73 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       bounds.extend(coord);
     });
     map.current.fitBounds(bounds, { padding: 50 });
+  };
+
+  // El QR lleva el enlace de la app de cronometraje ya con el token: se
+  // escanea con la cámara del móvil, sin instalar nada y sin contraseñas.
+  const enlacePuesto = (token: string) =>
+    `${window.location.origin}/timing?t=${token}`;
+
+  const fetchPuestoTokens = async () => {
+    const { data, error } = await rpc<TokenPuestoRow[]>("tokens_cronometraje_carrera", {
+      p_race_id: selectedRaceId,
+    });
+    if (!error && data) {
+      const map: Record<string, PuestoToken> = {};
+      for (const t of data) {
+        map[t.timing_point_id] = {
+          token: t.token,
+          bib: t.bib,
+          activo: t.activo,
+          device_id: t.device_id,
+        };
+      }
+      setPuestoTokens(map);
+    }
+  };
+
+  const generarToken = async (point: TimingPoint): Promise<PuestoToken | null> => {
+    setGenerandoToken(true);
+    try {
+      const { data, error } = await rpc<{ token: string; bib: string }>(
+        "generar_token_cronometrador",
+        { p_timing_point_id: point.id }
+      );
+      if (error) throw error;
+      const tok: PuestoToken = {
+        token: data.token,
+        bib: data.bib,
+        activo: true,
+        device_id: null,
+      };
+      setPuestoTokens((prev) => ({ ...prev, [point.id]: tok }));
+      return tok;
+    } catch (e: any) {
+      toast.error("No se pudo generar el token: " + e.message);
+      return null;
+    } finally {
+      setGenerandoToken(false);
+    }
+  };
+
+  const abrirQr = async (point: TimingPoint) => {
+    let tok = puestoTokens[point.id];
+    if (!tok || !tok.activo) {
+      const nuevo = await generarToken(point);
+      if (!nuevo) return;
+      tok = nuevo;
+    }
+    setQrDialogPoint(point);
+    setQrDataUrl(await QRCode.toDataURL(enlacePuesto(tok.token), { width: 360, margin: 1 }));
+  };
+
+  const regenerarToken = async () => {
+    if (!qrDialogPoint) return;
+    const tok = await generarToken(qrDialogPoint);
+    if (tok) {
+      setQrDataUrl(await QRCode.toDataURL(enlacePuesto(tok.token), { width: 360, margin: 1 }));
+      toast.success("Token regenerado — el anterior queda revocado");
+    }
   };
 
   const fetchTimingPoints = async () => {
@@ -1004,7 +1124,8 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
                   <TableHead>Notas</TableHead>
                   <TableHead>Coordenadas</TableHead>
                   <TableHead>Cronometrador</TableHead>
-                  <TableHead className="w-24">Acciones</TableHead>
+                  <TableHead>Puesto (QR)</TableHead>
+                  <TableHead className="w-32">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1017,8 +1138,10 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
                       key={point.id}
                       point={point}
                       assignments={timerAssignments}
+                      token={puestoTokens[point.id]}
                       onEdit={handleOpenDialog}
                       onDelete={handleDeleteClick}
+                      onQr={abrirQr}
                     />
                   ))}
                 </SortableContext>
@@ -1246,6 +1369,52 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* QR de activación del puesto (patrón token de camberas-track) */}
+        <Dialog open={!!qrDialogPoint} onOpenChange={(o) => !o && setQrDialogPoint(null)}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <QrCode className="h-5 w-5" />
+                {qrDialogPoint?.name}
+                {qrDialogPoint && puestoTokens[qrDialogPoint.id] && (
+                  <Badge variant="secondary">{puestoTokens[qrDialogPoint.id].bib}</Badge>
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                Escanéalo con la cámara del móvil que va a cronometrar este puesto.
+                Sin usuarios ni contraseñas: el token identifica al PUESTO.
+              </DialogDescription>
+            </DialogHeader>
+            {qrDataUrl && (
+              <img src={qrDataUrl} alt="QR de activación" className="mx-auto rounded-lg border w-64 h-64" />
+            )}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  if (qrDialogPoint && puestoTokens[qrDialogPoint.id]) {
+                    navigator.clipboard.writeText(
+                      enlacePuesto(puestoTokens[qrDialogPoint.id].token)
+                    );
+                    toast.success("Enlace copiado al portapapeles");
+                  }
+                }}
+              >
+                Copiar enlace
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={regenerarToken}
+                disabled={generandoToken}
+              >
+                {generandoToken ? <Loader2 className="h-4 w-4 animate-spin" /> : "Regenerar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
     </div>

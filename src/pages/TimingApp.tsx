@@ -41,8 +41,24 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { User as SupabaseUser } from "@supabase/supabase-js";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, QrCode } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
+import type { LecturaRow } from "@/lib/timingToken";
+import {
+  extraerToken,
+  vincularPuesto,
+  desvincularPuesto,
+  contextoPuesto,
+  startlistPuesto,
+  lecturasPuesto,
+  ficharDorsal,
+  editarLectura,
+  borrarLectura,
+  retiradasPuesto,
+  registrarRetirada,
+  editarRetirada,
+  borrarRetirada,
+} from "@/lib/timingToken";
 
 interface Race {
   id: string;
@@ -88,6 +104,16 @@ const STATUS_OPTIONS: { value: StatusCode; label: string; description: string; i
 const STORAGE_KEY = "timing_session";
 const READINGS_KEY = "timing_readings_queue";
 const ABANDONS_KEY = "timing_abandons_queue";
+// Token del PUESTO (QR del panel): sustituye al login del cronometrador
+const TOKEN_KEY = "timing_point_token";
+
+/** Token de puesto pendiente de activar: el del enlace del QR o el ya guardado. */
+const tokenPendiente = (): { token: string; desdeUrl: boolean } | null => {
+  const params = new URLSearchParams(window.location.search);
+  const desdeUrl = params.get("t") || params.get("token");
+  const candidato = extraerToken(desdeUrl || localStorage.getItem(TOKEN_KEY) || "");
+  return candidato ? { token: candidato, desdeUrl: !!desdeUrl } : null;
+};
 
 interface PendingAbandon {
   bib_number: number;
@@ -111,6 +137,15 @@ const TimingApp = () => {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isOrganizerOrAdmin, setIsOrganizerOrAdmin] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+
+  // Token de puesto (QR): la identidad es el PUESTO, no la persona
+  const [token, setToken] = useState<string | null>(null);
+  const [tokenId, setTokenId] = useState<string | null>(null);
+  const [tokenBib, setTokenBib] = useState<string | null>(null);
+  const [tokenInput, setTokenInput] = useState("");
+  const [vinculando, setVinculando] = useState(false);
+  const [transferToken, setTransferToken] = useState<string | null>(null);
+  const tokenMode = !!token;
 
   // App state
   const [currentView, setCurrentView] = useState<"login" | "select" | "timing">("login");
@@ -195,8 +230,24 @@ const TimingApp = () => {
     }
   }, []);
 
+  // Activación por token de puesto: enlace del QR (?t=UUID) o token ya guardado.
+  // Tiene prioridad sobre el login: si hay token, el puesto ya está identificado.
+  useEffect(() => {
+    const pendiente = tokenPendiente();
+    if (!pendiente) return;
+
+    if (pendiente.desdeUrl) {
+      // No dejar el token colgando en la barra de direcciones
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    activarPorToken(pendiente.token, false);
+  }, []);
+
   // Auth check
   useEffect(() => {
+    // Con token de puesto no hay login que comprobar
+    if (tokenPendiente()) return;
+
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -237,6 +288,118 @@ const TimingApp = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  /**
+   * Vincula este dispositivo al puesto del token y carga su contexto.
+   * Si el puesto ya estaba en otro móvil, pide confirmación antes de robarlo.
+   * Sin cobertura tira del contexto y la lista de salida cacheados.
+   */
+  const activarPorToken = async (tok: string, force: boolean) => {
+    setVinculando(true);
+    try {
+      const vinculo = await vincularPuesto(tok, force);
+      if (vinculo.needsTransfer) {
+        setTransferToken(tok);
+        return;
+      }
+
+      const ctx = await contextoPuesto(tok);
+      localStorage.setItem(TOKEN_KEY, tok);
+      localStorage.setItem(`timing_ctx_${tok}`, JSON.stringify(ctx));
+
+      aplicarContexto(tok, vinculo.tokenId, ctx);
+
+      const lista = await startlistPuesto(tok);
+      const runnersData: Runner[] = lista.map((r) => ({
+        bib_number: r.bib_number,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        event_name: r.event_name,
+        registration_id: r.registration_id,
+        race_distance_id: r.race_distance_id,
+      }));
+      setRunners(runnersData);
+      localStorage.setItem(`runners_${ctx.race.id}`, JSON.stringify(runnersData));
+
+      const lecturas = await lecturasPuesto(tok);
+      setReadings(
+        lecturas.map((r) => {
+          const runner = runnersData.find((run) => run.bib_number === r.bib_number);
+          return {
+            id: r.id,
+            bib_number: r.bib_number,
+            timestamp: r.timing_timestamp,
+            runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
+            synced: true,
+            status_code: r.status_code || undefined,
+            notes: r.notes || undefined,
+          };
+        })
+      );
+    } catch (error: any) {
+      // Sin conexión: seguimos cronometrando con lo cacheado y ya sincronizará
+      const cache = localStorage.getItem(`timing_ctx_${tok}`);
+      if (cache) {
+        const ctx = JSON.parse(cache) as Awaited<ReturnType<typeof contextoPuesto>>;
+        aplicarContexto(tok, tokenId, ctx);
+        const runnersCache = localStorage.getItem(`runners_${ctx.race.id}`);
+        if (runnersCache) setRunners(JSON.parse(runnersCache));
+        toast({
+          title: "Sin conexión",
+          description: "Puesto cargado de la copia local. Las lecturas se guardan y se sincronizan luego.",
+        });
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+        setToken(null);
+        setIsAuthorized(false);
+        setCurrentView("login");
+        toast({
+          title: "Token no válido",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setVinculando(false);
+      setLoading(false);
+    }
+  };
+
+  const aplicarContexto = (
+    tok: string,
+    tokId: string | null,
+    ctx: Awaited<ReturnType<typeof contextoPuesto>>
+  ) => {
+    setToken(tok);
+    setTokenId(tokId);
+    setTokenBib(ctx.bib);
+    setTransferToken(null);
+    setIsAuthorized(true);
+    setIsOrganizerOrAdmin(false);
+    setSelectedRace(ctx.race);
+    setSelectedTimingPoint({
+      id: ctx.punto.id,
+      name: ctx.punto.name,
+      notes: ctx.punto.notes,
+      point_order: ctx.punto.point_order,
+    });
+    setRaceStartTime(ctx.start_time ? new Date(ctx.start_time) : null);
+    setCurrentView("timing");
+  };
+
+  const handleActivarManual = async () => {
+    const tok = extraerToken(tokenInput);
+    if (!tok) {
+      toast({
+        title: "Token no válido",
+        description: "Pega el enlace del QR o el código del puesto",
+        variant: "destructive",
+      });
+      return;
+    }
+    await activarPorToken(tok, false);
+    setTokenInput("");
+  };
 
   const checkTimerRole = async (userId: string) => {
     try {
@@ -443,7 +606,23 @@ const TimingApp = () => {
   const fetchRunners = async (raceId: string) => {
     try {
       console.log("Fetching runners for race:", raceId);
-      
+
+      // Modo token: la lista de salida llega por RPC, acotada a la carrera del puesto
+      if (token) {
+        const lista = await startlistPuesto(token);
+        const runnersData: Runner[] = lista.map((r) => ({
+          bib_number: r.bib_number,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          event_name: r.event_name,
+          registration_id: r.registration_id,
+          race_distance_id: r.race_distance_id,
+        }));
+        setRunners(runnersData);
+        localStorage.setItem(`runners_${raceId}`, JSON.stringify(runnersData));
+        return;
+      }
+
       const { data, error } = await supabase
         .from("registrations")
         .select(`
@@ -545,11 +724,13 @@ const TimingApp = () => {
     if (!isOnline) return;
     setLoadingAbandons(true);
     try {
-      const { data, error } = await supabase
-        .from("race_results_abandons")
-        .select("id, bib_number, abandon_type, reason, timing_point_id, created_at, registration_id")
-        .eq("race_id", raceId)
-        .order("created_at", { ascending: false });
+      const { data, error } = token
+        ? { data: await retiradasPuesto(token), error: null }
+        : await supabase
+            .from("race_results_abandons")
+            .select("id, bib_number, abandon_type, reason, timing_point_id, created_at, registration_id")
+            .eq("race_id", raceId)
+            .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -567,27 +748,35 @@ const TimingApp = () => {
     } finally {
       setLoadingAbandons(false);
     }
-  }, [runners, isOnline]);
+  }, [runners, isOnline, token]);
 
   // Fetch existing readings from database for the selected timing point
   const fetchExistingReadings = useCallback(async (raceId: string, timingPointId: string | null) => {
     if (!isOnline) return;
     
     try {
-      let query = supabase
-        .from("timing_readings")
-        .select("id, bib_number, timing_timestamp, status_code, notes, synced:is_processed")
-        .eq("race_id", raceId)
-        .order("timing_timestamp", { ascending: false })
-        .limit(100);
-      
-      // Filter by timing point if selected
-      if (timingPointId) {
-        query = query.eq("timing_point_id", timingPointId);
-      }
+      let data: LecturaRow[] | null;
 
-      const { data, error } = await query;
-      if (error) throw error;
+      if (token) {
+        // Modo token: la RPC ya acota a la carrera y al puesto del token
+        data = await lecturasPuesto(token);
+      } else {
+        let query = supabase
+          .from("timing_readings")
+          .select("id, bib_number, timing_timestamp, status_code, notes, synced:is_processed")
+          .eq("race_id", raceId)
+          .order("timing_timestamp", { ascending: false })
+          .limit(100);
+
+        // Filter by timing point if selected
+        if (timingPointId) {
+          query = query.eq("timing_point_id", timingPointId);
+        }
+
+        const res = await query;
+        if (res.error) throw res.error;
+        data = res.data;
+      }
 
       // Map to TimingReading format and merge with runner info
       const dbReadings: TimingReading[] = (data || []).map((r: any) => {
@@ -607,7 +796,7 @@ const TimingApp = () => {
     } catch (error) {
       console.error("Error fetching existing readings:", error);
     }
-  }, [isOnline, runners]);
+  }, [isOnline, runners, token]);
 
   // Fetch abandons when race is selected and runners are loaded
   useEffect(() => {
@@ -636,15 +825,19 @@ const TimingApp = () => {
     
     setSavingAbandon(true);
     try {
-      const { error } = await supabase
-        .from("race_results_abandons")
-        .update({
-          abandon_type: editAbandonType,
-          reason: editAbandonReason,
-        })
-        .eq("id", editingAbandon.id);
+      if (token) {
+        await editarRetirada(token, editingAbandon.id, editAbandonType, editAbandonReason);
+      } else {
+        const { error } = await supabase
+          .from("race_results_abandons")
+          .update({
+            abandon_type: editAbandonType,
+            reason: editAbandonReason,
+          })
+          .eq("id", editingAbandon.id);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       toast({
         title: "Actualizado",
@@ -670,12 +863,16 @@ const TimingApp = () => {
     if (!window.confirm("¿Estás seguro de eliminar este registro?")) return;
 
     try {
-      const { error } = await supabase
-        .from("race_results_abandons")
-        .delete()
-        .eq("id", abandonId);
+      if (token) {
+        await borrarRetirada(token, abandonId);
+      } else {
+        const { error } = await supabase
+          .from("race_results_abandons")
+          .delete()
+          .eq("id", abandonId);
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
       toast({
         title: "Eliminado",
@@ -768,19 +965,24 @@ const TimingApp = () => {
     // Try to sync immediately if online
     if (isOnline && selectedRace && selectedTimingPoint) {
       try {
-        const { error } = await supabase.from("timing_readings").insert({
-          race_id: selectedRace.id,
-          timing_point_id: selectedTimingPoint.id,
-          bib_number: bib,
-          timing_timestamp: timestamp,
-          reading_timestamp: timestamp,
-          reading_type: "manual",
-          operator_user_id: user?.id,
-          registration_id: runner?.registration_id || null,
-          race_distance_id: runner?.race_distance_id || null,
-        });
+        if (token) {
+          // La lectura la firma el token del puesto, no el usuario
+          await ficharDorsal(token, bib, timestamp);
+        } else {
+          const { error } = await supabase.from("timing_readings").insert({
+            race_id: selectedRace.id,
+            timing_point_id: selectedTimingPoint.id,
+            bib_number: bib,
+            timing_timestamp: timestamp,
+            reading_timestamp: timestamp,
+            reading_type: "manual",
+            operator_user_id: user?.id,
+            registration_id: runner?.registration_id || null,
+            race_distance_id: runner?.race_distance_id || null,
+          });
 
-        if (error) throw error;
+          if (error) throw error;
+        }
 
         // Mark as synced
         setReadings((prev) =>
@@ -823,7 +1025,21 @@ const TimingApp = () => {
 
     try {
       // Sync timing readings
-      if (pendingSync.length > 0) {
+      if (pendingSync.length > 0 && token) {
+        // Modo token: una RPC por lectura, idempotente (dorsal + hora + puesto)
+        for (const reading of pendingSync) {
+          await ficharDorsal(
+            token,
+            reading.bib_number,
+            reading.timestamp,
+            reading.status_code || null,
+            reading.notes || null
+          );
+        }
+        syncedReadings = pendingSync.length;
+        setPendingSync([]);
+        localStorage.removeItem(READINGS_KEY);
+      } else if (pendingSync.length > 0) {
         const toInsert = pendingSync.map((reading) => {
           const runner = runners.find((r) => r.bib_number === reading.bib_number);
           return {
@@ -850,7 +1066,19 @@ const TimingApp = () => {
       }
 
       // Sync abandons
-      if (pendingAbandons.length > 0) {
+      if (pendingAbandons.length > 0 && token) {
+        for (const abandon of pendingAbandons) {
+          await registrarRetirada(
+            token,
+            abandon.bib_number,
+            abandon.abandon_type,
+            abandon.reason
+          );
+        }
+        syncedAbandons = pendingAbandons.length;
+        setPendingAbandons([]);
+        localStorage.removeItem(ABANDONS_KEY);
+      } else if (pendingAbandons.length > 0) {
         const abandonsToInsert = pendingAbandons.map((abandon) => ({
           race_id: selectedRace.id,
           registration_id: abandon.registration_id,
@@ -984,18 +1212,22 @@ const TimingApp = () => {
     // Try to sync immediately if online
     if (isOnline) {
       try {
-        const { error } = await supabase.from("race_results_abandons").insert({
-          race_id: selectedRace.id,
-          registration_id: runner.registration_id,
-          race_distance_id: runner.race_distance_id,
-          bib_number: bib,
-          abandon_type: selectedStatus,
-          timing_point_id: selectedTimingPoint?.id || null,
-          reason: statusNotes.trim(),
-          operator_user_id: user?.id || null,
-        });
+        if (token) {
+          await registrarRetirada(token, bib, selectedStatus, statusNotes.trim());
+        } else {
+          const { error } = await supabase.from("race_results_abandons").insert({
+            race_id: selectedRace.id,
+            registration_id: runner.registration_id,
+            race_distance_id: runner.race_distance_id,
+            bib_number: bib,
+            abandon_type: selectedStatus,
+            timing_point_id: selectedTimingPoint?.id || null,
+            reason: statusNotes.trim(),
+            operator_user_id: user?.id || null,
+          });
 
-        if (error) throw error;
+          if (error) throw error;
+        }
 
         reading.synced = true;
 
@@ -1057,7 +1289,7 @@ const TimingApp = () => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingReading) return;
 
     const newBib = parseInt(editBibInput);
@@ -1089,6 +1321,27 @@ const TimingApp = () => {
 
     const runner = runners.find((r) => r.bib_number === newBib);
 
+    // Modo token: la corrección se guarda ya en la lectura del puesto
+    let persistido = false;
+    if (token && editingReading.id && editingReading.synced) {
+      try {
+        await editarLectura(
+          token,
+          editingReading.id,
+          newBib,
+          toLocalISOString(newDate)
+        );
+        persistido = true;
+      } catch (error: any) {
+        toast({
+          title: "No se pudo corregir la lectura",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     // Update the reading in state
     setReadings((prev) =>
       prev.map((r) =>
@@ -1098,7 +1351,7 @@ const TimingApp = () => {
               bib_number: newBib,
               timestamp: toLocalISOString(newDate),
               runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
-              synced: false, // Mark as not synced since it was edited
+              synced: persistido, // Mark as not synced since it was edited
             }
           : r
       )
@@ -1136,12 +1389,16 @@ const TimingApp = () => {
     // If reading has an ID (synced to DB), delete from database
     if (reading.id && reading.synced) {
       try {
-        const { error } = await supabase
-          .from("timing_readings")
-          .delete()
-          .eq("id", reading.id);
+        if (token) {
+          await borrarLectura(token, reading.id);
+        } else {
+          const { error } = await supabase
+            .from("timing_readings")
+            .delete()
+            .eq("id", reading.id);
 
-        if (error) throw error;
+          if (error) throw error;
+        }
 
         toast({
           title: "Lectura eliminada",
@@ -1180,13 +1437,33 @@ const TimingApp = () => {
     const totalPending = pendingSync.length + pendingAbandons.length;
     if (totalPending > 0) {
       const confirm = window.confirm(
-        `Tienes ${totalPending} registros sin sincronizar. ¿Deseas cerrar sesión igualmente?`
+        `Tienes ${totalPending} registros sin sincronizar. ${
+          token ? "¿Desvincular el puesto igualmente?" : "¿Deseas cerrar sesión igualmente?"
+        }`
       );
       if (!confirm) return;
     }
 
-    localStorage.removeItem(STORAGE_KEY);
-    await supabase.auth.signOut();
+    if (token) {
+      // Modo token: se desvincula el puesto de este móvil; el QR sigue valiendo
+      if (tokenId) {
+        try {
+          await desvincularPuesto(tokenId);
+        } catch (error) {
+          console.error("Error unlinking timing point:", error);
+        }
+      }
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(`timing_ctx_${token}`);
+      setToken(null);
+      setTokenId(null);
+      setTokenBib(null);
+      setIsAuthorized(false);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+      await supabase.auth.signOut();
+    }
+
     setCurrentView("login");
     setSelectedRace(null);
     setSelectedTimingPoint(null);
@@ -1247,7 +1524,45 @@ const TimingApp = () => {
           </div>
         </header>
 
-        <main className="flex-1 flex items-center justify-center p-4">
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
+          {/* Activación por token: el puesto se identifica con el QR del panel */}
+          <Card className="w-full max-w-sm">
+            <CardHeader className="text-center">
+              <CardTitle className="flex items-center justify-center gap-2">
+                <QrCode className="h-5 w-5" />
+                Activar puesto
+              </CardTitle>
+              <CardDescription>
+                Escanea el QR del puesto con la cámara del móvil, o pega aquí el
+                enlace o el código
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Input
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="Enlace o código del puesto"
+                autoCapitalize="none"
+                autoCorrect="off"
+              />
+              <Button
+                className="w-full"
+                onClick={handleActivarManual}
+                disabled={vinculando || !tokenInput.trim()}
+              >
+                {vinculando ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <QrCode className="h-4 w-4 mr-2" />
+                )}
+                Activar
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Sin usuarios ni contraseñas: el código identifica al puesto.
+              </p>
+            </CardContent>
+          </Card>
+
           <Card className="w-full max-w-sm">
             <CardHeader className="text-center">
               <CardTitle>Acceso Cronometradores</CardTitle>
@@ -1304,6 +1619,32 @@ const TimingApp = () => {
               />
             </CardContent>
           </Card>
+
+          {/* El puesto ya estaba en otro móvil: hay que confirmar el traspaso */}
+          <Dialog open={!!transferToken} onOpenChange={(o) => !o && setTransferToken(null)}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Puesto en otro móvil</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Este puesto ya está vinculado a otro dispositivo. Si continúas,
+                pasará a cronometrar desde este móvil y el anterior dejará de
+                estar vinculado.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setTransferToken(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => transferToken && activarPorToken(transferToken, true)}
+                  disabled={vinculando}
+                >
+                  {vinculando ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Cronometrar aquí
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     );
@@ -1429,6 +1770,9 @@ const TimingApp = () => {
               - {selectedRace?.name}
             </span>
           </div>
+          {tokenBib && (
+            <Badge variant="secondary" className="text-xs">{tokenBib}</Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs hidden sm:flex">
@@ -1593,14 +1937,21 @@ const TimingApp = () => {
                 )}
                 Sincronizar
               </Button>
+              {/* Con token el puesto es fijo: no hay carrera ni punto que elegir */}
+              {!tokenMode && (
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentView("select")}
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Cambiar
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={() => setCurrentView("select")}
+                variant="ghost"
+                onClick={handleLogout}
+                title={tokenMode ? "Desvincular este puesto" : "Cerrar sesión"}
               >
-                <MapPin className="h-4 w-4 mr-2" />
-                Cambiar
-              </Button>
-              <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -1802,14 +2153,21 @@ const TimingApp = () => {
                 )}
                 Sincronizar
               </Button>
+              {/* Con token el puesto es fijo: no hay carrera ni punto que elegir */}
+              {!tokenMode && (
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentView("select")}
+                >
+                  <MapPin className="h-4 w-4 mr-2" />
+                  Cambiar
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={() => setCurrentView("select")}
+                variant="ghost"
+                onClick={handleLogout}
+                title={tokenMode ? "Desvincular este puesto" : "Cerrar sesión"}
               >
-                <MapPin className="h-4 w-4 mr-2" />
-                Cambiar
-              </Button>
-              <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>

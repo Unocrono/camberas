@@ -24,7 +24,42 @@ contraseñas, sin asignar personas.
 | Escáner en la app | `camberas-motos/src/components/LinkMotoScreen.tsx` + `src/services/link.service.ts` (expo-camera) |
 | Migración de referencia | `supabase/migrations/20260803120000_motos_tokens.sql` |
 
-## Qué habría que hacer para el cronometrador
+## ESTADO: implementado el 4-ago (falta aplicar la migración)
+
+| Pieza | Dónde |
+|---|---|
+| Migración | `supabase/migrations/20260804120000_cronometrador_tokens.sql` — **pendiente de ejecutar en Supabase** |
+| Generar (puesto) | RPC `generar_token_cronometrador(p_timing_point_id, p_distance_id)` — dorsal `CP1`, `CP2`… y revoca el anterior |
+| Listar (panel) | RPC `tokens_cronometraje_carrera(p_race_id)` |
+| QR en el panel | `src/components/admin/TimingPointsManagement.tsx` (columna "Puesto (QR)" + diálogo) |
+| App del puesto | `src/pages/TimingApp.tsx` en modo token + `src/lib/timingToken.ts` |
+
+Tres decisiones que se apartan del plan de abajo, por lo que se encontró en el código:
+
+1. **El puesto es `timing_points`, no `race_checkpoints`.** La app de
+   cronometraje lee `timing_points` y los `timer_assignments.checkpoint_id`
+   apuntan en realidad a `timing_points.id`. `race_checkpoints` es el control
+   del rutómetro y cuelga de un `timing_point` por `timing_point_id`.
+2. **RPCs en vez de policy de INSERT.** El dispositivo no solo escribe: también
+   necesita leer lista de salida, lecturas del puesto y retirados sin usuario.
+   Todo pasa por RPCs `SECURITY DEFINER` que validan el token y acotan a su
+   carrera y su puesto (`cronometrador_contexto`, `_startlist`, `_lecturas`,
+   `_fichar`, `_editar_lectura`, `_borrar_lectura`, `_retiradas`, `_retirada`,
+   `_editar_retirada`, `_borrar_retirada`). Superficie más estrecha que abrir
+   las tablas a `anon`.
+3. **El QR lleva el enlace, no el UUID pelado.** El puesto se cronometra desde
+   el navegador del móvil: el QR es `…/timing?t=<uuid>`, se escanea con la
+   cámara y no hay que instalar nada. La app quita el token de la barra de
+   direcciones, lo guarda y vincula el dispositivo con `link_gps_token`
+   (con confirmación de traspaso si el puesto ya estaba en otro móvil).
+
+El login por email y el rol `timer` siguen funcionando en paralelo: la pantalla
+de acceso ofrece las dos vías.
+
+Pendiente: aplicar la migración en Supabase, regenerar `types.ts` (las RPCs
+nuevas van casteadas mientras tanto) y probar un puesto real en evento.
+
+## Qué habría que hacer para el cronometrador (plan original)
 
 Estado actual: `TimingApp.tsx` (1925 líneas) resuelve el acceso con
 `has_role(timer|organizer|admin)` y lee **`timer_assignments`** (race_id +
