@@ -188,6 +188,8 @@ const TimingApp = () => {
     timing_point_id: string | null;
     created_at: string;
     runner_name?: string;
+    /** Solo en modo token: si la registró este puesto, se puede corregir. */
+    es_de_este_puesto?: boolean;
   }
   const [registeredAbandons, setRegisteredAbandons] = useState<RegisteredAbandon[]>([]);
   const [loadingAbandons, setLoadingAbandons] = useState(false);
@@ -2003,24 +2005,31 @@ const TimingApp = () => {
                           {abandon.reason}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 ml-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => handleOpenEditAbandon(abandon)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteAbandon(abandon.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      {/* Con token, cada puesto solo corrige lo que registró él */}
+                      {tokenMode && abandon.es_de_este_puesto === false ? (
+                        <span className="text-xs text-muted-foreground ml-2 shrink-0">
+                          Otro puesto
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleOpenEditAbandon(abandon)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteAbandon(abandon.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

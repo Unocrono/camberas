@@ -30,6 +30,8 @@ export interface PuestoContexto {
   distance_id: string | null;
   device_id: string | null;
   start_time: string | null;
+  /** Ventana en la que el puesto puede escribir; fuera de ella solo se lee. */
+  ventana: { ini: string | null; fin: string | null } | null;
 }
 
 export interface StartlistRow {
@@ -66,6 +68,8 @@ export interface RetiradaRow {
   timing_point_id: string | null;
   created_at: string;
   registration_id: string;
+  /** Solo el puesto que la registró puede corregirla o borrarla. */
+  es_de_este_puesto: boolean;
 }
 
 /** Identificador estable de este navegador, para saber a qué móvil está vinculado el puesto. */
@@ -114,13 +118,19 @@ export async function desvincularPuesto(tokenId: string): Promise<void> {
 }
 
 export async function contextoPuesto(token: string): Promise<PuestoContexto> {
-  const { data, error } = await rpc<PuestoContexto>("cronometrador_contexto", { p_token: token });
+  const { data, error } = await rpc<PuestoContexto>("cronometrador_contexto", {
+    p_token: token,
+    p_device_id: getDeviceId(),
+  });
   if (error) throw error;
   return data as PuestoContexto;
 }
 
 export async function startlistPuesto(token: string): Promise<StartlistRow[]> {
-  const { data, error } = await rpc<StartlistRow[]>("cronometrador_startlist", { p_token: token });
+  const { data, error } = await rpc<StartlistRow[]>("cronometrador_startlist", {
+    p_token: token,
+    p_device_id: getDeviceId(),
+  });
   if (error) throw error;
   return data || [];
 }
@@ -128,6 +138,7 @@ export async function startlistPuesto(token: string): Promise<StartlistRow[]> {
 export async function lecturasPuesto(token: string, limite = 100): Promise<LecturaRow[]> {
   const { data, error } = await rpc<LecturaRow[]>("cronometrador_lecturas", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_limit: limite,
   });
   if (error) throw error;
@@ -143,6 +154,7 @@ export async function ficharDorsal(
 ): Promise<string | null> {
   const { data, error } = await rpc<string>("cronometrador_fichar", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_bib: bib,
     p_timestamp: timestamp,
     p_status_code: statusCode ?? null,
@@ -160,6 +172,7 @@ export async function editarLectura(
 ): Promise<void> {
   const { error } = await rpc<boolean>("cronometrador_editar_lectura", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_reading_id: readingId,
     p_bib: bib,
     p_timestamp: timestamp,
@@ -170,13 +183,17 @@ export async function editarLectura(
 export async function borrarLectura(token: string, readingId: string): Promise<void> {
   const { error } = await rpc<boolean>("cronometrador_borrar_lectura", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_reading_id: readingId,
   });
   if (error) throw error;
 }
 
 export async function retiradasPuesto(token: string): Promise<RetiradaRow[]> {
-  const { data, error } = await rpc<RetiradaRow[]>("cronometrador_retiradas", { p_token: token });
+  const { data, error } = await rpc<RetiradaRow[]>("cronometrador_retiradas", {
+    p_token: token,
+    p_device_id: getDeviceId(),
+  });
   if (error) throw error;
   return data || [];
 }
@@ -189,6 +206,7 @@ export async function registrarRetirada(
 ): Promise<void> {
   const { error } = await rpc<string>("cronometrador_retirada", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_bib: bib,
     p_tipo: tipo,
     p_motivo: motivo,
@@ -204,6 +222,7 @@ export async function editarRetirada(
 ): Promise<void> {
   const { error } = await rpc<boolean>("cronometrador_editar_retirada", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_id: id,
     p_tipo: tipo,
     p_motivo: motivo,
@@ -214,6 +233,7 @@ export async function editarRetirada(
 export async function borrarRetirada(token: string, id: string): Promise<void> {
   const { error } = await rpc<boolean>("cronometrador_borrar_retirada", {
     p_token: token,
+    p_device_id: getDeviceId(),
     p_id: id,
   });
   if (error) throw error;

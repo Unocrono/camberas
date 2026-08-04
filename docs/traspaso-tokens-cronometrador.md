@@ -60,8 +60,19 @@ panel, entra a elegir carrera y punto. El rol `timer` deja de dar acceso a la
 app; `timer_assignments` y el rol siguen en la BD y la pantalla
 *Cronometradores* sigue en el panel, sin uso, por si hay que volver atrás.
 
-Pendiente: aplicar la migración en Supabase, regenerar `types.ts` (las RPCs
-nuevas van casteadas mientras tanto) y probar un puesto real en evento.
+**Blindaje del token** (`20260804140000_cronometrador_blindaje.sql`): el token
+solo no basta. Todas las RPCs exigen `p_device_id` y responden únicamente si
+coincide con el móvil vinculado por `link_gps_token` — un QR reenviado no vale,
+hay que hacer el traspaso y el panel lo ve. Las escrituras además solo se
+aceptan dentro de la ventana de la carrera (`cronometraje_window`: de la salida
+más temprana −24 h al cierre más tardío +2 h), así que un QR viejo caduca solo.
+Y las retiradas: se ven todas las de la carrera, pero cada puesto solo corrige o
+borra las suyas (`es_de_este_puesto`).
+
+El formato de lectura del token es el mismo que en camberas-track: se extrae el
+primer UUID del texto, sea enlace, deep link o código pelado.
+
+Pendiente: regenerar `types.ts` (las RPCs nuevas van casteadas mientras tanto).
 
 ## Qué habría que hacer para el cronometrador (plan original)
 
