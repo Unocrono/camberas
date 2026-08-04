@@ -382,10 +382,10 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
     setLoading(true);
     try {
-      // Get active motos for this race
+      // Get active motos for this race (token_id = vínculo con el pipeline común)
       const { data: motos, error: motosError } = await supabase
         .from('race_motos')
-        .select('id, name, name_tv, color, moto_order, is_active, race_distance_id')
+        .select('id, name, name_tv, color, moto_order, is_active, race_distance_id, token_id')
         .eq('race_id', selectedRaceId)
         .eq('is_active', true)
         .order('moto_order');
@@ -400,22 +400,62 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
       // Get latest position for each moto
       const positions: MotoPosition[] = [];
-      
-      for (const moto of motos) {
-        const { data: gpsData, error: gpsError } = await supabase
-          .from('moto_gps_tracking')
-          .select('id, latitude, longitude, timestamp, speed, heading, distance_from_start')
-          .eq('race_id', selectedRaceId)
-          .eq('moto_id', moto.id)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle();
 
-        if (!gpsError && gpsData) {
-          const lat = parseFloat(String(gpsData.latitude));
-          const lon = parseFloat(String(gpsData.longitude));
-          const distanceFromStart = gpsData.distance_from_start ? parseFloat(String(gpsData.distance_from_start)) : null;
-          
+      for (const moto of motos) {
+        let lat: number | null = null;
+        let lon: number | null = null;
+        let rowId = '';
+        let timestamp = '';
+        let speed: number | null = null;
+        let heading: number | null = null;
+        let distanceFromStart: number | null = null;
+
+        // 1) Pipeline común: la app de motos emite a gps_positions con su token
+        if ((moto as any).token_id) {
+          const { data: gp } = await supabase
+            .from('gps_positions')
+            .select('id, lat, lng, timestamp, speed, heading')
+            .eq('token_id', (moto as any).token_id)
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (gp) {
+            rowId = gp.id;
+            lat = parseFloat(String(gp.lat));
+            lon = parseFloat(String(gp.lng));
+            timestamp = gp.timestamp as string;
+            speed = gp.speed != null ? parseFloat(String(gp.speed)) : null;
+            heading = gp.heading != null ? parseFloat(String(gp.heading)) : null;
+          }
+        }
+
+        // 2) Rastreadores GPS de hardware (webhook → moto_gps_tracking),
+        //    que además traen la distancia recorrida calculada por process-moto-gps
+        if (lat === null) {
+          const { data: hw } = await supabase
+            .from('moto_gps_tracking')
+            .select('id, latitude, longitude, timestamp, speed, heading, distance_from_start')
+            .eq('race_id', selectedRaceId)
+            .eq('moto_id', moto.id)
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (hw) {
+            rowId = hw.id;
+            lat = parseFloat(String(hw.latitude));
+            lon = parseFloat(String(hw.longitude));
+            timestamp = hw.timestamp as string;
+            speed = hw.speed != null ? parseFloat(String(hw.speed)) : null;
+            heading = hw.heading != null ? parseFloat(String(hw.heading)) : null;
+            distanceFromStart = hw.distance_from_start != null
+              ? parseFloat(String(hw.distance_from_start))
+              : null;
+          }
+        }
+
+        if (lat !== null && lon !== null) {
           // Calculate distance to finish using GPX track points (Haversine)
           let distanceRemaining: number | null = null;
           if (gpxTrackPoints.current.length > 0) {
@@ -423,13 +463,13 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           }
 
           positions.push({
-            id: gpsData.id,
+            id: rowId,
             moto_id: moto.id,
             latitude: lat,
             longitude: lon,
-            timestamp: gpsData.timestamp,
-            speed: gpsData.speed ? parseFloat(String(gpsData.speed)) : null,
-            heading: gpsData.heading ? parseFloat(String(gpsData.heading)) : null,
+            timestamp,
+            speed,
+            heading,
             distance_from_start: distanceFromStart,
             moto: moto,
             distance_remaining: distanceRemaining,
@@ -460,9 +500,16 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
 
     fetchMotoPositions();
 
-    // Setup realtime subscription
+    // Realtime: app de moto con token (gps_positions) y rastreador de
+    // hardware vía webhook (moto_gps_tracking). moto_positions queda fuera:
+    // se retira con la migración al pipeline común.
     const channel = supabase
-      .channel('moto_gps_tracking_changes')
+      .channel('moto_map_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'gps_positions' },
+        () => fetchMotoPositions()
+      )
       .on(
         'postgres_changes',
         {
@@ -471,14 +518,16 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           table: 'moto_gps_tracking',
           filter: `race_id=eq.${selectedRaceId}`,
         },
-        () => {
-          fetchMotoPositions();
-        }
+        () => fetchMotoPositions()
       )
       .subscribe();
 
+    // Refresco periódico de seguridad (las motos emiten cada segundo)
+    const poll = setInterval(fetchMotoPositions, 5000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
   }, [selectedRaceId, distances, fetchMotoPositions]);
 
