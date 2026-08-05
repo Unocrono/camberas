@@ -21,8 +21,8 @@ import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
-  Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
-  FileText, HelpCircle, FolderOpen, ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
+  Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
+  ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
   Shirt, Bike, Map as MapIcon, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -183,15 +183,8 @@ interface OrgMenuGroup {
 }
 
 const ORG_MENU: OrgMenuGroup[] = [
-  {
-    key: "carreras", label: "Carreras", icon: Flag,
-    items: [
-      { id: "races", title: "Mis Carreras", icon: Flag, view: "races" },
-      { id: "regulations", title: "Reglamentos", icon: FileText, view: "regulations" },
-      { id: "race-faqs", title: "FAQs", icon: HelpCircle, view: "race-faqs" },
-      { id: "storage", title: "Archivos", icon: FolderOpen, view: "storage" },
-    ],
-  },
+  // (Sin grupo "Carreras": crear/configurar la carrera, reglamentos,
+  // FAQs y archivos son trabajo de escritorio, no de la app)
   {
     key: "recorridos", label: "Recorridos", icon: RouteIcon,
     items: [
