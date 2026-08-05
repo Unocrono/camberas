@@ -267,11 +267,14 @@ const OrganizerDashboard = () => {
             {currentView === "puestos" && <PuestosManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "camberas-track" && (
+              {/* Sin roadbookId fijo: el mapa autodetecta el rutómetro de la
+                  carrera seleccionada y, si no tiene, pinta los GPX de sus
+                  eventos. (Antes iba clavado el de La Chuleta y las demás
+                  carreras salían sin recorrido.) */}
               <CamberasTrackMap
                 eventId={selectedRaceId || undefined}
                 showSOSPanel={true}
                 height="75vh"
-                roadbookId="09e96abf-3c7b-4c92-8c61-e85ee9dc11ad"
               />
             )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
