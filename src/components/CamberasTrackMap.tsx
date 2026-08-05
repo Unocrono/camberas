@@ -290,35 +290,62 @@ export function CamberasTrackMap({
   }, [kind]);
 
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
+  // Con los intervalos cortos de la V23 (moto TV / rally a 1-2 s) traer el
+  // histórico entero y quedarse con la última en el cliente no escala: el
+  // RPC get_latest_gps_positions resuelve el DISTINCT ON en el servidor.
+  // Si el RPC aún no existe (migración sin aplicar), cae al camino antiguo.
+
+  // Caché token_id → datos del token, para no consultar en cada INSERT
+  // del realtime (a 1 s por dispositivo eran N consultas por segundo)
+  const tokenCacheRef = useRef<Map<string, { bib_number: string; participant_name: string; event_id: string }>>(new Map());
 
   const fetchPositions = useCallback(async () => {
     if (effectiveEventIds === null) return; // aún resolviendo el filtro
     if (kind && catalogRoles === null) return; // catálogo aún cargando
-    // Obtener última posición de cada token
-    let query = supabase
-      .from('gps_positions')
-      .select(`
-        token_id,
-        lat, lng, speed, altitude, battery, timestamp,
-        gps_tokens!inner(bib_number, participant_name, event_id, active)
-      `)
-      .eq('gps_tokens.active', true)
-      .order('timestamp', { ascending: false });
 
-    if (effectiveEventIds.length > 0) {
-      query = query.in('gps_tokens.event_id', effectiveEventIds);
+    let rows: any[] | null = null;
+
+    const { data, error } = await (supabase as any).rpc('get_latest_gps_positions', {
+      p_event_ids: effectiveEventIds.length > 0 ? effectiveEventIds : null,
+    });
+    if (!error) {
+      rows = (data || []).map((r: any) => ({
+        token_id: r.token_id,
+        lat: r.lat, lng: r.lng, speed: r.speed, altitude: r.altitude,
+        battery: r.battery, timestamp: r.timestamp,
+        gps_tokens: { bib_number: r.bib_number, participant_name: r.participant_name, event_id: r.event_id },
+      }));
+    } else {
+      // Fallback: la consulta histórica (todas las filas, última en cliente)
+      let query = supabase
+        .from('gps_positions')
+        .select(`
+          token_id,
+          lat, lng, speed, altitude, battery, timestamp,
+          gps_tokens!inner(bib_number, participant_name, event_id, active)
+        `)
+        .eq('gps_tokens.active', true)
+        .order('timestamp', { ascending: false });
+      if (effectiveEventIds.length > 0) {
+        query = query.in('gps_tokens.event_id', effectiveEventIds);
+      }
+      const legacy = await query;
+      if (legacy.error) { console.error('[TrackMap] Error fetch:', legacy.error); return; }
+      rows = legacy.data || [];
     }
 
-    const { data, error } = await query;
-    if (error) { console.error('[TrackMap] Error fetch:', error); return; }
-    if (!data) return;
-
-    // Agrupar por token_id → solo la más reciente
+    // Agrupar por token_id → solo la más reciente (el RPC ya viene única)
     const byToken = new Map<string, TrackedRunner>();
-    for (const row of data) {
+    for (const row of rows) {
+      const token = row.gps_tokens as any;
+      // Alimentar la caché del realtime con lo que ya sabemos
+      tokenCacheRef.current.set(row.token_id, {
+        bib_number: token.bib_number,
+        participant_name: token.participant_name,
+        event_id: token.event_id,
+      });
       if (!passesKind(row.token_id, catalogRoles)) continue;
       if (!byToken.has(row.token_id)) {
-        const token = row.gps_tokens as any;
         byToken.set(row.token_id, {
           token_id: row.token_id,
           bib_number: token.bib_number,
@@ -420,14 +447,19 @@ export function CamberasTrackMap({
         async (payload) => {
           const pos = payload.new as any;
 
-          // Obtener datos del token
-          const { data: tokenData } = await supabase
-            .from('gps_tokens')
-            .select('bib_number, participant_name, event_id, active')
-            .eq('id', pos.token_id)
-            .single();
-
-          if (!tokenData?.active) return;
+          // Datos del token: primero la caché (a 1-2 s por dispositivo,
+          // consultar en cada INSERT eran N consultas por segundo)
+          let tokenData = tokenCacheRef.current.get(pos.token_id) ?? null;
+          if (!tokenData) {
+            const { data } = await supabase
+              .from('gps_tokens')
+              .select('bib_number, participant_name, event_id, active')
+              .eq('id', pos.token_id)
+              .single();
+            if (!data?.active) return;
+            tokenData = { bib_number: data.bib_number, participant_name: data.participant_name, event_id: data.event_id };
+            tokenCacheRef.current.set(pos.token_id, tokenData);
+          }
           if (
             effectiveEventIds === null ||
             (effectiveEventIds.length > 0 && !effectiveEventIds.includes(tokenData.event_id))
