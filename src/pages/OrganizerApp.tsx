@@ -19,11 +19,12 @@ import { CamberasLogo } from "@/components/CamberasLogo";
 import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
+import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
-  Shirt, Bike, Map as MapIcon, Timer,
+  Shirt, Bike, ShieldCheck, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
@@ -170,7 +171,9 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa";
+  /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
+  mapKind?: TrackMapKind;
   view?: string;
   route?: string;
 }
@@ -219,11 +222,14 @@ const ORG_MENU: OrgMenuGroup[] = [
   },
   {
     key: "gps", label: "Seguimiento GPS", icon: MapPin,
+    // El MISMO mapa en vivo, filtrado por concepto. El papel de cada GPS
+    // de organización sale de race_motos.gps_role (migración 5-ago);
+    // corredores = tokens que no están en ese catálogo.
     items: [
-      { id: "camberas-track", title: "Track en vivo", icon: MapPin, view: "camberas-track" },
-      { id: "motos", title: "GPS Organización", icon: Bike, view: "motos" },
-      // OJO: el mapa de motos no carga el track del recorrido — pendiente
-      { id: "moto-map", title: "Mapa de motos", icon: MapIcon, view: "moto-map" },
+      { id: "map-corredores", title: "Corredores", icon: MapPin, screen: "mapa", mapKind: "corredores" },
+      { id: "map-organizacion", title: "Organización", icon: ShieldCheck, screen: "mapa", mapKind: "organizacion" },
+      { id: "map-voluntarios", title: "Voluntarios", icon: HeartHandshake, screen: "mapa", mapKind: "voluntario" },
+      { id: "map-motos", title: "Motos", icon: Bike, screen: "mapa", mapKind: "moto" },
     ],
   },
   {
@@ -726,6 +732,15 @@ const OrganizerApp = () => {
                 <OrgVolunteers raceId={raceId} />
               ) : openScreen?.screen === "invitado" ? (
                 <OrgAddGuest raceId={raceId} />
+              ) : openScreen?.screen === "mapa" ? (
+                /* Mapa único en vivo, filtrado por concepto; SOS solo en el
+                   de corredores (los avisos son de sus pulseras/tokens) */
+                <CamberasTrackMap
+                  eventId={raceId ?? undefined}
+                  kind={openScreen.mapKind}
+                  showSOSPanel={openScreen.mapKind === "corredores"}
+                  height="68vh"
+                />
               ) : (
                 /* Mismo formato que los grupos de la portada, pero con el
                    icono en verde para distinguir que es el segundo nivel */

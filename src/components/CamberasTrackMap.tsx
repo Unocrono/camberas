@@ -37,8 +37,17 @@ interface SosAlert {
   participant_name?: string;
 }
 
+/**
+ * Filtro por concepto para el mapa único (Camberas Org):
+ * - corredores: tokens que NO están en el catálogo race_motos
+ * - moto / organizacion / voluntario: tokens del catálogo con ese gps_role
+ * Sin kind, el mapa muestra todo (comportamiento histórico).
+ */
+export type TrackMapKind = 'corredores' | 'moto' | 'organizacion' | 'voluntario';
+
 interface CamberasTrackMapProps {
   eventId?: string;        // filtrar por evento (opcional)
+  kind?: TrackMapKind;     // filtrar por concepto (opcional)
   mapboxToken?: string;    // si no se pasa, se carga de Supabase Edge Function
   showSOSPanel?: boolean;  // solo para organizador
   showDistanceSelector?: boolean; // ocultar si el padre pone su propio selector
@@ -89,6 +98,7 @@ const markerHTML = (bib: string, hasSOS: boolean, battery: number | null) => `
 
 export function CamberasTrackMap({
   eventId,
+  kind,
   mapboxToken: mapboxTokenProp,
   showSOSPanel = false,
   showDistanceSelector = true,
@@ -241,10 +251,48 @@ export function CamberasTrackMap({
     );
   }, [selectedDistanceId, raceDistances, eventId]);
 
+  // ── Filtro por concepto (kind): papel de cada token según race_motos ─────
+  // El catálogo dice qué tokens son de organización y con qué papel; los
+  // corredores son los tokens que no aparecen en él.
+  const [catalogRoles, setCatalogRoles] = useState<Record<string, string> | null>(null);
+  const catalogRolesRef = useRef<Record<string, string> | null>(null);
+
+  useEffect(() => {
+    if (!kind || !eventId) {
+      setCatalogRoles(null);
+      catalogRolesRef.current = null;
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await (supabase as any)
+        .from('race_motos')
+        .select('token_id, gps_role')
+        .eq('race_id', eventId);
+      if (cancelled) return;
+      const roles: Record<string, string> = {};
+      for (const m of data || []) {
+        if (m.token_id) roles[m.token_id] = m.gps_role || 'moto';
+      }
+      setCatalogRoles(roles);
+      catalogRolesRef.current = roles;
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [kind, eventId]);
+
+  /** ¿Este token pasa el filtro por concepto? (sin kind pasa todo) */
+  const passesKind = useCallback((tokenId: string, roles: Record<string, string> | null) => {
+    if (!kind) return true;
+    const role = roles?.[tokenId];
+    return kind === 'corredores' ? !role : role === kind;
+  }, [kind]);
+
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
 
   const fetchPositions = useCallback(async () => {
     if (effectiveEventIds === null) return; // aún resolviendo el filtro
+    if (kind && catalogRoles === null) return; // catálogo aún cargando
     // Obtener última posición de cada token
     let query = supabase
       .from('gps_positions')
@@ -267,6 +315,7 @@ export function CamberasTrackMap({
     // Agrupar por token_id → solo la más reciente
     const byToken = new Map<string, TrackedRunner>();
     for (const row of data) {
+      if (!passesKind(row.token_id, catalogRoles)) continue;
       if (!byToken.has(row.token_id)) {
         const token = row.gps_tokens as any;
         byToken.set(row.token_id, {
@@ -286,7 +335,7 @@ export function CamberasTrackMap({
 
     setRunners(Array.from(byToken.values()));
     setLastUpdate(new Date());
-  }, [effectiveEventIds]);
+  }, [effectiveEventIds, kind, catalogRoles, passesKind]);
 
   // ── Fetch alertas SOS ─────────────────────────────────────────────────────
 
@@ -382,6 +431,8 @@ export function CamberasTrackMap({
             effectiveEventIds === null ||
             (effectiveEventIds.length > 0 && !effectiveEventIds.includes(tokenData.event_id))
           ) return;
+          // Filtro por concepto: mismo criterio que el fetch inicial
+          if (!passesKind(pos.token_id, catalogRolesRef.current)) return;
 
           setRunners(prev => {
             const updated = prev.filter(r => r.token_id !== pos.token_id);
@@ -410,7 +461,7 @@ export function CamberasTrackMap({
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [effectiveEventIds, fetchSOS]);
+  }, [effectiveEventIds, fetchSOS, passesKind]);
 
   // ── Actualizar marcadores en el mapa ──────────────────────────────────────
 
