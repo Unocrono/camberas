@@ -15,19 +15,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CamberasLogo } from "@/components/CamberasLogo";
 import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
+import { OrgVolunteers } from "@/components/org/OrgVolunteers";
+import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import {
-  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, Home,
-  Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
-  FileText, HelpCircle, FolderOpen, ClipboardList, HeartHandshake, BarChart3,
+  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
+  Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
+  FileText, HelpCircle, FolderOpen, ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
   Shirt, Bike, Map as MapIcon, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -175,7 +170,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos";
+  screen?: "recorridos" | "voluntarios" | "invitado";
   view?: string;
   route?: string;
 }
@@ -208,13 +203,19 @@ const ORG_MENU: OrgMenuGroup[] = [
   {
     key: "corredores", label: "Corredores", icon: Users,
     items: [
+      // Pantalla nativa: alta de invitado en segundos (source=manual)
+      { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
+      // Buscar, editar ficha, cobros… en el panel de escritorio
       { id: "registrations", title: "Inscripciones", icon: ClipboardList, view: "registrations" },
     ],
   },
   {
     key: "voluntariado", label: "Voluntariado", icon: HeartHandshake,
     items: [
-      { id: "voluntariado", title: "Voluntarios", icon: HeartHandshake, view: "voluntariado" },
+      // Pantalla nativa: alta rápida, buscar, llamar, puesto, activo.
+      { id: "voluntarios", title: "Voluntarios", icon: HeartHandshake, screen: "voluntarios" },
+      // Importar de Excel, ficha completa (DNI, vehículo) y borrar
+      { id: "voluntariado-full", title: "Gestión completa", icon: ClipboardPaste, view: "voluntariado" },
     ],
   },
   {
@@ -259,6 +260,8 @@ const OrganizerApp = () => {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openScreen, setOpenScreen] = useState<OrgMenuItem | null>(null);
+  // Lista de carreras desplegada bajo la portada (solo si hay más de una)
+  const [showRacePicker, setShowRacePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   // Sin botón de modo en la cabecera: se respeta el modo guardado
   // (por defecto, "cada inscripción"). El push se cambia desde el panel.
@@ -464,34 +467,68 @@ const OrganizerApp = () => {
             grupo la pantalla queda limpia, solo con sus botones. */}
         {!activeGroup && (
         <>
-        {/* Selector de carrera */}
-        {races.length === 0 ? (
+        {races.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">
             No tienes carreras asignadas todavía.
           </p>
-        ) : (
-          <Select value={raceId ?? undefined} onValueChange={setRaceId}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Elige carrera" />
-            </SelectTrigger>
-            <SelectContent className="bg-background">
-              {races.map((r) => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         )}
 
-        {/* Imagen de portada de la carrera */}
+        {/* Portada de la carrera. La imagen ES el selector: la app elige
+            sola la próxima carrera y, si hay más de una, un toque
+            despliega la lista para cambiar. (Antes había una barra de
+            selección aparte — innecesaria.) */}
         {raceId && (
           <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            {coverImage ? (
-              <img src={coverImage} alt={selectedRace?.name} className="aspect-video w-full object-cover" />
-            ) : (
-              <div className="flex aspect-video w-full items-center justify-center bg-primary/10">
-                <span className="px-4 text-center font-archivo uppercase text-primary">{selectedRace?.name}</span>
+            <button
+              type="button"
+              className="relative block w-full text-left"
+              onClick={() => races.length > 1 && setShowRacePicker((v) => !v)}
+            >
+              {coverImage ? (
+                <img src={coverImage} alt={selectedRace?.name} className="aspect-video w-full object-cover" />
+              ) : (
+                <div className="flex aspect-video w-full items-center justify-center bg-primary/10">
+                  <span className="px-4 text-center font-archivo uppercase text-primary">{selectedRace?.name}</span>
+                </div>
+              )}
+              {/* Nombre y fecha sobre la imagen */}
+              {coverImage && (
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-2.5 pt-10">
+                  <span className="block font-archivo uppercase leading-tight text-white">{selectedRace?.name}</span>
+                  {selectedRace?.date && (
+                    <span className="block text-xs text-white/80">
+                      {new Date(selectedRace.date).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}
+                    </span>
+                  )}
+                </span>
+              )}
+              {races.length > 1 && (
+                <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-background/85 px-3 py-1 text-xs font-bold uppercase backdrop-blur-sm">
+                  Cambiar
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showRacePicker ? "rotate-180" : ""}`} />
+                </span>
+              )}
+            </button>
+            {/* Lista de carreras, desplegada bajo la imagen */}
+            {showRacePicker && (
+              <div className="divide-y divide-border border-t border-border">
+                {races
+                  .filter((r) => r.id !== raceId)
+                  .map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => {
+                        setRaceId(r.id);
+                        setShowRacePicker(false);
+                      }}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-muted"
+                    >
+                      <span className="font-medium">{r.name}</span>
+                      <span className="ml-3 shrink-0 text-xs text-muted-foreground">
+                        {new Date(r.date).toLocaleDateString("es-ES")}
+                      </span>
+                    </button>
+                  ))}
               </div>
             )}
           </div>
@@ -499,6 +536,24 @@ const OrganizerApp = () => {
 
         {/* El panel del organizador ES esta portada: el informe de abajo.
             (Antes había un botón que saltaba al panel de escritorio.) */}
+
+        {/* Botón destacado: alta de invitado, la gestión más usada */}
+        {raceId && (
+          <button
+            onClick={() => {
+              const g = ORG_MENU.find((x) => x.key === "corredores");
+              const item = g?.items.find((i) => i.screen === "invitado");
+              if (g && item) openItem(item, g.key);
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border-2 border-secondary bg-secondary/5 px-5 py-4 transition-colors hover:bg-secondary/10"
+          >
+            <span className="flex items-center gap-3">
+              <UserPlus className="h-6 w-6 text-secondary" />
+              <span className="font-archivo text-lg uppercase">Añadir invitado</span>
+            </span>
+            <ChevronRight className="h-5 w-5 text-secondary" />
+          </button>
+        )}
 
         {/* Informe: cargando / error */}
         {raceId && !summary && !summaryError && (
@@ -674,6 +729,10 @@ const OrganizerApp = () => {
               </div>
               {openScreen?.screen === "recorridos" ? (
                 <OrgDistancesSummary raceId={raceId} byDistance={summary?.by_distance ?? []} />
+              ) : openScreen?.screen === "voluntarios" ? (
+                <OrgVolunteers raceId={raceId} />
+              ) : openScreen?.screen === "invitado" ? (
+                <OrgAddGuest raceId={raceId} />
               ) : (
                 /* Mismo formato que los grupos de la portada, pero con el
                    icono en verde para distinguir que es el segundo nivel */
