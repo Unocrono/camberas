@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw } from "lucide-react";
+import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode } from "lucide-react";
+import QRCode from "qrcode";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -135,6 +136,40 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
 const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "status", "payment", "actions"];
 
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
+  // QR del dorsal GPS: reutiliza (o crea) el token del corredor y abre el QR
+  const abrirQrDorsal = async (reg: any) => {
+    try {
+      if (!reg.bib_number) {
+        toast({ title: "Asigna primero un dorsal", variant: "destructive" });
+        return;
+      }
+      const raceId = selectedRaceId || selectedRace;
+      const { data: lista } = await supabase.rpc("tokens_corredores_carrera" as never,
+        { p_race_id: raceId } as never);
+      let tok = ((lista as any[]) ?? []).find(
+        (t) => t.distance_id === reg.race_distance_id && String(t.bib) === String(reg.bib_number) && t.activo
+      )?.token;
+      if (!tok) {
+        const nombre = `${reg.first_name ?? ""} ${reg.last_name ?? ""}`.trim();
+        const { data, error } = await supabase.rpc("generar_token_corredor" as never, {
+          p_distance_id: reg.race_distance_id, p_bib: String(reg.bib_number), p_nombre: nombre || null,
+        } as never);
+        if (error) throw error;
+        tok = (data as any).token;
+      }
+      const url = `https://camberas.com/activar.html?t=${tok}`;
+      const png = await QRCode.toDataURL(url, { width: 360, margin: 1 });
+      navigator.clipboard.writeText(url).catch(() => {});
+      const w = window.open("", "_blank", "width=420,height=520");
+      if (w) {
+        w.document.write(`<title>Dorsal ${reg.bib_number}</title><body style="font-family:sans-serif;text-align:center"><h3>Dorsal ${reg.bib_number} — QR de activación</h3><img src="${png}" style="width:360px"/><p style="font-size:12px;word-break:break-all">${url}</p></body>`);
+      }
+      toast({ title: `QR del dorsal ${reg.bib_number} — enlace copiado` });
+    } catch (e: any) {
+      toast({ title: "No se pudo generar el QR", description: e.message, variant: "destructive" });
+    }
+  };
+
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [filteredRegistrations, setFilteredRegistrations] = useState<Registration[]>([]);
@@ -1917,6 +1952,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                   </div>
                                 </DialogContent>
                               </Dialog>
+
+                              <Button variant="outline" size="sm" onClick={() => abrirQrDorsal(reg)} title="QR del dorsal GPS">
+                                <QrCode className="h-4 w-4" />
+                              </Button>
 
                               <Button variant="outline" size="sm" onClick={() => openEditDialog(reg)}>
                                 <Pencil className="h-4 w-4" />
