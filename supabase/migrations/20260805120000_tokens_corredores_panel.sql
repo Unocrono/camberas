@@ -71,8 +71,12 @@ GRANT EXECUTE ON FUNCTION generar_token_corredor(uuid, text, text) TO authentica
 GRANT EXECUTE ON FUNCTION revocar_token_corredor(uuid) TO authenticated;
 
 -- Entrada de menú del panel de admin
-INSERT INTO menu_items (menu_type, title, icon, view, item_order, group_label)
+INSERT INTO menu_items (menu_type, title, icon, view_name, group_label,
+                        display_order, is_visible, requires_auth)
 SELECT 'admin', 'Dorsales GPS (QR)', 'QrCode', 'gps-tokens',
-       COALESCE((SELECT max(item_order) FROM menu_items WHERE menu_type='admin'), 0) + 1,
-       (SELECT group_label FROM menu_items WHERE view = 'motos' LIMIT 1)
-WHERE NOT EXISTS (SELECT 1 FROM menu_items WHERE view = 'gps-tokens');
+       (SELECT group_label FROM menu_items
+         WHERE view_name = 'motos' AND menu_type = 'admin' LIMIT 1),
+       COALESCE((SELECT max(display_order) + 1 FROM menu_items
+                  WHERE menu_type = 'admin'), 99),
+       true, false
+WHERE NOT EXISTS (SELECT 1 FROM menu_items WHERE view_name = 'gps-tokens');
