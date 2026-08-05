@@ -37,6 +37,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
+import { GpsTokensManagement } from "@/components/admin/GpsTokensManagement";
 import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
 import { PuestosManagement } from "@/components/admin/PuestosManagement";
 import { TiposPuestoManagement } from "@/components/admin/TiposPuestoManagement";
@@ -297,6 +298,15 @@ const AdminDashboard = () => {
             {currentView === "roadbook-item-types" && <RoadbookItemTypesManagement />}
             {currentView === "contact-settings" && <ContactSettingsManagement />}
             {currentView === "menu-management" && <MenuManagement />}
+            {currentView === "gps-tokens" && (
+              selectedRaceId ? (
+                <GpsTokensManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus dorsales GPS</p>
+                </div>
+              )
+            )}
             {currentView === "motos" && (
               selectedRaceId ? (
                 <MotosManagement selectedRaceId={selectedRaceId} />
