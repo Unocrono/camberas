@@ -371,15 +371,15 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Bike className="h-6 w-6" />
-            Motos GPS
+            GPS Organización
           </h2>
           <p className="text-muted-foreground">
-            Gestiona las motos de seguimiento GPS — cada moto se vincula con su QR, sin usuarios
+            Los dispositivos GPS de la organización (motos, ambulancia, cierre…) — cada uno se vincula con su QR, sin usuarios
           </p>
         </div>
         <Button onClick={() => handleOpenDialog()}>
           <Plus className="h-4 w-4 mr-2" />
-          Nueva Moto
+          Nuevo GPS
         </Button>
       </div>
 
@@ -387,20 +387,20 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Bike className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No hay motos configuradas</h3>
+            <h3 className="text-lg font-medium mb-2">No hay GPS de Organización configurados</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Añade motos de seguimiento GPS para esta carrera
+              Añade los dispositivos GPS de la organización para esta carrera
             </p>
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="h-4 w-4 mr-2" />
-              Crear primera moto
+              Crear el primer GPS
             </Button>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Motos configuradas ({motos.length})</CardTitle>
+            <CardTitle>GPS de Organización ({motos.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -493,12 +493,12 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {selectedMoto ? "Editar Moto" : "Nueva Moto"}
+              {selectedMoto ? "Editar GPS" : "Nuevo GPS"}
             </DialogTitle>
             <DialogDescription>
               {selectedMoto
-                ? "Modifica los datos de la moto"
-                : "Añade una nueva moto de seguimiento GPS"}
+                ? "Modifica los datos del dispositivo"
+                : "Añade un nuevo dispositivo GPS de la organización"}
             </DialogDescription>
           </DialogHeader>
 

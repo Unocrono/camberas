@@ -608,7 +608,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Bike className="h-5 w-5" />
-              Mapa de Motos en Vivo
+              Mapa de Organización en Vivo
             </CardTitle>
             <div className="flex items-center gap-2">
               {/* Distance filter */}
@@ -636,7 +636,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
           <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Bike className="h-4 w-4" />
-              <span>{motoPositions.length} motos activas</span>
+              <span>{motoPositions.length} GPS activos</span>
             </div>
             {lastUpdate && (
               <div className="flex items-center gap-1">
@@ -759,8 +759,8 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
               <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                 <div className="text-center text-muted-foreground bg-background/90 p-6 rounded-lg shadow pointer-events-auto">
                   <Bike className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="font-medium">No hay motos con posición GPS</p>
-                  <p className="text-sm mt-1">Las motos activas aparecerán aquí cuando envíen su ubicación</p>
+                  <p className="font-medium">Ningún GPS de Organización con posición</p>
+                  <p className="text-sm mt-1">Los dispositivos activos aparecerán aquí cuando envíen su ubicación</p>
                 </div>
               </div>
             )}

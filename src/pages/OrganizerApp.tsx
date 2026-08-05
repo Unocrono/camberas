@@ -4,15 +4,15 @@
  * inscripciones, con "clinc" en tiempo real cuando entra una
  * inscripción PAGADA (las gratuitas entran en silencio).
  *
- * El resto de opciones enlazan al panel completo (/organizer?view=X)
- * leyendo el MISMO menú de BD que el sidebar — cero duplicación.
+ * El menú es PROPIO de la app (ORG_MENU, más abajo): árbol fijo en
+ * código, independiente de la tabla menu_items del panel. Si el panel
+ * estrena algo útil para el móvil, se añade aquí a mano.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useMenuItems } from "@/hooks/useMenuItems";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,10 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CamberasLogo } from "@/components/CamberasLogo";
-import * as LucideIcons from "lucide-react";
+import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import {
-  Loader2, Volume2, VolumeX, Bell, BellRing, RefreshCw, AlertCircle, ChevronRight, ChevronLeft,
-  LayoutDashboard, Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
+  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, Home,
+  Flag, Route as RouteIcon, Users, Trophy, MapPin, UserCircle,
+  FileText, HelpCircle, FolderOpen, ClipboardList, HeartHandshake, BarChart3,
+  Shirt, Bike, Map as MapIcon, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
@@ -152,62 +154,115 @@ function shouldClinc(mode: ClincMode, prevPaid: number, s: RaceSummary): boolean
   return crossedMilestone || nearlyFull;
 }
 
-const CLINC_LABEL: Record<ClincMode, string> = {
-  each: "Cada inscripción",
-  milestones: "Solo hitos",
-  off: "Silencio",
-};
-
 /**
- * Menú de dos niveles de la app: primer nivel = grupos; al pulsar uno,
- * se muestran sus opciones. Los items reales (etiqueta, view_name/route)
- * salen de la tabla menu_items; aquí solo definimos AGRUPACIÓN y orden
- * por view_name, para tener una portada limpia. Lo que no esté mapeado
- * cae en un grupo "Más" para no perder nada.
+ * Menú PROPIO de la app, independiente de la tabla menu_items del panel.
+ * Árbol fijo en código: si el panel estrena algo interesante para el
+ * móvil (como Voluntariado), se añade aquí a mano.
+ *
+ * Orden de los grupos = ciclo de vida de la carrera: primero preparar
+ * (carreras, recorridos), luego el periodo de inscripción (corredores,
+ * voluntariado, estadísticas), después el día D (GPS) y el final
+ * (resultados). Mi Perfil cierra siempre.
+ *
+ * Cada item abre, en este orden de preferencia:
+ * - screen: pantalla NATIVA de la app (formato móvil, sin salir de /org)
+ * - view:   vista del panel de escritorio (/organizer?view=X&from=org)
+ *           — TRANSITORIO hasta tener pantalla nativa; from=org pinta
+ *           el botón de volver a la app en el panel
+ * - route:  ruta normal de la web
  */
-interface OrgGroupDef {
+interface OrgMenuItem {
+  id: string;
+  title: string;
+  icon: LucideIcon;
+  screen?: "recorridos";
+  view?: string;
+  route?: string;
+}
+
+interface OrgMenuGroup {
   key: string;
   label: string;
   icon: LucideIcon;
-  views: string[];
+  items: OrgMenuItem[];
 }
 
-const ORG_GROUP_DEFS: OrgGroupDef[] = [
-  { key: "carreras", label: "Carreras", icon: Flag, views: ["races", "regulations", "race-faqs", "storage"] },
-  { key: "recorridos", label: "Recorridos", icon: RouteIcon, views: ["distances", "roadbooks", "checkpoints", "timing-points", "waves"] },
-  { key: "corredores", label: "Corredores", icon: Users, views: ["registrations", "form-fields", "categories", "tshirt-sizes"] },
-  { key: "resultados", label: "Resultados", icon: Trophy, views: ["results", "splits", "timing-readings", "gps-readings", "bib-chips", "timer-assignments"] },
-  { key: "gps", label: "Seguimiento GPS", icon: MapPin, views: ["camberas-track", "motos", "moto-map"] },
-];
-
-interface MenuButton {
-  id: string;
-  title: string;
-  icon: string;
-  view_name?: string | null;
-  route?: string | null;
-}
-
-// Grupo "Mi Perfil": no está en menu_items, es navegación fija.
-// (Diseñador de Dorsales fuera: no se puede usar desde el móvil)
-const ORG_USER_ITEMS: MenuButton[] = [
-  { id: "u-profile", title: "Mi Perfil", icon: "UserCircle", route: "/profile" },
-  { id: "u-site", title: "Volver al sitio", icon: "Home", route: "/" },
+const ORG_MENU: OrgMenuGroup[] = [
+  {
+    key: "carreras", label: "Carreras", icon: Flag,
+    items: [
+      { id: "races", title: "Mis Carreras", icon: Flag, view: "races" },
+      { id: "regulations", title: "Reglamentos", icon: FileText, view: "regulations" },
+      { id: "race-faqs", title: "FAQs", icon: HelpCircle, view: "race-faqs" },
+      { id: "storage", title: "Archivos", icon: FolderOpen, view: "storage" },
+    ],
+  },
+  {
+    key: "recorridos", label: "Recorridos", icon: RouteIcon,
+    items: [
+      // Pantalla nativa: resumen de solo lectura (km, desnivel, salida,
+      // plazas). Para EDITAR recorridos: panel de escritorio.
+      { id: "distances-summary", title: "Resumen de eventos", icon: RouteIcon, screen: "recorridos" },
+    ],
+  },
+  {
+    key: "corredores", label: "Corredores", icon: Users,
+    items: [
+      { id: "registrations", title: "Inscripciones", icon: ClipboardList, view: "registrations" },
+    ],
+  },
+  {
+    key: "voluntariado", label: "Voluntariado", icon: HeartHandshake,
+    items: [
+      { id: "voluntariado", title: "Voluntarios", icon: HeartHandshake, view: "voluntariado" },
+    ],
+  },
+  {
+    key: "estadisticas", label: "Estadísticas", icon: BarChart3,
+    items: [
+      { id: "tshirt-sizes", title: "Tallas de camisetas", icon: Shirt, view: "tshirt-sizes" },
+    ],
+  },
+  {
+    key: "gps", label: "Seguimiento GPS", icon: MapPin,
+    items: [
+      { id: "camberas-track", title: "Track en vivo", icon: MapPin, view: "camberas-track" },
+      { id: "motos", title: "GPS Organización", icon: Bike, view: "motos" },
+      // OJO: el mapa de motos no carga el track del recorrido — pendiente
+      { id: "moto-map", title: "Mapa de motos", icon: MapIcon, view: "moto-map" },
+    ],
+  },
+  {
+    key: "resultados", label: "Resultados", icon: Trophy,
+    items: [
+      { id: "results", title: "Resultados", icon: Trophy, view: "results" },
+      { id: "splits", title: "Parciales por punto", icon: Timer, view: "splits" },
+    ],
+  },
+  {
+    key: "perfil", label: "Mi Perfil", icon: UserCircle,
+    items: [
+      { id: "u-profile", title: "Mi Perfil", icon: UserCircle, route: "/profile" },
+      { id: "u-site", title: "Volver al sitio", icon: Home, route: "/" },
+    ],
+  },
 ];
 
 const OrganizerApp = () => {
   const { user, isAdmin, isOrganizer, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { groupedItems } = useMenuItems({ menuType: "organizer" });
 
   const [races, setRaces] = useState<RaceOption[]>([]);
   const [raceId, setRaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<RaceSummary | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [openScreen, setOpenScreen] = useState<OrgMenuItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [clincMode, setClincMode] = useState<ClincMode>(
+  // Sin botón de modo en la cabecera: se respeta el modo guardado
+  // (por defecto, "cada inscripción"). El push se cambia desde el panel.
+  const [clincMode] = useState<ClincMode>(
     () => (localStorage.getItem("org-clinc-mode") as ClincMode) || "each",
   );
   const [pushState, setPushState] = useState(() => pushPermission());
@@ -284,6 +339,7 @@ const OrganizerApp = () => {
     setSummary(null);
     setSummaryError(null);
     setOpenGroup(null);
+    setOpenScreen(null);
     fetchSummary(raceId);
   }, [raceId, fetchSummary]);
 
@@ -303,47 +359,47 @@ const OrganizerApp = () => {
     };
   }, [raceId, fetchSummary]);
 
-  const getIcon = (iconName: string) => {
-    const Icon = (LucideIcons as any)[iconName];
-    return Icon || LucideIcons.Circle;
-  };
-
   const selectedRace = races.find((r) => r.id === raceId);
   // La misma que el índice de /races: la Imagen Principal (16:9). Se
   // recorta a esa proporción en el admin, así que encaja sin deformar.
   const coverImage = selectedRace?.image_url || selectedRace?.cover_image_url || null;
 
-  // Todos los items del menú de BD, planos
-  const allItems = groupedItems.flatMap((g) => g.items);
-  const itemByView = (v: string) => allItems.find((i) => i.view_name === v);
+  const activeGroup = ORG_MENU.find((g) => g.key === openGroup) ?? null;
 
-  // El "Panel de Organizador" (dashboard) va aparte, como botón destacado
-  const dashboardItem = allItems.find((i) => i.view_name === "dashboard");
-
-  // Grupos de primer nivel (solo los que tienen algún item disponible)
-  const orgGroups = ORG_GROUP_DEFS.map((def) => ({
-    ...def,
-    items: def.views.map(itemByView).filter(Boolean) as typeof allItems,
-  })).filter((g) => g.items.length > 0);
-
-  // Grupo "Usuario": navegación fija de la app
-  const userItems = ORG_USER_ITEMS;
-
-  // Items no mapeados en ningún grupo → "Más", para no perder nada
-  const mappedViews = new Set(ORG_GROUP_DEFS.flatMap((d) => d.views).concat("dashboard"));
-  const extraItems = allItems.filter((i) => i.view_name && !mappedViews.has(i.view_name));
-
-  const openItem = (item: MenuButton) => {
-    if (item.view_name) navigate(`/organizer?view=${item.view_name}`);
-    else if (item.route) navigate(item.route);
+  const openItem = (item: OrgMenuItem, groupKey?: string) => {
+    if (item.screen) {
+      // Pantalla nativa: se abre DENTRO de la app
+      if (groupKey) setOpenGroup(groupKey);
+      setOpenScreen(item);
+    } else if (item.view) {
+      // Transitorio: vista del panel de escritorio, con vuelta a la app
+      navigate(`/organizer?view=${item.view}&from=org`);
+    } else if (item.route) {
+      navigate(item.route);
+    }
   };
 
-  const activeGroup =
-    openGroup === "usuario"
-      ? { key: "usuario", label: "Mi Perfil", icon: UserCircle, items: userItems }
-      : openGroup === "mas"
-        ? { key: "mas", label: "Más", icon: LucideIcons.LayoutGrid, items: extraItems }
-        : orgGroups.find((g) => g.key === openGroup);
+  // Grupos de un solo item: abrirlo directamente, sin pantalla intermedia
+  const openGroupOrItem = (g: OrgMenuGroup) => {
+    if (g.items.length === 1) openItem(g.items[0], g.key);
+    else setOpenGroup(g.key);
+  };
+
+  // Volver: de la pantalla nativa al grupo (o a la portada si el grupo
+  // solo tenía ese item), y del grupo a la portada
+  const goBack = () => {
+    if (openScreen) {
+      setOpenScreen(null);
+      if (activeGroup && activeGroup.items.length === 1) setOpenGroup(null);
+    } else {
+      setOpenGroup(null);
+    }
+  };
+
+  const goHome = () => {
+    setOpenScreen(null);
+    setOpenGroup(null);
+  };
 
   if (authLoading || loading) {
     return (
@@ -376,24 +432,6 @@ const OrganizerApp = () => {
             <span className="font-archivo text-lg uppercase tracking-wide">Camberas Org</span>
           </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5"
-              title="Modo de aviso sonoro: cada inscripción, solo hitos o silencio"
-              onClick={() =>
-                setClincMode((m) => (m === "each" ? "milestones" : m === "milestones" ? "off" : "each"))
-              }
-            >
-              {clincMode === "each" ? (
-                <Volume2 className="h-4 w-4 text-secondary" />
-              ) : clincMode === "milestones" ? (
-                <Bell className="h-4 w-4 text-secondary" />
-              ) : (
-                <VolumeX className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span className="text-xs">{CLINC_LABEL[clincMode]}</span>
-            </Button>
             {/* Avisos con la app cerrada */}
             {pushState !== "unsupported" && pushState !== "granted" && (
               <Button
@@ -459,19 +497,8 @@ const OrganizerApp = () => {
           </div>
         )}
 
-        {/* Botón destacado: Panel de Organizador */}
-        {raceId && dashboardItem && (
-          <button
-            onClick={() => navigate(`/organizer?view=dashboard`)}
-            className="flex w-full items-center justify-between rounded-2xl border-2 border-secondary bg-secondary/5 px-5 py-4 transition-colors hover:bg-secondary/10"
-          >
-            <span className="flex items-center gap-3">
-              <LayoutDashboard className="h-6 w-6 text-secondary" />
-              <span className="font-archivo text-lg uppercase">Panel de Organizador</span>
-            </span>
-            <ChevronRight className="h-5 w-5 text-secondary" />
-          </button>
-        )}
+        {/* El panel del organizador ES esta portada: el informe de abajo.
+            (Antes había un botón que saltaba al panel de escritorio.) */}
 
         {/* Informe: cargando / error */}
         {raceId && !summary && !summaryError && (
@@ -608,73 +635,64 @@ const OrganizerApp = () => {
         </>
         )}
 
-        {/* Menú de dos niveles: grupos → opciones */}
-        {allItems.length > 0 && (
-          <section>
-            {!activeGroup ? (
-              <>
-                <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Gestión</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {orgGroups.map((g) => (
-                    <button
-                      key={g.key}
-                      onClick={() => setOpenGroup(g.key)}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
-                    >
-                      <g.icon className="h-6 w-6 shrink-0 text-secondary" />
-                      <span className="font-archivo text-sm uppercase leading-tight">{g.label}</span>
-                    </button>
-                  ))}
-                  {extraItems.length > 0 && (
-                    <button
-                      onClick={() => setOpenGroup("mas")}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
-                    >
-                      <LucideIcons.LayoutGrid className="h-6 w-6 shrink-0 text-secondary" />
-                      <span className="font-archivo text-sm uppercase leading-tight">Más</span>
-                    </button>
-                  )}
-                  {userItems.length > 0 && (
-                    <button
-                      onClick={() => setOpenGroup("usuario")}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
-                    >
-                      <UserCircle className="h-6 w-6 shrink-0 text-secondary" />
-                      <span className="font-archivo text-sm uppercase leading-tight">Mi Perfil</span>
-                    </button>
-                  )}
-                </div>
-              </>
-            ) : (
-              <>
+        {/* Menú de dos niveles: grupos → opciones (árbol PROPIO, ORG_MENU) */}
+        <section>
+          {!activeGroup ? (
+            <>
+              <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Gestión</p>
+              <div className="grid grid-cols-2 gap-3">
+                {ORG_MENU.map((g) => (
+                  <button
+                    key={g.key}
+                    onClick={() => openGroupOrItem(g)}
+                    className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                  >
+                    <g.icon className="h-6 w-6 shrink-0 text-secondary" />
+                    <span className="font-archivo text-sm uppercase leading-tight">{g.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Volver (atrás) + Inicio, siempre visibles dentro de un grupo */}
+              <div className="mb-3 flex items-center justify-between">
                 <button
-                  onClick={() => setOpenGroup(null)}
-                  className="mb-3 flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-secondary"
+                  onClick={goBack}
+                  className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-secondary"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  {activeGroup.label}
+                  {openScreen ? openScreen.title : activeGroup.label}
                 </button>
-                {/* Mismo formato que los grupos de la portada, pero con el
-                    icono en verde para distinguir que es el segundo nivel */}
+                <button
+                  onClick={goHome}
+                  title="Inicio"
+                  className="rounded-full border border-border bg-card p-2 text-secondary transition-colors hover:border-secondary"
+                >
+                  <Home className="h-4 w-4" />
+                </button>
+              </div>
+              {openScreen?.screen === "recorridos" ? (
+                <OrgDistancesSummary raceId={raceId} byDistance={summary?.by_distance ?? []} />
+              ) : (
+                /* Mismo formato que los grupos de la portada, pero con el
+                   icono en verde para distinguir que es el segundo nivel */
                 <div className="grid grid-cols-2 gap-3">
-                  {activeGroup.items.map((item) => {
-                    const Icon = getIcon(item.icon);
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => openItem(item)}
-                        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
-                      >
-                        <Icon className="h-6 w-6 shrink-0 text-primary" />
-                        <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
-                      </button>
-                    );
-                  })}
+                  {activeGroup.items.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => openItem(item)}
+                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                    >
+                      <item.icon className="h-6 w-6 shrink-0 text-primary" />
+                      <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
+                    </button>
+                  ))}
                 </div>
-              </>
-            )}
-          </section>
-        )}
+              )}
+            </>
+          )}
+        </section>
 
       </main>
     </div>

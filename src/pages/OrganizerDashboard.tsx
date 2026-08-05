@@ -33,7 +33,7 @@ import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { CamberasTrackMap } from "@/components/CamberasTrackMap";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
-import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Filter, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type OrganizerView = string;
@@ -136,6 +136,13 @@ const OrganizerDashboard = () => {
           <header className="border-b border-border bg-background/95 backdrop-blur-sm sticky top-0 z-40">
             <div className="flex items-center gap-4 px-4 md:px-6 h-14">
               <SidebarTrigger className="mr-2" />
+              {/* Si se llegó desde la app (/org), botón de vuelta a la app */}
+              {searchParams.get("from") === "org" && (
+                <Button variant="outline" size="sm" className="gap-1 shrink-0" onClick={() => navigate("/org")}>
+                  <ChevronLeft className="h-4 w-4" />
+                  App
+                </Button>
+              )}
               <h1 className="text-xl md:text-2xl font-bold truncate">PANEL ORGANIZADOR</h1>
             </div>
             <div className="px-4 md:px-6 pb-3">
