@@ -20,7 +20,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { QrCode, Loader2, Copy } from "lucide-react";
-import QRCode from "qrcode";
+import { qrConLogo } from "@/lib/qrConLogo";
 
 interface TokenRow {
   token_row_id: string;
@@ -92,7 +92,7 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
 
   const abrirQr = async (row: TokenRow) => {
     setQrRow(row);
-    setQrDataUrl(await QRCode.toDataURL(urlActivacion(row.token), { width: 360, margin: 1 }));
+    setQrDataUrl(await qrConLogo(urlActivacion(row.token)));
   };
 
   if (loading) {

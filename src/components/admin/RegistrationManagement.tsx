@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode } from "lucide-react";
-import QRCode from "qrcode";
+import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -158,7 +158,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         tok = (data as any).token;
       }
       const url = `https://camberas.com/activar.html?t=${tok}`;
-      const png = await QRCode.toDataURL(url, { width: 360, margin: 1 });
+      const png = await qrConLogo(url);
       navigator.clipboard.writeText(url).catch(() => {});
       const w = window.open("", "_blank", "width=420,height=520");
       if (w) {

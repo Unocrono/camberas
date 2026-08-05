@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Bike, Plus, Pencil, Trash2, Loader2, GripVertical, User, UserPlus, QrCode } from "lucide-react";
-import QRCode from "qrcode";
+import { qrConLogo } from "@/lib/qrConLogo";
 
 interface Moto {
   id: string;
@@ -155,14 +155,14 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
       tok = nuevo;
     }
     setQrDialogMoto(moto);
-    setQrDataUrl(await QRCode.toDataURL(tok.token, { width: 360, margin: 1 }));
+    setQrDataUrl(await qrConLogo(tok.token));
   };
 
   const regenerarToken = async () => {
     if (!qrDialogMoto) return;
     const tok = await generarToken(qrDialogMoto);
     if (tok) {
-      setQrDataUrl(await QRCode.toDataURL(tok.token, { width: 360, margin: 1 }));
+      setQrDataUrl(await qrConLogo(tok.token));
       toast({ title: "Token regenerado — el anterior queda revocado" });
     }
   };
