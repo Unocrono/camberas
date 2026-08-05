@@ -53,6 +53,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   HeartHandshake,
   Plus,
   Pencil,
@@ -74,9 +81,26 @@ interface Volunteer {
   phone: string;
   dni: string | null;
   driving_license: string | null;
+  vehicle: string | null;
+  plate: string | null;
   email: string | null;
   notes: string | null;
   active: boolean;
+}
+
+/** Puesto de la carrera en curso, para el desplegable */
+interface PuestoOpcion {
+  id: string;
+  name: string;
+  abbr: string | null;
+}
+
+/** Asignación del voluntario en la carrera en curso */
+interface Asignacion {
+  id: string;
+  volunteer_id: string;
+  post_id: string;
+  accreditation: string | null;
 }
 
 interface VoluntariadoManagementProps {
@@ -84,11 +108,16 @@ interface VoluntariadoManagementProps {
   selectedRaceId?: string;
 }
 
+// Radix no admite <SelectItem value="">: hace falta un centinela para "ninguno"
+const SIN_PUESTO = "__sin_puesto__";
+
 const FICHA_VACIA = {
   full_name: "",
   phone: "",
   dni: "",
   driving_license: "",
+  vehicle: "",
+  plate: "",
   email: "",
   notes: "",
   active: true,
@@ -106,13 +135,19 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
   const [saving, setSaving] = useState(false);
   const [busqueda, setBusqueda] = useState("");
 
-  // Alta rápida: nombre y teléfono, el resto se completa luego en la ficha
+  // Alta rápida: nombre, teléfono y puesto; el resto se completa en la ficha
   const [altaNombre, setAltaNombre] = useState("");
   const [altaTelefono, setAltaTelefono] = useState("");
+  const [altaPuesto, setAltaPuesto] = useState("");
+
+  // Puestos y asignaciones de la carrera en curso (sin carrera, no hay puesto)
+  const [puestos, setPuestos] = useState<PuestoOpcion[]>([]);
+  const [asignaciones, setAsignaciones] = useState<Record<string, Asignacion>>({});
 
   const [fichaOpen, setFichaOpen] = useState(false);
   const [editando, setEditando] = useState<Volunteer | null>(null);
   const [ficha, setFicha] = useState(FICHA_VACIA);
+  const [fichaPuesto, setFichaPuesto] = useState("");
 
   const [importOpen, setImportOpen] = useState(false);
   const [importTexto, setImportTexto] = useState("");
@@ -145,6 +180,55 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
   useEffect(() => {
     if (ownerId) cargar();
   }, [ownerId]);
+
+  // Los puestos y quién los cubre son de la carrera, no de la bolsa
+  useEffect(() => {
+    if (selectedRaceId) cargarPuestos();
+    else {
+      setPuestos([]);
+      setAsignaciones({});
+    }
+  }, [selectedRaceId]);
+
+  const cargarPuestos = async () => {
+    const [puestosRes, asigRes] = await Promise.all([
+      db.from("race_posts").select("id, name, abbr").eq("race_id", selectedRaceId).order("post_order", { nullsFirst: false }),
+      db.from("volunteer_assignments").select("id, volunteer_id, post_id, accreditation").eq("race_id", selectedRaceId),
+    ]);
+    if (!puestosRes.error) setPuestos((puestosRes.data || []) as PuestoOpcion[]);
+    if (!asigRes.error) {
+      const mapa: Record<string, Asignacion> = {};
+      for (const a of (asigRes.data || []) as Asignacion[]) mapa[a.volunteer_id] = a;
+      setAsignaciones(mapa);
+    }
+  };
+
+  /**
+   * Pone (o quita) al voluntario en un puesto de la carrera en curso.
+   * La acreditación no se toca desde aquí: la calcula la base al asignar.
+   */
+  const sincronizarPuesto = async (volunteerId: string, postId: string) => {
+    if (!selectedRaceId) return;
+    const actual = asignaciones[volunteerId];
+
+    if (!postId) {
+      if (actual) await db.from("volunteer_assignments").delete().eq("id", actual.id);
+      return;
+    }
+    if (actual?.post_id === postId) return;
+
+    const { error: err } = actual
+      ? await db.from("volunteer_assignments").update({ post_id: postId }).eq("id", actual.id)
+      : await db.from("volunteer_assignments").insert({
+          race_id: selectedRaceId,
+          post_id: postId,
+          volunteer_id: volunteerId,
+        });
+
+    if (err) {
+      toast({ title: "No se pudo asignar el puesto", description: err.message, variant: "destructive" });
+    }
+  };
 
   const cargar = async () => {
     setLoading(true);
@@ -187,19 +271,28 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
       return;
     }
     setSaving(true);
-    const { error } = await db.from("volunteers").insert({
-      organizer_id: ownerId,
-      full_name: altaNombre,
-      phone: altaTelefono,
-    });
-    setSaving(false);
+    const { data, error } = await db
+      .from("volunteers")
+      .insert({
+        organizer_id: ownerId,
+        full_name: altaNombre,
+        phone: altaTelefono,
+      })
+      .select("id")
+      .single();
     if (error) {
+      setSaving(false);
       toast({ title: "No se pudo dar de alta", description: errorGuardado(error), variant: "destructive" });
       return;
     }
+    if (altaPuesto && data?.id) await sincronizarPuesto(data.id, altaPuesto);
+    setSaving(false);
     setAltaNombre("");
     setAltaTelefono("");
+    // El puesto se queda puesto: dando de alta a la cuadrilla de un cruce,
+    // lo normal es que los siguientes vayan al mismo sitio.
     cargar();
+    cargarPuestos();
   };
 
   const abrirFicha = (v: Volunteer | null) => {
@@ -211,12 +304,15 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
             phone: v.phone,
             dni: v.dni || "",
             driving_license: v.driving_license || "",
+            vehicle: v.vehicle || "",
+            plate: v.plate || "",
             email: v.email || "",
             notes: v.notes || "",
             active: v.active,
           }
         : FICHA_VACIA,
     );
+    setFichaPuesto(v ? asignaciones[v.id]?.post_id || "" : "");
     setFichaOpen(true);
   };
 
@@ -236,20 +332,25 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
       phone: ficha.phone,
       dni: ficha.dni.trim() || null,
       driving_license: ficha.driving_license.trim() || null,
+      vehicle: ficha.vehicle.trim() || null,
+      plate: ficha.plate.trim() || null,
       email: ficha.email.trim() || null,
       notes: ficha.notes.trim() || null,
       active: ficha.active,
     };
-    const { error } = editando
-      ? await db.from("volunteers").update(fila).eq("id", editando.id)
-      : await db.from("volunteers").insert(fila);
-    setSaving(false);
+    const { data, error } = editando
+      ? await db.from("volunteers").update(fila).eq("id", editando.id).select("id").single()
+      : await db.from("volunteers").insert(fila).select("id").single();
     if (error) {
+      setSaving(false);
       toast({ title: "No se pudo guardar", description: errorGuardado(error), variant: "destructive" });
       return;
     }
+    if (selectedRaceId && data?.id) await sincronizarPuesto(data.id, fichaPuesto);
+    setSaving(false);
     setFichaOpen(false);
     cargar();
+    cargarPuestos();
   };
 
   const cambiarActivo = async (v: Volunteer, activo: boolean) => {
@@ -397,6 +498,37 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
                 placeholder="600 123 456"
               />
             </div>
+            <div className="w-[200px]">
+              <Label htmlFor="alta-puesto" className="text-xs text-muted-foreground">
+                Puesto
+              </Label>
+              <Select
+                value={altaPuesto || SIN_PUESTO}
+                onValueChange={(v) => setAltaPuesto(v === SIN_PUESTO ? "" : v)}
+                disabled={puestos.length === 0}
+              >
+                <SelectTrigger id="alta-puesto">
+                  <SelectValue
+                    placeholder={
+                      !selectedRaceId
+                        ? "Elige carrera"
+                        : puestos.length === 0
+                          ? "Sin puestos"
+                          : "Sin asignar"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SIN_PUESTO}>Sin asignar</SelectItem>
+                  {puestos.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.abbr ? `${p.abbr} · ` : ""}
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={altaRapida} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               <span className="ml-2">Añadir</span>
@@ -451,6 +583,8 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
                   <TableRow>
                     <TableHead>Nombre</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    {selectedRaceId && <TableHead>Puesto</TableHead>}
+                    {selectedRaceId && <TableHead>Acreditación</TableHead>}
                     <TableHead>DNI</TableHead>
                     <TableHead>Carnet</TableHead>
                     <TableHead className="text-center">Activo</TableHead>
@@ -471,6 +605,22 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
                           {v.phone}
                         </a>
                       </TableCell>
+                      {selectedRaceId && (
+                        <TableCell className="text-sm">
+                          {puestos.find((p) => p.id === asignaciones[v.id]?.post_id)?.name || (
+                            <span className="text-muted-foreground">sin puesto</span>
+                          )}
+                        </TableCell>
+                      )}
+                      {selectedRaceId && (
+                        <TableCell>
+                          {asignaciones[v.id]?.accreditation ? (
+                            <Badge className="font-mono">{asignaciones[v.id].accreditation}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell>
                         {v.dni ? (
                           <span className="font-mono text-sm">{v.dni}</span>
@@ -549,7 +699,26 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label htmlFor="f-vehiculo">Vehículo</Label>
+                <Input
+                  id="f-vehiculo"
+                  value={ficha.vehicle}
+                  onChange={(e) => setFicha({ ...ficha, vehicle: e.target.value })}
+                  placeholder="Berlingo blanco"
+                />
+              </div>
+              <div>
+                <Label htmlFor="f-matricula">Matrícula</Label>
+                <Input
+                  id="f-matricula"
+                  value={ficha.plate}
+                  onChange={(e) => setFicha({ ...ficha, plate: e.target.value })}
+                  className="font-mono uppercase"
+                  placeholder="1234ABC"
+                />
+              </div>
               <div>
                 <Label htmlFor="f-carnet">Carnet de conducir</Label>
                 <Input
@@ -559,15 +728,60 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
                   placeholder="B, A2…"
                 />
               </div>
-              <div>
-                <Label htmlFor="f-email">Email</Label>
-                <Input
-                  id="f-email"
-                  type="email"
-                  value={ficha.email}
-                  onChange={(e) => setFicha({ ...ficha, email: e.target.value })}
-                />
+            </div>
+
+            {selectedRaceId && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="f-puesto">Puesto en esta carrera</Label>
+                  <Select
+                    value={fichaPuesto || SIN_PUESTO}
+                    onValueChange={(v) => setFichaPuesto(v === SIN_PUESTO ? "" : v)}
+                    disabled={puestos.length === 0}
+                  >
+                    <SelectTrigger id="f-puesto">
+                      <SelectValue placeholder={puestos.length === 0 ? "Sin puestos creados" : "Sin asignar"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={SIN_PUESTO}>Sin asignar</SelectItem>
+                      {puestos.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.abbr ? `${p.abbr} · ` : ""}
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="f-acreditacion">Acreditación</Label>
+                  <Input
+                    id="f-acreditacion"
+                    readOnly
+                    className="font-mono bg-muted"
+                    value={
+                      (editando && asignaciones[editando.id]?.accreditation) ||
+                      (fichaPuesto
+                        ? `${puestos.find((p) => p.id === fichaPuesto)?.abbr || "···"}· al guardar`
+                        : "")
+                    }
+                    placeholder="Se genera al darle puesto"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Abreviatura del puesto + número correlativo. La asigna sola la base de datos.
+                  </p>
+                </div>
               </div>
+            )}
+
+            <div>
+              <Label htmlFor="f-email">Email</Label>
+              <Input
+                id="f-email"
+                type="email"
+                value={ficha.email}
+                onChange={(e) => setFicha({ ...ficha, email: e.target.value })}
+              />
             </div>
             <div>
               <Label htmlFor="f-notas">Notas</Label>

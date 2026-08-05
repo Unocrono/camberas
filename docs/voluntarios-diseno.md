@@ -51,6 +51,8 @@ full_name          text not null
 phone              text not null   -- imprescindible: es el canal del día de carrera
 dni                text            -- normalizado en mayúsculas y sin espacios
 driving_license    text            -- clases: 'B', 'A2', 'B, A2'…  vacío = no conduce
+vehicle            text            -- "Berlingo blanco"
+plate              text            -- matrícula, normalizada como el DNI
 email              text
 notes              text            -- "tiene coche", "solo mañanas", talla…
 active             bool default true
@@ -86,9 +88,8 @@ Sobre los tres datos nuevos:
 id                uuid pk
 race_id           uuid not null → races(id) on delete cascade
 name              text not null            -- "Cruce de la ermita"
-kind              text not null            -- cruce | avituallamiento | salida |
-                                           -- meta | guardarropa | parking |
-                                           -- escoba | movil | otro
+abbr              text                     -- 3 caracteres en mayúsculas: CRU
+post_type_id      uuid → race_post_types(id)
 needed            int not null default 1   -- cuántas personas hacen falta
 latitude          numeric
 longitude         numeric
@@ -98,6 +99,17 @@ post_order        int
 roadbook_item_id  uuid null → roadbook_items(id)   -- hereda km y coordenadas
 timing_point_id   uuid null → timing_points(id)    -- puesto que además cronometra
 ```
+
+Los tipos son **tabla con CRUD** (`race_post_types`: slug, etiqueta, icono,
+color, orden, activo), no una restricción `CHECK`: cada organización llama a
+sus puestos como los llama de verdad, y cambiar la lista no puede exigir una
+migración. Se siembran doce, incluidos señalización, sanitario y recogida de
+material. El `color` se usa en el mapa de puestos y para imprimir cada
+acreditación del color de su puesto.
+
+La **abreviatura** de 3 caracteres en mayúsculas es única dentro de la carrera:
+es lo que se lee de lejos en la acreditación y la raíz de su número. La
+pantalla la propone a partir del nombre y esquiva las ya usadas.
 
 **Tabla nueva, no reutilizar `timing_points`.** Solo dos o tres puestos son de
 cronometraje; los quince restantes (cruces, avituallamientos, guardarropa,
@@ -115,6 +127,7 @@ post_id       uuid not null → race_posts(id) on delete cascade
 volunteer_id  uuid not null → volunteers(id)
 role          text default 'apoyo'      -- responsable | apoyo
 status        text default 'propuesto'  -- propuesto | confirmado | no_disponible
+accreditation text                      -- CRU01, CRU02… la genera un trigger
 notes         text                      -- "va con el coche", "llega a las 8"
 assigned_by   uuid
 assigned_at   timestamptz default now()
@@ -129,6 +142,35 @@ vuelve habitual se añaden las columnas entonces.
 **Cobertura** = `needed` frente al número de asignaciones `confirmado` del
 puesto. Es la única cuenta que importa la víspera: qué puestos están al
 descubierto. RPC `voluntariado_cobertura(p_race_id)`.
+
+## La acreditación
+
+**Formato**: abreviatura del puesto + correlativo dentro de ese puesto —
+`CRU01`, `CRU02`, `MET01`. La genera un **trigger**, no la pantalla: así sale
+igual venga la asignación del alta rápida, de la ficha o de un importador. Si
+se cambia la abreviatura del puesto, la RPC `voluntariado_renumerar_puesto`
+rehace las de ese puesto en orden de asignación.
+
+Ideas para cuando toque imprimirlas (ninguna implementada todavía):
+
+- **Lo grande es el código, no el logo.** `CRU01` a tamaño legible a diez
+  metros permite al coordinador de zona identificar a alguien sin acercarse; el
+  nombre debajo, en pequeño.
+- **Color por tipo de puesto** — ya está el campo `color` en `race_post_types`.
+  De un vistazo se ve si alguien está donde no toca.
+- **El reverso es lo que salva el día**: teléfono del coordinador, 112, qué
+  hacer si hay un accidente, hora a la que se puede recoger. Cuesta cero
+  imprimirlo y evita la mitad de las llamadas.
+- **El número casa con el material.** Si el chaleco y la radio se entregan con
+  el número de la acreditación, la devolución se cuadra sola al terminar.
+- **QR al puesto**, con el patrón token de la casa (como `/timing?t=…`): abre
+  la hoja del puesto con ubicación, instrucciones y contactos. El día que se
+  quiera fichar presencia, ese mismo QR ya sirve.
+- **Acreditación ≠ seguro.** Llevar la tarjeta no significa estar cubierto: el
+  que la lleva tiene que estar en el listado con DNI. La pantalla de impresión
+  debería avisar antes de imprimir de quién va sin DNI.
+- **Formato tarjeta** 85×54 mm, ocho por A4, para plastificar o meter en
+  portacredenciales.
 
 ## La ubicación: en el puesto
 

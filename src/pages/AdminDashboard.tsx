@@ -38,6 +38,8 @@ import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPa
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
+import { PuestosManagement } from "@/components/admin/PuestosManagement";
+import { TiposPuestoManagement } from "@/components/admin/TiposPuestoManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
@@ -307,6 +309,8 @@ const AdminDashboard = () => {
             
             {/* La bolsa es del organizador: sin carrera seleccionada, la propia */}
             {currentView === "voluntariado" && <VoluntariadoManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "puestos" && <PuestosManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "tipos-puesto" && <TiposPuestoManagement />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
             {currentView === "gps-devices" && <GPSDevicesManagement />}
