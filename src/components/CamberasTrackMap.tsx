@@ -40,10 +40,11 @@ interface SosAlert {
 /**
  * Filtro por concepto para el mapa único (Camberas Org):
  * - corredores: tokens que NO están en el catálogo race_motos
- * - moto / organizacion / voluntario: tokens del catálogo con ese gps_role
+ * - mototv / organizacion / voluntario: tokens del catálogo con ese gps_role
+ *   (mototv = moto de grafismo/TV; las motos enlace van en organizacion)
  * Sin kind, el mapa muestra todo (comportamiento histórico).
  */
-export type TrackMapKind = 'corredores' | 'moto' | 'organizacion' | 'voluntario';
+export type TrackMapKind = 'corredores' | 'mototv' | 'organizacion' | 'voluntario';
 
 interface CamberasTrackMapProps {
   eventId?: string;        // filtrar por evento (opcional)
@@ -272,7 +273,7 @@ export function CamberasTrackMap({
       if (cancelled) return;
       const roles: Record<string, string> = {};
       for (const m of data || []) {
-        if (m.token_id) roles[m.token_id] = m.gps_role || 'moto';
+        if (m.token_id) roles[m.token_id] = m.gps_role || 'mototv';
       }
       setCatalogRoles(roles);
       catalogRolesRef.current = roles;

@@ -229,7 +229,8 @@ const ORG_MENU: OrgMenuGroup[] = [
       { id: "map-corredores", title: "Corredores", icon: MapPin, screen: "mapa", mapKind: "corredores" },
       { id: "map-organizacion", title: "Organización", icon: ShieldCheck, screen: "mapa", mapKind: "organizacion" },
       { id: "map-voluntarios", title: "Voluntarios", icon: HeartHandshake, screen: "mapa", mapKind: "voluntario" },
-      { id: "map-motos", title: "Motos", icon: Bike, screen: "mapa", mapKind: "moto" },
+      // MotoTV = moto de grafismo/overlay; las motos enlace van en Organización
+      { id: "map-mototv", title: "Moto TV", icon: Bike, screen: "mapa", mapKind: "mototv" },
     ],
   },
   {
