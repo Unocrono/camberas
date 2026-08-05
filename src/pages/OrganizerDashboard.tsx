@@ -266,11 +266,11 @@ const OrganizerDashboard = () => {
             {currentView === "voluntariado" && <VoluntariadoManagement selectedRaceId={selectedRaceId} />}
             {currentView === "puestos" && <PuestosManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
+            {/* Sin roadbookId fijo: el mapa autodetecta el rutómetro de la
+                carrera seleccionada y, si no tiene, pinta los GPX de sus
+                eventos. (Antes iba clavado el de La Chuleta y las demás
+                carreras salían sin recorrido.) */}
             {currentView === "camberas-track" && (
-              {/* Sin roadbookId fijo: el mapa autodetecta el rutómetro de la
-                  carrera seleccionada y, si no tiene, pinta los GPX de sus
-                  eventos. (Antes iba clavado el de La Chuleta y las demás
-                  carreras salían sin recorrido.) */}
               <CamberasTrackMap
                 eventId={selectedRaceId || undefined}
                 showSOSPanel={true}

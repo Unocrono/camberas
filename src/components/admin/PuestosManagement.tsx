@@ -30,7 +30,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -53,7 +55,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { MapPin, Plus, Pencil, Trash2, Loader2, ExternalLink, Users } from "lucide-react";
-import type { RacePostType } from "@/components/admin/TiposPuestoManagement";
+import { agruparTipos, type RacePostType } from "@/components/admin/TiposPuestoManagement";
 
 const db = supabase as any;
 
@@ -465,10 +467,22 @@ export function PuestosManagement({ selectedRaceId }: PuestosManagementProps) {
                     <SelectValue placeholder="Sin tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {tipos.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.label}
-                      </SelectItem>
+                    {/* Cabeceras de grupo no seleccionables */}
+                    {agruparTipos(tipos).map((g) => (
+                      <SelectGroup key={g.label}>
+                        <SelectLabel>{g.label}</SelectLabel>
+                        {g.tipos.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            <span className="inline-flex items-center gap-2">
+                              <span
+                                className="inline-block h-2.5 w-2.5 rounded-full"
+                                style={{ backgroundColor: t.color }}
+                              />
+                              {t.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>

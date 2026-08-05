@@ -54,8 +54,21 @@ export interface RacePostType {
   color: string;
   description: string | null;
   display_order: number;
+  group_label: string | null;
   is_active: boolean;
 }
+
+/** Agrupa los tipos respetando su display_order, para desplegables con cabecera */
+export const agruparTipos = (tipos: RacePostType[]) => {
+  const grupos: { label: string; tipos: RacePostType[] }[] = [];
+  for (const t of tipos) {
+    const label = t.group_label || "Otros";
+    const g = grupos.find((x) => x.label === label);
+    if (g) g.tipos.push(t);
+    else grupos.push({ label, tipos: [t] });
+  }
+  return grupos;
+};
 
 const VACIO = {
   label: "",
@@ -64,6 +77,7 @@ const VACIO = {
   color: "#64748B",
   description: "",
   display_order: 0,
+  group_label: "",
   is_active: true,
 };
 
@@ -116,6 +130,7 @@ export function TiposPuestoManagement() {
             color: t.color,
             description: t.description || "",
             display_order: t.display_order,
+            group_label: t.group_label || "",
             is_active: t.is_active,
           }
         : { ...VACIO, display_order: (tipos.at(-1)?.display_order ?? 0) + 10 },
@@ -136,6 +151,7 @@ export function TiposPuestoManagement() {
       color: form.color,
       description: form.description.trim() || null,
       display_order: form.display_order,
+      group_label: form.group_label.trim() || null,
       is_active: form.is_active,
     };
     const { error: err } = editando
@@ -212,6 +228,7 @@ export function TiposPuestoManagement() {
                   <TableRow>
                     <TableHead className="w-[60px]">Color</TableHead>
                     <TableHead>Tipo</TableHead>
+                    <TableHead>Grupo</TableHead>
                     <TableHead>Identificador</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead className="text-center">Orden</TableHead>
@@ -229,6 +246,7 @@ export function TiposPuestoManagement() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">{t.label}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{t.group_label || "—"}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{t.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{t.description || "—"}</TableCell>
                       <TableCell className="text-center">{t.display_order}</TableCell>
@@ -306,6 +324,22 @@ export function TiposPuestoManagement() {
                   />
                 </div>
               </div>
+            </div>
+            <div>
+              <Label htmlFor="t-grupo">Grupo</Label>
+              <Input
+                id="t-grupo"
+                value={form.group_label}
+                onChange={(e) => setForm({ ...form, group_label: e.target.value })}
+                list="grupos-tipos-puesto"
+                placeholder="El recorrido"
+              />
+              {/* Los grupos que ya existen se ofrecen; escribir uno nuevo lo crea */}
+              <datalist id="grupos-tipos-puesto">
+                {[...new Set(tipos.map((t) => t.group_label).filter(Boolean))].map((g) => (
+                  <option key={g as string} value={g as string} />
+                ))}
+              </datalist>
             </div>
             <div>
               <Label htmlFor="t-desc">Descripción</Label>
