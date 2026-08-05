@@ -101,6 +101,8 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
   const [ownerId, setOwnerId] = useState<string | null>(null);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [loading, setLoading] = useState(true);
+  // El error se queda a la vista: un toast se va solo y deja la pantalla muda
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [busqueda, setBusqueda] = useState("");
 
@@ -146,18 +148,20 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
 
   const cargar = async () => {
     setLoading(true);
-    const { data, error } = await db
+    const { data, error: err } = await db
       .from("volunteers")
       .select("*")
       .eq("organizer_id", ownerId)
       .order("full_name");
-    if (error) {
-      toast({
-        title: "No se pudo cargar el voluntariado",
-        description: error.message,
-        variant: "destructive",
-      });
+    if (err) {
+      // 42P01 = la tabla no existe todavía: falta aplicar la migración
+      setError(
+        err.code === "42P01" || /does not exist/i.test(err.message || "")
+          ? "Faltan las tablas del voluntariado: aplica la migración 20260805100000_voluntariado.sql en el editor SQL de Supabase."
+          : err.message || "Error desconocido",
+      );
     } else {
+      setError(null);
       setVolunteers((data || []) as Volunteer[]);
     }
     setLoading(false);
@@ -331,14 +335,6 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
   const sinDni = volunteers.filter((v) => v.active && !v.dni).length;
   const conCarnet = volunteers.filter((v) => v.active && v.driving_license).length;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <Card>
@@ -368,6 +364,13 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+              <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
+              <p>{error}</p>
+            </div>
+          )}
+
           {/* Alta rápida: lo mínimo para que la persona exista */}
           <div className="flex flex-wrap items-end gap-2 rounded-lg border border-dashed border-border p-3">
             <div className="flex-1 min-w-[180px]">
@@ -430,7 +433,12 @@ export function VoluntariadoManagement({ selectedRaceId }: VoluntariadoManagemen
             </div>
           </div>
 
-          {filtrados.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Cargando el voluntariado…
+            </div>
+          ) : filtrados.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
               {volunteers.length === 0
                 ? "Todavía no hay nadie en la bolsa. Empieza por el alta rápida de arriba o importa una lista."
