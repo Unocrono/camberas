@@ -37,6 +37,7 @@ import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPanel";
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
+import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
@@ -304,6 +305,8 @@ const AdminDashboard = () => {
               )
             )}
             
+            {/* La bolsa es del organizador: sin carrera seleccionada, la propia */}
+            {currentView === "voluntariado" && <VoluntariadoManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "gps-deletion" && <GPSPositionsDeletion />}
             {currentView === "gps-devices" && <GPSDevicesManagement />}

@@ -26,6 +26,7 @@ import { TimingPointsManagement } from "@/components/admin/TimingPointsManagemen
 import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
+import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { CamberasTrackMap } from "@/components/CamberasTrackMap";
@@ -253,6 +254,8 @@ const OrganizerDashboard = () => {
                 </div>
               )
             )}
+            {/* La bolsa es del organizador, no de la carrera: funciona sin selección */}
+            {currentView === "voluntariado" && <VoluntariadoManagement selectedRaceId={selectedRaceId} />}
             {currentView === "moto-map" && <MotoMapViewer selectedRaceId={selectedRaceId} />}
             {currentView === "camberas-track" && (
               <CamberasTrackMap
