@@ -10,7 +10,8 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Radio, AlertTriangle, Battery, Gauge, Clock, Users } from 'lucide-react';
+import { GroupPlaybackControls } from '@/components/GroupPlaybackControls';
+import { Radio, AlertTriangle, Battery, Gauge, Clock, Users, Search, Repeat, Loader2 } from 'lucide-react';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,37 @@ interface TrackedRunner {
   timestamp: string;
   hasSOS: boolean;
 }
+
+/** Un punto del track para la repetición (t en ms epoch) */
+interface ReplayPoint {
+  t: number;
+  lat: number;
+  lng: number;
+}
+
+/** Track completo de un participante seleccionado para la repetición */
+interface ReplayTrack {
+  bib: string;
+  name: string;
+  points: ReplayPoint[];
+}
+
+/** Posición interpolada en el instante t (búsqueda binaria + lerp) */
+const positionAt = (points: ReplayPoint[], t: number): [number, number] | null => {
+  if (points.length === 0 || t < points[0].t) return null;
+  let lo = 0;
+  let hi = points.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (points[mid].t <= t) lo = mid;
+    else hi = mid - 1;
+  }
+  const a = points[lo];
+  const b = points[lo + 1];
+  if (!b) return [a.lng, a.lat];
+  const f = (t - a.t) / (b.t - a.t || 1);
+  return [a.lng + (b.lng - a.lng) * f, a.lat + (b.lat - a.lat) * f];
+};
 
 interface SosAlert {
   id: string;
@@ -176,6 +208,15 @@ export function CamberasTrackMap({
   }, [mapboxTokenProp]);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const sosMarkers = useRef<mapboxgl.Marker[]>([]);
+
+  // ── Selección + repetición de grupo (reloj maestro, como en LiveGPSMap) ──
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [replayTracks, setReplayTracks] = useState<Map<string, ReplayTrack> | null>(null);
+  const [replayRange, setReplayRange] = useState<{ t0: number; t1: number } | null>(null);
+  const [replayLoading, setReplayLoading] = useState(false);
+  const replayMarkers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const replayActiveRef = useRef(false);
 
   const [runners, setRunners] = useState<TrackedRunner[]>([]);
   const [sosAlerts, setSosAlerts] = useState<SosAlert[]>([]);
@@ -531,6 +572,12 @@ export function CamberasTrackMap({
       }
     }
 
+    // En repetición, el directo no debe verse: los marcadores en vivo se
+    // ocultan (incluidos los que acaban de nacer por realtime)
+    if (replayActiveRef.current) {
+      markers.current.forEach(m => { m.getElement().style.display = 'none'; });
+    }
+
     // Encuadre inicial UNA sola vez y solo si no hay recorrido pintado:
     // un GPS lejano (pruebas a 1.000 km) no debe arrastrar la vista, y los
     // reencuadres continuos pisaban el zoom manual del operador
@@ -793,11 +840,119 @@ export function CamberasTrackMap({
     }
   }, [sosAlerts, mapReady]);
 
+  // ── Repetición de grupo: cargar tracks, reproducir, salir ────────────────
+
+  const toggleSelected = (tokenId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(tokenId)) next.delete(tokenId);
+      else next.add(tokenId);
+      return next;
+    });
+  };
+
+  /** Track completo de un token, paginado (a 1-2 s puede haber miles de filas) */
+  const loadTrackPoints = async (tokenId: string): Promise<ReplayPoint[]> => {
+    const points: ReplayPoint[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from('gps_positions')
+        .select('lat, lng, timestamp')
+        .eq('token_id', tokenId)
+        .order('timestamp', { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      for (const p of data) {
+        points.push({ t: new Date(p.timestamp).getTime(), lat: p.lat, lng: p.lng });
+      }
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return points;
+  };
+
+  const startReplay = async () => {
+    if (selectedIds.size === 0) return;
+    setReplayLoading(true);
+    try {
+      const tracks = new Map<string, ReplayTrack>();
+      for (const id of selectedIds) {
+        const runner = runners.find(r => r.token_id === id);
+        if (!runner) continue;
+        const points = await loadTrackPoints(id);
+        if (points.length >= 2) {
+          tracks.set(id, { bib: runner.bib_number, name: runner.participant_name, points });
+        }
+      }
+      if (tracks.size === 0) return; // nadie con track suficiente
+      let t0 = Infinity;
+      let t1 = -Infinity;
+      for (const tr of tracks.values()) {
+        t0 = Math.min(t0, tr.points[0].t);
+        t1 = Math.max(t1, tr.points[tr.points.length - 1].t);
+      }
+      replayActiveRef.current = true;
+      setReplayTracks(tracks);
+      setReplayRange({ t0, t1 });
+      // El directo se esconde mientras dura la repetición
+      markers.current.forEach(m => { m.getElement().style.display = 'none'; });
+      setSelectedRunner(null);
+    } finally {
+      setReplayLoading(false);
+    }
+  };
+
+  const stopReplay = () => {
+    replayActiveRef.current = false;
+    setReplayTracks(null);
+    setReplayRange(null);
+    replayMarkers.current.forEach(m => m.remove());
+    replayMarkers.current.clear();
+    markers.current.forEach(m => { m.getElement().style.display = ''; });
+  };
+
+  /** El reloj maestro mueve a cada seleccionado a donde estaba en ese instante */
+  const handleReplayTime = useCallback((timeMs: number) => {
+    if (!replayTracks || !map.current) return;
+    for (const [id, tr] of replayTracks) {
+      const pos = positionAt(tr.points, timeMs);
+      let marker = replayMarkers.current.get(id);
+      if (!pos) {
+        // Aún no había salido en ese instante
+        if (marker) {
+          marker.remove();
+          replayMarkers.current.delete(id);
+        }
+        continue;
+      }
+      if (!marker) {
+        const el = document.createElement('div');
+        el.innerHTML = markerHTML(tr.bib, false, null);
+        marker = new mapboxgl.Marker(el).setLngLat(pos).addTo(map.current);
+        replayMarkers.current.set(id, marker);
+      } else {
+        marker.setLngLat(pos);
+      }
+    }
+  }, [replayTracks]);
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const activeRunners = runners.filter(r => {
     const ago = (Date.now() - new Date(r.timestamp).getTime()) / 1000;
     return ago < 300; // activo si posición < 5 min
+  });
+
+  // Búsqueda por dorsal o nombre (filtra solo la lista, no el mapa)
+  const visibleRunners = runners.filter(r => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      (r.bib_number || '').toLowerCase().includes(q) ||
+      (r.participant_name || '').toLowerCase().includes(q)
+    );
   });
 
   return (
@@ -903,6 +1058,30 @@ export function CamberasTrackMap({
             </button>
           </div>
         )}
+
+        {/* Reproductor de la repetición: reloj maestro del grupo elegido */}
+        {replayTracks && replayRange && (
+          <div className="absolute inset-x-3 bottom-3 z-20 space-y-2 md:inset-x-auto md:left-1/2 md:w-[560px] md:-translate-x-1/2">
+            <div className="flex items-center justify-between rounded-full bg-black/70 px-3 py-1">
+              <span className="flex items-center gap-2 text-xs font-semibold text-white">
+                <Repeat className="h-3 w-3 text-[#e94560]" />
+                REPETICIÓN · {replayTracks.size} {replayTracks.size === 1 ? 'participante' : 'participantes'}
+              </span>
+              <button
+                onClick={stopReplay}
+                className="text-xs font-bold text-[#e94560] hover:underline"
+              >
+                Volver al directo ✕
+              </button>
+            </div>
+            <GroupPlaybackControls
+              t0={replayRange.t0}
+              t1={replayRange.t1}
+              participantes={replayTracks.size}
+              onTimeChange={handleReplayTime}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Panel lateral ── */}
@@ -941,54 +1120,116 @@ export function CamberasTrackMap({
           </div>
         )}
 
-        {/* Lista de corredores */}
-        <div className="bg-[#16213e] rounded-xl border border-border flex-1 overflow-hidden">
-          <div className="p-3 border-b border-border text-sm font-semibold">Todos los corredores</div>
-          <ScrollArea className="h-64 md:h-full">
-            {runners.length === 0 ? (
+        {/* Lista de corredores: búsqueda + selección para la repetición */}
+        <div className="bg-[#16213e] rounded-xl border border-border flex-1 overflow-hidden flex flex-col">
+          <div className="p-3 border-b border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">Todos los corredores</span>
+              {selectedIds.size > 0 && !replayTracks && (
+                <button
+                  className="text-xs text-gray-400 hover:text-white"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  ✕ Quitar ({selectedIds.size})
+                </button>
+              )}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-500" />
+              <input
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Buscar dorsal o nombre…"
+                className="w-full rounded-full border border-white/10 bg-black/30 py-1.5 pl-8 pr-3 text-xs text-white outline-none placeholder:text-gray-500 focus:border-[#e94560]/60"
+              />
+            </div>
+            {/* Repetición del grupo seleccionado */}
+            {selectedIds.size > 0 && !replayTracks && (
+              <button
+                onClick={startReplay}
+                disabled={replayLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#e94560] py-1.5 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {replayLoading ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Cargando tracks…
+                  </>
+                ) : (
+                  <>
+                    <Repeat className="h-3.5 w-3.5" />
+                    Repetición ({selectedIds.size})
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+          <ScrollArea className="h-64 md:h-full md:flex-1">
+            {visibleRunners.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
-                Sin posiciones aún.<br />Esperando datos de la app...
+                {runners.length === 0 ? (
+                  <>Sin posiciones aún.<br />Esperando datos de la app...</>
+                ) : (
+                  <>Nadie coincide con la búsqueda.</>
+                )}
               </div>
             ) : (
-              runners
+              visibleRunners
                 .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
                 .map(runner => {
                   const ago = (Date.now() - new Date(runner.timestamp).getTime()) / 1000;
                   const isActive = ago < 60;
                   return (
-                    <button
+                    <div
                       key={runner.token_id}
-                      className="w-full text-left px-3 py-2 hover:bg-white/5 border-b border-border/50 transition-colors"
-                      onClick={() => {
-                        setSelectedRunner(runner);
-                        map.current?.flyTo({ center: [runner.lng, runner.lat], zoom: 14 });
-                      }}
+                      className="flex w-full items-center border-b border-border/50 transition-colors hover:bg-white/5"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[#e94560] font-bold text-sm w-8">{runner.bib_number}</span>
-                          <span className="text-xs text-white truncate max-w-[120px]">{runner.participant_name}</span>
-                          {runner.hasSOS && <span className="text-xs">🆘</span>}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-600'}`} />
-                          <span className="text-xs text-gray-500">{timeAgo(runner.timestamp)}</span>
-                        </div>
-                      </div>
-                      {runner.battery !== null && (
-                        <div className="ml-10 mt-1">
-                          <div className="w-16 h-1 bg-gray-700 rounded overflow-hidden">
-                            <div
-                              className="h-full rounded"
-                              style={{
-                                width: `${runner.battery}%`,
-                                background: batteryColor(runner.battery),
-                              }}
-                            />
+                      {/* Selección para la repetición */}
+                      <label
+                        className="shrink-0 cursor-pointer py-2 pl-3 pr-1"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(runner.token_id)}
+                          onChange={() => toggleSelected(runner.token_id)}
+                          className="h-3.5 w-3.5 accent-[#e94560]"
+                          aria-label={`Seleccionar a ${runner.participant_name}`}
+                        />
+                      </label>
+                      <button
+                        className="min-w-0 flex-1 px-2 py-2 text-left"
+                        onClick={() => {
+                          setSelectedRunner(runner);
+                          map.current?.flyTo({ center: [runner.lng, runner.lat], zoom: 14 });
+                        }}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#e94560] font-bold text-sm w-8">{runner.bib_number}</span>
+                            <span className="text-xs text-white truncate max-w-[110px]">{runner.participant_name}</span>
+                            {runner.hasSOS && <span className="text-xs">🆘</span>}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-600'}`} />
+                            <span className="text-xs text-gray-500">{timeAgo(runner.timestamp)}</span>
                           </div>
                         </div>
-                      )}
-                    </button>
+                        {runner.battery !== null && (
+                          <div className="ml-10 mt-1">
+                            <div className="w-16 h-1 bg-gray-700 rounded overflow-hidden">
+                              <div
+                                className="h-full rounded"
+                                style={{
+                                  width: `${runner.battery}%`,
+                                  background: batteryColor(runner.battery),
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   );
                 })
             )}
