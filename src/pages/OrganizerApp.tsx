@@ -244,10 +244,11 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
   {
+    // Un solo item: el grupo abre /profile directamente. ("Volver al
+    // sitio" fuera: la web se alcanza con la flecha/inicio de la app)
     key: "perfil", label: "Mi Perfil", icon: UserCircle,
     items: [
       { id: "u-profile", title: "Mi Perfil", icon: UserCircle, route: "/profile" },
-      { id: "u-site", title: "Volver al sitio", icon: Home, route: "/" },
     ],
   },
 ];
