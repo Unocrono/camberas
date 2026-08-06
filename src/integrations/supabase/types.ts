@@ -501,6 +501,120 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_redemptions: {
+        Row: {
+          amount_discounted: number
+          coupon_id: string
+          created_at: string
+          email: string
+          id: string
+          registration_id: string
+        }
+        Insert: {
+          amount_discounted?: number
+          coupon_id: string
+          created_at?: string
+          email: string
+          id?: string
+          registration_id: string
+        }
+        Update: {
+          amount_discounted?: number
+          coupon_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          registration_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: true
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          applies_to: string
+          code: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          max_uses: number | null
+          max_uses_per_email: number
+          min_amount: number | null
+          notes: string | null
+          race_distance_id: string | null
+          race_id: string
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          active?: boolean
+          applies_to?: string
+          code: string
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          id?: string
+          max_uses?: number | null
+          max_uses_per_email?: number
+          min_amount?: number | null
+          notes?: string | null
+          race_distance_id?: string | null
+          race_id: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          active?: boolean
+          applies_to?: string
+          code?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          max_uses?: number | null
+          max_uses_per_email?: number
+          min_amount?: number | null
+          notes?: string | null
+          race_distance_id?: string | null
+          race_id?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coupons_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       edge_function_flags: {
         Row: {
           created_at: string
@@ -784,6 +898,7 @@ export type Database = {
           participant_name: string | null
           phone: string | null
           token: string | null
+          user_id: string | null
         }
         Insert: {
           active?: boolean | null
@@ -797,6 +912,7 @@ export type Database = {
           participant_name?: string | null
           phone?: string | null
           token?: string | null
+          user_id?: string | null
         }
         Update: {
           active?: boolean | null
@@ -810,6 +926,7 @@ export type Database = {
           participant_name?: string | null
           phone?: string | null
           token?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1878,6 +1995,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           currency: string
+          discount_amount: number | null
           id: string
           merchant_params: Json | null
           order_number: string
@@ -1893,6 +2011,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number | null
           id?: string
           merchant_params?: Json | null
           order_number: string
@@ -1908,6 +2027,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           currency?: string
+          discount_amount?: number | null
           id?: string
           merchant_params?: Json | null
           order_number?: string
@@ -2030,6 +2150,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      race_cancellation_tiers: {
+        Row: {
+          created_at: string
+          days_before: number
+          id: string
+          race_id: string
+          refund_percent: number
+        }
+        Insert: {
+          created_at?: string
+          days_before: number
+          id?: string
+          race_id: string
+          refund_percent: number
+        }
+        Update: {
+          created_at?: string
+          days_before?: number
+          id?: string
+          race_id?: string
+          refund_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_cancellation_tiers_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       race_categories: {
         Row: {
@@ -2415,6 +2567,7 @@ export type Database = {
           color: string
           created_at: string
           description: string | null
+          gps_role: string
           id: string
           is_active: boolean
           moto_order: number
@@ -2422,6 +2575,7 @@ export type Database = {
           name_tv: string | null
           race_distance_id: string | null
           race_id: string
+          token_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -2429,6 +2583,7 @@ export type Database = {
           color?: string
           created_at?: string
           description?: string | null
+          gps_role?: string
           id?: string
           is_active?: boolean
           moto_order?: number
@@ -2436,6 +2591,7 @@ export type Database = {
           name_tv?: string | null
           race_distance_id?: string | null
           race_id: string
+          token_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2443,6 +2599,7 @@ export type Database = {
           color?: string
           created_at?: string
           description?: string | null
+          gps_role?: string
           id?: string
           is_active?: boolean
           moto_order?: number
@@ -2450,6 +2607,7 @@ export type Database = {
           name_tv?: string | null
           race_distance_id?: string | null
           race_id?: string
+          token_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -2473,6 +2631,128 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_post_types: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          display_order: number
+          icon: string
+          id: string
+          is_active: boolean
+          label: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      race_posts: {
+        Row: {
+          abbr: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          location_hint: string | null
+          longitude: number | null
+          name: string
+          needed: number
+          notes: string | null
+          post_order: number | null
+          post_type_id: string | null
+          race_id: string
+          roadbook_item_id: string | null
+          timing_point_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          abbr?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_hint?: string | null
+          longitude?: number | null
+          name: string
+          needed?: number
+          notes?: string | null
+          post_order?: number | null
+          post_type_id?: string | null
+          race_id: string
+          roadbook_item_id?: string | null
+          timing_point_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abbr?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          location_hint?: string | null
+          longitude?: number | null
+          name?: string
+          needed?: number
+          notes?: string | null
+          post_order?: number | null
+          post_type_id?: string | null
+          race_id?: string
+          roadbook_item_id?: string | null
+          timing_point_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_posts_post_type_id_fkey"
+            columns: ["post_type_id"]
+            isOneToOne: false
+            referencedRelation: "race_post_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_posts_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_posts_roadbook_item_id_fkey"
+            columns: ["roadbook_item_id"]
+            isOneToOne: false
+            referencedRelation: "roadbook_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_posts_timing_point_id_fkey"
+            columns: ["timing_point_id"]
+            isOneToOne: false
+            referencedRelation: "timing_points"
             referencedColumns: ["id"]
           },
         ]
@@ -2635,6 +2915,7 @@ export type Database = {
           reason: string
           registration_id: string
           timing_point_id: string | null
+          token_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2648,6 +2929,7 @@ export type Database = {
           reason: string
           registration_id: string
           timing_point_id?: string | null
+          token_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2661,6 +2943,7 @@ export type Database = {
           reason?: string
           registration_id?: string
           timing_point_id?: string | null
+          token_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -2790,10 +3073,12 @@ export type Database = {
           gps_tracking_enabled: boolean | null
           gps_update_frequency: number | null
           gpx_file_url: string | null
+          group_type: string
           id: string
           image_url: string | null
           is_featured: boolean
           is_visible: boolean
+          join_code: string | null
           location: string
           logo_url: string | null
           max_participants: number | null
@@ -2820,10 +3105,12 @@ export type Database = {
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
           gpx_file_url?: string | null
+          group_type?: string
           id?: string
           image_url?: string | null
           is_featured?: boolean
           is_visible?: boolean
+          join_code?: string | null
           location: string
           logo_url?: string | null
           max_participants?: number | null
@@ -2850,10 +3137,12 @@ export type Database = {
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
           gpx_file_url?: string | null
+          group_type?: string
           id?: string
           image_url?: string | null
           is_featured?: boolean
           is_visible?: boolean
+          join_code?: string | null
           location?: string
           logo_url?: string | null
           max_participants?: number | null
@@ -3236,6 +3525,8 @@ export type Database = {
           city: string | null
           club: string | null
           country: string | null
+          coupon_discount: number | null
+          coupon_id: string | null
           created_at: string
           dni_passport: string | null
           email: string | null
@@ -3266,6 +3557,8 @@ export type Database = {
           city?: string | null
           club?: string | null
           country?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
           created_at?: string
           dni_passport?: string | null
           email?: string | null
@@ -3296,6 +3589,8 @@ export type Database = {
           city?: string | null
           club?: string | null
           country?: string | null
+          coupon_discount?: number | null
+          coupon_id?: string | null
           created_at?: string
           dni_passport?: string | null
           email?: string | null
@@ -3318,6 +3613,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "registrations_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registrations_gender_id_fkey"
             columns: ["gender_id"]
@@ -3826,6 +4128,7 @@ export type Database = {
           notes: string | null
           point_order: number | null
           race_id: string
+          token_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3837,6 +4140,7 @@ export type Database = {
           notes?: string | null
           point_order?: number | null
           race_id: string
+          token_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3848,6 +4152,7 @@ export type Database = {
           notes?: string | null
           point_order?: number | null
           race_id?: string
+          token_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3885,6 +4190,7 @@ export type Database = {
           status_code: string | null
           timing_point_id: string | null
           timing_timestamp: string
+          token_id: string | null
           ultra_id: number | null
           updated_at: string | null
         }
@@ -3912,6 +4218,7 @@ export type Database = {
           status_code?: string | null
           timing_point_id?: string | null
           timing_timestamp: string
+          token_id?: string | null
           ultra_id?: number | null
           updated_at?: string | null
         }
@@ -3939,6 +4246,7 @@ export type Database = {
           status_code?: string | null
           timing_point_id?: string | null
           timing_timestamp?: string
+          token_id?: string | null
           ultra_id?: number | null
           updated_at?: string | null
         }
@@ -4055,12 +4363,137 @@ export type Database = {
         }
         Relationships: []
       }
+      volunteer_assignments: {
+        Row: {
+          accreditation: string | null
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          notes: string | null
+          post_id: string
+          race_id: string
+          role: string
+          status: string
+          volunteer_id: string
+        }
+        Insert: {
+          accreditation?: string | null
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          notes?: string | null
+          post_id: string
+          race_id: string
+          role?: string
+          status?: string
+          volunteer_id: string
+        }
+        Update: {
+          accreditation?: string | null
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          notes?: string | null
+          post_id?: string
+          race_id?: string
+          role?: string
+          status?: string
+          volunteer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_assignments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "race_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volunteer_assignments_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "volunteer_assignments_volunteer_id_fkey"
+            columns: ["volunteer_id"]
+            isOneToOne: false
+            referencedRelation: "volunteers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      volunteers: {
+        Row: {
+          active: boolean
+          created_at: string
+          dni: string | null
+          driving_license: string | null
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          organizer_id: string
+          phone: string
+          plate: string | null
+          updated_at: string
+          vehicle: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          dni?: string | null
+          driving_license?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          organizer_id: string
+          phone: string
+          plate?: string | null
+          updated_at?: string
+          vehicle?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          dni?: string | null
+          driving_license?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          organizer_id?: string
+          phone?: string
+          plate?: string | null
+          updated_at?: string
+          vehicle?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      actualizar_grupetta: {
+        Args: {
+          p_desnivel?: number
+          p_distancia_km?: number
+          p_fecha?: string
+          p_gpx_url?: string
+          p_hora?: string
+          p_imagen_url?: string
+          p_lugar?: string
+          p_nombre?: string
+          p_publicada?: boolean
+          p_race_id: string
+        }
+        Returns: undefined
+      }
       assign_next_bib: { Args: { p_distance_id: string }; Returns: number }
+      borrar_grupetta: { Args: { p_race_id: string }; Returns: undefined }
       calculate_race_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -4090,6 +4523,118 @@ export type Database = {
           timing_reading_id: string
         }[]
       }
+      coupon_uses: {
+        Args: { p_coupon_id: string; p_email?: string }
+        Returns: number
+      }
+      crear_grupetta: {
+        Args: {
+          p_fecha?: string
+          p_hora?: string
+          p_lugar?: string
+          p_nombre: string
+        }
+        Returns: Json
+      }
+      cronometrador_borrar_lectura: {
+        Args: { p_reading_id: string; p_token: string }
+        Returns: boolean
+      }
+      cronometrador_borrar_retirada: {
+        Args: { p_id: string; p_token: string }
+        Returns: boolean
+      }
+      cronometrador_contexto: { Args: { p_token: string }; Returns: Json }
+      cronometrador_editar_lectura: {
+        Args: {
+          p_bib: number
+          p_reading_id: string
+          p_timestamp: string
+          p_token: string
+        }
+        Returns: boolean
+      }
+      cronometrador_editar_retirada: {
+        Args: {
+          p_id: string
+          p_motivo: string
+          p_tipo: string
+          p_token: string
+        }
+        Returns: boolean
+      }
+      cronometrador_fichar: {
+        Args: {
+          p_bib: number
+          p_notes?: string
+          p_status_code?: string
+          p_timestamp: string
+          p_token: string
+        }
+        Returns: string
+      }
+      cronometrador_lecturas: {
+        Args: { p_limit?: number; p_token: string }
+        Returns: {
+          bib_number: number
+          id: string
+          notes: string
+          status_code: string
+          timing_timestamp: string
+        }[]
+      }
+      cronometrador_puesto: {
+        Args: { p_token: string }
+        Returns: {
+          race_id: string
+          timing_point_id: string
+          token_id: string
+        }[]
+      }
+      cronometrador_retirada: {
+        Args: {
+          p_bib: number
+          p_motivo: string
+          p_tipo: string
+          p_token: string
+        }
+        Returns: string
+      }
+      cronometrador_retiradas: {
+        Args: { p_token: string }
+        Returns: {
+          abandon_type: string
+          bib_number: number
+          created_at: string
+          id: string
+          reason: string
+          registration_id: string
+          timing_point_id: string
+        }[]
+      }
+      cronometrador_startlist: {
+        Args: { p_token: string }
+        Returns: {
+          bib_number: number
+          event_name: string
+          first_name: string
+          last_name: string
+          race_distance_id: string
+          registration_id: string
+        }[]
+      }
+      generar_token_corredor: {
+        Args: { p_bib: string; p_distance_id: string; p_nombre?: string }
+        Returns: Json
+      }
+      generar_token_cronometrador: {
+        Args: { p_distance_id?: string; p_timing_point_id: string }
+        Returns: Json
+      }
+      generar_token_moto: {
+        Args: { p_distance_id?: string; p_race_moto_id: string }
+        Returns: Json
+      }
       generate_split_times: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -4102,6 +4647,23 @@ export type Database = {
         Returns: string
       }
       get_current_user_email: { Args: never; Returns: string }
+      get_event_participants_replay: {
+        Args: { p_distance_id?: string; p_race_id: string }
+        Returns: {
+          battery: number
+          bib_number: string
+          gps_id: string
+          gps_timestamp: string
+          heading: number
+          latitude: number
+          longitude: number
+          race_distance_id: string
+          registration_id: string
+          runner_name: string
+          source: string
+          speed: number
+        }[]
+      }
       get_gender_id_from_text: {
         Args: { gender_text: string }
         Returns: number
@@ -4158,6 +4720,15 @@ export type Database = {
         Args: { p_registration_id: string }
         Returns: string
       }
+      get_token_track: {
+        Args: { p_token_id: string }
+        Returns: {
+          lat: number
+          lng: number
+          speed: number
+          ts: string
+        }[]
+      }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_users_with_emails: {
         Args: never
@@ -4165,6 +4736,14 @@ export type Database = {
           email: string
           user_id: string
         }[]
+      }
+      gps_capture_window: {
+        Args: { p_distance_id: string }
+        Returns: Record<string, unknown>
+      }
+      gps_cutoff_interval: {
+        Args: { p_cutoff: string; p_group: string }
+        Returns: string
       }
       has_role: {
         Args: {
@@ -4190,6 +4769,37 @@ export type Database = {
           participant_name: string
         }[]
       }
+      mis_grupettas: {
+        Args: never
+        Returns: {
+          desnivel: number
+          distance_id: string
+          distancia: number
+          fecha: string
+          gpx: string
+          hora: string
+          imagen: string
+          inscritos: Json
+          join_code: string
+          lugar: string
+          miembros: number
+          nombre: string
+          publicada: boolean
+          race_id: string
+          slug: string
+        }[]
+      }
+      mis_salidas: {
+        Args: never
+        Returns: {
+          dorsal: string
+          fecha: string
+          nombre_grupo: string
+          posiciones: number
+          slug: string
+          token_id: string
+        }[]
+      }
       process_event_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -4197,6 +4807,11 @@ export type Database = {
           in_progress_count: number
           processed_count: number
         }[]
+      }
+      purge_gps_antiguos: { Args: never; Returns: undefined }
+      revocar_token_corredor: {
+        Args: { p_token_row_id: string }
+        Returns: undefined
       }
       seed_default_registration_fields: {
         Args: { p_race_id: string }
@@ -4206,6 +4821,54 @@ export type Database = {
         Args: { p_distance_id: string }
         Returns: undefined
       }
+      tokens_corredores_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          activo: boolean
+          bib: string
+          device_id: string
+          distance_id: string
+          evento: string
+          nombre: string
+          token: string
+          token_row_id: string
+        }[]
+      }
+      tokens_cronometraje_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          activo: boolean
+          bib: string
+          device_id: string
+          distance_id: string
+          linked_at: string
+          nombre: string
+          timing_point_id: string
+          token: string
+        }[]
+      }
+      tokens_motos_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          activo: boolean
+          bib: string
+          distance_id: string
+          nombre: string
+          race_moto_id: string
+          token: string
+        }[]
+      }
+      unirse_grupetta:
+        | { Args: { p_code: string; p_nombre: string }; Returns: Json }
+        | {
+            Args: {
+              p_acepta?: boolean
+              p_code: string
+              p_guardar?: boolean
+              p_nombre: string
+            }
+            Returns: Json
+          }
       unlink_gps_token: {
         Args: { p_device_id: string; p_token_id: string }
         Returns: boolean
@@ -4226,6 +4889,27 @@ export type Database = {
         Args: { p_race_id: string }
         Returns: boolean
       }
+      voluntariado_cobertura: {
+        Args: { p_race_id: string }
+        Returns: {
+          abbr: string
+          asignados: number
+          color: string
+          confirmados: number
+          latitude: number
+          longitude: number
+          name: string
+          needed: number
+          post_id: string
+          post_order: number
+          sin_dni: number
+          tipo: string
+        }[]
+      }
+      voluntariado_renumerar_puesto: {
+        Args: { p_post_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role:
@@ -4236,6 +4920,7 @@ export type Database = {
         | "moto"
         | "comisario"
         | "editor"
+        | "capo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -4371,6 +5056,7 @@ export const Constants = {
         "moto",
         "comisario",
         "editor",
+        "capo",
       ],
     },
   },
