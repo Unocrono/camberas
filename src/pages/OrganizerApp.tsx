@@ -22,6 +22,7 @@ import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
+import { OrgLastRegistrations } from "@/components/org/OrgLastRegistrations";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home,
@@ -74,12 +75,6 @@ interface RaceSummary {
   by_source?: SourceSummary[];
   last_registrations: LastRegistration[];
 }
-
-const SOURCE_LABEL: Record<string, string> = {
-  gateway: "Pasarela",
-  manual: "Alta manual",
-  free: "Gratuitas",
-};
 
 interface RaceOption {
   id: string;
@@ -565,6 +560,27 @@ const OrganizerApp = () => {
 
         {summary && (
           <>
+            {/* Por recorrido: lo primero del informe — es lo que se mira
+                a diario (cómo va llenándose cada evento) */}
+            <section>
+              <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Por recorrido</p>
+              <div className="space-y-2">
+                {summary.by_distance.map((d) => (
+                  <div key={d.distance_id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+                    <div>
+                      <p className="font-archivo uppercase">{d.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {d.count}
+                        {d.max_participants ? ` / ${d.max_participants}` : ""} inscritos
+                        {d.max_participants ? ` · quedan ${Math.max(0, d.max_participants - d.count)}` : ""}
+                      </p>
+                    </div>
+                    <p className="font-archivo text-lg text-secondary">{euro(d.revenue)}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
             {/* Números clave */}
             <section className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-border bg-card p-4">
@@ -593,89 +609,12 @@ const OrganizerApp = () => {
               </div>
             </section>
 
-            {/* Por distancia */}
-            <section>
-              <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Por recorrido</p>
-              <div className="space-y-2">
-                {summary.by_distance.map((d) => (
-                  <div key={d.distance_id} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-                    <div>
-                      <p className="font-archivo uppercase">{d.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {d.count}
-                        {d.max_participants ? ` / ${d.max_participants}` : ""} inscritos
-                        {d.max_participants ? ` · quedan ${Math.max(0, d.max_participants - d.count)}` : ""}
-                      </p>
-                    </div>
-                    <p className="font-archivo text-lg text-secondary">{euro(d.revenue)}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Por origen — para facturación (pasarela vs alta manual) */}
-            {summary.by_source && summary.by_source.length > 0 && (
-              <section>
-                <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Por origen</p>
-                <div className="space-y-2">
-                  {summary.by_source.map((s) => (
-                    <div key={s.source} className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-                      <div>
-                        <p className="font-archivo uppercase">{SOURCE_LABEL[s.source] ?? s.source}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {s.count} inscripciones · {s.paid} pagadas
-                        </p>
-                      </div>
-                      <p className="font-archivo text-lg text-secondary">{euro(s.revenue)}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
+            {/* "Por origen" (facturación) vive ahora en Estadísticas, y
+                "Últimas inscripciones" en Corredores: la portada se queda
+                con la foto de la carrera y sus números */}
           </>
         )}
 
-        {/* Últimas inscripciones: las 5 más recientes */}
-        {summary && (
-          <section>
-            <p className="mb-2 text-sm font-bold uppercase tracking-[0.14em] text-secondary">Últimas inscripciones</p>
-            {summary.last_registrations.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Aún no hay inscripciones.</p>
-            ) : (
-              <div className="divide-y divide-border rounded-xl border border-border bg-card">
-                {summary.last_registrations.slice(0, 5).map((r, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">
-                        {r.first_name} {r.last_name}
-                        {r.bib_number ? <span className="ml-1.5 text-xs text-muted-foreground">#{r.bib_number}</span> : null}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {r.distance_name} · {timeAgo(r.created_at)}
-                      </p>
-                    </div>
-                    <span
-                      className={`ml-3 shrink-0 text-sm font-bold ${
-                        r.payment_status === "paid"
-                          ? "text-secondary"
-                          : r.payment_status === "not_required"
-                            ? "text-primary"
-                            : "text-muted-foreground"
-                      }`}
-                    >
-                      {r.payment_status === "paid"
-                        ? r.amount ? euro(r.amount) : "Pagado"
-                        : r.payment_status === "not_required"
-                          ? "Gratis"
-                          : "Pendiente"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
         </>
         )}
 
@@ -725,7 +664,11 @@ const OrganizerApp = () => {
               ) : openScreen?.screen === "inscripciones" ? (
                 <OrgRegistrations raceId={raceId} />
               ) : openScreen?.screen === "estadisticas" ? (
-                <OrgStats raceId={raceId} byDistance={summary?.by_distance ?? []} />
+                <OrgStats
+                  raceId={raceId}
+                  byDistance={summary?.by_distance ?? []}
+                  bySource={summary?.by_source ?? []}
+                />
               ) : openScreen?.screen === "resultados" ? (
                 <OrgResults raceId={raceId} />
               ) : openScreen?.screen === "mapa" ? (
@@ -738,20 +681,31 @@ const OrganizerApp = () => {
                   height="68vh"
                 />
               ) : (
-                /* Mismo formato que los grupos de la portada, pero con el
-                   icono en verde para distinguir que es el segundo nivel */
-                <div className="grid grid-cols-2 gap-3">
-                  {activeGroup.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => openItem(item)}
-                      className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
-                    >
-                      <item.icon className="h-6 w-6 shrink-0 text-primary" />
-                      <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
-                    </button>
-                  ))}
-                </div>
+                <>
+                  {/* Corredores abre con las últimas inscripciones (antes
+                      estaban en la portada), encima de sus botones */}
+                  {activeGroup.key === "corredores" && summary && (
+                    <OrgLastRegistrations
+                      registrations={summary.last_registrations}
+                      timeAgo={timeAgo}
+                      euro={euro}
+                    />
+                  )}
+                  {/* Mismo formato que los grupos de la portada, pero con el
+                      icono en verde para distinguir que es el segundo nivel */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {activeGroup.items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => openItem(item)}
+                        className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-secondary"
+                      >
+                        <item.icon className="h-6 w-6 shrink-0 text-primary" />
+                        <span className="font-archivo text-sm uppercase leading-tight">{item.title}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
             </>
           )}

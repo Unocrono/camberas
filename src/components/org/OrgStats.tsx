@@ -11,10 +11,16 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Shirt } from "lucide-react";
+import { Loader2, Users, Shirt, Receipt } from "lucide-react";
 
 /** Orden de tallas del pedido; lo que no encaje se lista al final */
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+const SOURCE_LABEL: Record<string, string> = {
+  gateway: "Pasarela",
+  manual: "Alta manual",
+  free: "Gratuitas",
+};
 
 interface DistanceSummary {
   distance_id: string;
@@ -25,15 +31,24 @@ interface DistanceSummary {
   max_participants: number | null;
 }
 
+/** Origen de la inscripción, para facturación */
+interface SourceSummary {
+  source: string;
+  count: number;
+  paid: number;
+  revenue: number;
+}
+
 interface Props {
   raceId: string | null;
   byDistance: DistanceSummary[];
+  bySource: SourceSummary[];
 }
 
 const euro = (n: number) =>
   n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-export const OrgStats = ({ raceId, byDistance }: Props) => {
+export const OrgStats = ({ raceId, byDistance, bySource }: Props) => {
   // Talla → unidades (global de la carrera)
   const [sizes, setSizes] = useState<Record<string, number> | null>(null);
   const [sizesError, setSizesError] = useState<string | null>(null);
@@ -173,6 +188,34 @@ export const OrgStats = ({ raceId, byDistance }: Props) => {
           </div>
         )}
       </section>
+
+      {/* Por origen — para facturación (pasarela vs alta manual) */}
+      {bySource.length > 0 && (
+        <section>
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-secondary">
+            <Receipt className="h-4 w-4" /> Por origen
+          </p>
+          <div className="space-y-2">
+            {bySource.map((s) => (
+              <div
+                key={s.source}
+                className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3"
+              >
+                <div>
+                  <p className="font-archivo uppercase">{SOURCE_LABEL[s.source] ?? s.source}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.count} inscripciones · {s.paid} pagadas
+                  </p>
+                </div>
+                <p className="font-archivo text-lg text-secondary">{euro(s.revenue)}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            La pasarela factura comisión; las altas manuales y gratuitas, no.
+          </p>
+        </section>
+      )}
 
       {/* Tallas de camisetas */}
       <section>
