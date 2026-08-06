@@ -22,8 +22,8 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {/* Mobile menu button - centered */}
-          <div className="md:hidden flex-1 flex justify-center">
+          {/* Mobile menu button - a la derecha */}
+          <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -128,9 +128,6 @@ const Navbar = () => {
               </Button>
             )}
           </div>
-
-          {/* Empty div to balance layout on mobile */}
-          <div className="md:hidden w-10" />
         </div>
       </div>
     </nav>
