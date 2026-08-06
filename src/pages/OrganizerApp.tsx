@@ -210,12 +210,11 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
   {
+    // Un solo item nativo con la gestión COMPLETA: alta rápida, buscar,
+    // llamar, puesto, activo, ficha, importar de Excel y borrar
     key: "voluntariado", label: "Voluntariado", icon: HeartHandshake,
     items: [
-      // Pantalla nativa: alta rápida, buscar, llamar, puesto, activo.
       { id: "voluntarios", title: "Voluntarios", icon: HeartHandshake, screen: "voluntarios" },
-      // Importar de Excel, ficha completa (DNI, vehículo) y borrar
-      { id: "voluntariado-full", title: "Gestión completa", icon: ClipboardPaste, view: "voluntariado" },
     ],
   },
   {
