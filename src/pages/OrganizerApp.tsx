@@ -20,12 +20,13 @@ import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
+import { OrgStats } from "@/components/org/OrgStats";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
-  Shirt, Bike, ShieldCheck, Timer,
+  Bike, ShieldCheck, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
@@ -172,7 +173,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -218,9 +219,11 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
   {
+    // Un solo item nativo: el grupo abre la pantalla directamente
+    // (inscritos por evento + tallas de camisetas)
     key: "estadisticas", label: "Estadísticas", icon: BarChart3,
     items: [
-      { id: "tshirt-sizes", title: "Tallas de camisetas", icon: Shirt, view: "tshirt-sizes" },
+      { id: "stats", title: "Estadísticas", icon: BarChart3, screen: "estadisticas" },
     ],
   },
   {
@@ -739,6 +742,8 @@ const OrganizerApp = () => {
                 <OrgAddGuest raceId={raceId} />
               ) : openScreen?.screen === "inscripciones" ? (
                 <OrgRegistrations raceId={raceId} />
+              ) : openScreen?.screen === "estadisticas" ? (
+                <OrgStats raceId={raceId} byDistance={summary?.by_distance ?? []} />
               ) : openScreen?.screen === "mapa" ? (
                 /* Mapa único en vivo, filtrado por concepto; SOS solo en el
                    de corredores (los avisos son de sus pulseras/tokens) */
