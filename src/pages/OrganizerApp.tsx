@@ -21,6 +21,7 @@ import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
+import { OrgResults } from "@/components/org/OrgResults";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
@@ -173,7 +174,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -239,7 +240,8 @@ const ORG_MENU: OrgMenuGroup[] = [
   {
     key: "resultados", label: "Resultados", icon: Trophy,
     items: [
-      { id: "results", title: "Resultados", icon: Trophy, view: "results" },
+      // Pantalla nativa: clasificación con búsqueda y último parcial
+      { id: "results-app", title: "Resultados", icon: Trophy, screen: "resultados" },
       { id: "splits", title: "Parciales por punto", icon: Timer, view: "splits" },
     ],
   },
@@ -741,6 +743,8 @@ const OrganizerApp = () => {
                 <OrgRegistrations raceId={raceId} />
               ) : openScreen?.screen === "estadisticas" ? (
                 <OrgStats raceId={raceId} byDistance={summary?.by_distance ?? []} />
+              ) : openScreen?.screen === "resultados" ? (
+                <OrgResults raceId={raceId} />
               ) : openScreen?.screen === "mapa" ? (
                 /* Mapa único en vivo, filtrado por concepto; SOS solo en el
                    de corredores (los avisos son de sus pulseras/tokens) */
