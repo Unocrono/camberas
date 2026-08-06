@@ -19,6 +19,7 @@ import { CamberasLogo } from "@/components/CamberasLogo";
 import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
+import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
@@ -171,7 +172,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -199,10 +200,12 @@ const ORG_MENU: OrgMenuGroup[] = [
   {
     key: "corredores", label: "Corredores", icon: Users,
     items: [
-      // Pantalla nativa: alta de invitado en segundos (source=manual)
+      // Pantallas nativas: alta de invitado e inscripciones (buscar,
+      // ficha, marcar pagado, dar dorsal)
       { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
-      // Buscar, editar ficha, cobros… en el panel de escritorio
-      { id: "registrations", title: "Inscripciones", icon: ClipboardList, view: "registrations" },
+      { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
+      // Edición completa, borrados y exports: panel de escritorio
+      { id: "registrations", title: "Gestión completa", icon: ClipboardPaste, view: "registrations" },
     ],
   },
   {
@@ -733,6 +736,8 @@ const OrganizerApp = () => {
                 <OrgVolunteers raceId={raceId} />
               ) : openScreen?.screen === "invitado" ? (
                 <OrgAddGuest raceId={raceId} />
+              ) : openScreen?.screen === "inscripciones" ? (
+                <OrgRegistrations raceId={raceId} />
               ) : openScreen?.screen === "mapa" ? (
                 /* Mapa único en vivo, filtrado por concepto; SOS solo en el
                    de corredores (los avisos son de sus pulseras/tokens) */
