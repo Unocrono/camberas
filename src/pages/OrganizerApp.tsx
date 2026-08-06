@@ -581,37 +581,9 @@ const OrganizerApp = () => {
               </div>
             </section>
 
-            {/* Números clave */}
-            <section className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Inscritos</p>
-                <p className="font-archivo text-3xl text-primary">{summary.total_registrations}</p>
-                <p className="text-xs text-muted-foreground">
-                  {summary.pending_registrations
-                    ? `+${summary.pending_registrations} sin pagar`
-                    : "pago confirmado"}
-                </p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Recaudación</p>
-                <p className="font-archivo text-3xl text-secondary">{euro(summary.revenue_total)}</p>
-                <p className="text-xs text-muted-foreground">pagos confirmados</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hoy</p>
-                <p className="font-archivo text-3xl text-primary">+{summary.registrations_today}</p>
-                <p className="text-xs text-muted-foreground">inscripciones</p>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hoy €</p>
-                <p className="font-archivo text-3xl text-secondary">{euro(summary.revenue_today)}</p>
-                <p className="text-xs text-muted-foreground">cobrado hoy</p>
-              </div>
-            </section>
-
-            {/* "Por origen" (facturación) vive ahora en Estadísticas, y
-                "Últimas inscripciones" en Corredores: la portada se queda
-                con la foto de la carrera y sus números */}
+            {/* La portada se queda con la foto y el desglose por
+                recorrido. Los números clave y "Por origen" están en
+                Estadísticas; "Últimas inscripciones", en Corredores. */}
           </>
         )}
 
@@ -666,7 +638,7 @@ const OrganizerApp = () => {
               ) : openScreen?.screen === "estadisticas" ? (
                 <OrgStats
                   raceId={raceId}
-                  byDistance={summary?.by_distance ?? []}
+                  totals={summary}
                   bySource={summary?.by_source ?? []}
                 />
               ) : openScreen?.screen === "resultados" ? (

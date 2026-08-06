@@ -1,17 +1,20 @@
 /**
  * Estadísticas — pantalla PROPIA de Camberas Org (formato móvil).
  *
- * Dos bloques: inscritos por evento (ocupación y recaudación, del mismo
- * RPC del informe de la portada) y tallas de camisetas para el pedido
- * al proveedor. Las tallas usan EL MISMO criterio que el panel de
- * escritorio: respuestas del formulario (registration_responses) de
- * inscripciones confirmadas; si el formulario no tiene campo de talla,
- * cae a la columna tshirt_size de registrations.
+ * Tres bloques: números clave (totales y lo de hoy), origen de las
+ * inscripciones para facturación, y tallas de camisetas para el pedido
+ * al proveedor. El desglose por recorrido NO está aquí: es lo primero
+ * de la portada.
+ *
+ * Las tallas usan EL MISMO criterio que el panel de escritorio:
+ * respuestas del formulario (registration_responses) de inscripciones
+ * confirmadas; si el formulario no tiene campo de talla, cae a la
+ * columna tshirt_size de registrations.
  */
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Shirt, Receipt } from "lucide-react";
+import { Loader2, Shirt, Receipt } from "lucide-react";
 
 /** Orden de tallas del pedido; lo que no encaje se lista al final */
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
@@ -22,15 +25,6 @@ const SOURCE_LABEL: Record<string, string> = {
   free: "Gratuitas",
 };
 
-interface DistanceSummary {
-  distance_id: string;
-  name: string;
-  count: number;
-  paid: number;
-  revenue: number;
-  max_participants: number | null;
-}
-
 /** Origen de la inscripción, para facturación */
 interface SourceSummary {
   source: string;
@@ -39,16 +33,25 @@ interface SourceSummary {
   revenue: number;
 }
 
+/** Números clave del informe (los mismos del RPC de la portada) */
+interface Totals {
+  total_registrations: number;
+  pending_registrations?: number;
+  revenue_total: number;
+  registrations_today: number;
+  revenue_today: number;
+}
+
 interface Props {
   raceId: string | null;
-  byDistance: DistanceSummary[];
+  totals: Totals | null;
   bySource: SourceSummary[];
 }
 
 const euro = (n: number) =>
   n.toLocaleString("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 
-export const OrgStats = ({ raceId, byDistance, bySource }: Props) => {
+export const OrgStats = ({ raceId, totals, bySource }: Props) => {
   // Talla → unidades (global de la carrera)
   const [sizes, setSizes] = useState<Record<string, number> | null>(null);
   const [sizesError, setSizesError] = useState<string | null>(null);
@@ -150,44 +153,33 @@ export const OrgStats = ({ raceId, byDistance, bySource }: Props) => {
 
   return (
     <div className="space-y-5">
-      {/* Inscritos por evento */}
-      <section>
-        <p className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-secondary">
-          <Users className="h-4 w-4" /> Inscritos por evento
-        </p>
-        {byDistance.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted-foreground">Sin datos todavía.</p>
-        ) : (
-          <div className="space-y-2">
-            {byDistance.map((d) => {
-              const pct = d.max_participants
-                ? Math.min(100, Math.round((d.count / d.max_participants) * 100))
-                : null;
-              return (
-                <div key={d.distance_id} className="rounded-xl border border-border bg-card px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <p className="font-archivo uppercase">{d.name}</p>
-                    <p className="font-archivo text-lg text-secondary">{euro(d.revenue)}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {d.count}
-                    {d.max_participants ? ` / ${d.max_participants}` : ""} inscritos · {d.paid} pagados
-                    {pct !== null ? ` · ${pct}% lleno` : ""}
-                  </p>
-                  {pct !== null && (
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : "bg-secondary"}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+      {/* Números clave (antes en la portada) */}
+      {totals && (
+        <section className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Inscritos</p>
+            <p className="font-archivo text-3xl text-primary">{totals.total_registrations}</p>
+            <p className="text-xs text-muted-foreground">
+              {totals.pending_registrations ? `+${totals.pending_registrations} sin pagar` : "pago confirmado"}
+            </p>
           </div>
-        )}
-      </section>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Recaudación</p>
+            <p className="font-archivo text-3xl text-secondary">{euro(totals.revenue_total)}</p>
+            <p className="text-xs text-muted-foreground">pagos confirmados</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hoy</p>
+            <p className="font-archivo text-3xl text-primary">+{totals.registrations_today}</p>
+            <p className="text-xs text-muted-foreground">inscripciones</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Hoy €</p>
+            <p className="font-archivo text-3xl text-secondary">{euro(totals.revenue_today)}</p>
+            <p className="text-xs text-muted-foreground">cobrado hoy</p>
+          </div>
+        </section>
+      )}
 
       {/* Por origen — para facturación (pasarela vs alta manual) */}
       {bySource.length > 0 && (
