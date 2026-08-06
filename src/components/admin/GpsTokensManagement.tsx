@@ -31,6 +31,7 @@ interface TokenRow {
   token: string;
   activo: boolean;
   device_id: string | null;
+  intervalo: number | null;
 }
 
 const urlActivacion = (token: string) => `https://camberas.com/activar.html?t=${token}`;
@@ -43,6 +44,7 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
   const [bib, setBib] = useState("");
   const [nombre, setNombre] = useState("");
   const [distId, setDistId] = useState("");
+  const [intervalo, setIntervalo] = useState("");
   const [creando, setCreando] = useState(false);
   const [qrRow, setQrRow] = useState<TokenRow | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -70,10 +72,11 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
     try {
       const { error } = await supabase.rpc("generar_token_corredor" as never, {
         p_distance_id: distId, p_bib: bib, p_nombre: nombre || null,
+        p_intervalo: intervalo ? parseInt(intervalo) : null,
       } as never);
       if (error) throw error;
       toast({ title: `Dorsal ${bib} creado 🎽` });
-      setBib(""); setNombre("");
+      setBib(""); setNombre(""); setIntervalo("");
       await cargar();
     } catch (e: any) {
       toast({ title: "No se pudo crear", description: e.message, variant: "destructive" });
@@ -88,6 +91,26 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
     } as never);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else await cargar();
+  };
+
+  const cambiarIntervalo = async (row: TokenRow) => {
+    const v = window.prompt(
+      `Intervalo de envio GPS del dorsal ${row.bib} (segundos, 1-120).
+Vacio = por defecto (15 s, o 2 s si es mototv).
+El movil lo recoge al RE-ESCANEAR su QR.`,
+      row.intervalo != null ? String(row.intervalo) : ""
+    );
+    if (v === null) return;
+    const num = v.trim() === "" ? null : parseInt(v);
+    if (num !== null && (isNaN(num) || num < 1 || num > 120)) {
+      toast({ title: "Intervalo no valido (1-120 s)", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.rpc("cambiar_intervalo_token" as never, {
+      p_token_row_id: row.token_row_id, p_intervalo: num,
+    } as never);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else { toast({ title: "Intervalo actualizado - re-escanear el QR en el movil" }); await cargar(); }
   };
 
   const abrirQr = async (row: TokenRow) => {
@@ -120,6 +143,7 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
           </Select>
           <Input className="w-24" placeholder="Dorsal" value={bib} onChange={(e) => setBib(e.target.value)} />
           <Input className="flex-1 min-w-[160px]" placeholder="Nombre (opcional)" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <Input className="w-32" type="number" min={1} max={120} placeholder="Interv. (15s)" value={intervalo} onChange={(e) => setIntervalo(e.target.value)} title="Segundos entre posiciones GPS (vacio = 15 s)" />
           <Button onClick={crear} disabled={creando || !bib.trim() || !distId}>
             {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
           </Button>
@@ -133,7 +157,7 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
             <TableHeader>
               <TableRow>
                 <TableHead>Dorsal</TableHead><TableHead>Nombre</TableHead>
-                <TableHead>Evento</TableHead><TableHead>Estado</TableHead>
+                <TableHead>Evento</TableHead><TableHead>Intervalo</TableHead><TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -143,6 +167,12 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
                   <TableCell className="font-bold">{row.bib}</TableCell>
                   <TableCell>{row.nombre}</TableCell>
                   <TableCell><Badge variant="outline">{row.evento}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="cursor-pointer" onClick={() => cambiarIntervalo(row)}
+                      title="Clic para cambiar el intervalo de envio">
+                      {row.intervalo != null ? `${row.intervalo} s` : "15 s"}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <Badge variant={row.activo ? "default" : "secondary"} className="cursor-pointer" onClick={() => revocar(row)}>
                       {row.activo ? (row.device_id ? "Vinculado" : "Activo") : "Revocado"}
