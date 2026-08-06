@@ -37,6 +37,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<Registration[]>([]);
+  // Política de cancelación por carrera (tramos días→% devolución)
+  const [policies, setPolicies] = useState<
+    Record<string, { days_before: number; refund_percent: number }[]>
+  >({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -81,6 +85,21 @@ const Dashboard = () => {
       if (error) throw error;
 
       setRegistrations(data as any);
+
+      // Tramos de cancelación de las carreras del usuario (tabla nueva aún
+      // sin tipos generados)
+      const raceIds = [...new Set((data ?? []).map((r: any) => r.race?.id).filter(Boolean))];
+      if (raceIds.length > 0) {
+        const { data: tiersData } = await (supabase as any)
+          .from("race_cancellation_tiers")
+          .select("race_id, days_before, refund_percent")
+          .in("race_id", raceIds);
+        const byRace: Record<string, { days_before: number; refund_percent: number }[]> = {};
+        for (const tier of tiersData ?? []) {
+          (byRace[tier.race_id] ??= []).push(tier);
+        }
+        setPolicies(byRace);
+      }
     } catch (error: any) {
       toast({
         title: "Error al cargar inscripciones",
@@ -92,11 +111,29 @@ const Dashboard = () => {
     }
   };
 
-  const canCancelRegistration = (raceDate: string): boolean => {
-    const race = new Date(raceDate);
-    const today = new Date();
-    const daysUntilRace = Math.ceil((race.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilRace >= 7; // Can cancel if race is 7+ days away
+  /**
+   * ¿Se puede cancelar y con qué devolución? Manda la política de la carrera
+   * (race_cancellation_tiers): el tramo más exigente que se cumpla marca el
+   * porcentaje; por debajo del tramo más bajo no se permite cancelar. Sin
+   * política definida, la regla histórica: 7 días, sin devolución.
+   * La devolución es un derecho informativo — el abono lo gestiona la
+   * organización a mano (no hay devolución automática en Redsys).
+   */
+  const cancellationInfo = (raceId: string, raceDate: string) => {
+    const daysUntilRace = Math.ceil(
+      (new Date(raceDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    const tiers = policies[raceId];
+    if (!tiers || tiers.length === 0) {
+      return { canCancel: daysUntilRace >= 7, refundPercent: null as number | null, minDays: 7 };
+    }
+    const minDays = Math.min(...tiers.map((t) => t.days_before));
+    const applicable = tiers.filter((t) => daysUntilRace >= t.days_before);
+    if (applicable.length === 0) {
+      return { canCancel: false, refundPercent: null as number | null, minDays };
+    }
+    const best = applicable.reduce((a, b) => (b.days_before > a.days_before ? b : a));
+    return { canCancel: true, refundPercent: best.refund_percent, minDays };
   };
 
   const handleCancelRegistration = async (registrationId: string) => {
@@ -222,8 +259,8 @@ const Dashboard = () => {
               }
               
               const raceDate = new Date(registration.race.date);
-              const canCancel = canCancelRegistration(registration.race.date) && 
-                               registration.status !== "cancelled";
+              const cancellation = cancellationInfo(registration.race.id, registration.race.date);
+              const canCancel = cancellation.canCancel && registration.status !== "cancelled";
               
               return (
                 <Card key={registration.id} className="overflow-hidden">
@@ -319,10 +356,24 @@ const Dashboard = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>¿Cancelar inscripción?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Esta acción cancelará tu inscripción a <strong>{registration.race.name}</strong> 
-                                    ({registration.distance.name}). 
-                                    {registration.payment_status === "completed" && 
-                                      " Si has realizado el pago, deberás contactar con organización para gestionar el reembolso."}
+                                    Esta acción cancelará tu inscripción a <strong>{registration.race.name}</strong>
+                                    ({registration.distance.name}).
+                                    {registration.payment_status === "paid" && (
+                                      cancellation.refundPercent != null ? (
+                                        cancellation.refundPercent > 0 ? (
+                                          <> Según la política de cancelación te corresponde una
+                                          devolución del <strong>{cancellation.refundPercent}%</strong> del
+                                          importe pagado; la organización la gestionará por el mismo
+                                          medio de pago.</>
+                                        ) : (
+                                          <> Según la política de cancelación, en estas fechas la
+                                          cancelación no tiene devolución.</>
+                                        )
+                                      ) : (
+                                        <> Si has realizado el pago, deberás contactar con la
+                                        organización para gestionar el reembolso.</>
+                                      )
+                                    )}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -340,7 +391,7 @@ const Dashboard = () => {
 
                           {!canCancel && registration.status !== "cancelled" && (
                             <p className="text-sm text-muted-foreground self-center">
-                              No se puede cancelar (carrera en menos de 7 días)
+                              No se puede cancelar (carrera en menos de {cancellation.minDays} días)
                             </p>
                           )}
                         </div>

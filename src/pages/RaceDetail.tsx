@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import raceScene from "@/assets/race-scene.jpg";
+import { Input } from "@/components/ui/input";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RoutePreviewMap } from "@/components/RoutePreviewMap";
 import { RouteFlightViewer } from "@/components/RouteFlightViewer";
@@ -79,6 +80,14 @@ const RaceDetail = () => {
   const [pendingRegistration, setPendingRegistration] = useState<any>(null);
   // Suplemento (€) que aportan los campos del formulario con importe
   const [fieldSupplement, setFieldSupplement] = useState(0);
+  // Cupón de descuento: validate-coupon (servidor) decide si vale y cuánto
+  // descuenta; aquí solo se muestra el desglose. El importe real lo
+  // recalculan guest-register / redsys-init-payment.
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const couponDiscount = appliedCoupon?.discount ?? 0;
 
   // Helper to validate UUID format
   const isValidUUID = (str: string) => {
@@ -334,8 +343,53 @@ const RaceDetail = () => {
     setIsGuestRegistration(!user);
     setRegistrationStep('form');
     setPendingRegistration(null);
+    setCouponInput("");
+    setAppliedCoupon(null);
+    setCouponError(null);
     setIsDialogOpen(true);
   };
+
+  const applyCoupon = async (distance: any, silent = false) => {
+    const code = (silent ? appliedCoupon?.code : couponInput)?.trim();
+    if (!code) return;
+    setValidatingCoupon(true);
+    if (!silent) setCouponError(null);
+    try {
+      const email = String(customFormData.email || "");
+      const { data, error } = await supabase.functions.invoke("validate-coupon", {
+        body: {
+          code,
+          raceId,
+          distanceId: distance.id,
+          // El email afina el límite de usos por persona; solo si ya es válido
+          email: /\S+@\S+\.\S+/.test(email) ? email : undefined,
+          formData: customFormData,
+        },
+      });
+      if (error) throw error;
+      if (data?.valid) {
+        setAppliedCoupon(data);
+        setCouponError(null);
+      } else {
+        setAppliedCoupon(null);
+        if (!silent) setCouponError(data?.reason || "Cupón no válido");
+      }
+    } catch {
+      setAppliedCoupon(null);
+      if (!silent) setCouponError("No se pudo validar el cupón, inténtalo de nuevo");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  // Si cambian los extras con un cupón puesto, el descuento puede variar
+  // (cupones sobre el total): se revalida en silencio con el servidor
+  useEffect(() => {
+    if (appliedCoupon && selectedDistance) {
+      applyCoupon(selectedDistance, true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldSupplement]);
 
   const handleCustomFieldChange = (fieldName: string, value: any) => {
     setCustomFormData(prev => ({
@@ -379,6 +433,7 @@ const RaceDetail = () => {
             raceId,
             distanceId: selectedDistance.id,
             formData: customFormData,
+            couponCode: appliedCoupon?.code,
           },
         });
 
@@ -480,7 +535,7 @@ const RaceDetail = () => {
         // Dorsal atómico en servidor — solo si la inscripción es gratuita.
         // Las de pago lo reciben en redsys-webhook al confirmarse el cobro,
         // para no quemar dorsales con inscripciones que nunca pagan.
-        const totalToPay = selectedDistance.currentPrice + fieldSupplement;
+        const totalToPay = selectedDistance.currentPrice + fieldSupplement - couponDiscount;
         let assignedBib: number | null = null;
         if (totalToPay <= 0) {
           const { data } = await supabase
@@ -499,6 +554,10 @@ const RaceDetail = () => {
             payment_status: "pending",
             // Origen para facturación: la de pago va por la pasarela
             source: totalToPay > 0 ? "gateway" : "free",
+            // El descuento definitivo lo recalcula redsys-init-payment en
+            // servidor; el canje lo registra el trigger al resolverse el pago
+            coupon_id: appliedCoupon?.couponId ?? null,
+            coupon_discount: appliedCoupon ? couponDiscount : null,
             bib_number: assignedBib ?? null,
             // Campos del formulario que tienen columna propia: se copian
             // para que el panel, los informes y los exports los vean
@@ -526,8 +585,8 @@ const RaceDetail = () => {
         // Store all form field responses
         await saveCustomFormResponses(newRegistration.id, selectedDistance.id);
 
-        // If total (base + suplementos de campos) > 0, go to payment step
-        if (selectedDistance.currentPrice + fieldSupplement > 0) {
+        // If total (base + suplementos - cupón) > 0, go to payment step
+        if (totalToPay > 0) {
           setPendingRegistration({
             ...newRegistration,
             email: user.email,
@@ -560,12 +619,15 @@ const RaceDetail = () => {
     lastName: string,
     isGuest: boolean
   ) => {
-    // Update registration status
+    // Update registration status. "paid" solo si de verdad hubo cobro: con
+    // cupón que deja el total en 0 (o distancia gratuita) es "not_required".
+    const paidSomething =
+      selectedDistance.currentPrice + fieldSupplement - couponDiscount > 0;
     await supabase
       .from("registrations")
-      .update({ 
+      .update({
         status: "confirmed",
-        payment_status: selectedDistance.currentPrice > 0 ? "paid" : "not_required"
+        payment_status: paidSomething ? "paid" : "not_required"
       })
       .eq("id", registrationId);
 
@@ -1116,22 +1178,78 @@ const RaceDetail = () => {
                                     />
 
                                     <div className="pt-4 border-t border-border">
-                                      {fieldSupplement !== 0 && (
+                                      {/* Cupón de descuento (valida el servidor) */}
+                                      {distance.currentPrice + fieldSupplement > 0 && (
+                                        <div className="mb-3">
+                                          {!appliedCoupon ? (
+                                            <>
+                                              <div className="flex gap-2">
+                                                <Input
+                                                  value={couponInput}
+                                                  onChange={(e) => setCouponInput(e.target.value)}
+                                                  placeholder="¿Tienes un código de descuento?"
+                                                  className="uppercase"
+                                                  maxLength={60}
+                                                />
+                                                <Button
+                                                  type="button"
+                                                  variant="outline"
+                                                  onClick={() => applyCoupon(distance)}
+                                                  disabled={validatingCoupon || !couponInput.trim()}
+                                                >
+                                                  {validatingCoupon ? "..." : "Aplicar"}
+                                                </Button>
+                                              </div>
+                                              {couponError && (
+                                                <p className="mt-1 text-sm text-destructive">{couponError}</p>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <div className="flex items-center justify-between rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+                                              <span>
+                                                Cupón <strong>{appliedCoupon.code}</strong> aplicado
+                                              </span>
+                                              <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-auto p-0 text-muted-foreground"
+                                                onClick={() => {
+                                                  setAppliedCoupon(null);
+                                                  setCouponInput("");
+                                                }}
+                                              >
+                                                Quitar
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+
+                                      {(fieldSupplement !== 0 || couponDiscount > 0) && (
                                         <div className="mb-2 space-y-1 text-sm text-muted-foreground">
                                           <div className="flex justify-between">
                                             <span>Inscripción</span>
                                             <span>{distance.currentPrice}€</span>
                                           </div>
-                                          <div className="flex justify-between">
-                                            <span>Extras</span>
-                                            <span>{fieldSupplement > 0 ? "+" : ""}{fieldSupplement}€</span>
-                                          </div>
+                                          {fieldSupplement !== 0 && (
+                                            <div className="flex justify-between">
+                                              <span>Extras</span>
+                                              <span>{fieldSupplement > 0 ? "+" : ""}{fieldSupplement}€</span>
+                                            </div>
+                                          )}
+                                          {couponDiscount > 0 && (
+                                            <div className="flex justify-between text-primary">
+                                              <span>Descuento ({appliedCoupon.code})</span>
+                                              <span>−{couponDiscount}€</span>
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                       <div className="flex justify-between items-center mb-4">
                                         <span className="text-sm text-muted-foreground">Precio total:</span>
                                         <span className="text-2xl font-bold">
-                                          {Math.max(0, Math.round((distance.currentPrice + fieldSupplement) * 100) / 100)}€
+                                          {Math.max(0, Math.round((distance.currentPrice + fieldSupplement - couponDiscount) * 100) / 100)}€
                                         </span>
                                       </div>
 
@@ -1141,7 +1259,7 @@ const RaceDetail = () => {
                                         disabled={isSubmitting}
                                       >
                                         {isSubmitting ? "Procesando..." : (
-                                          distance.currentPrice + fieldSupplement > 0 ? (
+                                          distance.currentPrice + fieldSupplement - couponDiscount > 0 ? (
                                             <>
                                               <CreditCard className="h-4 w-4 mr-2" />
                                               Continuar al pago
@@ -1157,7 +1275,7 @@ const RaceDetail = () => {
                               ) : (
                                 <div className="py-4">
                                   <RedsysPaymentForm
-                                    amount={Math.max(0, Math.round((distance.currentPrice + fieldSupplement) * 100) / 100)}
+                                    amount={Math.max(0, Math.round((distance.currentPrice + fieldSupplement - couponDiscount) * 100) / 100)}
                                     registrationId={pendingRegistration?.id}
                                     description={`${race.name} - ${distance.name}`}
                                     userEmail={pendingRegistration?.email}

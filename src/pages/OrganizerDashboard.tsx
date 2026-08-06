@@ -33,6 +33,7 @@ import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { CamberasTrackMap } from "@/components/CamberasTrackMap";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
+import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -237,6 +238,7 @@ const OrganizerDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}

@@ -11,6 +11,7 @@ import { RaceSelectorHeader } from "@/components/admin/RaceSelectorHeader";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
+import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagement";
@@ -263,6 +264,7 @@ const AdminDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "waves" && <WavesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results" && <ResultsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "results-status" && <RaceResultsStatusManagement />}

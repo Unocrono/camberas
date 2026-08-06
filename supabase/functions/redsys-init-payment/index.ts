@@ -64,7 +64,7 @@ serve(async (req) => {
     const supabaseAuth = createClient(SUPABASE_URL!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? SUPABASE_ANON_KEY!);
     const { data: registration, error: regErr } = await supabaseAuth
       .from("registrations")
-      .select("id, race_distance_id")
+      .select("id, race_distance_id, email, coupon_id")
       .eq("id", registrationId)
       .single();
     if (regErr || !registration) {
@@ -118,12 +118,80 @@ serve(async (req) => {
       const checked = value === true || value === "true" || value === "on" || value === "1";
       return checked ? feeAmount : 0;
     };
-    const supplement = (respRows ?? []).reduce(
-      (sum: number, r: any) => sum + fieldFee(r.registration_form_fields, r.field_value),
-      0
-    );
+    // Suplemento total y su parte descontable por cupón: positiva y sin
+    // discountable=false (los negativos ya son descuento, no se amplifican)
+    let supplement = 0;
+    let discountableSupplement = 0;
+    for (const r of respRows ?? []) {
+      const fee = fieldFee(r.registration_form_fields, r.field_value);
+      supplement += fee;
+      if (fee > 0 && (r.registration_form_fields as any)?.field_options?.discountable !== false) {
+        discountableSupplement += fee;
+      }
+    }
 
-    const totalPrice = Math.max(0, Math.round(((resolvedPrice ?? 0) + supplement) * 100) / 100);
+    const basePrice = resolvedPrice ?? 0;
+
+    // Cupón anclado a la inscripción al crearla — se revalida y recalcula
+    // AQUÍ, porque este es el importe que se firma y se cobra en Redsys.
+    // Nunca se cobra de más en silencio: si el cupón ya no vale, error.
+    let couponDiscount = 0;
+    if (registration.coupon_id) {
+      const { data: coupon } = await supabaseAuth
+        .from("coupons")
+        .select("*")
+        .eq("id", registration.coupon_id)
+        .maybeSingle();
+
+      const couponError = (msg: string) =>
+        new Response(
+          JSON.stringify({ error: msg, code: "COUPON" }),
+          { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      if (!coupon || !coupon.active) return couponError("El cupón de esta inscripción ya no está activo");
+      const now = new Date();
+      if (coupon.valid_from && now < new Date(coupon.valid_from)) {
+        return couponError("El cupón de esta inscripción aún no está en vigor");
+      }
+      if (coupon.valid_until && now > new Date(coupon.valid_until)) {
+        return couponError("El cupón de esta inscripción ha caducado");
+      }
+      const { data: totalUses } = await supabaseAuth.rpc("coupon_uses", { p_coupon_id: coupon.id });
+      if (coupon.max_uses != null && (totalUses ?? 0) >= coupon.max_uses) {
+        return couponError("El cupón de esta inscripción ya ha agotado sus usos");
+      }
+      if (registration.email) {
+        const { data: emailUses } = await supabaseAuth.rpc("coupon_uses", {
+          p_coupon_id: coupon.id,
+          p_email: registration.email,
+        });
+        if ((emailUses ?? 0) >= coupon.max_uses_per_email) {
+          return couponError("Este email ya ha usado el cupón");
+        }
+      }
+
+      const discountBase = Math.max(
+        0,
+        coupon.applies_to === "total" ? basePrice + discountableSupplement : basePrice,
+      );
+      const raw =
+        coupon.discount_type === "percent"
+          ? (discountBase * Number(coupon.discount_value)) / 100
+          : Number(coupon.discount_value);
+      couponDiscount = Math.min(
+        Math.max(0, Math.round(raw * 100) / 100),
+        Math.round(discountBase * 100) / 100,
+      );
+
+      // El trigger de registrations usará este importe al registrar el canje
+      // cuando el webhook confirme el pago
+      await supabaseAuth
+        .from("registrations")
+        .update({ coupon_discount: couponDiscount })
+        .eq("id", registrationId);
+    }
+
+    const totalPrice = Math.max(0, Math.round((basePrice + supplement - couponDiscount) * 100) / 100);
     if (!(totalPrice > 0)) {
       return new Response(
         JSON.stringify({ error: "No price configured for this distance" }),
@@ -176,6 +244,8 @@ serve(async (req) => {
         order_number: orderNumber,
         registration_id: registrationId,
         amount: amount,
+        // Desglose para la recaudación: amount ya lleva el descuento aplicado
+        discount_amount: couponDiscount > 0 ? couponDiscount : null,
         status: "pending",
         merchant_params: merchantParams,
       });

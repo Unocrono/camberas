@@ -16,6 +16,7 @@ const requestSchema = z.object({
   raceId: z.string().uuid(),
   distanceId: z.string().uuid(),
   formData: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).nullish()),
+  couponCode: z.string().trim().max(60).optional(),
 });
 
 /**
@@ -48,7 +49,7 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     const input = requestSchema.parse(await req.json());
-    const { raceId, distanceId, formData } = input;
+    const { raceId, distanceId, formData, couponCode } = input;
 
     // Campos de sistema extraídos del formulario dinámico
     const str = (v: unknown) => (v == null ? "" : String(v).trim());
@@ -142,8 +143,81 @@ serve(async (req) => {
       const checked = value === true || value === "true" || value === "on" || value === "1";
       return checked ? amount : 0;
     };
-    const supplement = (fields ?? []).reduce((sum, f) => sum + fieldFee(f, formData[f.field_name]), 0);
-    const price = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
+    // Además del suplemento total, se separa la parte descontable por si el
+    // cupón aplica sobre el total: positiva y sin discountable=false (los
+    // suplementos negativos ya son un descuento y no se amplifican).
+    let supplement = 0;
+    let discountableSupplement = 0;
+    for (const f of fields ?? []) {
+      const fee = fieldFee(f, formData[f.field_name]);
+      supplement += fee;
+      if (fee > 0 && (f.field_options as any)?.discountable !== false) {
+        discountableSupplement += fee;
+      }
+    }
+    supplement = Math.round(supplement * 100) / 100;
+    const grossPrice = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
+
+    // Cupón: revalidación completa en servidor (el cliente ya validó con
+    // validate-coupon, pero aquí se decide el precio de verdad). Si el cupón
+    // ya no vale se corta con error — nunca cobrar de más en silencio.
+    let couponId: string | null = null;
+    let couponDiscount = 0;
+    if (couponCode) {
+      const code = couponCode.toUpperCase().replace(/\s/g, "");
+      const { data: coupon } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("race_id", raceId)
+        .eq("code", code)
+        .maybeSingle();
+
+      const couponError = (msg: string) => json({ error: msg, code: "COUPON" }, 400);
+      if (!coupon) return couponError("El código de descuento no existe para esta carrera");
+      if (!coupon.active) return couponError("Este cupón ya no está activo");
+      if (coupon.race_distance_id && coupon.race_distance_id !== distanceId) {
+        return couponError("Este cupón no es válido para el recorrido elegido");
+      }
+      const now = new Date();
+      if (coupon.valid_from && now < new Date(coupon.valid_from)) {
+        return couponError("Este cupón aún no está en vigor");
+      }
+      if (coupon.valid_until && now > new Date(coupon.valid_until)) {
+        return couponError("Este cupón ha caducado");
+      }
+      if (coupon.min_amount != null && grossPrice < Number(coupon.min_amount)) {
+        return couponError(`Este cupón requiere un importe mínimo de ${Number(coupon.min_amount)}€`);
+      }
+      const { data: totalUses } = await supabase.rpc("coupon_uses", { p_coupon_id: coupon.id });
+      if (coupon.max_uses != null && (totalUses ?? 0) >= coupon.max_uses) {
+        return couponError("Este cupón ya ha agotado sus usos");
+      }
+      const { data: emailUses } = await supabase.rpc("coupon_uses", {
+        p_coupon_id: coupon.id,
+        p_email: email,
+      });
+      if ((emailUses ?? 0) >= coupon.max_uses_per_email) {
+        return couponError("Ya has usado este cupón");
+      }
+
+      // Descuento: sobre la tarifa, o sobre tarifa + suplementos descontables
+      // si applies_to='total'. Redondeado a céntimos y acotado a su base.
+      const discountBase = Math.max(
+        0,
+        coupon.applies_to === "total" ? basePrice + discountableSupplement : basePrice,
+      );
+      const raw =
+        coupon.discount_type === "percent"
+          ? (discountBase * Number(coupon.discount_value)) / 100
+          : Number(coupon.discount_value);
+      couponDiscount = Math.min(
+        Math.max(0, Math.round(raw * 100) / 100),
+        Math.round(discountBase * 100) / 100,
+      );
+      couponId = coupon.id;
+    }
+
+    const price = Math.max(0, Math.round((basePrice + supplement - couponDiscount) * 100) / 100);
 
     const isFree = !(price > 0);
 
@@ -171,6 +245,10 @@ serve(async (req) => {
         payment_status: isFree ? "not_required" : "pending",
         // Origen para facturación: la de pago va por la pasarela
         source: isFree ? "free" : "gateway",
+        // El canje lo registra el trigger de la tabla cuando el pago queda
+        // resuelto (aquí mismo si es gratis; en el webhook si va a pasarela)
+        coupon_id: couponId,
+        coupon_discount: couponId ? couponDiscount : null,
         first_name: firstName,
         last_name: lastName,
         email,
@@ -226,6 +304,7 @@ serve(async (req) => {
       registrationId: registration.id,
       bibNumber: registration.bib_number,
       price,
+      discount: couponDiscount,
       isFree,
     });
   } catch (error: any) {

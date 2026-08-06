@@ -54,6 +54,10 @@ verify_jwt = false
 [functions.guest-register]
 verify_jwt = false
 
+# La validación de cupones la usan también los invitados sin cuenta
+[functions.validate-coupon]
+verify_jwt = false
+
 [functions.gps-webhook]
 verify_jwt = false
 
@@ -61,4 +65,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-push]
+verify_jwt = false
+
+# Meta no manda el JWT de Supabase: el webhook se autentica con la firma
+# X-Hub-Signature-256 (ver graph.ts), no con verify_jwt.
+[functions.whatsapp-webhook]
 verify_jwt = false

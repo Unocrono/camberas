@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { CancellationPolicyManagement } from "@/components/admin/CancellationPolicyManagement";
 
 interface RaceRegulationManagementProps {
   raceId: string;
@@ -511,6 +512,10 @@ export default function RaceRegulationManagement({ raceId }: RaceRegulationManag
           </CardContent>
         </Card>
       )}
+
+      {/* Tramos de devolución: se publican solos como apartado del
+          reglamento y se aplican al cancelar una inscripción */}
+      <CancellationPolicyManagement raceId={raceId} />
 
       {availableSections.length > 0 && (
         <Card>

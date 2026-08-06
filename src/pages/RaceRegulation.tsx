@@ -35,6 +35,11 @@ const RaceRegulation = () => {
   
   const [race, setRace] = useState<Race | null>(null);
   const [sections, setSections] = useState<RegulationSection[]>([]);
+  // Tramos de la política de cancelación: apartado autogenerado, siempre al
+  // día con lo que aplica de verdad al cancelar (no es texto a mano)
+  const [cancellationTiers, setCancellationTiers] = useState<
+    { days_before: number; refund_percent: number }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [raceId, setRaceId] = useState<string | null>(null);
 
@@ -110,6 +115,14 @@ const RaceRegulation = () => {
         if (sectionsError) throw sectionsError;
         setSections(sectionsData || []);
       }
+
+      // Política de cancelación (tabla nueva aún sin tipos generados)
+      const { data: tiersData } = await (supabase as any)
+        .from("race_cancellation_tiers")
+        .select("days_before, refund_percent")
+        .eq("race_id", raceId)
+        .order("days_before", { ascending: false });
+      setCancellationTiers(tiersData || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -200,7 +213,7 @@ const RaceRegulation = () => {
           </CardHeader>
 
           <CardContent>
-            {sections.length === 0 ? (
+            {sections.length === 0 && cancellationTiers.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>El reglamento aún no ha sido publicado.</p>
@@ -215,6 +228,35 @@ const RaceRegulation = () => {
                     </div>
                   </div>
                 ))}
+
+                {/* Apartado autogenerado desde los tramos que aplican de
+                    verdad al cancelar — no puede quedarse desactualizado */}
+                {cancellationTiers.length > 0 && (
+                  <div className="border-b border-border pb-6 last:border-0">
+                    <h2 className="text-xl font-semibold mb-4">Política de cancelación</h2>
+                    <div className="prose prose-sm max-w-none text-muted-foreground">
+                      <p className="mb-3">
+                        La inscripción puede cancelarse con las siguientes condiciones de
+                        devolución, según la antelación respecto al día de la carrera:
+                      </p>
+                      <ul className="list-disc pl-6 space-y-1">
+                        {cancellationTiers.map((tier) => (
+                          <li key={tier.days_before}>
+                            Cancelando con <strong>{tier.days_before} o más días</strong> de
+                            antelación: devolución del <strong>{tier.refund_percent}%</strong>
+                            {tier.refund_percent === 0 ? " (sin devolución)" : ""}.
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-3">
+                        Con menos de{" "}
+                        {Math.min(...cancellationTiers.map((t) => t.days_before))} días de
+                        antelación no se admiten cancelaciones. Las devoluciones se abonan por
+                        el mismo medio de pago utilizado en la inscripción.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
