@@ -47,9 +47,9 @@ const Planes = () => {
       image: planQuedada,
       features: [
         "App de Organizador",
-        "App Seguimiento participànte",
+        "App de seguimiento para participantes",
         "50 dorsales · Publicidad inferior exclusivo Camberas",
-        "Inscripciones online free\u00a0",
+        "Inscripciones online",
         "Cobra con tarjeta — pasarela de pago incluida",
         "Puntos de cronometraje manual",
         "Software de gestión avanzado",
@@ -60,7 +60,7 @@ const Planes = () => {
       ],
     },
     {
-      name: "Profesional",
+      name: "Crono Profesional",
       description: "Para grandes eventos",
       price: "700€",
       priceNote: "por evento",
