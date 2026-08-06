@@ -897,6 +897,7 @@ export type Database = {
           linked_at: string | null
           participant_name: string | null
           phone: string | null
+          send_interval_seconds: number | null
           token: string | null
           user_id: string | null
         }
@@ -911,6 +912,7 @@ export type Database = {
           linked_at?: string | null
           participant_name?: string | null
           phone?: string | null
+          send_interval_seconds?: number | null
           token?: string | null
           user_id?: string | null
         }
@@ -925,6 +927,7 @@ export type Database = {
           linked_at?: string | null
           participant_name?: string | null
           phone?: string | null
+          send_interval_seconds?: number | null
           token?: string | null
           user_id?: string | null
         }
@@ -4523,6 +4526,10 @@ export type Database = {
           timing_reading_id: string
         }[]
       }
+      cambiar_intervalo_token: {
+        Args: { p_intervalo: number; p_token_row_id: string }
+        Returns: undefined
+      }
       coupon_uses: {
         Args: { p_coupon_id: string; p_email?: string }
         Returns: number
@@ -4624,7 +4631,12 @@ export type Database = {
         }[]
       }
       generar_token_corredor: {
-        Args: { p_bib: string; p_distance_id: string; p_nombre?: string }
+        Args: {
+          p_bib: string
+          p_distance_id: string
+          p_intervalo?: number
+          p_nombre?: string
+        }
         Returns: Json
       }
       generar_token_cronometrador: {
@@ -4767,6 +4779,7 @@ export type Database = {
           linked_at: string
           needs_transfer: boolean
           participant_name: string
+          send_interval_seconds: number
         }[]
       }
       mis_grupettas: {
@@ -4829,6 +4842,7 @@ export type Database = {
           device_id: string
           distance_id: string
           evento: string
+          intervalo: number
           nombre: string
           token: string
           token_row_id: string
@@ -4856,6 +4870,15 @@ export type Database = {
           nombre: string
           race_moto_id: string
           token: string
+        }[]
+      }
+      tokens_motos_publico: {
+        Args: { p_race_id: string }
+        Returns: {
+          bib_number: string
+          color: string
+          moto_name: string
+          token_id: string
         }[]
       }
       unirse_grupetta:
