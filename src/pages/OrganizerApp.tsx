@@ -25,7 +25,7 @@ import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackM
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
-  ClipboardList, ClipboardPaste, HeartHandshake, BarChart3,
+  ClipboardList, HeartHandshake, BarChart3,
   Bike, ShieldCheck, Timer,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -205,8 +205,6 @@ const ORG_MENU: OrgMenuGroup[] = [
       // ficha, marcar pagado, dar dorsal)
       { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
       { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
-      // Edición completa, borrados y exports: panel de escritorio
-      { id: "registrations", title: "Gestión completa", icon: ClipboardPaste, view: "registrations" },
     ],
   },
   {
