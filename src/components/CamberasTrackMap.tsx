@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GroupPlaybackControls } from '@/components/GroupPlaybackControls';
-import { Radio, AlertTriangle, Battery, Gauge, Clock, Users, Search, Repeat, Loader2 } from 'lucide-react';
+import { Radio, AlertTriangle, Battery, Gauge, Clock, Users, Search, Repeat, Loader2, Star } from 'lucide-react';
 
 // ── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -209,9 +209,24 @@ export function CamberasTrackMap({
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const sosMarkers = useRef<mapboxgl.Marker[]>([]);
 
-  // ── Selección + repetición de grupo (reloj maestro, como en LiveGPSMap) ──
+  // ── Favoritos + repetición de grupo (reloj maestro, como en LiveGPSMap) ──
+  // Los favoritos se recuerdan por carrera en localStorage: se marcan una
+  // vez y siguen marcados al volver a abrir el mapa.
+  const favsKey = `track-favs-${eventId || 'global'}`;
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(`track-favs-${eventId || 'global'}`) || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(favsKey, JSON.stringify(Array.from(selectedIds)));
+    } catch { /* almacenamiento lleno o bloqueado: los favoritos no persisten */ }
+  }, [selectedIds, favsKey]);
   const [replayTracks, setReplayTracks] = useState<Map<string, ReplayTrack> | null>(null);
   const [replayRange, setReplayRange] = useState<{ t0: number; t1: number } | null>(null);
   const [replayLoading, setReplayLoading] = useState(false);
@@ -1127,10 +1142,12 @@ export function CamberasTrackMap({
               <span className="text-sm font-semibold">Todos los corredores</span>
               {selectedIds.size > 0 && !replayTracks && (
                 <button
-                  className="text-xs text-gray-400 hover:text-white"
+                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-white"
                   onClick={() => setSelectedIds(new Set())}
+                  title="Vaciar la lista de favoritos"
                 >
-                  ✕ Quitar ({selectedIds.size})
+                  <Star className="h-3 w-3 fill-[#f59e0b] text-[#f59e0b]" />
+                  {selectedIds.size} · quitar
                 </button>
               )}
             </div>
@@ -1158,7 +1175,7 @@ export function CamberasTrackMap({
                 ) : (
                   <>
                     <Repeat className="h-3.5 w-3.5" />
-                    Repetición ({selectedIds.size})
+                    Repetición de favoritos ({selectedIds.size})
                   </>
                 )}
               </button>
@@ -1184,19 +1201,25 @@ export function CamberasTrackMap({
                       key={runner.token_id}
                       className="flex w-full items-center border-b border-border/50 transition-colors hover:bg-white/5"
                     >
-                      {/* Selección para la repetición */}
-                      <label
+                      {/* Favorito: entra en la repetición de grupo */}
+                      <button
+                        type="button"
                         className="shrink-0 cursor-pointer py-2 pl-3 pr-1"
-                        onClick={e => e.stopPropagation()}
+                        onClick={e => {
+                          e.stopPropagation();
+                          toggleSelected(runner.token_id);
+                        }}
+                        aria-label={`${selectedIds.has(runner.token_id) ? 'Quitar de' : 'Añadir a'} favoritos: ${runner.participant_name}`}
+                        title="Favorito (para la repetición de grupo)"
                       >
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(runner.token_id)}
-                          onChange={() => toggleSelected(runner.token_id)}
-                          className="h-3.5 w-3.5 accent-[#e94560]"
-                          aria-label={`Seleccionar a ${runner.participant_name}`}
+                        <Star
+                          className={`h-4 w-4 transition-colors ${
+                            selectedIds.has(runner.token_id)
+                              ? 'fill-[#f59e0b] text-[#f59e0b]'
+                              : 'text-gray-600 hover:text-gray-400'
+                          }`}
                         />
-                      </label>
+                      </button>
                       <button
                         className="min-w-0 flex-1 px-2 py-2 text-left"
                         onClick={() => {
