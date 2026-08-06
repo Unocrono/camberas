@@ -24,7 +24,7 @@ import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
-  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, ChevronDown, Home,
+  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
   Bike, ShieldCheck, Timer,
@@ -541,25 +541,8 @@ const OrganizerApp = () => {
         )}
 
         {/* El panel del organizador ES esta portada: el informe de abajo.
-            (Antes había un botón que saltaba al panel de escritorio.) */}
-
-        {/* Botón destacado: alta de invitado, la gestión más usada */}
-        {raceId && (
-          <button
-            onClick={() => {
-              const g = ORG_MENU.find((x) => x.key === "corredores");
-              const item = g?.items.find((i) => i.screen === "invitado");
-              if (g && item) openItem(item, g.key);
-            }}
-            className="flex w-full items-center justify-between rounded-2xl border-2 border-secondary bg-secondary/5 px-5 py-4 transition-colors hover:bg-secondary/10"
-          >
-            <span className="flex items-center gap-3">
-              <UserPlus className="h-6 w-6 text-secondary" />
-              <span className="font-archivo text-lg uppercase">Añadir invitado</span>
-            </span>
-            <ChevronRight className="h-5 w-5 text-secondary" />
-          </button>
-        )}
+            (Sin botones de acción aquí: la portada es informe; las
+            gestiones están en GESTIÓN, al final.) */}
 
         {/* Informe: cargando / error */}
         {raceId && !summary && !summaryError && (
