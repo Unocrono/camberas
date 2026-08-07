@@ -100,7 +100,18 @@
         return;
       }
 
-      setTimeout(function () { window.location.href = deepLink; }, 400);
+      // Android: el esquema propio (camberas://) lo bloquea Chrome cuando la
+      // navegacion no viene de un toque del usuario — por eso "no abria a la
+      // primera". El formato intent:// SI lo respeta y ademas lleva de vuelta
+      // a esta pagina si la app no esta instalada.
+      var esAndroid = /android/i.test(navigator.userAgent);
+      var intentLink = 'intent://activate/' + token +
+        '#Intent;scheme=camberas;package=com.unocrono.camberastrack;end';
+      if (esAndroid) document.getElementById('openApp').setAttribute('href', intentLink);
+
+      setTimeout(function () {
+        window.location.href = esAndroid ? intentLink : deepLink;
+      }, 300);
       setTimeout(function () {
         if (!document.hidden) document.getElementById('stores').classList.add('visible');
       }, 2500);
