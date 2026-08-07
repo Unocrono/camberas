@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, Calendar, MapPin, Trophy } from "lucide-react";
+import { Loader2, Calendar, MapPin, Trophy, Users } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { z } from "zod";
@@ -461,6 +461,22 @@ const Profile = () => {
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-archivo text-2xl uppercase">Mi Equipo</CardTitle>
+              <CardDescription>
+                Crea tu equipo, gestiona el roster e inscríbelo en lote con descuento
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild variant="outline">
+                <Link to="/equipo">
+                  <Users className="h-4 w-4 mr-2" /> Gestionar mi equipo
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 

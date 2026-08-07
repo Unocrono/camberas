@@ -14,6 +14,7 @@ import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
 import Grupetta from "./pages/Grupetta";
 import GrupettaCapo from "./pages/GrupettaCapo";
+import MyTeam from "./pages/MyTeam";
 import CamberasTrackLive from "./pages/CamberasTrackLive";
 import TrackLanding from "./pages/TrackLanding";
 import Planes from "./pages/Planes";
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/races" element={<Races />} />
           <Route path="/grupetta" element={<Grupetta />} />
           <Route path="/grupetta/capo" element={<GrupettaCapo />} />
+          <Route path="/equipo" element={<MyTeam />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/organizer" element={<OrganizerAuth />} />
           <Route path="/organizers" element={<OrganizersLanding />} />
