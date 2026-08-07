@@ -34,6 +34,7 @@ import { CamberasTrackMap } from "@/components/CamberasTrackMap";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
+import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -239,6 +240,15 @@ const OrganizerDashboard = () => {
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "race-documents" && (
+              selectedRaceId ? (
+                <RaceDocumentsManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar su documentación</p>
+                </div>
+              )
+            )}
             {currentView === "categories" && <CategoriesManagement selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
