@@ -14,7 +14,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp, QrCode } from "lucide-react";
+import { qrConLogo } from "@/lib/qrConLogo";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { parseGpxFile } from "@/lib/gpxParser";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -101,6 +105,15 @@ const GrupettaCapo = () => {
     if (session) cargarMisGrupettas();
     else setMisGrupettas([]);
   }, [session, cargarMisGrupettas]);
+
+  // QR de unión: en la salida, el capo lo enseña y el nuevo lo escanea
+  const [qrGrupetta, setQrGrupetta] = useState<Grupetta | null>(null);
+  const [qrImagen, setQrImagen] = useState("");
+
+  const mostrarQr = async (g: Grupetta) => {
+    setQrGrupetta(g);
+    setQrImagen(await qrConLogo(urlUnion(g.join_code)));
+  };
 
   const copiar = (texto: string) => {
     navigator.clipboard.writeText(texto);
@@ -481,8 +494,18 @@ const GrupettaCapo = () => {
                             <Button size="sm" onClick={() => copiar(urlUnion(g.join_code))}>
                               <Copy className="h-4 w-4 mr-1" /> Enlace de unión
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => copiar(urlMapa(g.slug))}>
-                              <MapPin className="h-4 w-4 mr-1" /> Enlace del mapa
+                            <Button size="sm" variant="outline" asChild>
+                              <a href={urlMapa(g.slug)} target="_blank" rel="noreferrer">
+                                <MapPin className="h-4 w-4 mr-1" /> Abrir mapa
+                              </a>
+                            </Button>
+
+                            <Button size="sm" variant="secondary" onClick={() => mostrarQr(g)}>
+                              <QrCode className="h-4 w-4 mr-1" /> Mostrar QR de unión
+                            </Button>
+
+                            <Button size="sm" variant="ghost" onClick={() => copiar(urlMapa(g.slug))}>
+                              <Copy className="h-4 w-4 mr-1" /> Copiar enlace del mapa
                             </Button>
 
                             <Button size="sm" variant="outline" asChild disabled={subiendo === g.race_id}>
@@ -558,6 +581,27 @@ const GrupettaCapo = () => {
           </p>
         </div>
       </div>
+      <Dialog open={!!qrGrupetta} onOpenChange={(o) => !o && setQrGrupetta(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="h-5 w-5" /> Únete a {qrGrupetta?.nombre}
+            </DialogTitle>
+            <DialogDescription>
+              Que lo escanee con la cámara del móvil: entra, pone su nombre y ya está en el grupo.
+            </DialogDescription>
+          </DialogHeader>
+          {qrImagen && (
+            <img src={qrImagen} alt="QR de unión" className="mx-auto rounded-lg border w-64 h-64" />
+          )}
+          <p className="text-center text-sm text-muted-foreground">
+            O con el código{" "}
+            <span className="font-mono font-bold text-foreground">{qrGrupetta?.join_code}</span>{" "}
+            en camberas.com/grupetta
+          </p>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );
