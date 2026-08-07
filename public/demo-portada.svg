@@ -1,0 +1,13 @@
+<svg viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Carrera Demo portada">
+  <rect width="960" height="400" fill="#EDF4DE"/>
+  <circle cx="800" cy="90" r="52" fill="#C8E85C"/>
+  <path d="M0 260 Q240 160 490 240 T960 210 V400 H0 Z" fill="#3CA15B"/>
+  <path d="M0 315 Q270 245 540 300 T960 285 V400 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 368 Q300 330 620 362 T960 350 V400 H0 Z" fill="#1E5B38"/>
+  <path d="M60 355 C 260 315, 320 250, 490 262 S 800 235, 910 150" fill="none" stroke="#FAF6EC" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 20"/>
+  <g transform="translate(480 185)">
+    <rect x="-235" y="-52" width="470" height="104" rx="18" fill="#0E2419"/>
+    <text x="0" y="-6" font-family="Arial, sans-serif" font-weight="900" font-size="56" fill="#EC7C2B" text-anchor="middle">CARRERA DEMO</text>
+    <text x="0" y="36" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#C8E85C" text-anchor="middle">AQUÍ SE PRUEBA TODO · NADA ES DE VERDAD</text>
+  </g>
+</svg>

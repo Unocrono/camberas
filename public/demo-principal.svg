@@ -1,0 +1,13 @@
+<svg viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Carrera Demo">
+  <rect width="640" height="360" fill="#E9F6C6"/>
+  <circle cx="520" cy="84" r="44" fill="#C8E85C"/>
+  <path d="M0 240 Q160 150 330 225 T640 200 V360 H0 Z" fill="#3CA15B"/>
+  <path d="M0 295 Q180 230 360 285 T640 265 V360 H0 Z" fill="#2E8B4A"/>
+  <path d="M0 340 Q200 300 420 335 T640 320 V360 H0 Z" fill="#1E5B38"/>
+  <path d="M40 330 C 170 300, 210 235, 330 245 S 530 215, 610 140" fill="none" stroke="#FAF6EC" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 18"/>
+  <g transform="translate(320 165)">
+    <rect x="-150" y="-46" width="300" height="92" rx="16" fill="#0E2419"/>
+    <text x="0" y="-4" font-family="Arial, sans-serif" font-weight="900" font-size="52" fill="#EC7C2B" text-anchor="middle">DEMO</text>
+    <text x="0" y="32" font-family="Arial, sans-serif" font-weight="700" font-size="17" fill="#C8E85C" text-anchor="middle">PRUEBA SIN MIEDO</text>
+  </g>
+</svg>
