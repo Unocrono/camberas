@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Pencil, Plus, TicketPercent, Trash2 } from "lucide-react";
+import { TeamDiscountManagement } from "@/components/admin/TeamDiscountManagement";
 
 // Los cupones NO fijan el precio desde el cliente: aquí solo se definen.
 // La validación y el descuento real los aplican las edge functions
@@ -571,6 +572,10 @@ export function CouponsManagement({ selectedRaceId }: CouponsManagementProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Descuento por equipos: misma vista que los cupones — todo lo que
+          abarata la inscripción se gestiona en un sitio */}
+      <TeamDiscountManagement raceId={selectedRaceId} />
     </div>
   );
 }

@@ -10,7 +10,9 @@ const REDSYS_REDIRECT_URL_PROD = "https://sis.redsys.es/sis/realizarPago";
 
 interface RedsysPaymentFormProps {
   amount: number;
-  registrationId: string;
+  registrationId?: string;
+  /** Lote de equipo: N inscripciones en un solo cargo (team-init-payment) */
+  registrationIds?: string[];
   description?: string;
   userEmail?: string;
   onSuccess?: () => void;
@@ -22,6 +24,7 @@ interface RedsysPaymentFormProps {
 export const RedsysPaymentForm = ({
   amount,
   registrationId,
+  registrationIds,
   description,
   userEmail,
   onError,
@@ -41,22 +44,24 @@ export const RedsysPaymentForm = ({
 
   useEffect(() => {
     initializePayment();
-  }, [amount, registrationId]);
+    // join(): identidad estable del lote aunque cambie la referencia del array
+  }, [amount, registrationId, registrationIds?.join(",")]);
 
   const initializePayment = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error: fnError } = await supabase.functions.invoke("redsys-init-payment", {
-        body: {
-          amount,
-          registrationId,
-          description,
-          userEmail,
-          isTest,
+      // Lote de equipo (un cargo, N inscripciones) o inscripción suelta
+      const esLote = registrationIds && registrationIds.length > 0;
+      const { data, error: fnError } = await supabase.functions.invoke(
+        esLote ? "team-init-payment" : "redsys-init-payment",
+        {
+          body: esLote
+            ? { registrationIds, isTest }
+            : { amount, registrationId, description, userEmail, isTest },
         },
-      });
+      );
 
       if (fnError) throw fnError;
       if (!data.success) throw new Error(data.error || "Error inicializando pago");

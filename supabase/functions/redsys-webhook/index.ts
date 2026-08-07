@@ -249,6 +249,130 @@ serve(async (req) => {
       }
     }
 
+    // Lote de EQUIPO: el intent no apunta a una inscripción
+    // (registration_id NULL) sino a payment_intent_items. Un solo cargo
+    // del capitán confirma N inscripciones: dorsal + paid a cada una (el
+    // trigger de cupones registra los canjes solo con eso), un email
+    // resumen al capitán y un push al organizador.
+    if (isSuccess && !paymentIntent.registration_id) {
+      const { data: items } = await supabase
+        .from("payment_intent_items")
+        .select("registration_id, amount")
+        .eq("payment_intent_id", paymentIntent.id);
+
+      if (items && items.length > 0) {
+        const runners: { name: string; bib: number | null }[] = [];
+        let firstReg: any = null;
+        for (const it of items) {
+          const { data: reg } = await supabase
+            .from("registrations")
+            .select("id, race_id, race_distance_id, first_name, last_name, bib_number, team_id, team")
+            .eq("id", it.registration_id)
+            .maybeSingle();
+          if (!reg) continue;
+          if (!firstReg) firstReg = reg;
+
+          let bib: number | null = reg.bib_number ?? null;
+          if (bib == null) {
+            const { data: newBib, error: bibErr } = await supabase
+              .rpc("assign_next_bib", { p_distance_id: reg.race_distance_id });
+            if (bibErr) console.error("assign_next_bib (team) error:", bibErr.message);
+            else bib = newBib ?? null;
+          }
+
+          const { error: teamRegErr } = await supabase
+            .from("registrations")
+            .update({
+              status: "confirmed",
+              payment_status: "paid",
+              ...(bib != null && reg.bib_number == null ? { bib_number: bib } : {}),
+            })
+            .eq("id", reg.id);
+          if (teamRegErr) console.error("Error confirming team registration:", teamRegErr.message);
+
+          runners.push({
+            name: [reg.first_name, reg.last_name].filter(Boolean).join(" "),
+            bib,
+          });
+        }
+
+        // Email resumen al CAPITÁN (él pagó; los miembros pueden no tener email)
+        try {
+          if (firstReg) {
+            const [{ data: race }, { data: distance }] = await Promise.all([
+              supabase.from("races").select("name, organizer_id").eq("id", firstReg.race_id).single(),
+              supabase.from("race_distances").select("name").eq("id", firstReg.race_distance_id).single(),
+            ]);
+            let captain: { email: string | null; first_name: string | null } | null = null;
+            if (firstReg.team_id) {
+              const { data: team } = await supabase
+                .from("teams")
+                .select("captain_user_id")
+                .eq("id", firstReg.team_id)
+                .maybeSingle();
+              if (team?.captain_user_id) {
+                const { data: prof } = await supabase
+                  .from("profiles")
+                  .select("email, first_name")
+                  .eq("id", team.captain_user_id)
+                  .maybeSingle();
+                captain = prof ?? null;
+              }
+            }
+
+            if (captain?.email) {
+              await fetch(`${SUPABASE_URL}/functions/v1/send-payment-confirmation`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({
+                  email: captain.email,
+                  firstName: captain.first_name ?? "Capitán",
+                  lastName: "",
+                  raceName: race?.name ?? "Carrera",
+                  distanceName: `${distance?.name ?? ""} — equipo ${firstReg.team ?? ""} (${runners.length} corredores)`,
+                  amount: paymentIntent.amount,
+                  orderNumber: orderNumber,
+                  bibNumber: null,
+                  formData: runners.map((r) => ({
+                    label: r.bib != null ? `Dorsal ${r.bib}` : "Inscrito",
+                    value: r.name,
+                  })),
+                  organizerEmail: null,
+                }),
+              });
+            }
+
+            // Push al organizador: un solo aviso para todo el lote
+            if (race?.organizer_id) {
+              try {
+                await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    userId: race.organizer_id,
+                    title: "💶 ¡Inscripción de equipo pagada!",
+                    body: `${firstReg.team ?? "Equipo"} — ${runners.length} corredores · ${paymentIntent.amount}€`,
+                    url: "/org",
+                    raceId: firstReg.race_id,
+                  }),
+                });
+              } catch (pushError) {
+                console.error("Error sending team push:", pushError);
+              }
+            }
+          }
+        } catch (emailError) {
+          console.error("Error sending team confirmation email:", emailError);
+        }
+      }
+    }
+
     console.log(`Payment ${orderNumber}: ${isSuccess ? 'SUCCESS' : 'FAILED'} - Code: ${responseCode}`);
 
     return new Response("OK", {

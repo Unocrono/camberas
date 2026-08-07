@@ -33,9 +33,15 @@ interface DynamicRegistrationFormProps {
   onChange: (fieldName: string, value: any) => void;
   /** Notifica el suplemento total (€) que aportan los campos con importe */
   onSupplementChange?: (supplement: number) => void;
+  /**
+   * Pre-rellenar con el perfil del usuario logueado (por defecto sí).
+   * En la inscripción de EQUIPO va a false: cada formulario es de un
+   * miembro del roster, no del capitán que está logueado.
+   */
+  prefillFromProfile?: boolean;
 }
 
-export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange, onSupplementChange }: DynamicRegistrationFormProps) => {
+export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange, onSupplementChange, prefillFromProfile = true }: DynamicRegistrationFormProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -55,10 +61,10 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
 
   // Pre-fill form with profile data when user is logged in and fields are loaded
   useEffect(() => {
-    if (user && fields.length > 0 && !profileLoaded) {
-      prefillFromProfile();
+    if (prefillFromProfile && user && fields.length > 0 && !profileLoaded) {
+      prefillProfileData();
     }
-  }, [user, fields, profileLoaded]);
+  }, [prefillFromProfile, user, fields, profileLoaded]);
 
   // Calculate category when birth_date or gender_id changes
   useEffect(() => {
@@ -102,7 +108,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
     }
   };
 
-  const prefillFromProfile = async () => {
+  const prefillProfileData = async () => {
     if (!user) return;
 
     try {

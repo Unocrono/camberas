@@ -7,7 +7,7 @@
  * lote y el pago van por edge function (team-register), no por aquí.
  */
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Loader2, Users, UserPlus, Trash2, Pencil, ChevronDown, ChevronUp, ShieldCheck, Mail,
+  Loader2, Users, UserPlus, Trash2, Pencil, ChevronDown, ChevronUp, ShieldCheck, Mail, Flag,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -85,6 +85,27 @@ const MyTeam = () => {
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // Vuelta de Redsys tras pagar un lote (URLOK/URLKO → /equipo?payment=…)
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const resultado = searchParams.get("payment");
+    if (!resultado) return;
+    if (resultado === "success") {
+      toast({
+        title: "🎉 Pago del equipo completado",
+        description: "Inscripciones confirmadas y dorsales asignados. Te llega un email con el resumen.",
+      });
+    } else {
+      toast({
+        title: "El pago no se completó",
+        description: "No se ha cobrado nada. Puedes reintentarlo desde Inscribir en carrera.",
+        variant: "destructive",
+      });
+    }
+    searchParams.delete("payment");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams, toast]);
 
   const cargarEquipos = useCallback(async () => {
     if (!session) return;
@@ -352,6 +373,11 @@ const MyTeam = () => {
                         <p className="font-archivo uppercase">{t.name}</p>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">Capitán</Badge>
+                          <Button size="sm" variant="secondary" asChild>
+                            <Link to={`/equipo/inscribir/${t.id}`}>
+                              <Flag className="h-4 w-4 mr-1" /> Inscribir en carrera
+                            </Link>
+                          </Button>
                           <Button size="sm" variant="outline" onClick={() => abrirEquipo(t.id)}>
                             {abierto === t.id ? (
                               <>Cerrar <ChevronUp className="h-4 w-4 ml-1" /></>
