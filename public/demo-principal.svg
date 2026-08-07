@@ -6,8 +6,8 @@
   <path d="M0 340 Q200 300 420 335 T640 320 V360 H0 Z" fill="#1E5B38"/>
   <path d="M40 330 C 170 300, 210 235, 330 245 S 530 215, 610 140" fill="none" stroke="#FAF6EC" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 18"/>
   <g transform="translate(320 165)">
-    <rect x="-150" y="-46" width="300" height="92" rx="16" fill="#0E2419"/>
-    <text x="0" y="-4" font-family="Arial, sans-serif" font-weight="900" font-size="52" fill="#EC7C2B" text-anchor="middle">DEMO</text>
+    <rect x="-190" y="-46" width="380" height="92" rx="16" fill="#0E2419"/>
+    <text x="0" y="-4" font-family="Arial, sans-serif" font-weight="900" font-size="46" fill="#EC7C2B" text-anchor="middle">TRAIL DEMO</text>
     <text x="0" y="32" font-family="Arial, sans-serif" font-weight="700" font-size="17" fill="#C8E85C" text-anchor="middle">PRUEBA SIN MIEDO</text>
   </g>
 </svg>

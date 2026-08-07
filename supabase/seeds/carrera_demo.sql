@@ -70,7 +70,7 @@ where u.email = 'organizadordemo@camberas.com'
 insert into public.races (name, subtitle, slug, description, location, date,
   max_participants, race_type, is_visible, is_featured,
   image_url, cover_image_url, poster_url, organizer_id, organizer_email)
-select 'Carrera Demo Camberas', 'Aquí se prueba todo · nada es de verdad',
+select 'Trail Demo Camberas', 'Aquí se prueba todo · nada es de verdad',
   'carrera-demo',
   'Carrera de pruebas de Camberas: inscríbete, paga (importes simbólicos), recibe tu dorsal y trastea sin miedo. Los datos de esta carrera se borran periódicamente.',
   'Valle Demo (Cantabria)', '2026-12-12', 300, 'trail', true, false,
@@ -81,6 +81,9 @@ where u.email = 'organizadordemo@camberas.com'
   and not exists (select 1 from public.races where slug = 'carrera-demo');
 
 -- 6) Los 3 recorridos
+-- (si la carrera ya existia con el nombre antiguo, se renombra)
+update public.races set name = 'Trail Demo Camberas' where slug = 'carrera-demo';
+
 insert into public.race_distances (race_id, name, distance_km, elevation_gain, price,
   max_participants, bib_start, bib_end, next_bib, is_visible, gps_tracking_enabled, display_order)
 select r.id, 'Trail', 25, 900, 2, 100, 1, 100, 1, true, true, 1

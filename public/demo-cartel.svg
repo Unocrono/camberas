@@ -5,7 +5,7 @@
   <path d="M0 500 Q140 430 270 485 T480 470 V720 H0 Z" fill="#2E8B4A"/>
   <path d="M0 580 Q150 530 310 570 T480 560 V720 H0 Z" fill="#3CA15B"/>
   <path d="M30 690 C 130 640, 160 560, 250 555 S 420 520, 450 440" fill="none" stroke="#FAF6EC" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 18"/>
-  <text x="240" y="205" font-family="Arial, sans-serif" font-weight="900" font-size="72" fill="#EC7C2B" text-anchor="middle">DEMO</text>
+  <text x="240" y="205" font-family="Arial, sans-serif" font-weight="900" font-size="52" fill="#EC7C2B" text-anchor="middle">TRAIL DEMO</text>
   <text x="240" y="250" font-family="Arial, sans-serif" font-weight="800" font-size="26" fill="#FAF6EC" text-anchor="middle">CARRERA DE PRUEBAS</text>
   <text x="240" y="300" font-family="Arial, sans-serif" font-weight="700" font-size="18" fill="#C8E85C" text-anchor="middle">TRAIL 25K · SPEED 15K · MARCHA 15K</text>
   <text x="240" y="336" font-family="Arial, sans-serif" font-weight="700" font-size="15" fill="#FAF6EC" text-anchor="middle">camberas.com</text>
