@@ -849,6 +849,7 @@ export type Database = {
       }
       gps_sos_alerts: {
         Row: {
+          false_alarm: boolean
           id: string
           lat: number
           lng: number
@@ -858,6 +859,7 @@ export type Database = {
           triggered_at: string | null
         }
         Insert: {
+          false_alarm?: boolean
           id?: string
           lat: number
           lng: number
@@ -867,6 +869,7 @@ export type Database = {
           triggered_at?: string | null
         }
         Update: {
+          false_alarm?: boolean
           id?: string
           lat?: number
           lng?: number
@@ -1991,6 +1994,45 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_intent_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_intent_id: string
+          registration_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_intent_id: string
+          registration_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_intent_id?: string
+          registration_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_intent_items_payment_intent_id_fkey"
+            columns: ["payment_intent_id"]
+            isOneToOne: false
+            referencedRelation: "payment_intents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_intent_items_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: true
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_intents: {
         Row: {
           amount: number
@@ -2478,6 +2520,122 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_document_requirements: {
+        Row: {
+          category: string
+          created_at: string
+          days_before_race: number
+          description: string | null
+          display_order: number
+          id: string
+          is_required: boolean
+          race_id: string
+          title: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          days_before_race?: number
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_required?: boolean
+          race_id: string
+          title: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          days_before_race?: number
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_required?: boolean
+          race_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_document_requirements_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_documents: {
+        Row: {
+          category: string
+          created_at: string
+          expiry_date: string | null
+          file_name: string | null
+          file_path: string | null
+          id: string
+          issue_date: string | null
+          mime_type: string | null
+          notes: string | null
+          race_id: string
+          requirement_id: string | null
+          size_bytes: number | null
+          status: string
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          expiry_date?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          issue_date?: string | null
+          mime_type?: string | null
+          notes?: string | null
+          race_id: string
+          requirement_id?: string | null
+          size_bytes?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          expiry_date?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          id?: string
+          issue_date?: string | null
+          mime_type?: string | null
+          notes?: string | null
+          race_id?: string
+          requirement_id?: string | null
+          size_bytes?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_documents_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "race_documents_requirement_id_fkey"
+            columns: ["requirement_id"]
+            isOneToOne: false
+            referencedRelation: "race_document_requirements"
             referencedColumns: ["id"]
           },
         ]
@@ -3020,6 +3178,41 @@ export type Database = {
         }
         Relationships: []
       }
+      race_team_discount_tiers: {
+        Row: {
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          min_members: number
+          race_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_type: string
+          discount_value: number
+          id?: string
+          min_members: number
+          race_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          min_members?: number
+          race_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_team_discount_tiers_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       race_waves: {
         Row: {
           created_at: string
@@ -3547,6 +3740,9 @@ export type Database = {
           source: string | null
           status: string
           team: string | null
+          team_discount: number | null
+          team_id: string | null
+          team_member_id: string | null
           tshirt_size: string | null
           updated_at: string
           user_id: string | null
@@ -3579,6 +3775,9 @@ export type Database = {
           source?: string | null
           status?: string
           team?: string | null
+          team_discount?: number | null
+          team_id?: string | null
+          team_member_id?: string | null
           tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
@@ -3611,6 +3810,9 @@ export type Database = {
           source?: string | null
           status?: string
           team?: string | null
+          team_discount?: number | null
+          team_id?: string | null
+          team_member_id?: string | null
           tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
@@ -3649,6 +3851,20 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrations_team_member_id_fkey"
+            columns: ["team_member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
             referencedColumns: ["id"]
           },
           {
@@ -4061,6 +4277,89 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      team_members: {
+        Row: {
+          birth_date: string | null
+          created_at: string
+          dni_passport: string | null
+          email: string | null
+          first_name: string | null
+          gender: string | null
+          id: string
+          last_name: string | null
+          nick: string | null
+          phone: string | null
+          team_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          birth_date?: string | null
+          created_at?: string
+          dni_passport?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          last_name?: string | null
+          nick?: string | null
+          phone?: string | null
+          team_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          birth_date?: string | null
+          created_at?: string
+          dni_passport?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          last_name?: string | null
+          nick?: string | null
+          phone?: string | null
+          team_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          captain_user_id: string
+          created_at: string
+          id: string
+          join_code: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          captain_user_id: string
+          created_at?: string
+          id?: string
+          join_code?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          captain_user_id?: string
+          created_at?: string
+          id?: string
+          join_code?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       timer_assignments: {
         Row: {
@@ -4630,6 +4929,14 @@ export type Database = {
           registration_id: string
         }[]
       }
+      detallar_sos: {
+        Args: { p_falsa?: boolean; p_motivo?: string; p_token_id: string }
+        Returns: boolean
+      }
+      es_miembro_del_equipo: {
+        Args: { p_team_id: string; p_user: string }
+        Returns: boolean
+      }
       generar_token_corredor: {
         Args: {
           p_bib: string
@@ -4782,6 +5089,7 @@ export type Database = {
           send_interval_seconds: number
         }[]
       }
+      link_team_members_by_dni: { Args: { p_user_id: string }; Returns: number }
       mis_grupettas: {
         Args: never
         Returns: {
@@ -4821,6 +5129,7 @@ export type Database = {
           processed_count: number
         }[]
       }
+      puede_gestionar_carrera: { Args: { p_race_id: string }; Returns: boolean }
       purge_gps_antiguos: { Args: never; Returns: undefined }
       revocar_token_corredor: {
         Args: { p_token_row_id: string }
@@ -4833,6 +5142,10 @@ export type Database = {
       seed_default_registration_fields_for_distance: {
         Args: { p_distance_id: string }
         Returns: undefined
+      }
+      seed_requisitos_documentales: {
+        Args: { p_race_id: string }
+        Returns: number
       }
       tokens_corredores_carrera: {
         Args: { p_race_id: string }
