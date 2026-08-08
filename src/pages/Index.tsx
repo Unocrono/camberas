@@ -30,6 +30,7 @@ interface HomeRace {
   coverImageUrl?: string;
   imageUrl?: string;
   raceType: "trail" | "mtb";
+  groupType: "carrera" | "quedada" | "grupetta";
   priceLabel: string | null;
   maxDistanceKm: number;
   maxElevation: number;
