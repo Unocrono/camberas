@@ -141,7 +141,7 @@ const MyTeam = () => {
       .order("created_at", { ascending: true });
     setCargandoMiembros(false);
     if (error) {
-      toast({ title: "No se pudo cargar el roster", description: error.message, variant: "destructive" });
+      toast({ title: "No se pudieron cargar los componentes", description: error.message, variant: "destructive" });
       return;
     }
     setMiembros((data ?? []) as Member[]);
@@ -164,7 +164,7 @@ const MyTeam = () => {
         captain_user_id: session.user.id,
       });
       if (error) throw error;
-      toast({ title: "Equipo creado 🎽", description: "Ya puedes añadir miembros al roster." });
+      toast({ title: "Equipo creado 🎽", description: "Ya puedes añadir a sus componentes." });
       setNombreEquipo("");
       await cargarEquipos();
     } catch (e: any) {
@@ -175,7 +175,7 @@ const MyTeam = () => {
   };
 
   const borrarEquipo = async (t: Team) => {
-    if (!window.confirm(`¿Borrar "${t.name}"?\n\nSe eliminará el equipo y todo su roster. Las inscripciones ya hechas NO se tocan.\n\nEsta acción no se puede deshacer.`)) return;
+    if (!window.confirm(`¿Borrar "${t.name}"?\n\nSe eliminará el equipo y todos sus componentes. Las inscripciones ya hechas NO se tocan.\n\nEsta acción no se puede deshacer.`)) return;
     const { error } = await (supabase as any).from("teams").delete().eq("id", t.id);
     if (error) {
       toast({ title: "No se pudo borrar", description: error.message, variant: "destructive" });
@@ -303,13 +303,13 @@ const MyTeam = () => {
           </h1>
           <p className="text-muted-foreground mb-8">
             Crea tu equipo una vez y reutilízalo: inscripciones en lote con descuento por
-            equipos, y pronto salidas de grupetta con el mismo roster.
+            equipos, y pronto salidas de grupetta con los mismos componentes.
           </p>
 
           <Card className="border-2 border-secondary/60">
             <CardHeader>
               <CardDescription>
-                El capitán mantiene el roster. Los miembros con cuenta de Camberas quedan
+                El capitán mantiene la lista. Los componentes con cuenta de Camberas quedan
                 vinculados automáticamente por email o DNI; al resto los gestionas tú.
               </CardDescription>
             </CardHeader>
@@ -382,7 +382,7 @@ const MyTeam = () => {
                             {abierto === t.id ? (
                               <>Cerrar <ChevronUp className="h-4 w-4 ml-1" /></>
                             ) : (
-                              <>Roster <ChevronDown className="h-4 w-4 ml-1" /></>
+                              <>Componentes <ChevronDown className="h-4 w-4 ml-1" /></>
                             )}
                           </Button>
                           <Button
@@ -439,7 +439,7 @@ const MyTeam = () => {
                               ))}
                             </ul>
                           ) : (
-                            <p className="text-sm text-muted-foreground">Aún no hay nadie en el roster.</p>
+                            <p className="text-sm text-muted-foreground">Este equipo aún no tiene componentes.</p>
                           )}
 
                           {/* Alta / edición de miembro */}

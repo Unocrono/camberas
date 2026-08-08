@@ -468,7 +468,7 @@ const Profile = () => {
             <CardHeader>
               <CardTitle className="font-archivo text-2xl uppercase">Mi Equipo</CardTitle>
               <CardDescription>
-                Crea tu equipo, gestiona el roster e inscríbelo en lote con descuento
+                Crea tu equipo, gestiona sus componentes e inscríbelo en lote con descuento
               </CardDescription>
             </CardHeader>
             <CardContent>

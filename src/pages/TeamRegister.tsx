@@ -420,15 +420,15 @@ const TeamRegister = () => {
                   <CardHeader>
                     <CardTitle>2. Corredores del lote {N > 0 ? `(${N})` : ""}</CardTitle>
                     <CardDescription>
-                      Marca a quién inscribes y completa la ficha de cada uno. Los datos del
-                      roster ya van rellenos.
+                      Marca a quién inscribes y completa la ficha de cada uno. Los datos que
+                      ya tienes guardados van rellenos.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {roster.length === 0 && (
                       <p className="text-sm text-muted-foreground">
-                        Tu roster está vacío —{" "}
-                        <Link to="/equipo" className="underline">añade miembros primero</Link>.
+                        Tu equipo no tiene componentes —{" "}
+                        <Link to="/equipo" className="underline">añádelos primero</Link>.
                       </p>
                     )}
                     {roster.map((m) => (
