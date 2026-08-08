@@ -45,13 +45,18 @@
 <script>
 const URL_ = 'https://rsahtxjpisnldxnsmupk.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYWh0eGpwaXNubGR4bnNtdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mjg5MDAsImV4cCI6MjA3OTIwNDkwMH0.MwUTZs3BxPMsy0YtEgM92o4U3xw2SrMmpZ-GFNC03dE';
-// Dorsales a vigilar. Por defecto los tres móviles de la prueba de mesa,
-// pero se pueden pedir otros por la URL para vigilar una salida real:
-//   monitor-gps.html?d=2,3,4          → dorsales 2, 3 y 4
-//   monitor-gps.html?d=2:Quique,4:Ber → con nombre en la tarjeta
+// Qué vigilar, por la URL:
+//   ?event=<uuid>            → todos los dorsales de ese evento (se descubren solos)
+//   ?event=<uuid>&d=1,2,3    → solo esos dorsales del evento
+//   ?d=999:ANDROID,998:iPHONE → por dorsal suelto (prueba de mesa clásica)
+// El evento importa: los dorsales 1, 2, 3 existen en muchas carreras y sin
+// acotar se cuelan lecturas ajenas.
+const PARAMS = new URLSearchParams(location.search);
+const EVENTO = PARAMS.get('event');
+
 const DISPOSITIVOS = (() => {
-  const p = new URLSearchParams(location.search).get('d');
-  if (!p) return { '999': 'ANDROID', '998': 'iPHONE', '997': 'WP18' };
+  const p = PARAMS.get('d');
+  if (!p) return EVENTO ? {} : { '999': 'ANDROID', '998': 'iPHONE', '997': 'WP18' };
   const out = {};
   for (const trozo of p.split(',')) {
     const [bib, nombre] = trozo.split(':');
@@ -66,19 +71,32 @@ const fmtHora = d => d ? d.toLocaleTimeString('es-ES') : '—';
 
 async function poll() {
   try {
-    // Solo las lecturas de los dorsales vigilados: si se piden las últimas
-    // del sistema, el tráfico de otras carreras las tapa y salen "sin datos".
-    const filtro = `&bib_number=in.(${Object.keys(DISPOSITIVOS).join(',')})`;
+    // Solo las lecturas de lo vigilado: si se piden las últimas del sistema,
+    // el tráfico de otras carreras las tapa y salen "sin datos".
+    let filtro = EVENTO ? `&event_id=eq.${EVENTO}` : '';
+    const bibs = Object.keys(DISPOSITIVOS);
+    if (bibs.length) filtro += `&bib_number=in.(${bibs.join(',')})`;
     const r = await fetch(`${URL_}/rest/v1/gps_positions?select=bib_number,timestamp,uploaded_at,created_at,battery,accuracy&order=uploaded_at.desc.nullslast&limit=120${filtro}`, {
       headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
     });
     const rows = await r.json();
     const now = Date.now();
 
+    // Con ?event= y sin lista de dorsales, se descubren de las lecturas:
+    // así el capo no necesita saber los números de su grupetta.
+    const vigilados = { ...DISPOSITIVOS };
+    if (Object.keys(vigilados).length === 0) {
+      for (const x of rows) {
+        const b = String(x.bib_number);
+        if (b && b !== 'null' && !vigilados[b]) vigilados[b] = 'DORSAL ' + b;
+      }
+    }
+
     // Tarjeta por dispositivo
     const cards = document.getElementById('cards');
     cards.innerHTML = '';
-    for (const [bib, nombre] of Object.entries(DISPOSITIVOS)) {
+    for (const [bib, nombre] of Object.entries(vigilados).sort((a, b) =>
+      String(a[0]).localeCompare(String(b[0]), 'es', { numeric: true }))) {
       const mias = rows.filter(x => String(x.bib_number) === bib);
       const card = document.createElement('div');
       if (!mias.length) {
