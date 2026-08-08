@@ -107,10 +107,10 @@ const GrupettaCapo = () => {
   }, [session, cargarMisGrupettas]);
 
   // QR de unión: en la salida, el capo lo enseña y el nuevo lo escanea
-  const [qrGrupetta, setQrGrupetta] = useState<Grupetta | null>(null);
+  const [qrGrupetta, setQrGrupetta] = useState<MiGrupetta | null>(null);
   const [qrImagen, setQrImagen] = useState("");
 
-  const mostrarQr = async (g: Grupetta) => {
+  const mostrarQr = async (g: MiGrupetta) => {
     setQrGrupetta(g);
     setQrImagen(await qrConLogo(urlUnion(g.join_code)));
   };

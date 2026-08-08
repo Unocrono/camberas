@@ -213,6 +213,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         name_tv: moto.name_tv || "",
         color: moto.color,
         description: moto.description || "",
+        user_id: moto.user_id || "",
         race_distance_id: moto.race_distance_id || "",
         is_active: moto.is_active,
       });
@@ -223,6 +224,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
         name_tv: "",
         color: PRESET_COLORS[motos.length % PRESET_COLORS.length],
         description: "",
+        user_id: "",
         race_distance_id: distances.length > 0 ? distances[0].id : "",
         is_active: true,
       });
