@@ -24,6 +24,8 @@ interface UnionResultado {
   nombre_grupo: string;
   slug: string;
   guardada?: boolean;
+  /** true si ese nombre ya estaba: recupera su dorsal en vez de crear otro */
+  reingreso?: boolean;
 }
 
 interface MiSalida {
@@ -111,6 +113,12 @@ const Grupetta = () => {
       if (error) throw error;
       const res = data as unknown as UnionResultado;
       setUnion(res);
+      if (res.reingreso) {
+        toast({
+          title: `Ya estabas en el grupo — dorsal ${res.bib}`,
+          description: "Recuperas tu dorsal y tu ruta. El enlace anterior deja de valer.",
+        });
+      }
       setTimeout(() => {
         window.location.href = `https://camberas.com/activar.html?t=${res.token}`;
       }, 1500);
