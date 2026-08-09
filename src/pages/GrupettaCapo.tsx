@@ -81,6 +81,7 @@ const GrupettaCapo = () => {
   const [fechaSalida, setFechaSalida] = useState(new Date().toISOString().slice(0, 10));
   const [horaSalida, setHoraSalida] = useState("");
   const [lugarSalida, setLugarSalida] = useState("");
+  const [gpxNuevo, setGpxNuevo] = useState<File | null>(null);
   const [misGrupettas, setMisGrupettas] = useState<MiGrupetta[]>([]);
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
@@ -126,20 +127,51 @@ const GrupettaCapo = () => {
   const crear = async () => {
     setCargando(true);
     try {
-      const { error } = await supabase.rpc("crear_grupetta", {
+      const { data, error } = await supabase.rpc("crear_grupetta", {
         p_nombre: nombreGrupo,
         p_fecha: fechaSalida,
         p_hora: horaSalida || null,
         p_lugar: lugarSalida || null,
       });
       if (error) throw error;
+
+      // El recorrido va en el mismo gesto: se sube y se guardan km y
+      // desnivel calculados del propio GPX. Si falla, la grupetta ya
+      // está creada — se avisa y el capo puede reintentar desde su ficha.
+      const creada = data as unknown as { race_id: string } | null;
+      if (gpxNuevo && creada?.race_id) {
+        try {
+          const ruta = `grupetta/${creada.race_id}.gpx`;
+          const { error: upErr } = await supabase.storage
+            .from("race-gpx")
+            .upload(ruta, gpxNuevo, { upsert: true, contentType: "application/gpx+xml" });
+          if (upErr) throw upErr;
+          const { data: pub } = supabase.storage.from("race-gpx").getPublicUrl(ruta);
+          const stats = statsFromGpx(await gpxNuevo.text());
+          await supabase.rpc("actualizar_grupetta", {
+            p_race_id: creada.race_id,
+            p_gpx_url: pub.publicUrl,
+            ...(stats ? { p_distancia_km: stats.km, p_desnivel: stats.desnivel } : {}),
+          });
+        } catch (e: any) {
+          toast({
+            title: "Grupetta creada, pero el GPX no subió",
+            description: `${e.message}. Puedes cargarlo desde su ficha.`,
+            variant: "destructive",
+          });
+        }
+      }
+
       toast({
         title: "🎉 Grupetta creada (en borrador)",
-        description: "Completa la ficha si quieres y pulsa PUBLICAR para abrir las uniones.",
+        description: gpxNuevo
+          ? "Con su recorrido cargado. Pulsa PUBLICAR para abrir las uniones."
+          : "Completa la ficha si quieres y pulsa PUBLICAR para abrir las uniones.",
       });
       setNombreGrupo("");
       setHoraSalida("");
       setLugarSalida("");
+      setGpxNuevo(null);
       await cargarMisGrupettas();
     } catch (e: any) {
       toast({ title: "No se pudo crear", description: e.message, variant: "destructive" });
@@ -365,6 +397,30 @@ const GrupettaCapo = () => {
                         />
                       </div>
                     </div>
+                    {/* El recorrido es dato básico, no un extra: se sube aquí
+                        y la grupetta queda lista de una sola vez */}
+                    <div>
+                      <Label>Recorrido GPX (opcional)</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".gpx,application/gpx+xml"
+                          onChange={(e) => setGpxNuevo(e.target.files?.[0] ?? null)}
+                          className="cursor-pointer"
+                        />
+                        {gpxNuevo && (
+                          <Button variant="ghost" size="sm" onClick={() => setGpxNuevo(null)}>
+                            Quitar
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {gpxNuevo
+                          ? `${gpxNuevo.name} — los km y el desnivel se calculan solos`
+                          : "Los miembros lo verán en su app y en el mapa del grupo"}
+                      </p>
+                    </div>
+
                     <Button
                       variant="secondary"
                       className="w-full"
