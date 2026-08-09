@@ -379,13 +379,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
   /** Carga el track completo de un corredor, del pipeline que corresponda */
   const loadTrackPoints = async (runner: RunnerPosition): Promise<RunnerTrackPoint[]> => {
+    // Los RPC "_full" devuelven UNA fila con todos los puntos dentro: el
+    // API corta las consultas normales en 1.000 filas y las rutas largas
+    // perdían el final (1.846 puntos → se veían 1.000, faltaba hora y media).
     if (runner.source === 'app') {
       // Pipeline app (camberas-track): registration_id es el token → RPC propio
-      const { data, error } = await supabase.rpc('get_token_track', {
+      const { data, error } = await supabase.rpc('get_token_track_full' as never, {
         p_token_id: runner.registration_id,
-      });
+      } as never);
       if (error) throw error;
-      return ((data as any[]) || []).map(point => ({
+      return ((data as unknown as any[]) || []).map(point => ({
         latitude: parseFloat(String(point.lat)),
         longitude: parseFloat(String(point.lng)),
         timestamp: point.ts,
@@ -393,21 +396,19 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         altitude: null,
       }));
     }
-    const { data, error } = await supabase
-      .from('gps_tracking')
-      .select('latitude, longitude, timestamp, speed, altitude')
-      .eq('registration_id', runner.registration_id)
-      .eq('race_id', raceId)
-      .order('timestamp', { ascending: true });
+    const { data, error } = await supabase.rpc('get_registration_track_full' as never, {
+      p_registration_id: runner.registration_id,
+      p_race_id: raceId,
+    } as never);
 
     if (error) throw error;
 
-    return (data || []).map(point => ({
-      latitude: parseFloat(String(point.latitude)),
-      longitude: parseFloat(String(point.longitude)),
-      timestamp: point.timestamp,
-      speed: point.speed ? parseFloat(String(point.speed)) : null,
-      altitude: point.altitude ? parseFloat(String(point.altitude)) : null,
+    return ((data as unknown as any[]) || []).map(point => ({
+      latitude: parseFloat(String(point.lat)),
+      longitude: parseFloat(String(point.lng)),
+      timestamp: point.ts,
+      speed: point.speed != null ? parseFloat(String(point.speed)) : null,
+      altitude: point.altitude != null ? parseFloat(String(point.altitude)) : null,
     }));
   };
 
