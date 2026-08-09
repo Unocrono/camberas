@@ -546,22 +546,24 @@ const GrupettaCapo = () => {
                             </div>
                           )}
 
-                          <div className="grid grid-cols-2 gap-2">
+                          {/* Rótulos largos: sin min-w-0 el contenido no encoge
+                              y los botones se desbordaban unos sobre otros en móvil */}
+                          <div className="grid grid-cols-2 gap-2 [&_button]:min-w-0 [&_a]:min-w-0 [&_button]:text-xs sm:[&_button]:text-sm [&_svg]:shrink-0">
                             <Button size="sm" onClick={() => copiar(urlUnion(g.join_code))}>
-                              <Copy className="h-4 w-4 mr-1" /> Enlace de unión
+                              <Copy className="h-4 w-4 mr-1" /> <span className="truncate">Enlace de unión</span>
                             </Button>
                             <Button size="sm" variant="outline" asChild>
                               <a href={urlMapa(g.slug)} target="_blank" rel="noreferrer">
-                                <MapPin className="h-4 w-4 mr-1" /> Abrir mapa
+                                <MapPin className="h-4 w-4 mr-1" /> <span className="truncate">Abrir mapa</span>
                               </a>
                             </Button>
 
                             <Button size="sm" variant="secondary" onClick={() => mostrarQr(g)}>
-                              <QrCode className="h-4 w-4 mr-1" /> Mostrar QR de unión
+                              <QrCode className="h-4 w-4 mr-1" /> <span className="truncate">Mostrar QR de unión</span>
                             </Button>
 
                             <Button size="sm" variant="ghost" onClick={() => copiar(urlMapa(g.slug))}>
-                              <Copy className="h-4 w-4 mr-1" /> Copiar enlace del mapa
+                              <Copy className="h-4 w-4 mr-1" /> <span className="truncate">Copiar enlace del mapa</span>
                             </Button>
 
                             <Button size="sm" variant="outline" asChild disabled={subiendo === g.race_id}>
