@@ -13,8 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { TeamAccessCard } from "@/components/teams/TeamAccessCard";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2, Users, UserPlus, Trash2, Pencil, ChevronDown, ChevronUp, ShieldCheck, Mail, Flag,
@@ -61,11 +61,6 @@ const MyTeam = () => {
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [cargando, setCargando] = useState(false);
-
-  // Auth (mismo patrón que la Zona del Capo: alta instantánea)
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [nombreCapitan, setNombreCapitan] = useState("");
 
   // Equipos
   const [misEquipos, setMisEquipos] = useState<Team[]>([]);
@@ -250,48 +245,6 @@ const MyTeam = () => {
     await cargarMiembros(abierto);
   };
 
-  const alta = async () => {
-    setCargando(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { first_name: nombreCapitan, last_name: "", is_organizer: false },
-          emailRedirectTo: `${window.location.origin}/equipo`,
-        },
-      });
-      if (error) throw error;
-      try {
-        await supabase.functions.invoke("send-welcome-email", {
-          body: { email, firstName: nombreCapitan },
-        });
-      } catch (emailErr) {
-        console.error("Failed to send welcome email:", emailErr);
-      }
-      toast({
-        title: "¡Cuenta creada! 🎽",
-        description: "Confirma tu correo si te lo pide y ya puedes crear tu equipo.",
-      });
-    } catch (e: any) {
-      toast({ title: "No se pudo crear la cuenta", description: e.message, variant: "destructive" });
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  const login = async () => {
-    setCargando(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-    } catch (e: any) {
-      toast({ title: "No se pudo iniciar sesión", description: e.message, variant: "destructive" });
-    } finally {
-      setCargando(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -315,32 +268,7 @@ const MyTeam = () => {
             </CardHeader>
             <CardContent>
               {!session ? (
-                <Tabs defaultValue="login">
-                  <TabsList className="grid grid-cols-2 w-full">
-                    <TabsTrigger value="login">Ya tengo cuenta</TabsTrigger>
-                    <TabsTrigger value="alta">Crear cuenta</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="login" className="space-y-3 pt-3">
-                    <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    <Input type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <Button className="w-full" onClick={login} disabled={cargando || !email || !password}>
-                      {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : "INICIAR SESIÓN"}
-                    </Button>
-                  </TabsContent>
-                  <TabsContent value="alta" className="space-y-3 pt-3">
-                    <Input placeholder="Tu nombre" value={nombreCapitan} onChange={(e) => setNombreCapitan(e.target.value)} />
-                    <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                    <Input type="password" placeholder="Contraseña (mín. 8 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} />
-                    <Button
-                      variant="secondary"
-                      className="w-full"
-                      onClick={alta}
-                      disabled={cargando || !email || !password || !nombreCapitan}
-                    >
-                      {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : "🎽 CREAR MI CUENTA"}
-                    </Button>
-                  </TabsContent>
-                </Tabs>
+                <TeamAccessCard />
               ) : (
                 <div className="space-y-6">
                   {/* Crear equipo */}
