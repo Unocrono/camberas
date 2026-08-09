@@ -23,6 +23,7 @@ import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
 import { OrgLastRegistrations } from "@/components/org/OrgLastRegistrations";
+import { OrgProfile } from "@/components/org/OrgProfile";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home,
@@ -169,7 +170,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -241,11 +242,11 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
   {
-    // Un solo item: el grupo abre /profile directamente. ("Volver al
-    // sitio" fuera: la web se alcanza con la flecha/inicio de la app)
+    // Un solo item nativo: datos de contacto, modo de avisos (el clinc
+    // que antes vivía en la cabecera) y cerrar sesión
     key: "perfil", label: "Mi Perfil", icon: UserCircle,
     items: [
-      { id: "u-profile", title: "Mi Perfil", icon: UserCircle, route: "/profile" },
+      { id: "u-profile", title: "Mi Perfil", icon: UserCircle, screen: "perfil" },
     ],
   },
 ];
@@ -264,9 +265,9 @@ const OrganizerApp = () => {
   // Lista de carreras desplegada bajo la portada (solo si hay más de una)
   const [showRacePicker, setShowRacePicker] = useState(false);
   const [loading, setLoading] = useState(true);
-  // Sin botón de modo en la cabecera: se respeta el modo guardado
-  // (por defecto, "cada inscripción"). El push se cambia desde el panel.
-  const [clincMode] = useState<ClincMode>(
+  // El modo de aviso se elige en Mi Perfil (pantalla nativa); aquí solo
+  // se aplica: sonido en la portada y sincronización con el push
+  const [clincMode, setClincMode] = useState<ClincMode>(
     () => (localStorage.getItem("org-clinc-mode") as ClincMode) || "each",
   );
   const [pushState, setPushState] = useState(() => pushPermission());
@@ -643,6 +644,8 @@ const OrganizerApp = () => {
                 />
               ) : openScreen?.screen === "resultados" ? (
                 <OrgResults raceId={raceId} />
+              ) : openScreen?.screen === "perfil" ? (
+                <OrgProfile clincMode={clincMode} onClincModeChange={setClincMode} />
               ) : openScreen?.screen === "mapa" ? (
                 /* Mapa único en vivo, filtrado por concepto; SOS solo en el
                    de corredores (los avisos son de sus pulseras/tokens) */
