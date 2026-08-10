@@ -346,7 +346,7 @@ export function CamberasTrackMap({
   }, [kind]);
 
   // ── Fetch inicial de posiciones ───────────────────────────────────────────
-  // Con los intervalos cortos de la V23 (moto TV / rally a 1-2 s) traer el
+  // Con los intervalos cortos de la V25a (moto TV / rally a 1-2 s) traer el
   // histórico entero y quedarse con la última en el cliente no escala: el
   // RPC get_latest_gps_positions resuelve el DISTINCT ON en el servidor.
   // Si el RPC aún no existe (migración sin aplicar), cae al camino antiguo.

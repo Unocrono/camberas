@@ -1,5 +1,5 @@
 -- ============================================================
--- INTERVALO DE ENVÍO GPS POR TOKEN (decisión 5-ago, app V23)
+-- INTERVALO DE ENVÍO GPS POR TOKEN (decisión 5-ago, app V25a)
 --
 -- Cada token puede definir cada cuántos segundos captura y envía
 -- posición la app Track. Jerarquía que resuelve link_gps_token:
