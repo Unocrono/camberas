@@ -16,6 +16,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { CamberasLogo } from "@/components/CamberasLogo";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { qrConLogo } from "@/lib/qrConLogo";
 import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
@@ -26,7 +34,7 @@ import { OrgLastRegistrations } from "@/components/org/OrgLastRegistrations";
 import { OrgProfile } from "@/components/org/OrgProfile";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
-  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home,
+  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
   Bike, ShieldCheck, Timer,
@@ -81,6 +89,7 @@ interface RaceOption {
   id: string;
   name: string;
   date: string;
+  slug: string | null;
   cover_image_url: string | null;
   image_url: string | null;
   logo_url: string | null;
@@ -264,6 +273,9 @@ const OrganizerApp = () => {
   const [openScreen, setOpenScreen] = useState<OrgMenuItem | null>(null);
   // Lista de carreras desplegada bajo la portada (solo si hay más de una)
   const [showRacePicker, setShowRacePicker] = useState(false);
+  // QR del minisite de la carrera (formato de los QR de GPS, logo al centro)
+  const [qrSite, setQrSite] = useState<{ url: string; dataUrl: string } | null>(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   // El modo de aviso se elige en Mi Perfil (pantalla nativa); aquí solo
   // se aplica: sonido en la portada y sincronización con el push
@@ -291,7 +303,7 @@ const OrganizerApp = () => {
     const load = async () => {
       let query = supabase
         .from("races")
-        .select("id, name, date, cover_image_url, image_url, logo_url")
+        .select("id, name, date, slug, cover_image_url, image_url, logo_url")
         .order("date", { ascending: false });
       if (!isAdmin) query = query.eq("organizer_id", user.id);
       const { data } = await query;
@@ -388,6 +400,23 @@ const OrganizerApp = () => {
   const openGroupOrItem = (g: OrgMenuGroup) => {
     if (g.items.length === 1) openItem(g.items[0], g.key);
     else setOpenGroup(g.key);
+  };
+
+  /**
+   * QR del minisite público de la carrera (camberas.com/race/slug), con
+   * el mismo formato que los QR de GPS impresos: logo al centro y
+   * corrección H. Para carteles, dorsales o enseñarlo en el móvil.
+   */
+  const abrirQrSite = async () => {
+    if (!selectedRace) return;
+    const url = `https://camberas.com/race/${selectedRace.slug || selectedRace.id}`;
+    setQrLoading(true);
+    try {
+      const dataUrl = await qrConLogo(url, 480);
+      setQrSite({ url, dataUrl });
+    } finally {
+      setQrLoading(false);
+    }
   };
 
   // Volver: de la pantalla nativa al grupo (o a la portada si el grupo
@@ -686,7 +715,54 @@ const OrganizerApp = () => {
           )}
         </section>
 
+        {/* QR del minisite de la carrera, al pie de la portada */}
+        {!activeGroup && raceId && (
+          <button
+            onClick={abrirQrSite}
+            disabled={qrLoading}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3.5 font-archivo text-sm uppercase transition-colors hover:border-secondary disabled:opacity-60"
+          >
+            {qrLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-secondary" />
+            ) : (
+              <QrCode className="h-5 w-5 text-secondary" />
+            )}
+            QR Site
+          </button>
+        )}
+
       </main>
+
+      {/* El QR del minisite: para carteles o enseñarlo en pantalla */}
+      <Dialog open={!!qrSite} onOpenChange={(o) => !o && setQrSite(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR Site — {selectedRace?.name}</DialogTitle>
+            <DialogDescription>
+              Lleva al minisite público de la carrera. Mismo formato que los QR de GPS
+              (logo al centro); listo para carteles o para enseñarlo en pantalla.
+            </DialogDescription>
+          </DialogHeader>
+          {qrSite && (
+            <div className="space-y-3">
+              <img
+                src={qrSite.dataUrl}
+                alt={`QR del minisite de ${selectedRace?.name}`}
+                className="mx-auto w-full max-w-[300px] rounded-xl border border-border bg-white p-2"
+              />
+              <p className="break-all text-center text-xs text-muted-foreground">{qrSite.url}</p>
+              <a
+                href={qrSite.dataUrl}
+                download={`qr-site-${selectedRace?.slug || selectedRace?.id}.png`}
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-secondary py-2 text-sm font-bold text-secondary-foreground transition-opacity hover:opacity-90"
+              >
+                <Download className="h-4 w-4" />
+                Descargar PNG
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
