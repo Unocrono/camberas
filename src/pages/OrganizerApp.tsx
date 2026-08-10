@@ -32,9 +32,10 @@ import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
 import { OrgLastRegistrations } from "@/components/org/OrgLastRegistrations";
 import { OrgProfile } from "@/components/org/OrgProfile";
+import { OrgDocuments } from "@/components/org/OrgDocuments";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
-  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download,
+  Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
   Bike, ShieldCheck, Timer,
@@ -179,7 +180,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -196,6 +197,14 @@ interface OrgMenuGroup {
 const ORG_MENU: OrgMenuGroup[] = [
   // (Sin grupo "Carreras": crear/configurar la carrera, reglamentos,
   // FAQs y archivos son trabajo de escritorio, no de la app)
+  {
+    // Permisos, seguros, ETRAZA… lo primero del ciclo: sin papeles no
+    // hay carrera. Resumen de solo lectura; subir/aprobar en escritorio.
+    key: "documentacion", label: "Documentación", icon: FileCheck2,
+    items: [
+      { id: "docs", title: "Documentación", icon: FileCheck2, screen: "documentacion" },
+    ],
+  },
   {
     key: "recorridos", label: "Recorridos", icon: RouteIcon,
     items: [
@@ -675,6 +684,8 @@ const OrganizerApp = () => {
                 <OrgResults raceId={raceId} />
               ) : openScreen?.screen === "perfil" ? (
                 <OrgProfile clincMode={clincMode} onClincModeChange={setClincMode} />
+              ) : openScreen?.screen === "documentacion" ? (
+                <OrgDocuments raceId={raceId} raceDate={selectedRace?.date} />
               ) : openScreen?.screen === "mapa" ? (
                 /* Mapa único en vivo, filtrado por concepto; SOS solo en el
                    de corredores (los avisos son de sus pulseras/tokens) */
