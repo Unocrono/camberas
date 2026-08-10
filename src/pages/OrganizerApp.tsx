@@ -743,6 +743,15 @@ const OrganizerApp = () => {
           </button>
         )}
 
+        {/* Sello de la versión: si la fecha no es la del último Publish,
+            el móvil tiene una copia vieja en caché — no es que falte el
+            cambio (ver docs/pwa-actualizacion-org.md) */}
+        {!activeGroup && (
+          <p className="pt-1 text-center text-[11px] text-muted-foreground">
+            versión {__BUILD_TIME__}
+          </p>
+        )}
+
       </main>
 
       {/* El QR del minisite: para carteles o enseñarlo en pantalla */}

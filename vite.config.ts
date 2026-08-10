@@ -6,6 +6,20 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Sello de la versión servida: la app lo enseña al pie para poder
+  // distinguir de un vistazo "no está desplegado" de "mi móvil tiene
+  // una copia vieja en caché" (ver docs/pwa-actualizacion-org.md)
+  define: {
+    __BUILD_TIME__: JSON.stringify(
+      new Date().toLocaleString("es-ES", {
+        timeZone: "Europe/Madrid",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    ),
+  },
   server: {
     host: "::",
     port: 8080,
