@@ -112,6 +112,57 @@ necesita **dos versiones distintas** en producción. Los seis puntos de arriba
 verifican que cada pieza está en su sitio; la prueba de extremo a extremo hay que
 hacerla contra el siguiente Publish.
 
+## Fallo encontrado en workbox-window (y cómo se arregló)
+
+Tras las comprobaciones anteriores seguía haciendo falta un Ctrl+Shift+R para ver
+los cambios. La causa está en `node_modules/workbox-window/Workbox.js`, verificada
+leyendo el código (no deducida):
+
+**a) Nuestras comprobaciones se clasifican siempre como "externas".** Línea 93:
+
+```js
+performance.now() > this._registrationTime + REGISTRATION_TIMEOUT_DURATION
+```
+
+`REGISTRATION_TIMEOUT_DURATION` son 60 000 ms (línea 22). Como
+`src/lib/pwaUpdate.ts` llama a `registration.update()` al volver a la app —
+siempre bastante más de 60 s después del registro— toda actualización nuestra
+entra por la rama "externa".
+
+**b) Esa rama se desactiva a sí misma.** Línea 100:
+
+```js
+if (updateLikelyTriggeredExternally) {
+    this._externalSW = installingSW;
+    registration.removeEventListener('updatefound', this._onUpdateFound);
+}
+```
+
+Deja de escuchar `updatefound`. A partir de la primera comprobación externa,
+mientras la página siga abierta, ningún despliegue posterior genera evento; sin
+`updatefound` no hay `activated`, y sin `activated` no se ejecuta el
+`window.location.reload()` de vite-plugin-pwa.
+
+**Arreglo:** no depender de esa heurística y escuchar la señal **nativa** del
+navegador, que no tiene clasificaciones ni temporizadores:
+
+```js
+const teniaControlador = !!navigator.serviceWorker.controller;
+navigator.serviceWorker.addEventListener("controllerchange", () => {
+  if (!teniaControlador || recargando) return;   // guarda anti-bucle
+  recargando = true;
+  window.location.reload();
+});
+```
+
+El SW nuevo hace `clientsClaim()` (verificado en el punto 2), toma el control y el
+navegador dispara `controllerchange`. La guarda `teniaControlador` evita el bucle
+de recargas en la primera visita, donde el SW también toma el control por primera
+vez.
+
+Verificado en el build: la cadena `controllerchange` aparece una vez en
+`dist/assets/index-*.js` con la lógica correcta.
+
 ## Dos hechos del mecanismo que conviene conocer
 
 Ninguno de los dos es un fallo, pero explican por qué a veces "parece" que no se
