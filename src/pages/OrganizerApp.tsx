@@ -198,14 +198,6 @@ const ORG_MENU: OrgMenuGroup[] = [
   // (Sin grupo "Carreras": crear/configurar la carrera, reglamentos,
   // FAQs y archivos son trabajo de escritorio, no de la app)
   {
-    // Permisos, seguros, ETRAZA… lo primero del ciclo: sin papeles no
-    // hay carrera. Resumen de solo lectura; subir/aprobar en escritorio.
-    key: "documentacion", label: "Documentación", icon: FileCheck2,
-    items: [
-      { id: "docs", title: "Documentación", icon: FileCheck2, screen: "documentacion" },
-    ],
-  },
-  {
     key: "recorridos", label: "Recorridos", icon: RouteIcon,
     items: [
       // Pantalla nativa: resumen de solo lectura (km, desnivel, salida,
@@ -249,6 +241,15 @@ const ORG_MENU: OrgMenuGroup[] = [
       { id: "map-voluntarios", title: "Voluntarios", icon: HeartHandshake, screen: "mapa", mapKind: "voluntario" },
       // MotoTV = moto de grafismo/overlay; las motos enlace van en Organización
       { id: "map-mototv", title: "Moto TV", icon: Bike, screen: "mapa", mapKind: "mototv" },
+    ],
+  },
+  {
+    // Permisos, seguros, ETRAZA. Va tras el día a día: son papeles que
+    // se tocan de higos a brevas. Resumen de solo lectura; subir y
+    // aprobar siguen en el panel de escritorio.
+    key: "documentacion", label: "Documentación", icon: FileCheck2,
+    items: [
+      { id: "docs", title: "Documentación", icon: FileCheck2, screen: "documentacion" },
     ],
   },
   {
