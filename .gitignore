@@ -33,3 +33,7 @@ dist-ssr
 .worktrees/
 .security-key
 logs/security/
+
+# Carruseles sociales generados
+out/
+.carrusel-*.html

@@ -1,0 +1,21 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "titulo": "Montar tu carrera en Camberas",
+  "slides": [
+    {
+      "pregunta": "¿Hace falta comprar hardware?",
+      "respuesta": "No para empezar. El cronometraje entra por QR: generas un token por puesto, lo reparte quien tú digas y el móvil que lo escanea ya es ese punto de control. Sin altas ni contraseñas."
+    },
+    {
+      "pregunta": "¿Puedo cobrar las inscripciones?",
+      "respuesta": "Sí, con pago por Redsys integrado. Defines precio por distancia, cupones de descuento y política de cancelación, y las inscripciones entran ya cobradas.",
+      "nota": "También admite inscripción de equipos en un solo pago."
+    },
+    {
+      "pregunta": "¿Cuándo tengo los resultados?",
+      "respuesta": "Los tiempos de meta generan la clasificación sola: general, género y categoría, con los parciales de cada punto de control. Revisas, publicas y el corredor lo ve al momento."
+    }
+  ],
+  "cta": "Cuéntanos tu carrera"
+}
