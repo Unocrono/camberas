@@ -760,8 +760,8 @@ const OrganizerApp = () => {
           <DialogHeader>
             <DialogTitle>QR Site — {selectedRace?.name}</DialogTitle>
             <DialogDescription>
-              Lleva al minisite público de la carrera. Mismo formato que los QR de GPS
-              (logo al centro); listo para carteles o para enseñarlo en pantalla.
+              Minisite público de la carrera, listo para cartelería, documentación o para
+              enseñarlo en pantalla.
             </DialogDescription>
           </DialogHeader>
           {qrSite && (
