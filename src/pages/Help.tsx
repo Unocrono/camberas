@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import {
@@ -9,6 +9,13 @@ import {
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { CarruselControles, useCarruselIndice, useCarruselAltura } from "@/components/carrusel";
 import { MessageCircle, HelpCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +43,15 @@ const db = supabase as any;
 const Help = () => {
   const [sections, setSections] = useState<HelpSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [api, setApi] = useState<CarouselApi>();
+  const indice = useCarruselIndice(api);
+  useCarruselAltura(api);
+  // Tira de accesos rápidos: el chip activo se trae a la vista al cambiar de sección
+  const chipsRef = useRef<(HTMLButtonElement | null)[]>([]);
+
+  useEffect(() => {
+    chipsRef.current[indice]?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [indice]);
 
   useEffect(() => {
     const load = async () => {
@@ -76,55 +92,80 @@ const Help = () => {
             <p className="text-center text-muted-foreground py-12">Cargando...</p>
           ) : (
             <>
-              {/* Quick links */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-                {sections.map((section) => {
-                  const Icon = HELP_ICONS[section.icon] ?? HelpCircle;
-                  return (
-                    <a
-                      key={section.id}
-                      href={`#s-${section.id}`}
-                      className="flex flex-col items-center gap-2 p-4 rounded-lg border bg-card hover:bg-accent transition-colors"
-                    >
-                      <Icon className="h-8 w-8 text-primary" />
-                      <span className="text-sm font-medium text-center">{section.title}</span>
-                    </a>
-                  );
-                })}
+              {/* Accesos rápidos: son la navegación del carrusel de secciones */}
+              <div className="-mx-4 mb-8 overflow-x-auto px-4 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex w-max min-w-full gap-3 md:grid md:w-auto md:grid-cols-4">
+                  {sections.map((section, i) => {
+                    const Icon = HELP_ICONS[section.icon] ?? HelpCircle;
+                    const activa = i === indice;
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        ref={(el) => {
+                          chipsRef.current[i] = el;
+                        }}
+                        onClick={() => api?.scrollTo(i)}
+                        aria-current={activa}
+                        className={`flex w-32 flex-shrink-0 flex-col items-center gap-2 rounded-lg border p-4 transition-colors md:w-auto ${
+                          activa
+                            ? "border-primary bg-primary/10"
+                            : "bg-card hover:bg-accent"
+                        }`}
+                      >
+                        <Icon className="h-8 w-8 text-primary" />
+                        <span className="text-center text-sm font-medium">{section.title}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* FAQ Sections */}
-              <div className="space-y-8">
-                {sections.map((section) => {
-                  const Icon = HELP_ICONS[section.icon] ?? HelpCircle;
-                  return (
-                    <Card key={section.id} id={`s-${section.id}`}>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-3">
-                          <Icon className="h-6 w-6 text-primary" />
-                          {section.title}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                          {section.faqs.map((faq) => (
-                            <AccordionItem key={faq.id} value={faq.id}>
-                              <AccordionTrigger className="text-left">
-                                {faq.question}
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <div className="text-muted-foreground whitespace-pre-wrap">
-                                  {faq.answer}
-                                </div>
-                              </AccordionContent>
-                            </AccordionItem>
-                          ))}
-                        </Accordion>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+              {/* Carrusel de secciones: una sección de preguntas por diapositiva */}
+              <Carousel setApi={setApi}>
+                <CarouselContent className="items-start">
+                  {sections.map((section) => {
+                    const Icon = HELP_ICONS[section.icon] ?? HelpCircle;
+                    return (
+                      <CarouselItem key={section.id}>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-3">
+                              <Icon className="h-6 w-6 text-primary" />
+                              {section.title}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <Accordion type="single" collapsible className="w-full">
+                              {section.faqs.map((faq) => (
+                                <AccordionItem key={faq.id} value={faq.id}>
+                                  <AccordionTrigger className="text-left">
+                                    {faq.question}
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <div className="text-muted-foreground whitespace-pre-wrap">
+                                      {faq.answer}
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              ))}
+                            </Accordion>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    );
+                  })}
+                </CarouselContent>
+              </Carousel>
+
+              <CarruselControles
+                api={api}
+                total={sections.length}
+                indice={indice}
+                etiquetaPunto={(i) => `Ir a ${sections[i]?.title ?? `la sección ${i + 1}`}`}
+                etiquetaAnterior="Sección anterior"
+                etiquetaSiguiente="Sección siguiente"
+              />
             </>
           )}
 

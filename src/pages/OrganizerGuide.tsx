@@ -1,14 +1,16 @@
+import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { CarruselControles, useCarruselIndice, useCarruselAltura } from "@/components/carrusel";
 import { Link } from "react-router-dom";
 import {
   CheckCircle2,
@@ -188,6 +190,10 @@ const steps = [
 ];
 
 const OrganizerGuide = () => {
+  const [api, setApi] = useState<CarouselApi>();
+  const indice = useCarruselIndice(api);
+  useCarruselAltura(api);
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -226,82 +232,82 @@ const OrganizerGuide = () => {
             </CardContent>
           </Card>
 
-          {/* Steps Timeline */}
-          <div className="space-y-6">
-            {steps.map((step, index) => (
-              <Card key={step.number} className="overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className="flex items-start gap-4">
-                    {/* Step number */}
-                    <div
-                      className={`flex-shrink-0 w-12 h-12 rounded-full ${step.color} text-white flex items-center justify-center font-bold text-xl`}
-                    >
-                      {step.number}
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2 text-xl">
-                        <step.icon className="h-5 w-5 text-muted-foreground" />
-                        {step.title}
-                      </CardTitle>
-                      <p className="text-muted-foreground mt-1">{step.description}</p>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Accordion type="single" collapsible>
-                    <AccordionItem value="details" className="border-none">
-                      <AccordionTrigger className="text-sm font-medium py-2">
-                        Ver instrucciones detalladas
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-4 pt-2">
-                          {/* Steps list */}
-                          <div className="space-y-2">
-                            {step.details.map((detail, i) => (
-                              <div key={i} className="flex items-start gap-2">
-                                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                                <span className="text-sm">{detail}</span>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Tips */}
-                          {step.tips && step.tips.length > 0 && (
-                            <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Lightbulb className="h-4 w-4 text-amber-600" />
-                                <span className="font-medium text-sm text-amber-800 dark:text-amber-200">
-                                  Consejos
-                                </span>
-                              </div>
-                              <ul className="space-y-1">
-                                {step.tips.map((tip, i) => (
-                                  <li
-                                    key={i}
-                                    className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2"
-                                  >
-                                    <span className="text-amber-500">•</span>
-                                    {tip}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-                </CardContent>
-
-                {/* Connector line */}
-                {index < steps.length - 1 && (
-                  <div className="flex justify-center -mb-3 relative z-10">
-                    <div className="w-0.5 h-6 bg-border" />
-                  </div>
-                )}
-              </Card>
-            ))}
+          {/* Carrusel de pasos: uno por diapositiva, con sus instrucciones a la vista */}
+          <div className="mb-2 text-center text-sm font-medium text-muted-foreground">
+            Paso {indice + 1} de {steps.length}
           </div>
+          <Carousel setApi={setApi}>
+            <CarouselContent className="items-start">
+              {steps.map((step) => (
+                <CarouselItem key={step.number}>
+                  <Card className="overflow-hidden">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start gap-4">
+                        {/* Step number */}
+                        <div
+                          className={`flex-shrink-0 w-12 h-12 rounded-full ${step.color} text-white flex items-center justify-center font-bold text-xl`}
+                        >
+                          {step.number}
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="flex items-center gap-2 text-xl">
+                            <step.icon className="h-5 w-5 text-muted-foreground" />
+                            {step.title}
+                          </CardTitle>
+                          <p className="text-muted-foreground mt-1">{step.description}</p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {/* Steps list */}
+                        <div className="space-y-2">
+                          {step.details.map((detail, i) => (
+                            <div key={i} className="flex items-start gap-2">
+                              <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                              <span className="text-sm">{detail}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Tips */}
+                        {step.tips && step.tips.length > 0 && (
+                          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Lightbulb className="h-4 w-4 text-amber-600" />
+                              <span className="font-medium text-sm text-amber-800 dark:text-amber-200">
+                                Consejos
+                              </span>
+                            </div>
+                            <ul className="space-y-1">
+                              {step.tips.map((tip, i) => (
+                                <li
+                                  key={i}
+                                  className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-2"
+                                >
+                                  <span className="text-amber-500">•</span>
+                                  {tip}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+
+          <CarruselControles
+            api={api}
+            total={steps.length}
+            indice={indice}
+            etiquetaPunto={(i) => `Ir al paso ${i + 1}: ${steps[i].title}`}
+            etiquetaAnterior="Paso anterior"
+            etiquetaSiguiente="Paso siguiente"
+          />
 
           {/* Additional resources */}
           <div className="mt-12 grid md:grid-cols-2 gap-6">
