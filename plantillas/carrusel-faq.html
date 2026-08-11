@@ -191,6 +191,18 @@ body {
   padding: 56px 0;
 }
 
+/* Solo en los manuales: marca el paso sobre el titular. Escala con el
+   bloque, así que no rompe el ajuste. */
+.paso {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--acento);
+  opacity: 0.85;
+  margin-bottom: calc(-18px * var(--escala, 1));
+  font-size: calc(32px * var(--escala, 1));
+}
+
 .pregunta {
   font-family: "Archivo Black", sans-serif;
   text-transform: uppercase;
@@ -286,9 +298,14 @@ const esc = (s) =>
 
 const marca = () => `<div class="marca">${LOGO}<div class="wordmark">Camberas</div></div>`;
 
+/* Etiqueta por defecto de la portada según el tipo de carrusel. */
+const ANTETITULOS = { faq: 'Preguntas frecuentes', manual: 'Guía rápida' };
+
 function construirSlides(datos) {
   const { audiencia, titulo, slides, cta } = datos;
-  const total = slides.length + 2; // portada + preguntas + cierre
+  const tipo = datos.tipo ?? 'faq';
+  const antetitulo = datos.antetitulo ?? ANTETITULOS[tipo];
+  const total = slides.length + 2; // portada + contenido + cierre
   const partes = [];
 
   // 1 — Portada
@@ -296,7 +313,7 @@ function construirSlides(datos) {
     <section class="slide portada" data-audiencia="${esc(audiencia)}">
       <div class="cabecera">${marca()}</div>
       <div class="centro caja-ajuste">
-        <div class="antetitulo">Preguntas frecuentes</div>
+        <div class="antetitulo">${esc(antetitulo)}</div>
         <h1 class="titulo">${esc(titulo)}</h1>
         <div class="pildora">Para ${esc(audiencia)}</div>
       </div>
@@ -313,6 +330,7 @@ function construirSlides(datos) {
           <div class="contador">${i + 2}/${total}</div>
         </div>
         <div class="contenido caja-ajuste">
+          ${tipo === 'manual' ? `<div class="paso">Paso ${i + 1}</div>` : ''}
           <h2 class="pregunta">${esc(s.pregunta)}</h2>
           <p class="respuesta">${esc(s.respuesta)}</p>
           ${s.nota ? `<p class="nota">${esc(s.nota)}</p>` : ''}

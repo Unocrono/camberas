@@ -46,6 +46,8 @@ function validar(datos, ruta) {
   const fallos = [];
   if (!['corredores', 'organizadores'].includes(datos.audiencia))
     fallos.push('"audiencia" debe ser "corredores" u "organizadores"');
+  if (datos.tipo !== undefined && !['faq', 'manual'].includes(datos.tipo))
+    fallos.push('"tipo" debe ser "faq" (por defecto) o "manual"');
   if (!datos.titulo?.trim()) fallos.push('falta "titulo"');
   if (!datos.cta?.trim()) fallos.push('falta "cta"');
   if (!Array.isArray(datos.slides) || datos.slides.length === 0)

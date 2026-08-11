@@ -37,15 +37,34 @@ palabra fija.
 {
   "audiencia": "corredores",
   "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "opcional",
   "titulo": "…",
   "slides": [{ "pregunta": "…", "respuesta": "…", "nota": "opcional" }],
   "cta": "…"
 }
 ```
 
-Un carrusel son como mucho **8 slides**: portada + hasta 6 preguntas +
-cierre con CTA. Si el JSON trae más preguntas, el generador lo parte en
-varios carruseles (`…-parte-1`, `…-parte-2`) y avisa por consola.
+Un carrusel son como mucho **8 slides**: portada + hasta 6 de contenido +
+cierre con CTA. Si el JSON trae más, el generador lo parte en varios
+carruseles (`…-parte-1`, `…-parte-2`) y avisa por consola.
+
+### Dos tipos
+
+`tipo` vale `faq` (por defecto) o `manual`:
+
+| | `faq` | `manual` |
+|---|---|---|
+| Antetítulo de portada | «Preguntas frecuentes» | «Guía rápida» |
+| Sobre cada titular | — | «Paso 1», «Paso 2»… |
+
+Los campos son los mismos en ambos. En un manual, `pregunta` es el título
+del paso en imperativo («Dale a Iniciar seguimiento») y `respuesta` la
+instrucción. `antetitulo` sobrescribe la etiqueta por defecto si quieres
+otra cosa («Truco rápido», «En 30 segundos»…).
+
+El contador de la cabecera cuenta **slides**, no pasos: en un manual de 5
+pasos el tercero es `4/7`, porque la portada va delante.
 
 ## Marca
 
