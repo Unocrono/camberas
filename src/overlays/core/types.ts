@@ -107,6 +107,7 @@ export interface MotoData {
   latitude?: number;
   longitude?: number;
   timestamp: string;
+  source?: 'app' | 'hardware'; // pipeline de origen (ver motoLiveSource)
 }
 
 export interface DisplayData {

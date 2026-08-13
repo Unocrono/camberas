@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchMotoLive } from '@/overlays/core/motoLiveSource';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Bike } from 'lucide-react';
@@ -184,7 +185,7 @@ const RouteMapOverlay = () => {
     
     let motoQuery = supabase
       .from('race_motos')
-      .select('id, name, name_tv, color')
+      .select('id, name, name_tv, color, token_id')
       .eq('race_id', resolvedRaceId)
       .eq('is_active', true);
     
@@ -206,21 +207,9 @@ const RouteMapOverlay = () => {
     const motosWithGps: MotoData[] = [];
     
     for (const moto of motoData) {
-      const { data: gps, error: gpsError } = await supabase
-        .from('moto_gps_tracking')
-        .select('latitude, longitude, distance_from_start, timestamp')
-        .eq('moto_id', moto.id)
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (gpsError) {
-        console.error('[RouteMapOverlay] Error fetching GPS for moto:', moto.id, gpsError);
-        continue;
-      }
-      
+      // App de móvil (gps_positions) o rastreador hardware (moto_gps_tracking)
+      const gps = await fetchMotoLive(moto.id, (moto as any).token_id);
+
       if (gps) {
         // Apply delay if configured
         const delayMs = (config?.delay_seconds || 0) * 1000;

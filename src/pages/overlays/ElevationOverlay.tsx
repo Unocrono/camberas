@@ -1,8 +1,16 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer } from 'recharts';
-import { parseGpxFile, calculateHaversineDistance } from '@/lib/gpxParser';
+import {
+  parseGpxFile,
+  calculateHaversineDistance,
+  getAllTrackPoints,
+  findClosestTrackPoint,
+  calculateDistanceFromStartToPoint,
+  type GpxTrackPoint,
+} from '@/lib/gpxParser';
+import { fetchMotoLive } from '@/overlays/core/motoLiveSource';
 import { Bike } from 'lucide-react';
 interface ElevationPoint {
   distance: number;
@@ -37,6 +45,9 @@ const ElevationOverlay = () => {
   const [totalDistance, setTotalDistance] = useState(0);
   const [hasValidElevation, setHasValidElevation] = useState(true);
   const [noDataMessage, setNoDataMessage] = useState<string | null>(null);
+  // Puntos crudos del GPX: para proyectar la posición de la app de móvil
+  // (gps_positions no trae distance_from_start) sobre el eje del perfil
+  const trackPointsRef = useRef<GpxTrackPoint[]>([]);
 
   // Resolve raceId (could be slug or UUID)
   useEffect(() => {
@@ -126,6 +137,8 @@ const ElevationOverlay = () => {
         }
         
         // Use same processing logic as ElevationMiniProfile
+        trackPointsRef.current = getAllTrackPoints(parsedGpx);
+
         const points: ElevationPoint[] = [];
         let cumulativeDistance = 0;
         let hasAnyElevation = false;
@@ -210,7 +223,7 @@ const ElevationOverlay = () => {
     
     let motoQuery = supabase
       .from('race_motos')
-      .select('id, name, name_tv, color')
+      .select('id, name, name_tv, color, token_id')
       .eq('race_id', resolvedRaceId)
       .eq('is_active', true);
     
@@ -226,28 +239,33 @@ const ElevationOverlay = () => {
     const motosWithDistance: MotoData[] = [];
     
     for (const moto of motoData) {
-      const { data: gps } = await supabase
-        .from('moto_gps_tracking')
-        .select('distance_from_start, timestamp')
-        .eq('moto_id', moto.id)
-        .order('timestamp', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (gps?.distance_from_start != null) {
-        const delayMs = (config?.delay_seconds || 0) * 1000;
-        const gpsTime = new Date(gps.timestamp).getTime();
-        const now = Date.now();
-        
-        if (now - gpsTime >= delayMs) {
-          motosWithDistance.push({
-            id: moto.id,
-            name: moto.name,
-            name_tv: moto.name_tv,
-            color: moto.color,
-            distance_from_start: gps.distance_from_start
-          });
-        }
+      // App de móvil (gps_positions) o rastreador hardware (moto_gps_tracking)
+      const live = await fetchMotoLive(moto.id, (moto as any).token_id);
+      if (!live) continue;
+
+      // Hardware ya trae la distancia (km); con pipeline app se proyecta
+      // la posición sobre el GPX (mismo eje km del perfil)
+      let distKm = live.distance_from_start;
+      if (distKm == null && trackPointsRef.current.length > 0) {
+        const { index } = findClosestTrackPoint(
+          trackPointsRef.current, live.latitude, live.longitude,
+        );
+        distKm = calculateDistanceFromStartToPoint(trackPointsRef.current, index);
+      }
+      if (distKm == null) continue;
+
+      const delayMs = (config?.delay_seconds || 0) * 1000;
+      const gpsTime = new Date(live.timestamp).getTime();
+      const now = Date.now();
+
+      if (now - gpsTime >= delayMs) {
+        motosWithDistance.push({
+          id: moto.id,
+          name: moto.name,
+          name_tv: moto.name_tv,
+          color: moto.color,
+          distance_from_start: distKm
+        });
       }
     }
     

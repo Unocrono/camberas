@@ -18,6 +18,18 @@ import {
   hexToRgba,
 } from "@/overlays/core/utils";
 import type { MotoData, DisplayData } from "@/overlays/core/types";
+import { fetchMotoLive, fetchCanalMotoDist } from "@/overlays/core/motoLiveSource";
+
+// Gap entre motos: con hardware, por distancia recorrida (metros); con
+// pipeline app, por la distancia a meta del canal del operador (km→m,
+// signo equivalente: ir por detrás = más distancia a meta)
+const gapEntreMotos = (a: MotoData, b: MotoData): string => {
+  if (a.source === "hardware" && b.source === "hardware")
+    return calculateGap(a.distance_from_start, b.distance_from_start);
+  if (a.distance_to_finish != null && b.distance_to_finish != null)
+    return calculateGap((b.distance_to_finish - a.distance_to_finish) * 1000, 0);
+  return "";
+};
 
 const MotoOverlay = () => {
   const { raceId } = useParams<{ raceId: string }>();
@@ -50,40 +62,39 @@ const MotoOverlay = () => {
     if (!config?.selected_moto_id) return;
 
     const fetchMotoData = async () => {
-      const { data, error } = await supabase
-        .from("moto_gps_tracking")
-        .select(
-          `
-          speed,
-          distance_from_start,
-          distance_to_finish,
-          distance_to_next_checkpoint,
-          next_checkpoint_name,
-          timestamp,
-          race_motos!inner (name, name_tv, color)
-        `,
-        )
-        .eq("moto_id", config.selected_moto_id)
-        .not("distance_from_start", "is", null)
-        .order("timestamp", { ascending: false })
-        .limit(1)
+      // Catálogo: datos de la moto + token del pipeline app
+      const { data: moto } = await supabase
+        .from("race_motos")
+        .select("id, name, name_tv, color, moto_order, token_id")
+        .eq("id", config.selected_moto_id)
         .maybeSingle();
+      if (!moto) return;
 
-      if (!error && data) {
-        const motoInfo = data.race_motos as any;
-        setMotoData({
-          id: config.selected_moto_id,
-          name: motoInfo?.name || "",
-          name_tv: motoInfo?.name_tv,
-          color: motoInfo?.color || "#FF5722",
-          speed: data.speed || 0,
-          distance_from_start: data.distance_from_start || 0,
-          distance_to_finish: data.distance_to_finish,
-          distance_to_next_checkpoint: data.distance_to_next_checkpoint,
-          next_checkpoint_name: data.next_checkpoint_name,
-          timestamp: data.timestamp,
-        });
+      // Posición viva: app de móvil (gps_positions) o rastreador hardware
+      // (moto_gps_tracking) — la lectura más reciente de las dos
+      const live = await fetchMotoLive(moto.id, (moto as any).token_id);
+      if (!live) return;
+
+      // Con pipeline app las distancias no vienen en la fila: usar el
+      // canal del operador (el mismo "DIST META" que ve la app de la moto)
+      let distToFinish = live.distance_to_finish;
+      if (distToFinish == null && live.source === "app" && moto.moto_order != null) {
+        distToFinish = await fetchCanalMotoDist(moto.moto_order);
       }
+
+      setMotoData({
+        id: config.selected_moto_id,
+        name: moto.name || "",
+        name_tv: moto.name_tv,
+        color: moto.color || "#FF5722",
+        speed: live.speed || 0,
+        distance_from_start: live.distance_from_start || 0,
+        distance_to_finish: distToFinish,
+        distance_to_next_checkpoint: live.distance_to_next_checkpoint,
+        next_checkpoint_name: live.next_checkpoint_name,
+        timestamp: live.timestamp,
+        source: live.source,
+      });
     };
 
     fetchMotoData();
@@ -117,28 +128,34 @@ const MotoOverlay = () => {
     }
 
     const fetchCompareData = async () => {
-      const { data } = await supabase
-        .from("moto_gps_tracking")
-        .select("speed, distance_from_start, timestamp")
-        .eq("moto_id", config.compare_moto_id)
-        .order("timestamp", { ascending: false })
-        .limit(1)
+      const { data: moto } = await supabase
+        .from("race_motos")
+        .select("id, moto_order, token_id")
+        .eq("id", config.compare_moto_id)
         .maybeSingle();
+      if (!moto) return;
 
-      if (data) {
-        setCompareMotoData({
-          id: config.compare_moto_id,
-          name: "",
-          name_tv: null,
-          color: "",
-          speed: data.speed || 0,
-          distance_from_start: data.distance_from_start || 0,
-          distance_to_finish: null,
-          distance_to_next_checkpoint: null,
-          next_checkpoint_name: null,
-          timestamp: data.timestamp,
-        });
+      const live = await fetchMotoLive(moto.id, (moto as any).token_id);
+      if (!live) return;
+
+      let distToFinish = live.distance_to_finish;
+      if (distToFinish == null && live.source === "app" && moto.moto_order != null) {
+        distToFinish = await fetchCanalMotoDist(moto.moto_order);
       }
+
+      setCompareMotoData({
+        id: config.compare_moto_id,
+        name: "",
+        name_tv: null,
+        color: "",
+        speed: live.speed || 0,
+        distance_from_start: live.distance_from_start || 0,
+        distance_to_finish: distToFinish,
+        distance_to_next_checkpoint: null,
+        next_checkpoint_name: null,
+        timestamp: live.timestamp,
+        source: live.source,
+      });
     };
 
     fetchCompareData();
@@ -168,7 +185,7 @@ const MotoOverlay = () => {
       config.gaps.manualMode && config.gaps.manualValue
         ? config.gaps.manualValue
         : compareMotoData && motoData
-          ? calculateGap(motoData.distance_from_start, compareMotoData.distance_from_start)
+          ? gapEntreMotos(motoData, compareMotoData)
           : "";
 
     dataBuffer.add({
