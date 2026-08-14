@@ -92,11 +92,19 @@
       document.getElementById('content').style.display = 'block';
       document.getElementById('openApp').setAttribute('href', deepLink);
 
-      var isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+      // OJO con el iPad: Safari se identifica como "Macintosh" (navegacion
+      // de escritorio por defecto), asi que un /ipad/ en el userAgent NO lo
+      // detecta. Se reconoce por ser Mac CON pantalla tactil. Rechazo de
+      // Apple del 14-ago: al revisor le salio "estas en un ordenador".
+      var ua = navigator.userAgent;
+      var esIpad = /ipad/i.test(ua) ||
+        (/macintosh|mac os x/i.test(ua) && navigator.maxTouchPoints > 1);
+      var isMobile = /android|iphone|ipod/i.test(ua) || esIpad;
+
+      // El boton NO se oculta nunca: en un ordenador no hara nada, pero
+      // esconder la accion principal confunde mas que un enlace inerte.
       if (!isMobile) {
         document.getElementById('desktopNote').style.display = 'block';
-        document.getElementById('openApp').style.display = 'none';
-        document.getElementById('noApp').style.display = 'none';
         return;
       }
 
