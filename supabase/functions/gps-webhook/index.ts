@@ -17,6 +17,8 @@ interface ParsedGPSData {
   heading: number | null;
   accuracy: number | null;
   timestamp: string;
+  /** Marca UTC ISO — para gps_positions (el pipeline comun va en UTC) */
+  timestamp_utc: string;
   battery_level: number;
 }
 
@@ -36,6 +38,7 @@ function parseGL300Data(data: string): ParsedGPSData | null {
         heading: json.heading != null ? json.heading : (json.course != null ? json.course : null),
         accuracy: json.accuracy != null ? json.accuracy : (json.hdop != null ? json.hdop : null),
         timestamp: json.timestamp || new Date().toISOString(),
+        timestamp_utc: json.timestamp || new Date().toISOString(),
         battery_level: json.battery || json.battery_level || 100,
       };
     }
@@ -89,6 +92,7 @@ function parseGL300Data(data: string): ParsedGPSData | null {
         heading,
         accuracy: null,
         timestamp: isoTimestamp,
+        timestamp_utc: utcDate.toISOString(),
         battery_level: battery,
       };
     }
@@ -253,13 +257,37 @@ Deno.serve(async (req) => {
           // No lanzar error, el punto GPS ya fue guardado
         }
       }
+    } else if (device.token_id) {
+      // 7-bis. RAMA DEL PARTICIPANTE: el tracker esta asignado al TOKEN de
+      // un corredor (gallo con GPS fisico). Se escribe en gps_positions —
+      // el pipeline comun — con upsert idempotente: tracker y movil son
+      // intercambiables y ningun overlay se entera. Los +BUFF (puntos
+      // guardados sin cobertura) entran igual, cada uno con su hora.
+      const { error: posError } = await supabase.from("gps_positions").upsert({
+        token_id: device.token_id,
+        device_id: `tracker:${gpsData.imei}`,
+        lat: gpsData.latitude,
+        lng: gpsData.longitude,
+        altitude: gpsData.altitude,
+        accuracy: gpsData.accuracy,
+        speed: gpsData.speed,
+        heading: gpsData.heading,
+        battery: gpsData.battery_level,
+        timestamp: gpsData.timestamp_utc,
+      }, { onConflict: "token_id,timestamp", ignoreDuplicates: true });
+
+      if (posError) {
+        console.error("❌ Error insertando en gps_positions:", posError);
+        throw posError;
+      }
+      console.log("✅ Punto guardado (participante):", device.token_id);
     } else {
-      // Dispositivo sin asignar a ninguna moto
-      console.log("⚠️ Dispositivo sin asignar a ninguna moto, datos no guardados");
+      // Dispositivo sin asignar a moto ni a token de corredor
+      console.log("⚠️ Dispositivo sin asignar, datos no guardados");
       return new Response(
         JSON.stringify({
           success: false,
-          message: "Device not assigned to any moto",
+          message: "Device not assigned to any moto or runner token",
           imei: gpsData.imei,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
