@@ -59,4 +59,21 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Un único paquete de 6 MB tumbaba la compilación de Lovable por
+    // memoria (15-ago: "build failed with exit status 1" justo tras el
+    // "built in 21s"). Separando las librerías pesadas, rollup trabaja
+    // con trozos manejables y el navegador solo baja lo que usa.
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          mapbox: ["mapbox-gl"],
+          charts: ["recharts"],
+          supabase: ["@supabase/supabase-js"],
+          react: ["react", "react-dom", "react-router-dom"],
+        },
+      },
+    },
+  },
 }));

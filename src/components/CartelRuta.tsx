@@ -11,7 +11,6 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
 import { parseGpxFile, getAllTrackPoints } from '@/lib/gpxParser';
 import { construirPerfil, type PerfilRuta } from '@/lib/perfilRuta';
 import { Button } from '@/components/ui/button';
@@ -117,6 +116,10 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     if (!ref.current) return;
     setExportando(sufijo);
     try {
+      // Carga bajo demanda: html2canvas pesa lo suyo y solo hace falta al
+      // pulsar descargar. Metido en el paquete principal engordaba el
+      // bundle hasta tumbar la compilación de Lovable (15-ago).
+      const { default: html2canvas } = await import('html2canvas');
       const lienzo = await html2canvas(ref.current, {
         width: W, height: H, scale: 1, backgroundColor: TINTA, useCORS: true, logging: false,
       });

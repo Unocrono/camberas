@@ -16,7 +16,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp, QrCode } from "lucide-react";
 import { qrConLogo } from "@/lib/qrConLogo";
-import { CartelRuta } from "@/components/CartelRuta";
+import { lazy, Suspense } from "react";
+
+// El cartel (SVG grande + exportación a PNG) solo se carga si el capo abre
+// el diálogo: fuera del paquete principal, que ya va muy justo.
+const CartelRuta = lazy(() =>
+  import("@/components/CartelRuta").then((m) => ({ default: m.CartelRuta }))
+);
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -668,6 +674,7 @@ const GrupettaCapo = () => {
             </DialogDescription>
           </DialogHeader>
           {cartelGrupetta?.gpx && (
+            <Suspense fallback={<div className="py-10 text-center text-sm text-muted-foreground">Preparando el cartel…</div>}>
             <CartelRuta
               nombre={cartelGrupetta.nombre}
               fecha={cartelGrupetta.fecha}
@@ -676,6 +683,7 @@ const GrupettaCapo = () => {
               gpxUrl={cartelGrupetta.gpx}
               imagenUrl={cartelGrupetta.imagen}
             />
+            </Suspense>
           )}
         </DialogContent>
       </Dialog>
