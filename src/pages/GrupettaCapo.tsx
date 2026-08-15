@@ -581,7 +581,7 @@ const GrupettaCapo = () => {
                             </Button>
 
                             {g.gpx && (
-                              <Button size="sm" variant="secondary" className="col-span-2"
+                              <Button size="sm" variant="outline" className="col-span-2"
                                 onClick={() => setCartelGrupetta(g)}>
                                 <ImageIcon className="h-4 w-4 mr-1" />
                                 <span className="truncate">Cartel para redes</span>
@@ -624,10 +624,10 @@ const GrupettaCapo = () => {
 
                           <Button
                             className="w-full"
-                            variant={g.publicada ? "outline" : "default"}
+                            variant={g.publicada ? "secondary" : "default"}
                             onClick={() => actualizar(g.race_id, { p_publicada: !g.publicada })}
                           >
-                            {g.publicada ? "Pasar a borrador (cierra las uniones)" : "🚀 PUBLICAR (abre las uniones)"}
+                            {g.publicada ? "🔒 CIERRE DE CONEXIONES" : "🚀 PUBLICAR (abre las uniones)"}
                           </Button>
                           {g.gpx && (
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
