@@ -314,6 +314,12 @@ const GrupettaCapo = () => {
                 <Crown className="h-8 w-8 text-secondary" /> Zona del Capo
               </h1>
               <p className="text-white/85 mt-1">Crea tu grupetta, reparte el código, no pierdas a nadie.</p>
+              <a
+                href="/manual-capo.html" target="_blank" rel="noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-sm text-white/90 underline underline-offset-4 hover:text-white"
+              >
+                📖 Manual del Capo
+              </a>
             </div>
           </div>
 
