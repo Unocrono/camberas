@@ -62,6 +62,7 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
   const [perfil, setPerfil] = useState<PerfilRuta | null>(null);
   const [traza, setTraza] = useState<{ lat: number; lon: number }[]>([]);
   const [imagen, setImagen] = useState<HTMLImageElement | null>(null);
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,9 +73,10 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     let cancelado = false;
     (async () => {
       try {
-        const [res, img] = await Promise.all([
+        const [res, img, marca] = await Promise.all([
           fetch(gpxUrl),
           imagenUrl ? cargarImagen(imagenUrl) : Promise.resolve(null),
+          cargarImagen('/camberas-logo-512.png'),
         ]);
         const gpx = parseGpxFile(await res.text());
         const pts = getAllTrackPoints(gpx);
@@ -83,6 +85,7 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
         setPerfil(construirPerfil(pts, gpx.waypoints));
         setTraza(pts.map((p) => ({ lat: p.lat, lon: p.lon })));
         setImagen(img);
+        setLogo(marca);
       } catch (e: any) {
         if (!cancelado) setError(e.message ?? 'No se pudo leer el GPX');
       } finally {
@@ -160,6 +163,15 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
       const sub = [formatoFecha(fecha), hora ? `${hora.slice(0, 5)} h` : null, lugar]
         .filter(Boolean).join(' · ');
       ctx.fillText(ajustar(ctx, sub, W - M * 2), M, yTit + 54);
+
+      // La mosca: el logo de la casa arriba a la derecha, como en un
+      // canal de televisión — presente pero sin robar protagonismo
+      if (logo) {
+        const lado = 104;
+        ctx.globalAlpha = 0.95;
+        ctx.drawImage(logo, W - M - lado, 46, lado, lado);
+        ctx.globalAlpha = 1;
+      }
       return yTit + 54;
     };
 
@@ -369,7 +381,7 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     const c2 = canvasMapa.current?.getContext('2d');
     if (c1 && !perfil.sinAltitud) dibujarPerfil(c1, perfil);
     if (c2) dibujarMapa(c2, perfil);
-  }, [perfil, traza, imagen, nombre, fecha, hora, lugar]);
+  }, [perfil, traza, imagen, logo, nombre, fecha, hora, lugar]);
 
   const descargar = (ref: React.RefObject<HTMLCanvasElement>, sufijo: string) => {
     if (!ref.current) return;
