@@ -2,15 +2,13 @@
  * Cartel de ruta para redes sociales — dos piezas en 4:5 (1080×1350):
  * PERFIL con los puertos marcados y MAPA del recorrido.
  *
- * Referencia estética: los carteles de La Flamme Rouge que publican las
- * tiendas (perfil relleno + banderines con nombre, altura y categoría),
- * pero con la paleta Camberas y la imagen del evento de fondo.
- *
- * Se dibuja a tamaño real en un contenedor oculto y se exporta con
- * html2canvas: lo que se ve en pantalla es una miniatura escalada.
+ * Se dibuja DIRECTAMENTE sobre canvas, no con html2canvas: la primera
+ * versión (15-ago) pasaba de HTML a imagen y salía destrozada — todos los
+ * textos amontonados en una esquina y los SVG sin pintar. Dibujando a
+ * mano hay más código, pero lo que se ve es exactamente lo que sale.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseGpxFile, getAllTrackPoints } from '@/lib/gpxParser';
 import { construirPerfil, type PerfilRuta } from '@/lib/perfilRuta';
 import { Button } from '@/components/ui/button';
@@ -25,10 +23,12 @@ const LIMA = '#C8E85C';
 
 const W = 1080;
 const H = 1350;
+const M = 70;               // margen lateral
+const FUENTE = 'Archivo, Inter, system-ui, sans-serif';
 
 interface CartelRutaProps {
   nombre: string;
-  fecha: string;          // ISO (YYYY-MM-DD)
+  fecha: string;
   hora?: string | null;
   lugar?: string | null;
   gpxUrl: string;
@@ -37,72 +37,52 @@ interface CartelRutaProps {
 
 const formatoFecha = (iso: string): string => {
   const d = new Date(iso + 'T00:00:00');
-  return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  const t = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+  return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
-/** Ruta SVG del perfil (área rellena) */
-const pathPerfil = (perfil: PerfilRuta, ancho: number, alto: number): string => {
-  const { puntos, km, altMin, altMax } = perfil;
-  const rango = Math.max(1, altMax - altMin);
-  const x = (v: number) => (v / Math.max(km, 0.1)) * ancho;
-  const y = (v: number) => alto - ((v - altMin) / rango) * alto * 0.86 - alto * 0.07;
-  let d = `M 0 ${alto} L ${x(puntos[0].km)} ${y(puntos[0].ele)}`;
-  for (const p of puntos) d += ` L ${x(p.km)} ${y(p.ele)}`;
-  d += ` L ${ancho} ${alto} Z`;
-  return d;
+/** Texto que se corta con puntos suspensivos si no cabe */
+const ajustar = (ctx: CanvasRenderingContext2D, texto: string, max: number): string => {
+  if (ctx.measureText(texto).width <= max) return texto;
+  let t = texto;
+  while (t.length > 3 && ctx.measureText(t + '…').width > max) t = t.slice(0, -1);
+  return t + '…';
 };
 
-/** Traza del recorrido normalizada a una caja (mapa sin fondo, estilo cartel) */
-const pathMapa = (
-  pts: { lat: number; lon: number }[],
-  ancho: number,
-  alto: number,
-  margen = 60,
-): string => {
-  if (pts.length === 0) return '';
-  const lats = pts.map((p) => p.lat);
-  const lons = pts.map((p) => p.lon);
-  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-  // Mercator simple: a esta escala la distorsión es despreciable, pero sin
-  // corregir por latitud el recorrido sale achatado en el norte
-  const kx = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
-  const anchoGeo = (maxLon - minLon) * kx || 1e-6;
-  const altoGeo = (maxLat - minLat) || 1e-6;
-  const escala = Math.min((ancho - margen * 2) / anchoGeo, (alto - margen * 2) / altoGeo);
-  const offX = (ancho - anchoGeo * escala) / 2;
-  const offY = (alto - altoGeo * escala) / 2;
-  return pts
-    .map((p, i) => {
-      const px = offX + (p.lon - minLon) * kx * escala;
-      const py = alto - offY - (p.lat - minLat) * escala;
-      return `${i === 0 ? 'M' : 'L'} ${px.toFixed(1)} ${py.toFixed(1)}`;
-    })
-    .join(' ');
-};
+const cargarImagen = (url: string): Promise<HTMLImageElement | null> =>
+  new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
 
 export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: CartelRutaProps) {
   const [perfil, setPerfil] = useState<PerfilRuta | null>(null);
   const [traza, setTraza] = useState<{ lat: number; lon: number }[]>([]);
+  const [imagen, setImagen] = useState<HTMLImageElement | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [exportando, setExportando] = useState<string | null>(null);
 
-  const refPerfil = useRef<HTMLDivElement>(null);
-  const refMapa = useRef<HTMLDivElement>(null);
+  const canvasPerfil = useRef<HTMLCanvasElement>(null);
+  const canvasMapa = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     let cancelado = false;
     (async () => {
       try {
-        const res = await fetch(gpxUrl);
-        const texto = await res.text();
-        const gpx = parseGpxFile(texto);
+        const [res, img] = await Promise.all([
+          fetch(gpxUrl),
+          imagenUrl ? cargarImagen(imagenUrl) : Promise.resolve(null),
+        ]);
+        const gpx = parseGpxFile(await res.text());
         const pts = getAllTrackPoints(gpx);
         if (cancelado) return;
         if (pts.length < 2) throw new Error('El GPX no tiene recorrido');
         setPerfil(construirPerfil(pts, gpx.waypoints));
         setTraza(pts.map((p) => ({ lat: p.lat, lon: p.lon })));
+        setImagen(img);
       } catch (e: any) {
         if (!cancelado) setError(e.message ?? 'No se pudo leer el GPX');
       } finally {
@@ -110,29 +90,292 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
       }
     })();
     return () => { cancelado = true; };
-  }, [gpxUrl]);
+  }, [gpxUrl, imagenUrl]);
 
-  const descargar = async (ref: React.RefObject<HTMLDivElement>, sufijo: string) => {
-    if (!ref.current) return;
-    setExportando(sufijo);
-    try {
-      // Carga bajo demanda: html2canvas pesa lo suyo y solo hace falta al
-      // pulsar descargar. Metido en el paquete principal engordaba el
-      // bundle hasta tumbar la compilación de Lovable (15-ago).
-      const { default: html2canvas } = await import('html2canvas');
-      const lienzo = await html2canvas(ref.current, {
-        width: W, height: H, scale: 1, backgroundColor: TINTA, useCORS: true, logging: false,
+  useEffect(() => {
+    if (!perfil || traza.length === 0) return;
+
+    /** Título a una o dos líneas, encogiendo hasta que quepa */
+    const titulo = (ctx: CanvasRenderingContext2D, texto: string, y: number): number => {
+      const ancho = W - M * 2;
+      let tam = 84;
+      const partir = (t: number): string[] => {
+        ctx.font = `900 ${t}px ${FUENTE}`;
+        const out: string[] = [];
+        let linea = '';
+        for (const p of texto.toUpperCase().split(' ')) {
+          const prueba = linea ? `${linea} ${p}` : p;
+          if (ctx.measureText(prueba).width > ancho && linea) { out.push(linea); linea = p; }
+          else linea = prueba;
+        }
+        if (linea) out.push(linea);
+        return out;
+      };
+      let ls = partir(tam);
+      while ((ls.length > 2 || ls.some((l) => ctx.measureText(l).width > ancho)) && tam > 40) {
+        tam -= 6;
+        ls = partir(tam);
+      }
+      ctx.fillStyle = CREMA;
+      ctx.textAlign = 'left';
+      ls.forEach((l, i) => ctx.fillText(l, M, y + i * tam * 1.04));
+      return y + (ls.length - 1) * tam * 1.04;
+    };
+
+    const fondoYCabecera = (ctx: CanvasRenderingContext2D): number => {
+      ctx.fillStyle = TINTA;
+      ctx.fillRect(0, 0, W, H);
+
+      if (imagen) {
+        // "cover": la imagen del evento llena el lienzo sin deformarse
+        const esc = Math.max(W / imagen.width, H / imagen.height);
+        const iw = imagen.width * esc;
+        const ih = imagen.height * esc;
+        ctx.drawImage(imagen, (W - iw) / 2, (H - ih) / 2, iw, ih);
+      } else {
+        const g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, VERDE);
+        g.addColorStop(1, TINTA);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, W, H);
+      }
+      // Velo: el texto se lee siempre, sea cual sea la foto del evento
+      const velo = ctx.createLinearGradient(0, 0, 0, H);
+      velo.addColorStop(0, 'rgba(14,36,25,0.90)');
+      velo.addColorStop(0.55, 'rgba(14,36,25,0.94)');
+      velo.addColorStop(1, 'rgba(14,36,25,0.99)');
+      ctx.fillStyle = velo;
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = NARANJA;
+      ctx.font = `800 26px ${FUENTE}`;
+      ctx.fillText('CAMBERAS · GRUPETTA', M, 100);
+
+      const yTit = titulo(ctx, nombre, 190);
+
+      ctx.fillStyle = LIMA;
+      ctx.font = `600 32px ${FUENTE}`;
+      const sub = [formatoFecha(fecha), hora ? `${hora.slice(0, 5)} h` : null, lugar]
+        .filter(Boolean).join(' · ');
+      ctx.fillText(ajustar(ctx, sub, W - M * 2), M, yTit + 54);
+      return yTit + 54;
+    };
+
+    const cifras = (ctx: CanvasRenderingContext2D, p: PerfilRuta) => {
+      const datos = [
+        { v: p.km.toFixed(1), u: 'KM' },
+        { v: `+${p.desnivel}`, u: 'M DESNIVEL' },
+        { v: `${p.altMax}`, u: 'M ALT. MÁX.' },
+      ];
+      const y = H - 108;
+      const paso = (W - M * 2) / 3;
+      datos.forEach((d, i) => {
+        const x = M + paso * i;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = NARANJA;
+        ctx.font = `900 62px ${FUENTE}`;
+        ctx.fillText(d.v, x, y);
+        ctx.fillStyle = 'rgba(250,246,236,0.72)';
+        ctx.font = `600 21px ${FUENTE}`;
+        ctx.fillText(d.u, x, y + 34);
       });
-      const enlace = document.createElement('a');
-      enlace.download = `${nombre.toLowerCase().replace(/[^a-z0-9]+/gi, '-')}-${sufijo}.png`;
-      enlace.href = lienzo.toDataURL('image/png');
-      enlace.click();
-    } finally {
-      setExportando(null);
-    }
-  };
+    };
 
-  const fechaTexto = useMemo(() => formatoFecha(fecha), [fecha]);
+    // ── Pieza 1: el perfil ─────────────────────────────────────────
+    const dibujarPerfil = (ctx: CanvasRenderingContext2D, p: PerfilRuta) => {
+      const yCabecera = fondoYCabecera(ctx);
+
+      const x0 = M;
+      const ancho = W - M * 2;
+      const alto = 380;
+      const suelo = Math.max(yCabecera + 420, 900);
+      const y0 = suelo - alto;
+
+      // Escala vertical: con rutas casi llanas (Santander→Lasarte: 300 m de
+      // rango en 200 km) una escala fiel deja una línea plana ilegible. Se
+      // exagera el relieve — como en todo cartel ciclista — pero se rotulan
+      // las alturas reales para no engañar a nadie.
+      const rango = Math.max(60, p.altMax - p.altMin);
+      const yDe = (ele: number) => suelo - ((ele - p.altMin) / rango) * alto * 0.8;
+      const xDe = (km: number) => x0 + (km / Math.max(p.km, 0.1)) * ancho;
+
+      ctx.beginPath();
+      ctx.moveTo(x0, suelo);
+      for (const pt of p.puntos) ctx.lineTo(xDe(pt.km), yDe(pt.ele));
+      ctx.lineTo(x0 + ancho, suelo);
+      ctx.closePath();
+      ctx.fillStyle = NARANJA;
+      ctx.fill();
+
+      ctx.beginPath();
+      p.puntos.forEach((pt, i) =>
+        i === 0 ? ctx.moveTo(xDe(pt.km), yDe(pt.ele)) : ctx.lineTo(xDe(pt.km), yDe(pt.ele)));
+      ctx.strokeStyle = CREMA;
+      ctx.lineWidth = 3;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x0, suelo);
+      ctx.lineTo(x0 + ancho, suelo);
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.font = `600 22px ${FUENTE}`;
+      ctx.fillStyle = 'rgba(250,246,236,0.8)';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${p.altMin} m`, x0, suelo + 34);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${p.km.toFixed(1)} km`, x0 + ancho, suelo + 34);
+
+      p.puertos.forEach((pu, i) => {
+        const x = xDe(pu.km);
+        const y = yDe(pu.cima);
+        const h = i % 2 === 0 ? 118 : 62;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x, y - h);
+        ctx.strokeStyle = CREMA;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = NARANJA;
+        ctx.fillRect(x - 3, y - h - 34, 36, 30);
+        ctx.fillStyle = TINTA;
+        ctx.font = `900 20px ${FUENTE}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(pu.categoria, x + 15, y - h - 12);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = CREMA;
+        ctx.font = `700 20px ${FUENTE}`;
+        ctx.fillText(`${pu.cima} m`, x - 3, y - h - 44);
+        if (pu.nombre) {
+          ctx.fillStyle = LIMA;
+          ctx.font = `800 22px ${FUENTE}`;
+          ctx.fillText(ajustar(ctx, pu.nombre, 250), x - 3, y - h - 70);
+        }
+      });
+
+      // Sin puertos, lo que hay que contar es el punto más alto
+      if (p.puertos.length === 0) {
+        const cima = p.puntos.reduce((a, b) => (b.ele > a.ele ? b : a), p.puntos[0]);
+        const x = xDe(cima.km);
+        const y = yDe(cima.ele);
+        ctx.beginPath();
+        ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = LIMA;
+        ctx.fill();
+        ctx.strokeStyle = TINTA;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.fillStyle = LIMA;
+        ctx.font = `800 24px ${FUENTE}`;
+        const derecha = x > W / 2;
+        ctx.textAlign = derecha ? 'right' : 'left';
+        ctx.fillText(`${Math.round(cima.ele)} m · km ${cima.km.toFixed(0)}`,
+          x + (derecha ? -22 : 22), y - 14);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = 'rgba(250,246,236,0.7)';
+        ctx.font = `600 24px ${FUENTE}`;
+        ctx.fillText('Recorrido sin puertos catalogados', M, y0 - 26);
+      }
+
+      p.hitos.forEach((h, i) => {
+        const x = xDe(h.km);
+        const esAvit = h.tipo === 'avituallamiento';
+        const color = esAvit ? LIMA : CREMA;
+        ctx.beginPath();
+        ctx.moveTo(x, suelo);
+        ctx.lineTo(x, suelo + 52);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, suelo + 66, 13, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.fillStyle = TINTA;
+        ctx.font = `900 16px ${FUENTE}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(esAvit ? 'A' : '•', x, suelo + 72);
+        ctx.fillStyle = color;
+        ctx.font = `700 20px ${FUENTE}`;
+        ctx.textAlign = i === 0 ? 'left' : i === p.hitos.length - 1 ? 'right' : 'center';
+        ctx.fillText(ajustar(ctx, h.nombre, 230), x, suelo + 104);
+      });
+
+      cifras(ctx, p);
+    };
+
+    // ── Pieza 2: el mapa ───────────────────────────────────────────
+    const dibujarMapa = (ctx: CanvasRenderingContext2D, p: PerfilRuta) => {
+      const yCabecera = fondoYCabecera(ctx);
+
+      const caja = { x: M, y: yCabecera + 60, w: W - M * 2, h: H - yCabecera - 260 };
+      const lats = traza.map((t) => t.lat);
+      const lons = traza.map((t) => t.lon);
+      const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+      const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+      const kx = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+      const anchoGeo = Math.max((maxLon - minLon) * kx, 1e-6);
+      const altoGeo = Math.max(maxLat - minLat, 1e-6);
+      const esc = Math.min(caja.w / anchoGeo, caja.h / altoGeo) * 0.9;
+      const dx = caja.x + (caja.w - anchoGeo * esc) / 2;
+      const dy = caja.y + (caja.h - altoGeo * esc) / 2;
+      const px = (t: { lat: number; lon: number }) => dx + (t.lon - minLon) * kx * esc;
+      const py = (t: { lat: number; lon: number }) => dy + altoGeo * esc - (t.lat - minLat) * esc;
+
+      const trazar = () => {
+        ctx.beginPath();
+        traza.forEach((t, i) => (i === 0 ? ctx.moveTo(px(t), py(t)) : ctx.lineTo(px(t), py(t))));
+      };
+      trazar();
+      ctx.strokeStyle = 'rgba(14,36,25,0.85)';   // sombra: cuerpo sobre cualquier fondo
+      ctx.lineWidth = 18;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      trazar();
+      ctx.strokeStyle = NARANJA;
+      ctx.lineWidth = 9;
+      ctx.stroke();
+
+      const marca = (t: { lat: number; lon: number }, color: string, etiqueta: string) => {
+        const x = px(t), y = py(t);
+        ctx.beginPath();
+        ctx.arc(x, y, 17, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = TINTA;
+        ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.font = `800 22px ${FUENTE}`;
+        ctx.textAlign = 'center';
+        ctx.fillText(etiqueta, x, y - 30);
+      };
+      marca(traza[0], LIMA, 'SALIDA');
+      marca(traza[traza.length - 1], CREMA, 'LLEGADA');
+
+      cifras(ctx, p);
+    };
+
+    const c1 = canvasPerfil.current?.getContext('2d');
+    const c2 = canvasMapa.current?.getContext('2d');
+    if (c1) dibujarPerfil(c1, perfil);
+    if (c2) dibujarMapa(c2, perfil);
+  }, [perfil, traza, imagen, nombre, fecha, hora, lugar]);
+
+  const descargar = (ref: React.RefObject<HTMLCanvasElement>, sufijo: string) => {
+    if (!ref.current) return;
+    const a = document.createElement('a');
+    a.download = `${nombre.toLowerCase().replace(/[^a-z0-9]+/gi, '-')}-${sufijo}.png`;
+    a.href = ref.current.toDataURL('image/png');
+    a.click();
+  };
 
   if (cargando) {
     return <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>;
@@ -141,211 +384,27 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     return <p className="text-sm text-destructive py-4">{error ?? 'Sin recorrido'}</p>;
   }
 
-  const anchoPerfil = W - 120;
-  const altoPerfil = 420;
-
-  // ── Cabecera común de las dos piezas ─────────────────────────────
-  const Cabecera = () => (
-    <div style={{ padding: '64px 60px 0' }}>
-      <div style={{ color: NARANJA, fontSize: 26, letterSpacing: 6, fontWeight: 800 }}>
-        CAMBERAS · GRUPETTA
-      </div>
-      <div style={{
-        color: CREMA, fontSize: 76, lineHeight: 1.02, fontWeight: 900,
-        textTransform: 'uppercase', marginTop: 14,
-      }}>
-        {nombre}
-      </div>
-      <div style={{ color: LIMA, fontSize: 32, marginTop: 16, textTransform: 'capitalize' }}>
-        {fechaTexto}{hora ? ` · ${hora.slice(0, 5)} h` : ''}{lugar ? ` · ${lugar}` : ''}
-      </div>
-    </div>
-  );
-
-  // ── Cifras de pie ────────────────────────────────────────────────
-  const Cifras = () => (
-    <div style={{ display: 'flex', gap: 48, padding: '0 60px 56px' }}>
-      {[
-        { v: `${perfil.km.toFixed(1)}`, u: 'KM' },
-        { v: `+${perfil.desnivel}`, u: 'M DESNIVEL' },
-        { v: `${perfil.altMax}`, u: 'M ALTURA MÁX.' },
-      ].map((c) => (
-        <div key={c.u}>
-          <div style={{ color: NARANJA, fontSize: 64, fontWeight: 900, lineHeight: 1 }}>{c.v}</div>
-          <div style={{ color: CREMA, opacity: 0.7, fontSize: 20, letterSpacing: 2, marginTop: 6 }}>{c.u}</div>
-        </div>
-      ))}
-    </div>
-  );
-
-  const fondo: React.CSSProperties = imagenUrl
-    ? {
-        backgroundImage: `linear-gradient(180deg, rgba(14,36,25,0.92) 0%, rgba(14,36,25,0.97) 60%, ${TINTA} 100%), url(${imagenUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : { background: `linear-gradient(180deg, ${VERDE} 0%, ${TINTA} 70%)` };
-
-  // El marco recorta y encoge; dentro, la pieza va a 1080×1350 reales
-  const ESCALA = 0.235;
-  const marco: React.CSSProperties = {
-    width: W * ESCALA, height: H * ESCALA, maxWidth: '100%',
-  };
-  const escalador: React.CSSProperties = {
-    transform: `scale(${ESCALA})`, transformOrigin: 'top left',
-    width: W, height: H,
-  };
-  const lienzoBase: React.CSSProperties = {
-    width: W, height: H, ...fondo,
-    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-    fontFamily: 'Archivo, Inter, system-ui, sans-serif',
-  };
-
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <canvas ref={canvasPerfil} width={W} height={H} className="w-full h-auto rounded-lg border" />
+        <canvas ref={canvasMapa} width={W} height={H} className="w-full h-auto rounded-lg border" />
+      </div>
+
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => descargar(refPerfil, 'perfil')} disabled={!!exportando}>
-          {exportando === 'perfil'
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <><Download className="h-4 w-4 mr-1" /> Perfil</>}
+        <Button className="flex-1" onClick={() => descargar(canvasPerfil, 'perfil')}>
+          <Download className="h-4 w-4 mr-1" /> Perfil
         </Button>
-        <Button className="flex-1" variant="secondary" onClick={() => descargar(refMapa, 'mapa')} disabled={!!exportando}>
-          {exportando === 'mapa'
-            ? <Loader2 className="h-4 w-4 animate-spin" />
-            : <><ImageIcon className="h-4 w-4 mr-1" /> Mapa</>}
+        <Button className="flex-1" variant="outline" onClick={() => descargar(canvasMapa, 'mapa')}>
+          <ImageIcon className="h-4 w-4 mr-1" /> Mapa
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        1080×1350 (4:5), el formato que más ocupa en Instagram.
-        {perfil.puertos.length > 0 && ` ${perfil.puertos.length} puerto(s) detectado(s) en el recorrido.`}
+        1080×1350 (4:5).{' '}
+        {perfil.puertos.length > 0
+          ? `${perfil.puertos.length} puerto(s) detectado(s).`
+          : 'Sin puertos: se marca el punto más alto.'}
       </p>
-
-      {/* ── Las piezas, a tamaño real dentro de un marco escalado ─ */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* PERFIL */}
-        <div className="rounded-lg overflow-hidden border" style={marco}>
-        <div style={escalador}>
-        <div ref={refPerfil} style={lienzoBase}>
-          <Cabecera />
-
-          <div style={{ padding: '0 60px' }}>
-            <svg width={anchoPerfil} height={altoPerfil + 150} style={{ overflow: 'visible' }}>
-              {/* Banderines de los puertos */}
-              {perfil.puertos.map((p, i) => {
-                const x = (p.km / Math.max(perfil.km, 0.1)) * anchoPerfil;
-                const rango = Math.max(1, perfil.altMax - perfil.altMin);
-                const y = altoPerfil - ((p.cima - perfil.altMin) / rango) * altoPerfil * 0.86 - altoPerfil * 0.07;
-                const alto = i % 2 === 0 ? 118 : 74;   // alternar para que no se pisen
-                return (
-                  <g key={i} transform={`translate(${x + 60}, 0)`}>
-                    <line x1={0} y1={y} x2={0} y2={y - alto} stroke={CREMA} strokeWidth={2} opacity={0.85} />
-                    <rect x={-4} y={y - alto - 34} width={34} height={30} fill={NARANJA} rx={3} />
-                    <text x={13} y={y - alto - 13} fill={TINTA} fontSize={20} fontWeight={900} textAnchor="middle">
-                      {p.categoria}
-                    </text>
-                    <text x={-4} y={y - alto - 44} fill={CREMA} fontSize={19} fontWeight={700}>
-                      {p.cima} m
-                    </text>
-                    {p.nombre && (
-                      <text x={-4} y={y - alto - 68} fill={LIMA} fontSize={21} fontWeight={800}>
-                        {p.nombre.slice(0, 22)}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Hitos del capo: avituallamientos y puntos de interés */}
-              {perfil.hitos.map((h, i) => {
-                const x = (h.km / Math.max(perfil.km, 0.1)) * anchoPerfil + 60;
-                const esAvit = h.tipo === 'avituallamiento';
-                const color = esAvit ? LIMA : CREMA;
-                return (
-                  <g key={`h${i}`} transform={`translate(${x}, ${150 + altoPerfil})`}>
-                    <line x1={0} y1={0} x2={0} y2={26} stroke={color} strokeWidth={2} opacity={0.9} />
-                    <circle cx={0} cy={38} r={13} fill={color} />
-                    <text x={0} y={45} fontSize={17} fontWeight={900} fill={TINTA} textAnchor="middle">
-                      {esAvit ? 'A' : '•'}
-                    </text>
-                    <text
-                      x={0} y={78} fontSize={19} fontWeight={700} fill={color}
-                      textAnchor={i === 0 ? 'start' : i === perfil.hitos.length - 1 ? 'end' : 'middle'}
-                    >
-                      {h.nombre.slice(0, 18)}
-                    </text>
-                    <text
-                      x={0} y={100} fontSize={17} fill={CREMA} opacity={0.65}
-                      textAnchor={i === 0 ? 'start' : i === perfil.hitos.length - 1 ? 'end' : 'middle'}
-                    >
-                      km {h.km}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* El perfil */}
-              <g transform="translate(60, 150)">
-                <path d={pathPerfil(perfil, anchoPerfil, altoPerfil)} fill={NARANJA} opacity={0.92} />
-                <path
-                  d={pathPerfil(perfil, anchoPerfil, altoPerfil)}
-                  fill="none" stroke={CREMA} strokeWidth={3} strokeLinejoin="round"
-                />
-                <line x1={0} y1={altoPerfil} x2={anchoPerfil} y2={altoPerfil} stroke={CREMA} strokeWidth={4} />
-                <text x={0} y={altoPerfil + 38} fill={CREMA} fontSize={22} opacity={0.8}>0</text>
-                <text x={anchoPerfil} y={altoPerfil + 38} fill={CREMA} fontSize={22} opacity={0.8} textAnchor="end">
-                  {perfil.km.toFixed(1)} km
-                </text>
-              </g>
-            </svg>
-          </div>
-
-          <Cifras />
-        </div>
-        </div>
-        </div>
-
-        {/* MAPA */}
-        <div className="rounded-lg overflow-hidden border" style={marco}>
-        <div style={escalador}>
-        <div ref={refMapa} style={lienzoBase}>
-          <Cabecera />
-
-          <div style={{ padding: '0 60px', display: 'flex', justifyContent: 'center' }}>
-            <svg width={W - 120} height={640}>
-              <path
-                d={pathMapa(traza, W - 120, 640)}
-                fill="none" stroke={TINTA} strokeWidth={16}
-                strokeLinejoin="round" strokeLinecap="round" opacity={0.45}
-              />
-              <path
-                d={pathMapa(traza, W - 120, 640)}
-                fill="none" stroke={NARANJA} strokeWidth={9}
-                strokeLinejoin="round" strokeLinecap="round"
-              />
-              {(() => {
-                const d = pathMapa(traza, W - 120, 640);
-                const primero = d.match(/M ([\d.]+) ([\d.]+)/);
-                const trozos = d.trim().split('L');
-                const ultimo = trozos[trozos.length - 1]?.trim().split(' ');
-                return (
-                  <>
-                    {primero && (
-                      <circle cx={+primero[1]} cy={+primero[2]} r={16} fill={LIMA} stroke={TINTA} strokeWidth={5} />
-                    )}
-                    {ultimo?.length === 2 && (
-                      <circle cx={+ultimo[0]} cy={+ultimo[1]} r={16} fill={CREMA} stroke={TINTA} strokeWidth={5} />
-                    )}
-                  </>
-                );
-              })()}
-            </svg>
-          </div>
-
-          <Cifras />
-        </div>
-        </div>
-        </div>
-      </div>
     </div>
   );
 }
