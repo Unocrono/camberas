@@ -164,11 +164,13 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     };
 
     const cifras = (ctx: CanvasRenderingContext2D, p: PerfilRuta) => {
-      const datos = [
-        { v: p.km.toFixed(1), u: 'KM' },
-        { v: `+${p.desnivel}`, u: 'M DESNIVEL' },
-        { v: `${p.altMax}`, u: 'M ALT. MÁX.' },
-      ];
+      const datos = p.sinAltitud
+        ? [{ v: p.km.toFixed(1), u: 'KM' }]
+        : [
+            { v: p.km.toFixed(1), u: 'KM' },
+            { v: `+${p.desnivel}`, u: 'M DESNIVEL' },
+            { v: `${p.altMax}`, u: 'M ALT. MÁX.' },
+          ];
       const y = H - 108;
       const paso = (W - M * 2) / 3;
       datos.forEach((d, i) => {
@@ -365,7 +367,7 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
 
     const c1 = canvasPerfil.current?.getContext('2d');
     const c2 = canvasMapa.current?.getContext('2d');
-    if (c1) dibujarPerfil(c1, perfil);
+    if (c1 && !perfil.sinAltitud) dibujarPerfil(c1, perfil);
     if (c2) dibujarMapa(c2, perfil);
   }, [perfil, traza, imagen, nombre, fecha, hora, lugar]);
 
@@ -386,24 +388,32 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <canvas ref={canvasPerfil} width={W} height={H} className="w-full h-auto rounded-lg border" />
-        <canvas ref={canvasMapa} width={W} height={H} className="w-full h-auto rounded-lg border" />
+      <div className={perfil.sinAltitud ? 'flex justify-center' : 'grid grid-cols-2 gap-3'}>
+        <canvas
+          ref={canvasPerfil} width={W} height={H}
+          className={`w-full h-auto rounded-lg border ${perfil.sinAltitud ? 'hidden' : ''}`}
+        />
+        <canvas ref={canvasMapa} width={W} height={H}
+          className={`h-auto rounded-lg border ${perfil.sinAltitud ? 'w-1/2' : 'w-full'}`} />
       </div>
 
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => descargar(canvasPerfil, 'perfil')}>
-          <Download className="h-4 w-4 mr-1" /> Perfil
-        </Button>
+        {!perfil.sinAltitud && (
+          <Button className="flex-1" onClick={() => descargar(canvasPerfil, 'perfil')}>
+            <Download className="h-4 w-4 mr-1" /> Perfil
+          </Button>
+        )}
         <Button className="flex-1" variant="outline" onClick={() => descargar(canvasMapa, 'mapa')}>
           <ImageIcon className="h-4 w-4 mr-1" /> Mapa
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
         1080×1350 (4:5).{' '}
-        {perfil.puertos.length > 0
-          ? `${perfil.puertos.length} puerto(s) detectado(s).`
-          : 'Sin puertos: se marca el punto más alto.'}
+        {perfil.sinAltitud
+          ? 'Este GPX no incluye altitudes, así que no hay perfil que dibujar: vuelve a exportar la ruta con elevación desde tu planificador y podrás generarlo.'
+          : perfil.puertos.length > 0
+            ? `${perfil.puertos.length} puerto(s) detectado(s).`
+            : 'Sin puertos: se marca el punto más alto.'}
       </p>
     </div>
   );

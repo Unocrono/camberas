@@ -49,6 +49,9 @@ export interface PerfilRuta {
    *  puntos de interés. Esto SÍ lo pone el capo — del relieve no se
    *  deduce dónde hay una fuente o un bar. */
   hitos: Hito[];
+  /** El GPX no trae altitudes: no hay perfil que dibujar (pasa con las
+   *  rutas exportadas "solo trazado" de algunos planificadores) */
+  sinAltitud: boolean;
 }
 
 /** Media móvil: el GPS mete ruido de ±5 m que inventa cuestas que no existen */
@@ -220,8 +223,9 @@ export const construirPerfil = (
   trackPoints: GpxTrackPoint[],
   waypoints: { name: string; lat: number; lon: number }[] = [],
 ): PerfilRuta => {
-  const conEle = trackPoints.filter((p) => p.ele != null);
-  const base = conEle.length > 10 ? conEle : trackPoints;
+  const conEle = trackPoints.filter((p) => p.ele != null && p.ele !== 0);
+  const sinAltitud = conEle.length < 10;
+  const base = !sinAltitud ? conEle : trackPoints;
 
   const elevaciones = suavizar(base.map((p) => p.ele ?? 0));
   const puntos: PuntoPerfil[] = [];
@@ -251,5 +255,6 @@ export const construirPerfil = (
     altMax: Math.round(Math.max(...eles)),
     puertos,
     hitos: situarHitos(waypoints, base, ligeros, puertos),
+    sinAltitud,
   };
 };
