@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp, QrCode } from "lucide-react";
 import { qrConLogo } from "@/lib/qrConLogo";
+import { CartelRuta } from "@/components/CartelRuta";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -108,6 +109,7 @@ const GrupettaCapo = () => {
   }, [session, cargarMisGrupettas]);
 
   // QR de unión: en la salida, el capo lo enseña y el nuevo lo escanea
+  const [cartelGrupetta, setCartelGrupetta] = useState<MiGrupetta | null>(null);
   const [qrGrupetta, setQrGrupetta] = useState<MiGrupetta | null>(null);
   const [qrImagen, setQrImagen] = useState("");
 
@@ -566,6 +568,14 @@ const GrupettaCapo = () => {
                               <Copy className="h-4 w-4 mr-1" /> <span className="truncate">Copiar enlace del mapa</span>
                             </Button>
 
+                            {g.gpx && (
+                              <Button size="sm" variant="secondary" className="col-span-2"
+                                onClick={() => setCartelGrupetta(g)}>
+                                <ImageIcon className="h-4 w-4 mr-1" />
+                                <span className="truncate">Cartel para redes</span>
+                              </Button>
+                            )}
+
                             <Button size="sm" variant="outline" asChild disabled={subiendo === g.race_id}>
                               <label className="cursor-pointer">
                                 <Upload className="h-4 w-4 mr-1" />
@@ -639,6 +649,31 @@ const GrupettaCapo = () => {
           </p>
         </div>
       </div>
+      <Dialog open={!!cartelGrupetta} onOpenChange={(o) => !o && setCartelGrupetta(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5" /> Cartel de {cartelGrupetta?.nombre}
+            </DialogTitle>
+            <DialogDescription>
+              Dos imágenes listas para Instagram. Los puertos se detectan solos del
+              recorrido; para que salgan con nombre —y para marcar avituallamientos—
+              ponlos como waypoints en el GPX.
+            </DialogDescription>
+          </DialogHeader>
+          {cartelGrupetta?.gpx && (
+            <CartelRuta
+              nombre={cartelGrupetta.nombre}
+              fecha={cartelGrupetta.fecha}
+              hora={cartelGrupetta.hora}
+              lugar={cartelGrupetta.lugar}
+              gpxUrl={cartelGrupetta.gpx}
+              imagenUrl={cartelGrupetta.imagen}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!qrGrupetta} onOpenChange={(o) => !o && setQrGrupetta(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
