@@ -649,7 +649,7 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
               )}
             </DialogTitle>
             <DialogDescription>
-              Escanéalo con la app Camberas Motos para vincular esta moto.
+              Escanéalo con la app Camberas Track para vincular esta moto.
               Sin usuarios ni contraseñas: el token identifica a la MOTO.
             </DialogDescription>
           </DialogHeader>
@@ -662,12 +662,14 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
               className="flex-1"
               onClick={() => {
                 if (qrDialogMoto && motoTokens[qrDialogMoto.id]) {
-                  navigator.clipboard.writeText(motoTokens[qrDialogMoto.id].token);
-                  toast({ title: "Token copiado al portapapeles" });
+                  navigator.clipboard.writeText(
+                    `https://camberas.com/activar.html?t=${motoTokens[qrDialogMoto.id].token}`
+                  );
+                  toast({ title: "Enlace de activación copiado — pégalo en WhatsApp" });
                 }
               }}
             >
-              Copiar token
+              Copiar URL
             </Button>
             <Button
               variant="outline"
