@@ -1,7 +1,9 @@
 # Traspaso: llevar el patrón TOKEN al cronometrador
 
 Documento de arranque para una sesión nueva. Recoge el patrón ya probado en
-producción con **corredores** (camberas-track) y **motos** (camberas-motos), y
+producción con **corredores y motos** (ambos en camberas-track: la app de
+motos se retiró el 20-ago-2026 — un token de moto en Track ya da intervalo
+de 2 s y exención de ventana), y
 lo que hay que replicar para el **cronometrador** (`src/pages/TimingApp.tsx`).
 
 ## El patrón, en una frase
@@ -21,7 +23,7 @@ contraseñas, sin asignar personas.
 | Generar (motos) | RPC `generar_token_moto(p_race_moto_id, p_distance_id)` — crea token con dorsal `M1`, `M2`… y **revoca el anterior** |
 | Listar (motos) | RPC `tokens_motos_carrera(p_race_id)` — para pintar QR y estado en el panel |
 | QR en el panel | `src/components/admin/MotosManagement.tsx` (librería `qrcode`, se dibuja en local) |
-| Escáner en la app | `camberas-motos/src/components/LinkMotoScreen.tsx` + `src/services/link.service.ts` (expo-camera) |
+| Escáner en la app | `camberas-track/src/hooks/useQRScanner.ts` (la app de motos se retiró el 20-ago-2026; su repo queda archivado) |
 | Migración de referencia | `supabase/migrations/20260803120000_motos_tokens.sql` |
 
 ## ESTADO: implementado el 4-ago (falta aplicar la migración)
