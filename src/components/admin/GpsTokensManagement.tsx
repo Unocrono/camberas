@@ -32,6 +32,7 @@ interface TokenRow {
   activo: boolean;
   device_id: string | null;
   intervalo: number | null;
+  name_tv: string | null;
 }
 
 const urlActivacion = (token: string) => `https://camberas.com/activar.html?t=${token}`;
@@ -113,6 +114,34 @@ El movil lo recoge al RE-ESCANEAR su QR.`,
     else { toast({ title: "Intervalo actualizado - re-escanear el QR en el movil" }); await cargar(); }
   };
 
+  // Gallo = corredor que sale en el grafismo. La regla de la casa:
+  // name_tv define quien va a TV (igual que en las motos). Al marcarlo
+  // se propone tambien el intervalo de 5 s del streaming.
+  const marcarGallo = async (row: TokenRow) => {
+    const nombre = window.prompt(
+      `Nombre corto para TV del dorsal ${row.bib} (ej: R.PEREZ).
+Vacio = quitar del grafismo.`,
+      row.name_tv ?? ""
+    );
+    if (nombre === null) return;
+    const esGallo = nombre.trim() !== "";
+    const { error } = await supabase.rpc("marcar_gallo" as never, {
+      p_token_row_id: row.token_row_id,
+      p_name_tv: nombre.trim() || null,
+      p_intervalo: esGallo && (row.intervalo == null || row.intervalo > 5) ? 5 : null,
+    } as never);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else {
+      toast({
+        title: esGallo
+          ? `${row.bib} al grafismo como "${nombre.trim().toUpperCase()}" (5 s) 📺`
+          : `${row.bib} fuera del grafismo`,
+        description: esGallo ? "El movil recoge el intervalo al re-escanear su QR" : undefined,
+      });
+      await cargar();
+    }
+  };
+
   const abrirQr = async (row: TokenRow) => {
     setQrRow(row);
     setQrDataUrl(await qrConLogo(urlActivacion(row.token)));
@@ -157,7 +186,7 @@ El movil lo recoge al RE-ESCANEAR su QR.`,
             <TableHeader>
               <TableRow>
                 <TableHead>Dorsal</TableHead><TableHead>Nombre</TableHead>
-                <TableHead>Evento</TableHead><TableHead>Intervalo</TableHead><TableHead>Estado</TableHead>
+                <TableHead>Evento</TableHead><TableHead>Intervalo</TableHead><TableHead>TV</TableHead><TableHead>Estado</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -171,6 +200,16 @@ El movil lo recoge al RE-ESCANEAR su QR.`,
                     <Badge variant="outline" className="cursor-pointer" onClick={() => cambiarIntervalo(row)}
                       title="Clic para cambiar el intervalo de envio">
                       {row.intervalo != null ? `${row.intervalo} s` : "15 s"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={row.name_tv ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => marcarGallo(row)}
+                      title="Clic para poner o quitar del grafismo de TV"
+                    >
+                      {row.name_tv ?? "—"}
                     </Badge>
                   </TableCell>
                   <TableCell>

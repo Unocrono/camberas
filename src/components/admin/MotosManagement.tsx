@@ -515,18 +515,38 @@ export function MotosManagement({ selectedRaceId }: MotosManagementProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="name_tv">Nombre para TV</Label>
-              <Input
-                id="name_tv"
-                placeholder="Ej: Moto1, Moto2"
-                value={formData.name_tv}
-                onChange={(e) => setFormData({ ...formData, name_tv: e.target.value })}
+            {/* La pregunta define la intención: solo los GPS de grafismo
+                llevan Nombre TV. Una ambulancia o la escoba se quedan sin
+                él y los overlays no las pintan. */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label>¿Es para el grafismo de TV?</Label>
+                <p className="text-xs text-muted-foreground">
+                  Solo los GPS con nombre de TV aparecen en el operador y los overlays
+                </p>
+              </div>
+              <Switch
+                checked={formData.name_tv !== ""}
+                onCheckedChange={(on) =>
+                  setFormData({ ...formData, name_tv: on ? "M1" : "" })
+                }
               />
-              <p className="text-xs text-muted-foreground">
-                Nombre corto para mostrar en el grafismo de TV
-              </p>
             </div>
+
+            {formData.name_tv !== "" && (
+              <div className="space-y-2">
+                <Label htmlFor="name_tv">Nombre TV (el hueco del grafismo)</Label>
+                <Input
+                  id="name_tv"
+                  placeholder="M1, M2 o M3"
+                  value={formData.name_tv}
+                  onChange={(e) => setFormData({ ...formData, name_tv: e.target.value.toUpperCase() })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  M1 es la moto de cabeza. Si otra moto ya ocupa ese hueco, reasígnalo aquí.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Color</Label>
