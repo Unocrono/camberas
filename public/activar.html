@@ -58,7 +58,7 @@
 
     <div class="stores" id="stores">
       <h2>Descarga Camberas Track y vuelve a pulsar el botón:</h2>
-      <a class="btn" href="https://expo.dev/artifacts/eas/Nv7vakKthd6zYuEev_5FrWVHmJ_xBOzjlkrTh2D6jqw.apk">📱&nbsp; ANDROID — DESCARGAR APK</a>
+      <a class="btn" href="https://github.com/Unocrono/camberas/releases/download/track-v24/camberas-track-v25a.apk">📱&nbsp; ANDROID — DESCARGAR APK</a>
       <a class="btn secondary" href="https://testflight.apple.com/">&nbsp; iPHONE — TESTFLIGHT (beta)</a>
     </div>
 
@@ -113,8 +113,10 @@
       // primera". El formato intent:// SI lo respeta y ademas lleva de vuelta
       // a esta pagina si la app no esta instalada.
       var esAndroid = /android/i.test(navigator.userAgent);
+      var fallback = encodeURIComponent(window.location.href);
       var intentLink = 'intent://activate/' + token +
-        '#Intent;scheme=camberas;package=com.unocrono.camberastrack;end';
+        '#Intent;scheme=camberas;package=com.unocrono.camberastrack;' +
+        'S.browser_fallback_url=' + fallback + ';end';
       if (esAndroid) document.getElementById('openApp').setAttribute('href', intentLink);
 
       setTimeout(function () {
