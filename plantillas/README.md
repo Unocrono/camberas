@@ -7,7 +7,14 @@ toca la web.
 ```sh
 node generar-carrusel.js content/faq-corredores.json --formato=ambos
 node generar-carrusel.js content/faq-organizadores.json --formato=feed
+
+# Varios de golpe, o la carpeta entera (reutiliza un solo navegador)
+node generar-carrusel.js content/faq-*.json
+node generar-carrusel.js content
 ```
+
+Con varios ficheros se validan **todos** antes de abrir el navegador: si uno
+está mal, te enteras de golpe y no a mitad de una tanda de diez.
 
 `--formato` acepta `feed` (1080×1350, 4:5), `story` (1080×1920, 9:16) o
 `ambos`. Por defecto, `ambos`.

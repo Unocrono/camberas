@@ -12,7 +12,7 @@
  * Nada de texto vive en la plantilla: todo llega del JSON.
  */
 
-import { readFile, mkdir, writeFile, rm } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, rm, readdir, stat } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -131,13 +131,31 @@ async function renderizar(navegador, carrusel, formato, plantilla) {
 
 // ── CLI ─────────────────────────────────────────────────────────
 
+/** Expande carpetas a los .json que contienen, para poder pasar content/ entero. */
+async function expandir(rutas) {
+  const ficheros = [];
+  for (const r of rutas) {
+    const abs = resolve(process.cwd(), r);
+    if ((await stat(abs)).isDirectory()) {
+      const dentro = (await readdir(abs)).filter((f) => f.endsWith('.json')).sort();
+      if (!dentro.length) console.warn(`⚠ ${r} no tiene ningún .json`);
+      ficheros.push(...dentro.map((f) => join(abs, f)));
+    } else {
+      ficheros.push(abs);
+    }
+  }
+  return ficheros;
+}
+
 async function main() {
   const args = process.argv.slice(2);
-  const rutaJson = args.find((a) => !a.startsWith('--'));
+  const rutas = args.filter((a) => !a.startsWith('--'));
   const formatoArg = (args.find((a) => a.startsWith('--formato=')) ?? '').split('=')[1] ?? 'ambos';
 
-  if (!rutaJson) {
-    console.error('Uso: node generar-carrusel.js <ruta-json> [--formato=feed|story|ambos]');
+  if (!rutas.length) {
+    console.error(
+      'Uso: node generar-carrusel.js <ruta-json…|carpeta> [--formato=feed|story|ambos]'
+    );
     process.exit(1);
   }
   if (!['feed', 'story', 'ambos'].includes(formatoArg)) {
@@ -146,18 +164,25 @@ async function main() {
   }
 
   const formatos = formatoArg === 'ambos' ? ['feed', 'story'] : [formatoArg];
-  const ruta = resolve(process.cwd(), rutaJson);
+  const ficheros = await expandir(rutas);
 
-  const datos = JSON.parse(await readFile(ruta, 'utf8'));
-  validar(datos, rutaJson);
+  // Se valida todo antes de abrir el navegador: si un JSON está mal, mejor
+  // enterarse de golpe que a mitad de una tanda de diez.
+  const trabajos = [];
+  for (const fichero of ficheros) {
+    const corta = fichero.replace(RAIZ + '/', '');
+    const datos = JSON.parse(await readFile(fichero, 'utf8'));
+    validar(datos, corta);
 
-  const carruseles = repartir(datos);
-  if (carruseles.length > 1) {
-    console.warn(
-      `\n⚠ ${datos.slides.length} preguntas no caben en un carrusel de ${MAX_SLIDES} slides.\n` +
-        `  Se parten en ${carruseles.length} carruseles de ${MAX_PREGUNTAS} preguntas como mucho:`
-    );
-    carruseles.forEach((c) => console.warn(`   · ${c.slug} (${c.slides.length} preguntas)`));
+    const carruseles = repartir(datos);
+    if (carruseles.length > 1) {
+      console.warn(
+        `\n⚠ ${corta}: ${datos.slides.length} preguntas no caben en un carrusel de ${MAX_SLIDES} slides.\n` +
+          `  Se parten en ${carruseles.length} carruseles de ${MAX_PREGUNTAS} preguntas como mucho:`
+      );
+      carruseles.forEach((c) => console.warn(`   · ${c.slug} (${c.slides.length} preguntas)`));
+    }
+    trabajos.push(...carruseles);
   }
 
   const plantilla = await readFile(PLANTILLA, 'utf8');
@@ -168,8 +193,9 @@ async function main() {
     process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}
   );
 
+  let png = 0;
   try {
-    for (const carrusel of carruseles) {
+    for (const carrusel of trabajos) {
       for (const formato of formatos) {
         const { destino, total, ajustes } = await renderizar(
           navegador,
@@ -177,6 +203,7 @@ async function main() {
           formato,
           plantilla
         );
+        png += total;
         const escalas = ajustes.map((a) => a.escala);
         const min = Math.min(...escalas).toFixed(2);
         const max = Math.max(...escalas).toFixed(2);
@@ -193,6 +220,9 @@ async function main() {
   } finally {
     await navegador.close();
   }
+
+  if (trabajos.length > 1)
+    console.log(`\n${trabajos.length} carruseles · ${png} PNG en out/`);
 }
 
 main().catch((err) => {

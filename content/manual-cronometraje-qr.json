@@ -1,0 +1,41 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Cronometraje",
+  "titulo": "Sin dar de alta a nadie",
+  "slides": [
+    {
+      "etiqueta": "El problema",
+      "pregunta": "Contraseñas el día de la carrera",
+      "respuesta": "Dar de alta a cada cronometrador, repartir claves y confiar en que nadie las olvide a las siete de la mañana en un cruce de montaña."
+    },
+    {
+      "etiqueta": "La idea",
+      "pregunta": "La identidad es el puesto, no la persona",
+      "respuesta": "Cada punto de control tiene su propio código. El móvil que lo escanea es ese puesto. Ni altas, ni contraseñas, ni quién es quién."
+    },
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Crea los puntos de control",
+      "respuesta": "Salida, los intermedios que quieras y meta. A cada uno su nombre y su kilómetro."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Saca su QR",
+      "respuesta": "Un botón por puesto. El QR lleva dentro una dirección web, no un código suelto.",
+      "nota": "Así, quien lo escanee con la cámara del móvil llega a una página que le explica qué hacer."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Repártelos y listo",
+      "respuesta": "Cada cronometrador escanea el suyo y ya está dentro, en su punto y con su carrera cargada. Los tiempos entran solos."
+    },
+    {
+      "etiqueta": "Ojo",
+      "pregunta": "Regenerar un QR anula el anterior",
+      "respuesta": "El móvil que llevara el viejo se queda fuera sin avisar. Regenera solo si lo pierdes, y avisa a quien lo tuviera."
+    }
+  ],
+  "cta": "Monta el cronometraje de tu carrera"
+}
