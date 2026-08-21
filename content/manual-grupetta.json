@@ -36,8 +36,8 @@
     },
     {
       "etiqueta": "Paso 3",
-      "pregunta": "Activad el seguimiento",
-      "respuesta": "El día de la ruta cada uno abre la app y le da a ACTIVAR SEGUIMIENTO. Al terminar, la para.",
+      "pregunta": "Instalad la app",
+      "respuesta": "Cada uno la descarga en camberas.com/descargas. El día de la ruta la abren, le dan a ACTIVAR SEGUIMIENTO y al terminar la paran.",
       "nota": "Abrir la app no enciende el GPS: solo emite cuando lo activas."
     }
   ],
