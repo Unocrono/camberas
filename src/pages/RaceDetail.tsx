@@ -754,10 +754,21 @@ const RaceDetail = () => {
     );
   }
 
+  // Resultados visibles desde las 00:00 del día del EVENTO (su hora de
+  // salida, que puede diferir entre recorridos en carreras de varios
+  // días); sin salida configurada, se usa la fecha de la carrera.
+  const resultadosVisibles = (distance: any) => {
+    const base = distance.start_time
+      ? new Date(distance.start_time)
+      : new Date(`${race.date}T00:00:00`);
+    base.setHours(0, 0, 0, 0);
+    return new Date() >= base;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="pt-20">
         {/* Hero Cover Image */}
         <div className="relative h-[60vh] overflow-hidden">
@@ -1090,18 +1101,20 @@ const RaceDetail = () => {
                             </Button>
                           )}
 
-                          {/* Enlace a clasificación/resultados - siempre visible */}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="w-full"
-                            asChild
-                          >
-                            <a href={`/${race.slug || raceId}/live`}>
-                              <BarChart3 className="h-4 w-4 mr-2" />
-                              Resultados
-                            </a>
-                          </Button>
+                          {/* Resultados: solo desde el día del evento (antes no hay nada que ver) */}
+                          {resultadosVisibles(distance) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              asChild
+                            >
+                              <a href={`/${race.slug || raceId}/live`}>
+                                <BarChart3 className="h-4 w-4 mr-2" />
+                                Resultados
+                              </a>
+                            </Button>
+                          )}
                         </div>
                         
                         <div className="pt-3 mt-auto">
