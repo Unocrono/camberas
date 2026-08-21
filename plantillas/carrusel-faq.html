@@ -191,9 +191,9 @@ body {
   padding: 56px 0;
 }
 
-/* Solo en los manuales: marca el paso sobre el titular. Escala con el
-   bloque, así que no rompe el ajuste. */
-.paso {
+/* Etiqueta sobre el titular: "Paso 1" en los manuales, o lo que diga el
+   JSON. Escala con el bloque, así que no rompe el ajuste. */
+.etiqueta {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -301,6 +301,17 @@ const marca = () => `<div class="marca">${LOGO}<div class="wordmark">Camberas</d
 /* Etiqueta por defecto de la portada según el tipo de carrusel. */
 const ANTETITULOS = { faq: 'Preguntas frecuentes', manual: 'Guía rápida' };
 
+/**
+ * Etiqueta sobre el titular de un slide. Un manual numera los pasos solo,
+ * pero `etiqueta` en el JSON manda: hace falta cuando el carrusel mezcla
+ * pasos con slides que no lo son ("El problema", "Y además"), porque ahí
+ * la numeración automática se descuadra.
+ */
+function etiquetaDe(slide, i, tipo) {
+  if (slide.etiqueta !== undefined) return slide.etiqueta;
+  return tipo === 'manual' ? `Paso ${i + 1}` : null;
+}
+
 function construirSlides(datos) {
   const { audiencia, titulo, slides, cta } = datos;
   const tipo = datos.tipo ?? 'faq';
@@ -330,7 +341,7 @@ function construirSlides(datos) {
           <div class="contador">${i + 2}/${total}</div>
         </div>
         <div class="contenido caja-ajuste">
-          ${tipo === 'manual' ? `<div class="paso">Paso ${i + 1}</div>` : ''}
+          ${etiquetaDe(s, i, tipo) ? `<div class="etiqueta">${esc(etiquetaDe(s, i, tipo))}</div>` : ''}
           <h2 class="pregunta">${esc(s.pregunta)}</h2>
           <p class="respuesta">${esc(s.respuesta)}</p>
           ${s.nota ? `<p class="nota">${esc(s.nota)}</p>` : ''}
@@ -345,7 +356,7 @@ function construirSlides(datos) {
       <div class="centro caja-ajuste">
         ${marca()}
         <div class="cta">${esc(cta)}</div>
-        <div class="web">camberas.com</div>
+        <div class="web">${esc(datos.web ?? 'camberas.com')}</div>
       </div>
       ${COLINAS}
     </section>`);

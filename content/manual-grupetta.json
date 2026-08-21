@@ -1,0 +1,45 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Salidas en grupo",
+  "titulo": "Dejad de contar cabezas",
+  "web": "camberas.com/grupetta/capo",
+  "slides": [
+    {
+      "etiqueta": "El problema",
+      "pregunta": "Siempre pasa lo mismo",
+      "respuesta": "Alguien pincha y no te enteras hasta el cruce. Otro tira por delante. Y en el avituallamiento, a contar cabezas."
+    },
+    {
+      "etiqueta": "La idea",
+      "pregunta": "El grupo entero en un mapa",
+      "respuesta": "Creas tu grupetta, pasas un código a tus compañeros y el día de la ruta os veis todos moviéndoos por el mapa. Cada uno con el móvil en el bolsillo.",
+      "nota": "Gratis de verdad: sin cuentas y sin publicidad."
+    },
+    {
+      "etiqueta": "Y además",
+      "pregunta": "No es solo saber dónde está cada cual",
+      "respuesta": "Quien se queda en casa os sigue en directo. Al terminar, rebobináis la salida entera como una película. Y el botón de SOS avisa al grupo con tu posición exacta."
+    },
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Crea la salida",
+      "respuesta": "Día, hora y sitio. Si tienes el GPX de la ruta, súbelo: los kilómetros y el desnivel salen solos.",
+      "nota": "Créala como mucho dos días antes: el código caduca a las 48 h."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Reparte el código",
+      "respuesta": "Seis letras por WhatsApp. Quien lo abre pone su nombre y ya está dentro. Ni correo, ni teléfono, ni cuentas.",
+      "nota": "Hasta 20 en el grupo."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Activad el seguimiento",
+      "respuesta": "El día de la ruta cada uno abre la app y le da a ACTIVAR SEGUIMIENTO. Al terminar, la para.",
+      "nota": "Abrir la app no enciende el GPS: solo emite cuando lo activas."
+    }
+  ],
+  "cta": "Móntala para la próxima salida"
+}

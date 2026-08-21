@@ -40,10 +40,17 @@ palabra fija.
   "tipo": "faq",
   "antetitulo": "opcional",
   "titulo": "…",
-  "slides": [{ "pregunta": "…", "respuesta": "…", "nota": "opcional" }],
+  "web": "camberas.com",
+  "slides": [
+    { "etiqueta": "opcional", "pregunta": "…", "respuesta": "…", "nota": "opcional" }
+  ],
   "cta": "…"
 }
 ```
+
+`web` es lo que aparece bajo el CTA del último slide (por defecto
+`camberas.com`). Úsalo para mandar a la página concreta —
+`camberas.com/grupetta/capo`— en vez de a la portada.
 
 Un carrusel son como mucho **8 slides**: portada + hasta 6 de contenido +
 cierre con CTA. Si el JSON trae más, el generador lo parte en varios
@@ -65,6 +72,11 @@ otra cosa («Truco rápido», «En 30 segundos»…).
 
 El contador de la cabecera cuenta **slides**, no pasos: en un manual de 5
 pasos el tercero es `4/7`, porque la portada va delante.
+
+`etiqueta` en un slide manda sobre la numeración automática. Hace falta
+en cuanto el carrusel mezcla pasos con slides que no lo son —«El
+problema», «Y además»—, porque ahí «Paso N» se descuadra: pon la etiqueta
+a mano en todos y numera tú los que toque.
 
 ## Marca
 
