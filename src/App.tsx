@@ -13,6 +13,7 @@ import LiveResults from "./pages/LiveResults";
 import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
 import Grupetta from "./pages/Grupetta";
+import Descargas from "./pages/Descargas";
 import GrupettaCapo from "./pages/GrupettaCapo";
 import MyTeam from "./pages/MyTeam";
 import TeamRegister from "./pages/TeamRegister";
@@ -70,6 +71,7 @@ const App = () => (
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
+          <Route path="/descargas" element={<Descargas />} />
           <Route path="/grupetta" element={<Grupetta />} />
           <Route path="/grupetta/capo" element={<GrupettaCapo />} />
           <Route path="/equipos" element={<TeamsLanding />} />
