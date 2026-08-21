@@ -1,0 +1,39 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Para el capo",
+  "titulo": "¿Sales el finde?",
+  "web": "camberas.com/grupetta/capo",
+  "slides": [
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Crea la grupetta",
+      "respuesta": "Nombre, día, hora y sitio de quedada. Menos de un minuto."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Sube el GPX",
+      "respuesta": "Si tienes el archivo de la ruta, súbelo: los kilómetros y el desnivel salen solos, no te los pide.",
+      "nota": "Si no lo tienes, la grupetta funciona igual."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Publícala",
+      "respuesta": "Te da un enlace y un código de seis letras para repartir.",
+      "nota": "Créala como mucho dos días antes: el código caduca a las 48 h."
+    },
+    {
+      "etiqueta": "Paso 4",
+      "pregunta": "Pásalo por el grupo",
+      "respuesta": "Quien abre el enlace pone su nombre y ya está dentro. No tienen que registrarse ni instalarse nada para apuntarse.",
+      "nota": "Hasta 20 en el grupo."
+    },
+    {
+      "etiqueta": "La víspera",
+      "pregunta": "Recuérdales dos cosas",
+      "respuesta": "Que se instalen la app y que salgan con batería. Lo demás lo hacen el domingo por la mañana."
+    }
+  ],
+  "cta": "Prepara la del domingo"
+}

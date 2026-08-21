@@ -1,0 +1,36 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Al terminar",
+  "titulo": "Rebobinad la salida",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "El rewind",
+      "pregunta": "La ruta entera, como una película",
+      "respuesta": "Le dais al play y veis al grupo moverse desde el minuto uno. Toda la salida, otra vez, desde el sofá."
+    },
+    {
+      "etiqueta": "El momento",
+      "pregunta": "Dónde explotó Fulano",
+      "respuesta": "El punto exacto en que se quedó. Con su hora y su kilómetro, no con lo que él cuenta que pasó."
+    },
+    {
+      "etiqueta": "La remontada",
+      "pregunta": "Y dónde volvió a empalmar",
+      "respuesta": "Porque se quedó, sí, pero enganchó en la bajada. Eso también está grabado, y ahora tiene pruebas."
+    },
+    {
+      "etiqueta": "Los que faltaban",
+      "pregunta": "Por qué no llegaban al avituallamiento",
+      "respuesta": "Ahí se ve: pararon en el kilómetro 40 y estuvieron doce minutos. Ya sabéis a quién preguntarle."
+    },
+    {
+      "etiqueta": "La del bar",
+      "pregunta": "Se acabó la discusión",
+      "respuesta": "Quién iba delante en el alto, quién esperó y quién dice que esperó. Está todo en el mapa."
+    }
+  ],
+  "cta": "Revive la última salida"
+}

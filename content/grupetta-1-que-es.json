@@ -1,0 +1,42 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Salidas en grupo",
+  "titulo": "¿Qué es una grupetta?",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "El nombre",
+      "pregunta": "La salida del domingo, con los de siempre",
+      "respuesta": "Eso es una grupetta. Le pones nombre, día y sitio, y ya existe. No hace falta que sea nada serio: es vuestra ruta de cada finde."
+    },
+    {
+      "etiqueta": "Para qué",
+      "pregunta": "Para no perder a nadie",
+      "respuesta": "Alguien pincha y no te enteras hasta el cruce. Otro tira por delante. Y en el avituallamiento, a contar cabezas."
+    },
+    {
+      "etiqueta": "Cómo entra la gente",
+      "pregunta": "Un código de seis letras",
+      "respuesta": "Lo pasas por WhatsApp. Quien lo abre pone su nombre y ya está dentro. Ni correo, ni teléfono, ni cuentas que crear.",
+      "nota": "Hasta 20 en el grupo."
+    },
+    {
+      "etiqueta": "En la ruta",
+      "pregunta": "Todos en el mismo mapa",
+      "respuesta": "Cada uno lleva el móvil en el bolsillo y os veis moveros. Quien se queda en casa también os sigue, con un enlace."
+    },
+    {
+      "etiqueta": "Al terminar",
+      "pregunta": "La salida queda guardada",
+      "respuesta": "Podéis rebobinarla entera y os queda el mapa de la ruta con su perfil, listo para enseñarlo."
+    },
+    {
+      "etiqueta": "Lo que cuesta",
+      "pregunta": "Nada",
+      "respuesta": "Gratis de verdad: sin cuentas, sin publicidad y sin pedirle el correo a nadie."
+    }
+  ],
+  "cta": "Monta la tuya para el domingo"
+}

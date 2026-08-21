@@ -1,0 +1,38 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Te han invitado",
+  "titulo": "Soy de la grupetta",
+  "web": "camberas.com/descargas",
+  "slides": [
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Abre el enlace",
+      "respuesta": "El que te han pasado por WhatsApp. Si solo tienes el código de seis letras, también vale."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Pon tu nombre",
+      "respuesta": "Y ya está. Ni correo, ni teléfono, ni contraseña, ni crear una cuenta.",
+      "nota": "Es el nombre con el que te verá el grupo en el mapa. Pon por el que te llaman."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Instala la app",
+      "respuesta": "En camberas.com/descargas. Hazlo antes del día de la salida, no en el aparcamiento con cinco esperándote."
+    },
+    {
+      "etiqueta": "Paso 4",
+      "pregunta": "Al salir, actívala",
+      "respuesta": "Abres la app, le das a ACTIVAR SEGUIMIENTO y el móvil al bolsillo. Al terminar, la paras."
+    },
+    {
+      "etiqueta": "Tranquilo",
+      "pregunta": "No vas fichado",
+      "respuesta": "Abrir la app no enciende el GPS: solo emite cuando tú lo activas, y se para al acabar la salida.",
+      "nota": "Fuera de la ruta, nadie sabe dónde estás."
+    }
+  ],
+  "cta": "Nos vemos en el mapa"
+}
