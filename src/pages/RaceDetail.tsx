@@ -849,10 +849,14 @@ const RaceDetail = () => {
                 <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/regulation`)}>
                   Reglamento
                 </Button>
-                <Button variant="outline" onClick={() => navigate(`/${race.slug || raceId}/live`)}>
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Clasificaciones
-                </Button>
+                {/* Clasificaciones: desde que arranca el PRIMER evento
+                    (en carreras de varios días, no esperar al último) */}
+                {race.distances?.some((d: any) => resultadosVisibles(d)) && (
+                  <Button variant="outline" onClick={() => navigate(`/${race.slug || raceId}/live`)}>
+                    <BarChart3 className="h-4 w-4 mr-2" />
+                    Clasificaciones
+                  </Button>
+                )}
                 {race.distances?.some((d: any) => d.gps_tracking_enabled) && (
                   <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/gps`)}>
                     Mapa GPS en Vivo
