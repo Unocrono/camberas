@@ -1,0 +1,42 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Grupetta",
+  "titulo": "El botón que ojalá no uses",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "De dónde viene",
+      "pregunta": "Esto empezó por aquí",
+      "respuesta": "Antes que el mapa, antes que el rewind y antes que nada: la idea era que si a alguien le pasa algo, los demás se enteren."
+    },
+    {
+      "etiqueta": "Si te vas al suelo",
+      "pregunta": "Un botón",
+      "respuesta": "El SOS manda tu posición exacta a la gente de tu grupetta. No tienes que explicar dónde estás, ni tener cobertura para hablar."
+    },
+    {
+      "etiqueta": "Por qué importa",
+      "pregunta": "«Estoy en un camino, junto a unos pinos»",
+      "respuesta": "En mitad de una pista forestal nadie sabe decir dónde está. Un punto en el mapa sí lo sabe."
+    },
+    {
+      "etiqueta": "Ojo con esto",
+      "pregunta": "El SOS no es el 112",
+      "respuesta": "Avisa solo a los del grupo. No está conectado con ningún servicio de emergencias. Si la cosa es seria, llama al 112 igualmente.",
+      "nota": "Es una ayuda para que los tuyos te encuentren, no un rescate."
+    },
+    {
+      "etiqueta": "El de atrás",
+      "pregunta": "El que se queda ya no se queda solo",
+      "respuesta": "El que pincha en la última rampa, el que se marea, el que se equivoca de desvío. Sabéis dónde está sin dar media vuelta a buscarlo."
+    },
+    {
+      "etiqueta": "Lo de siempre",
+      "pregunta": "Casco, luces y cabeza",
+      "respuesta": "La app ayuda a encontrarte. No te libra de nada, ni sustituye salir con la bici en condiciones y un seguro que te cubra."
+    }
+  ],
+  "cta": "Que sepan dónde estás"
+}

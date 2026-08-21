@@ -1,0 +1,42 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Grupetta",
+  "titulo": "¿Quién me ve y cuándo?",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "La duda",
+      "pregunta": "Es la primera que sale, y con razón",
+      "respuesta": "Te piden que compartas dónde estás. Preguntar quién lo ve y hasta cuándo es lo más normal del mundo."
+    },
+    {
+      "etiqueta": "Quién",
+      "pregunta": "Los de tu grupetta",
+      "respuesta": "Y quien reciba el enlace de seguimiento que repartáis. Nadie más: esto no sale a ningún mapa público ni a ningún buscador."
+    },
+    {
+      "etiqueta": "Cuándo",
+      "pregunta": "Solo mientras lo tienes activado",
+      "respuesta": "Abrir la app no enciende nada. Empieza a emitir cuando le das a activar, y cuando le das a parar deja de enviarse todo al momento."
+    },
+    {
+      "etiqueta": "Sin trampa",
+      "pregunta": "El móvil no lo esconde",
+      "respuesta": "Sigue emitiendo con el móvil en el bolsillo y la pantalla apagada, que para eso está. Pero siempre a la vista: notificación fija en Android y el punto azul de ubicación en iPhone.",
+      "nota": "Con un vistazo sabes si está encendido."
+    },
+    {
+      "etiqueta": "Qué damos",
+      "pregunta": "Tu nombre. Y poco más",
+      "respuesta": "Ni correo, ni teléfono, ni contraseña. La app no toca tus contactos, ni tus fotos, ni tus mensajes."
+    },
+    {
+      "etiqueta": "Cuánto dura",
+      "pregunta": "Se borra solo",
+      "respuesta": "Las posiciones se eliminan como mucho a los 30 días. No tienes que pedirlo, pasa igual si no haces nada."
+    }
+  ],
+  "cta": "Sal tranquilo"
+}

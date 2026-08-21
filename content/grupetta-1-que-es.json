@@ -2,14 +2,19 @@
   "audiencia": "corredores",
   "marca": "camberas",
   "tipo": "manual",
-  "antetitulo": "Salidas en grupo",
+  "antetitulo": "Grupetta",
   "titulo": "¿Qué es una grupetta?",
   "web": "camberas.com/grupetta",
   "slides": [
     {
       "etiqueta": "El nombre",
       "pregunta": "La salida del domingo, con los de siempre",
-      "respuesta": "Eso es una grupetta. Le pones nombre, día y sitio, y ya existe. No hace falta que sea nada serio: es vuestra ruta de cada finde."
+      "respuesta": "Eso es una grupetta. Le pones nombre, día y sitio, y ya existe. No hace falta que sea nada serio: es vuestra ruta de cada finde, con un sitio donde vive."
+    },
+    {
+      "etiqueta": "Lo que no es",
+      "pregunta": "Ni una carrera, ni un club",
+      "respuesta": "No hay inscripción, ni dorsal, ni organizador, ni cuota. Sois unos cuantos que habéis quedado a la misma hora en el mismo sitio."
     },
     {
       "etiqueta": "Para qué",
@@ -23,19 +28,9 @@
       "nota": "Hasta 20 en el grupo."
     },
     {
-      "etiqueta": "En la ruta",
-      "pregunta": "Todos en el mismo mapa",
-      "respuesta": "Cada uno lleva el móvil en el bolsillo y os veis moveros. Quien se queda en casa también os sigue, con un enlace."
-    },
-    {
-      "etiqueta": "Al terminar",
-      "pregunta": "La salida queda guardada",
-      "respuesta": "Podéis rebobinarla entera y os queda el mapa de la ruta con su perfil, listo para enseñarlo."
-    },
-    {
       "etiqueta": "Lo que cuesta",
       "pregunta": "Nada",
-      "respuesta": "Gratis de verdad: sin cuentas, sin publicidad y sin pedirle el correo a nadie."
+      "respuesta": "Gratis de verdad: sin cuotas, sin publicidad y sin pedirle el correo a nadie."
     }
   ],
   "cta": "Monta la tuya para el domingo"

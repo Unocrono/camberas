@@ -2,7 +2,7 @@
   "audiencia": "corredores",
   "marca": "camberas",
   "tipo": "manual",
-  "antetitulo": "Te han invitado",
+  "antetitulo": "Grupetta",
   "titulo": "Soy de la grupetta",
   "web": "camberas.com/descargas",
   "slides": [
@@ -15,7 +15,7 @@
       "etiqueta": "Paso 2",
       "pregunta": "Pon tu nombre",
       "respuesta": "Y ya está. Ni correo, ni teléfono, ni contraseña, ni crear una cuenta.",
-      "nota": "Es el nombre con el que te verá el grupo en el mapa. Pon por el que te llaman."
+      "nota": "Es el nombre con el que te verá el grupo. Aceptas también el descargo: una grupetta no es una carrera organizada, cada uno va por su cuenta."
     },
     {
       "etiqueta": "Paso 3",
@@ -30,7 +30,7 @@
     {
       "etiqueta": "Tranquilo",
       "pregunta": "No vas fichado",
-      "respuesta": "Abrir la app no enciende el GPS: solo emite cuando tú lo activas, y se para al acabar la salida.",
+      "respuesta": "Abrir la app no enciende el GPS: empieza a emitir cuando tú lo activas, y en cuanto le das a parar deja de enviarse todo al momento.",
       "nota": "Fuera de la ruta, nadie sabe dónde estás."
     }
   ],
