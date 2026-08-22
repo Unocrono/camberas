@@ -17,14 +17,17 @@
       "respuesta": "Dibujada entera, con su recorrido y sus kilómetros."
     },
     {
+      "imagen": "capturas/grupetta-bike-shop-caf-roubaix-mapa.png",
+      "aSangre": true
+    },
+    {
       "etiqueta": "El perfil",
       "pregunta": "Con el desnivel que os comisteis",
       "respuesta": "Las cuestas del día, en su sitio. La que os reventó se ve desde lejos."
     },
     {
-      "etiqueta": "Compártela",
-      "pregunta": "A tus redes o al grupo",
-      "respuesta": "La misma imagen vale para presumir en tu perfil y para mandarla al grupo de WhatsApp esa misma tarde."
+      "imagen": "capturas/grupetta-bike-shop-caf-roubaix-perfil.png",
+      "aSangre": true
     },
     {
       "etiqueta": "Y de paso",
