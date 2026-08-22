@@ -179,15 +179,34 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     // Inscripciones ya sincronizadas de esta carrera
     const { data: existentes } = await service
       .from("registrations")
-      .select("id, external_id, " + CAMPOS_SYNC.join(", "))
+      .select("id, external_id, club, " + CAMPOS_SYNC.join(", "))
       .eq("race_id", race_id)
       .not("external_id", "is", null);
     const porExternalId = new Map(
       (existentes ?? []).map((r: any) => [String(r.external_id), r]),
     );
 
+    // Inscripciones nacidas en Camberas (la carrera puede estar abierta en
+    // las dos plataformas a la vez): sirven para avisar de posibles
+    // duplicados cuando la misma persona se apunta en ambas.
+    const { data: nativas } = await service
+      .from("registrations")
+      .select("dni_passport, email")
+      .eq("race_id", race_id)
+      .is("external_id", null)
+      .neq("status", "cancelled");
+    const dniNorm = (s: string | null) =>
+      (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const dnisCamberas = new Set(
+      (nativas ?? []).map((r: any) => dniNorm(r.dni_passport)).filter(Boolean),
+    );
+    const emailsCamberas = new Set(
+      (nativas ?? []).map((r: any) => (r.email ?? "").toLowerCase().trim()).filter(Boolean),
+    );
+
     let nuevos = 0, actualizados = 0, sinCambios = 0, omitidosPendientes = 0;
     const errores: string[] = [];
+    const avisos: string[] = [];
     const inserciones: any[] = [];
 
     for (const r of registrants) {
@@ -238,10 +257,20 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
         payment_status: paymentStatus,
       };
 
+      // El club es opcional en EventBooking: si viene se sincroniza, pero
+      // un valor vacío nunca borra el que el organizador puso a mano.
+      const clubEB = campo(fields, "Club");
+
       const existente = porExternalId.get(externalId);
       if (!existente) {
+        const dni = dniNorm(deseado.dni_passport as string | null);
+        const email = String(deseado.email ?? "").toLowerCase().trim();
+        if ((dni && dnisCamberas.has(dni)) || (email && emailsCamberas.has(email))) {
+          avisos.push(`${etiqueta}: también inscrito en Camberas (mismo ${dni && dnisCamberas.has(dni) ? "DNI" : "email"}) — revisar duplicado`);
+        }
         inserciones.push({
           ...deseado,
+          club: clubEB,
           race_id,
           external_id: externalId,
           source: "external",
@@ -253,6 +282,7 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
         for (const c of CAMPOS_SYNC) {
           if ((existente[c] ?? null) !== (deseado[c] ?? null)) cambios[c] = deseado[c];
         }
+        if (clubEB && (existente.club ?? null) !== clubEB) cambios.club = clubEB;
         if (Object.keys(cambios).length > 0) {
           const { error } = await service
             .from("registrations")
@@ -282,6 +312,7 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
       actualizados,
       sin_cambios: sinCambios,
       omitidos_sin_pagar: omitidosPendientes,
+      avisos,
       errores,
     };
 

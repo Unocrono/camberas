@@ -48,6 +48,7 @@ interface Registration {
   autonomous_community: string | null;
   race_id: string;
   race_distance_id: string;
+  source: string | null;
   race: {
     id: string;
     name: string;
@@ -111,7 +112,7 @@ const emptyFormData: RegistrationFormData = {
   bib_number: "",
 };
 
-type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions";
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "origen" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions";
 
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "bib_number", label: "Dorsal" },
@@ -127,13 +128,23 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "country", label: "País" },
   { key: "created_at", label: "Fecha y hora" },
   { key: "type", label: "Tipo" },
+  { key: "origen", label: "Origen" },
   { key: "distance", label: "Distancia" },
   { key: "status", label: "Estado" },
   { key: "payment", label: "Pago" },
   { key: "actions", label: "Acciones" },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "status", "payment", "actions"];
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "origen", "status", "payment", "actions"];
+
+// De dónde viene cada inscripción: pasarela de Camberas, alta manual del
+// organizador, gratuita, o sincronizada desde EventBooking (UNO.es).
+const ORIGEN_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+  gateway: { label: "Camberas", variant: "default" },
+  manual: { label: "Manual", variant: "secondary" },
+  free: { label: "Gratuita", variant: "secondary" },
+  external: { label: "UNO", variant: "outline" },
+};
 
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   // QR del dorsal GPS: reutiliza (o crea) el token del corredor y abre el QR
@@ -950,6 +961,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (data?.error) throw new Error(data.error);
       const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
       if (data.omitidos_sin_pagar) partes.push(`${data.omitidos_sin_pagar} sin pagar omitidos`);
+      if (data.avisos?.length) partes.push(`ATENCIÓN: ${data.avisos.slice(0, 3).join("; ")}`);
       toast({
         title: "Sincronizado con EventBooking",
         description:
@@ -1037,6 +1049,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           tshirt_size,
           race_id,
           race_distance_id,
+          source,
           race:races!registrations_race_id_fkey (
             id,
             name,
@@ -1807,6 +1820,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   {visibleColumns.has("country") && <TableHead>País</TableHead>}
                   {visibleColumns.has("created_at") && <TableHead>Fecha y hora</TableHead>}
                   {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
+                  {visibleColumns.has("origen") && <TableHead>Origen</TableHead>}
                   {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
                   {visibleColumns.has("status") && (
                     <TableHead>
@@ -1951,6 +1965,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             <Badge variant={isGuest ? "outline" : "secondary"}>
                               {isGuest ? "Invitado" : "Registrado"}
                             </Badge>
+                          </TableCell>
+                        )}
+                        {visibleColumns.has("origen") && (
+                          <TableCell>
+                            {(() => {
+                              const o = ORIGEN_LABELS[reg.source ?? ""] ?? { label: "—", variant: "outline" as const };
+                              return <Badge variant={o.variant}>{o.label}</Badge>;
+                            })()}
                           </TableCell>
                         )}
                         {visibleColumns.has("distance") && (
