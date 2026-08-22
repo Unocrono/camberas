@@ -33,3 +33,11 @@ dist-ssr
 .worktrees/
 .security-key
 logs/security/
+
+# Restos de Capacitor, abandonado en mayo-2026: la app nativa es
+# camberas-track (React Native/Expo). Se regeneraba en cada build.
+android/
+ios/
+
+# Configuracion local de Claude Code
+.claude/
