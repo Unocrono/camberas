@@ -937,7 +937,16 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const { data, error } = await supabase.functions.invoke("eventbooking-sync", {
         body: { race_id: carreraActualId },
       });
-      if (error) throw error;
+      if (error) {
+        // El error genérico de invoke ("non-2xx status code") esconde el
+        // motivo; el cuerpo de la respuesta sí lo trae.
+        let detalle = error.message;
+        try {
+          const cuerpo = await (error as any).context?.json();
+          if (cuerpo?.error) detalle = cuerpo.error;
+        } catch { /* sin cuerpo legible */ }
+        throw new Error(detalle);
+      }
       if (data?.error) throw new Error(data.error);
       const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
       if (data.omitidos_sin_pagar) partes.push(`${data.omitidos_sin_pagar} sin pagar omitidos`);

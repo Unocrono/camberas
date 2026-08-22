@@ -92,11 +92,31 @@ serve(async (req: Request): Promise<Response> => {
     });
 
   try {
-    const { race_id } = await req.json();
-    if (!race_id) return json({ error: "Falta race_id" }, 400);
-
     const url = Deno.env.get("SUPABASE_URL")!;
     const service = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Rama robot: el cron de la base de datos llama con x-cron-key y
+    // sincroniza TODAS las carreras que tengan configuración activa.
+    const cronKey = req.headers.get("x-cron-key");
+    if (cronKey) {
+      const cronSecret = Deno.env.get("EVENTBOOKING_CRON_KEY");
+      if (!cronSecret || cronKey !== cronSecret) {
+        return json({ error: "Clave de cron incorrecta o sin configurar" }, 403);
+      }
+      const { data: cfgs } = await service
+        .from("eventbooking_sync")
+        .select("*")
+        .eq("enabled", true);
+      const carreras: Record<string, unknown> = {};
+      for (const cfg of cfgs ?? []) {
+        carreras[cfg.race_id] = await sincronizarCarrera(service, cfg);
+      }
+      return json({ carreras });
+    }
+
+    // Rama botón: sincroniza una carrera con la sesión del usuario.
+    const { race_id } = await req.json().catch(() => ({}));
+    if (!race_id) return json({ error: "Falta race_id" }, 400);
 
     // ¿Quién llama? Solo admin o el organizador de la carrera.
     const jwt = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
@@ -122,17 +142,29 @@ serve(async (req: Request): Promise<Response> => {
       return json({ error: "Esta carrera no tiene sincronización EventBooking configurada" }, 404);
     }
 
+    return json(await sincronizarCarrera(service, cfg));
+  } catch (e) {
+    console.error("eventbooking-sync:", e);
+    return json({ error: e instanceof Error ? e.message : "Error inesperado" }, 500);
+  }
+});
+
+// Descarga los inscritos del evento de EventBooking asociado a cfg y los
+// vuelca en registrations. Devuelve el resumen (nuevos/actualizados/...).
+async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string, unknown>> {
+  const race_id = cfg.race_id;
+  try {
     const endpoint = Deno.env.get("EVENTBOOKING_ENDPOINT");
     const apiKey = Deno.env.get("EVENTBOOKING_KEY");
     if (!endpoint || !apiKey) {
-      return json({ error: "Faltan los secretos EVENTBOOKING_ENDPOINT / EVENTBOOKING_KEY" }, 500);
+      return { error: "Faltan los secretos EVENTBOOKING_ENDPOINT / EVENTBOOKING_KEY" };
     }
 
     const resp = await fetch(`${endpoint}?event_id=${cfg.event_id}`, {
       headers: { "x-api-key": apiKey },
     });
     if (!resp.ok) {
-      return json({ error: `uno.es respondió ${resp.status} al pedir los inscritos` }, 502);
+      return { error: `uno.es respondió ${resp.status} al pedir los inscritos` };
     }
     const origen = await resp.json();
     const registrants: any[] = origen.registrants ?? [];
@@ -258,9 +290,9 @@ serve(async (req: Request): Promise<Response> => {
       .update({ last_sync_at: new Date().toISOString(), last_result: resultado })
       .eq("race_id", race_id);
 
-    return json(resultado);
+    return resultado;
   } catch (e) {
-    console.error("eventbooking-sync:", e);
-    return json({ error: e instanceof Error ? e.message : "Error inesperado" }, 500);
+    console.error(`eventbooking-sync carrera ${race_id}:`, e);
+    return { error: e instanceof Error ? e.message : "Error inesperado" };
   }
-});
+}
