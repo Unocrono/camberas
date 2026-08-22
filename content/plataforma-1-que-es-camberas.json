@@ -23,8 +23,9 @@
     },
     {
       "etiqueta": "Para quién",
-      "pregunta": "Desde la salida del domingo hasta las 500 personas",
-      "respuesta": "Una grupetta entre amigos es gratis. Una quedada de hasta 50 son 50 €. Una carrera cronometrada de hasta 500, 700 €. Por evento, no por corredor."
+      "pregunta": "Desde la salida del domingo hasta grandes eventos",
+      "respuesta": "Una grupetta entre amigos. Una quedada, sea la previa de una carrera o un evento propio de menos de 50 participantes. O una carrera cronometrada con todos los servicios.",
+      "nota": "Se paga por evento, no por corredor."
     },
     {
       "etiqueta": "Desde el primer día",
