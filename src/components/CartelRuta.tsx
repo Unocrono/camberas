@@ -26,6 +26,12 @@ const H = 1350;
 const M = 70;               // margen lateral
 const FUENTE = 'Archivo, Inter, system-ui, sans-serif';
 
+// La mosca (logo arriba a la derecha): su hueco lo respeta el título
+const LOGO_LADO = 104;
+const LOGO_X0 = W - M - LOGO_LADO;
+const LOGO_Y0 = 46;
+const LOGO_Y1 = LOGO_Y0 + LOGO_LADO;
+
 interface CartelRutaProps {
   nombre: string;
   fecha: string;
@@ -102,20 +108,30 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
     const titulo = (ctx: CanvasRenderingContext2D, texto: string, y: number): number => {
       const ancho = W - M * 2;
       let tam = 84;
+      /**
+       * Las líneas que alcanzan la banda de la mosca se cortan ANTES del
+       * logo. Sin esto, "GRUPETTA BIKE SHOP CAFÉ ROUBAIX" pasaba por
+       * debajo del isotipo y se leía la marca encima de la letra.
+       */
+      const anchoLinea = (i: number, t: number): number => {
+        const cima = y + i * t * 1.04 - t * 0.78;   // borde superior de la línea
+        return cima < LOGO_Y1 + 10 ? LOGO_X0 - M - 24 : ancho;
+      };
       const partir = (t: number): string[] => {
         ctx.font = `900 ${t}px ${FUENTE}`;
         const out: string[] = [];
         let linea = '';
         for (const p of texto.toUpperCase().split(' ')) {
           const prueba = linea ? `${linea} ${p}` : p;
-          if (ctx.measureText(prueba).width > ancho && linea) { out.push(linea); linea = p; }
-          else linea = prueba;
+          if (ctx.measureText(prueba).width > anchoLinea(out.length, t) && linea) {
+            out.push(linea); linea = p;
+          } else linea = prueba;
         }
         if (linea) out.push(linea);
         return out;
       };
       let ls = partir(tam);
-      while ((ls.length > 2 || ls.some((l) => ctx.measureText(l).width > ancho)) && tam > 40) {
+      while ((ls.length > 2 || ls.some((l, i) => ctx.measureText(l).width > anchoLinea(i, tam))) && tam > 40) {
         tam -= 6;
         ls = partir(tam);
       }
@@ -167,9 +183,8 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
       // La mosca: el logo de la casa arriba a la derecha, como en un
       // canal de televisión — presente pero sin robar protagonismo
       if (logo) {
-        const lado = 104;
         ctx.globalAlpha = 0.95;
-        ctx.drawImage(logo, W - M - lado, 46, lado, lado);
+        ctx.drawImage(logo, LOGO_X0, LOGO_Y0, LOGO_LADO, LOGO_LADO);
         ctx.globalAlpha = 1;
       }
       return yTit + 54;
@@ -244,10 +259,31 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
       ctx.textAlign = 'right';
       ctx.fillText(`${p.km.toFixed(1)} km`, x0 + ancho, suelo + 34);
 
+      /**
+       * Alturas alternas NO bastan: dos puertos seguidos a distinta
+       * altitud acaban con sus rótulos a la misma "y" (le pasó a los de
+       * 662 m y 812 m, que salieron pegados). Se lleva cuenta de lo ya
+       * escrito y se sube el que colisione.
+       */
+      const rotulos: { x0: number; x1: number; y: number }[] = [];
+      const libre = (x0: number, x1: number, y: number) =>
+        !rotulos.some((r) => x0 < r.x1 + 16 && x1 + 16 > r.x0 && Math.abs(y - r.y) < 76);
+
       p.puertos.forEach((pu, i) => {
         const x = xDe(pu.km);
         const y = yDe(pu.cima);
-        const h = i % 2 === 0 ? 118 : 62;
+        let h = i % 2 === 0 ? 118 : 62;
+
+        // Ancho que ocupará el rótulo (lo manda el nombre si lo hay)
+        ctx.font = `700 20px ${FUENTE}`;
+        let anchoRot = ctx.measureText(`${pu.cima} m`).width;
+        if (pu.nombre) {
+          ctx.font = `800 22px ${FUENTE}`;
+          anchoRot = Math.max(anchoRot, Math.min(ctx.measureText(pu.nombre).width, 250));
+        }
+        let intentos = 0;
+        while (!libre(x - 3, x - 3 + anchoRot, y - h) && intentos < 6) { h += 58; intentos++; }
+        rotulos.push({ x0: x - 3, x1: x - 3 + anchoRot, y: y - h });
         ctx.beginPath();
         ctx.moveTo(x, y);
         ctx.lineTo(x, y - h);
@@ -357,7 +393,9 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
       ctx.lineWidth = 9;
       ctx.stroke();
 
-      const marca = (t: { lat: number; lon: number }, color: string, etiqueta: string) => {
+      const marca = (
+        t: { lat: number; lon: number }, color: string, etiqueta: string, arriba = true,
+      ) => {
         const x = px(t), y = py(t);
         ctx.beginPath();
         ctx.arc(x, y, 17, 0, Math.PI * 2);
@@ -366,13 +404,34 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
         ctx.strokeStyle = TINTA;
         ctx.lineWidth = 5;
         ctx.stroke();
-        ctx.fillStyle = color;
+
         ctx.font = `800 22px ${FUENTE}`;
         ctx.textAlign = 'center';
-        ctx.fillText(etiqueta, x, y - 30);
+        // Fuera de la caja no se lee: si toca el techo, el rótulo va debajo
+        const y0 = arriba && y - 30 > caja.y + 20 ? y - 30 : y + 46;
+        // Sombra: el rótulo cae sobre el trazo naranja tan a menudo como
+        // sobre el fondo, y en naranja sobre naranja no se leía nada
+        ctx.strokeStyle = 'rgba(14,36,25,0.9)';
+        ctx.lineWidth = 6;
+        ctx.lineJoin = 'round';
+        ctx.strokeText(etiqueta, x, y0);
+        ctx.fillStyle = color;
+        ctx.fillText(etiqueta, x, y0);
       };
-      marca(traza[0], LIMA, 'SALIDA');
-      marca(traza[traza.length - 1], CREMA, 'LLEGADA');
+
+      const ini = traza[0];
+      const fin = traza[traza.length - 1];
+      const juntos = Math.hypot(px(ini) - px(fin), py(ini) - py(fin)) < 46;
+
+      if (juntos) {
+        // Ruta circular (lo normal en una grupetta: se sale y se vuelve a
+        // la tienda). Dos rótulos en el mismo punto se pisaban letra sobre
+        // letra y salía "LSEGADA".
+        marca(ini, LIMA, 'SALIDA · META');
+      } else {
+        marca(ini, LIMA, 'SALIDA');
+        marca(fin, CREMA, 'META');
+      }
 
       cifras(ctx, p);
     };
