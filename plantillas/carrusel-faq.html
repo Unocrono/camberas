@@ -35,8 +35,23 @@
   --acento: var(--lima);
 
   --margen: 96px;
+  /* Márgenes verticales aparte: los stories necesitan más (ver abajo) */
+  --margen-arriba: var(--margen);
+  --margen-abajo: var(--margen);
   /* En px, no en %: el % se resolvería contra el ancho y no seguiría al alto */
   --colinas-alto: 200px;
+}
+
+/*
+ * Zona segura de los stories. Instagram pinta su interfaz ENCIMA del PNG:
+ * el avatar y el nombre arriba, la barra de responder abajo, unos 250 px
+ * cada una sobre un lienzo de 1920. Con el margen de 96 px del feed, la
+ * cabecera de marca y la regla quedaban tapadas. En feed no hay nada
+ * encima, así que ahí se queda como estaba.
+ */
+html[data-formato="story"] {
+  --margen-arriba: 280px;
+  --margen-abajo: 280px;
 }
 
 /*
@@ -75,7 +90,7 @@ body {
   color: var(--crema);
   display: flex;
   flex-direction: column;
-  padding: var(--margen);
+  padding: var(--margen-arriba) var(--margen) var(--margen-abajo);
 }
 
 /* Corredores → lima; organizadores → naranja de acción. */
@@ -104,7 +119,7 @@ body {
   display: block;
 }
 /* Los slides con colinas reservan sitio para que el texto no se les meta encima */
-.portada, .cierre { padding-bottom: calc(var(--colinas-alto) + 48px); }
+.portada, .cierre { padding-bottom: calc(var(--colinas-alto) + var(--margen-abajo)); }
 
 /* ── Portada ─────────────────────────────────────────────────── */
 
@@ -149,7 +164,7 @@ body {
 .desliza {
   position: absolute;
   right: var(--margen);
-  bottom: calc(var(--colinas-alto) + 44px);
+  bottom: calc(var(--colinas-alto) + var(--margen-abajo));
   font-weight: 600;
   font-size: 32px;
   letter-spacing: 0.16em;
