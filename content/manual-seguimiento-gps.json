@@ -1,0 +1,30 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "titulo": "Que te sigan en vivo",
+  "slides": [
+    {
+      "pregunta": "Entra en Tracking GPS",
+      "respuesta": "Desde el menú principal, con tu cuenta iniciada. Es la misma con la que te inscribiste."
+    },
+    {
+      "pregunta": "Elige tu carrera",
+      "respuesta": "Te salen las carreras en las que estás inscrito. Toca la de hoy."
+    },
+    {
+      "pregunta": "Dale a Iniciar seguimiento",
+      "respuesta": "Antes de tomar la salida, no después. Y permite el acceso a tu ubicación cuando el navegador lo pida."
+    },
+    {
+      "pregunta": "Deja el móvil trabajando",
+      "respuesta": "Mantén la pantalla activa o instala la app en tu pantalla de inicio. Si te quedas sin cobertura no pasa nada: guarda el recorrido y lo sube al volver la señal.",
+      "nota": "Sal con la batería al 100%."
+    },
+    {
+      "pregunta": "Pasa el enlace a los tuyos",
+      "respuesta": "Con el enlace de seguimiento en vivo te ven en el mapa, buscan tu dorsal y siguen tu ritmo desde el sofá."
+    }
+  ],
+  "cta": "Que no se pierdan tu llegada"
+}

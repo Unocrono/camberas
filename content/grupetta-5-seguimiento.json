@@ -1,0 +1,36 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Grupetta",
+  "titulo": "Nos vemos y nos ven",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "Entre vosotros",
+      "pregunta": "Sabes dónde está cada uno",
+      "respuesta": "Sin llamar, sin parar y sin preguntar al de al lado si ha visto a Fulano. Está en el mapa."
+    },
+    {
+      "etiqueta": "El que se descuelga",
+      "pregunta": "Ya no se pierde",
+      "respuesta": "Ves que se ha quedado y a cuánto viene. Decidís si esperáis en el alto o si alguien se descuelga a buscarlo."
+    },
+    {
+      "etiqueta": "El avituallamiento",
+      "pregunta": "Se acabó contar cabezas",
+      "respuesta": "Miras el móvil y sabes quién falta y cuánto le queda. Nadie sale antes de tiempo dejando a dos atrás."
+    },
+    {
+      "etiqueta": "Desde casa",
+      "pregunta": "Os siguen en directo",
+      "respuesta": "Con un enlace, quien quiera os ve avanzar por el mapa. No necesita instalarse nada ni tener cuenta."
+    },
+    {
+      "etiqueta": "El que hoy no sale",
+      "pregunta": "También va en la ruta",
+      "respuesta": "El lesionado, el que libra, la familia que quiere saber cuándo estaréis de vuelta para poner la mesa."
+    }
+  ],
+  "cta": "Que no te pierdan de vista"
+}

@@ -1,0 +1,21 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "titulo": "Dudas antes de tu primera carrera",
+  "slides": [
+    {
+      "pregunta": "¿Necesito cuenta para inscribirme?",
+      "respuesta": "No. Puedes inscribirte como invitado: rellenas el formulario y te llega la confirmación por email con tu dorsal. La cuenta es opcional y solo añade poder gestionar tus inscripciones y ver tu historial."
+    },
+    {
+      "pregunta": "¿Cómo me siguen desde casa?",
+      "respuesta": "Comparte el enlace de seguimiento en vivo. Desde ahí ven a todos los corredores sobre el mapa, buscan tu dorsal y siguen tu posición y tu ritmo en tiempo real.",
+      "nota": "Sale mejor si activas el GPS antes de la salida."
+    },
+    {
+      "pregunta": "¿Y si me quedo sin cobertura?",
+      "respuesta": "No pierdes nada. La app guarda los puntos GPS en el móvil y los sincroniza sola en cuanto vuelve la conexión."
+    }
+  ],
+  "cta": "Busca tu carrera y apúntate"
+}

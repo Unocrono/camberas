@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Carrusel FAQ — Camberas</title>
+<!-- Fuentes autoalojadas: el render no puede depender de la red. -->
+<link rel="stylesheet" href="fuentes/fuentes.css" />
+<style>
+/*
+ * Plantilla de carrusel de FAQ para Instagram.
+ *
+ * Los tokens salen de docs/paleta-camberas.md y de las fuentes que ya
+ * enlaza index.html. No se inventan colores: si hace falta uno nuevo,
+ * se amplía la paleta en el doc primero.
+ *
+ * El texto NO vive aquí. Llega por el <script id="datos"> que rellena
+ * generar-carrusel.js, y construirSlides() monta el DOM a partir de él.
+ */
+:root {
+  /* Paleta Camberas */
+  --verde-tinta: #0E2419;
+  --verde-camberas: #235940;
+  --naranja: #EC7C2B;
+  --crema: #FAF6EC;
+  --colina-clara: #3CA15B;
+  --colina-media: #2E8B4A;
+  --colina-oscura: #1E5B38;
+  --lima: #C8E85C;
+
+  /* Formato: lo fija generar-carrusel.js con data-formato en <html> */
+  --ancho: 1080px;
+  --alto: 1350px;
+
+  /* Acento por audiencia: lo fija data-audiencia en cada .slide */
+  --acento: var(--lima);
+
+  --margen: 96px;
+  /* En px, no en %: el % se resolvería contra el ancho y no seguiría al alto */
+  --colinas-alto: 200px;
+}
+
+/*
+ * Caja de ajuste: el contenedor contra el que mide el ajuste tipográfico.
+ * Su altura es el hueco que sobra (flex:1 entre hermanos de altura fija),
+ * así que es constante mientras el texto escala. Sus hijos NO pueden llevar
+ * min-height:0: si pudieran encogerse por debajo de su contenido, flexbox
+ * los comprimiría, scrollHeight nunca superaría clientHeight y la bisección
+ * se iría al mínimo creyendo que nada cabe.
+ */
+.caja-ajuste {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.caja-ajuste > * { flex-shrink: 0; }
+
+/* 4:5 para el carrusel de feed, 9:16 para stories. Mismo HTML. */
+html[data-formato="feed"]  { --ancho: 1080px; --alto: 1350px; }
+html[data-formato="story"] { --ancho: 1080px; --alto: 1920px; }
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #333;
+  font-family: "Barlow Semi Condensed", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.slide {
+  position: relative;
+  width: var(--ancho);
+  height: var(--alto);
+  overflow: hidden;
+  background: var(--verde-tinta);
+  color: var(--crema);
+  display: flex;
+  flex-direction: column;
+  padding: var(--margen);
+}
+
+/* Corredores → lima; organizadores → naranja de acción. */
+.slide[data-audiencia="corredores"]    { --acento: var(--lima); }
+.slide[data-audiencia="organizadores"] { --acento: var(--naranja); }
+
+/* ── Marca ───────────────────────────────────────────────────── */
+
+.marca { display: flex; align-items: center; gap: 20px; }
+.marca svg { display: block; }
+/* El wordmark va en Archivo Black como los titulares de la web. */
+.wordmark {
+  font-family: "Archivo Black", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+/* ── Colinas: la firma de la casa, en su orden de delante a atrás ── */
+
+.colinas {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  width: 100%;
+  height: var(--colinas-alto);
+  display: block;
+}
+/* Los slides con colinas reservan sitio para que el texto no se les meta encima */
+.portada, .cierre { padding-bottom: calc(var(--colinas-alto) + 48px); }
+
+/* ── Portada ─────────────────────────────────────────────────── */
+
+.portada .cabecera { flex: 0 0 auto; }
+.portada .marca svg { width: 96px; height: 96px; }
+.portada .wordmark { font-size: 52px; }
+
+.portada .centro {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 40px;
+}
+
+.antetitulo {
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--acento);
+}
+
+.titulo {
+  font-family: "Archivo Black", sans-serif;
+  text-transform: uppercase;
+  line-height: 0.94;
+  font-size: calc(112px * var(--escala, 1));
+}
+
+.pildora {
+  align-self: flex-start;
+  background: var(--acento);
+  color: var(--verde-tinta);
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 18px 38px;
+  border-radius: 999px;
+}
+
+.desliza {
+  position: absolute;
+  right: var(--margen);
+  bottom: calc(var(--colinas-alto) + 44px);
+  font-weight: 600;
+  font-size: 32px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--crema);
+  opacity: 0.75;
+}
+
+/* ── Slides de pregunta ──────────────────────────────────────── */
+
+.cabecera-pregunta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cabecera-pregunta .marca svg { width: 52px; height: 52px; }
+.cabecera-pregunta .wordmark { font-size: 30px; opacity: 0.85; }
+
+/* Numeración discreta: 2/7 */
+.contador {
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: 0.16em;
+  color: var(--acento);
+  opacity: 0.9;
+}
+
+/*
+ * Columna de contenido. Es la caja contra la que mide el ajuste
+ * tipográfico: pregunta, respuesta y nota escalan juntas con --escala,
+ * así que el bloque nunca desborda ni deja el slide medio vacío.
+ */
+.contenido {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: calc(40px * var(--escala, 1));
+  padding: 56px 0;
+}
+
+/* Etiqueta sobre el titular: "Paso 1" en los manuales, o lo que diga el
+   JSON. Escala con el bloque, así que no rompe el ajuste. */
+.etiqueta {
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--acento);
+  opacity: 0.85;
+  margin-bottom: calc(-18px * var(--escala, 1));
+  font-size: calc(32px * var(--escala, 1));
+}
+
+.pregunta {
+  font-family: "Archivo Black", sans-serif;
+  text-transform: uppercase;
+  line-height: 1.02;
+  color: var(--acento);
+  font-size: calc(68px * var(--escala, 1));
+}
+
+.respuesta {
+  font-weight: 400;
+  line-height: 1.34;
+  font-size: calc(46px * var(--escala, 1));
+}
+
+.nota {
+  border-left: 6px solid var(--acento);
+  padding-left: 28px;
+  font-weight: 600;
+  line-height: 1.3;
+  opacity: 0.82;
+  font-size: calc(34px * var(--escala, 1));
+}
+
+.regla {
+  flex: 0 0 auto;
+  height: 8px;
+  width: 160px;
+  background: var(--acento);
+  border-radius: 4px;
+}
+
+/* ── Slide de cierre (CTA) ───────────────────────────────────── */
+
+.cierre .centro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.cierre .marca { flex-direction: column; gap: 36px; }
+.cierre .marca svg { width: 200px; height: 200px; flex-shrink: 0; }
+.cierre .wordmark { font-size: 76px; }
+
+.cierre .cta { margin-top: 72px; }
+.cta {
+  font-family: "Archivo Black", sans-serif;
+  text-transform: uppercase;
+  line-height: 1.02;
+  color: var(--acento);
+  font-size: calc(72px * var(--escala, 1));
+}
+.web {
+  margin-top: 56px;
+  font-weight: 600;
+  font-size: 38px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+</style>
+</head>
+<body>
+
+<script id="datos" type="application/json">__DATOS__</script>
+
+<script>
+/* Logo Camberas — mismos paths que src/components/CamberasLogo.tsx.
+   Es marca: no se recolorea ni se deforma. */
+const LOGO = `
+<svg viewBox="0 0 512 512" role="img" aria-label="Camberas">
+  <circle cx="256" cy="256" r="256" fill="#1E2A3A" />
+  <g fill="#E8892E">
+    <path d="M355.97,133.32c-69-54.06-172.23-44.38-226.29,24.62-18.97,24.21-30.34,59.58-33.02,90.21h31.66c6.21-70.42,68.52-125.88,138.94-119.67,24.63,2.17,48.11,11.43,67.59,26.66l21.12-21.82Z" />
+    <path d="M321.81,168.49c-53.4-40.35-126.91-22.97-159.11,28.6-9.14,14.63-14.71,33.88-16.26,51.06l30.72-.11c4.16-43.63,42.91-75.63,86.54-71.46,12.17,1.16,26.16,7.26,36.54,13.7l21.57-21.79Z" />
+  </g>
+  <g fill="#2E8B4A">
+    <path d="M335.17,360.51c-19.48,15.23-42.96,24.49-67.59,26.66-70.42,6.21-132.73-49.25-138.94-119.67h-31.66c2.68,30.64,14.05,66,33.02,90.21,54.06,69,157.28,78.68,226.29,24.62l-21.12-21.82Z" />
+    <path d="M300.56,325.37c-10.39,6.44-24.38,12.54-36.54,13.7-43.63,4.16-82.38-27.83-86.54-71.46l-30.72-.11c1.55,17.18,7.12,36.43,16.26,51.06,32.2,51.57,105.72,68.95,159.11,28.6l-21.57-21.79Z" />
+  </g>
+</svg>`;
+
+/* Colinas en su orden: oscura al fondo, clara delante. */
+const COLINAS = `
+<svg class="colinas" viewBox="0 0 1080 200" preserveAspectRatio="none" aria-hidden="true">
+  <path fill="#1E5B38" d="M0,200 L0,96 C160,28 300,132 470,96 C640,60 780,26 1080,86 L1080,200 Z" />
+  <path fill="#2E8B4A" d="M0,200 L0,140 C180,84 340,168 520,132 C700,96 860,80 1080,132 L1080,200 Z" />
+  <path fill="#3CA15B" d="M0,200 L0,176 C200,140 380,190 580,168 C780,146 920,140 1080,170 L1080,200 Z" />
+</svg>`;
+
+const esc = (s) =>
+  String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+const marca = () => `<div class="marca">${LOGO}<div class="wordmark">Camberas</div></div>`;
+
+/* Etiqueta por defecto de la portada según el tipo de carrusel. */
+const ANTETITULOS = { faq: 'Preguntas frecuentes', manual: 'Guía rápida' };
+
+/**
+ * Etiqueta sobre el titular de un slide. Un manual numera los pasos solo,
+ * pero `etiqueta` en el JSON manda: hace falta cuando el carrusel mezcla
+ * pasos con slides que no lo son ("El problema", "Y además"), porque ahí
+ * la numeración automática se descuadra.
+ */
+function etiquetaDe(slide, i, tipo) {
+  if (slide.etiqueta !== undefined) return slide.etiqueta;
+  return tipo === 'manual' ? `Paso ${i + 1}` : null;
+}
+
+function construirSlides(datos) {
+  const { audiencia, titulo, slides, cta } = datos;
+  const tipo = datos.tipo ?? 'faq';
+  const antetitulo = datos.antetitulo ?? ANTETITULOS[tipo];
+  const total = slides.length + 2; // portada + contenido + cierre
+  const partes = [];
+
+  // 1 — Portada
+  partes.push(`
+    <section class="slide portada" data-audiencia="${esc(audiencia)}">
+      <div class="cabecera">${marca()}</div>
+      <div class="centro caja-ajuste">
+        <div class="antetitulo">${esc(antetitulo)}</div>
+        <h1 class="titulo">${esc(titulo)}</h1>
+        <div class="pildora">Para ${esc(audiencia)}</div>
+      </div>
+      <div class="desliza">Desliza →</div>
+      ${COLINAS}
+    </section>`);
+
+  // 2..n-1 — Una pregunta por slide
+  slides.forEach((s, i) => {
+    partes.push(`
+      <section class="slide" data-audiencia="${esc(audiencia)}">
+        <div class="cabecera-pregunta">
+          ${marca()}
+          <div class="contador">${i + 2}/${total}</div>
+        </div>
+        <div class="contenido caja-ajuste">
+          ${etiquetaDe(s, i, tipo) ? `<div class="etiqueta">${esc(etiquetaDe(s, i, tipo))}</div>` : ''}
+          <h2 class="pregunta">${esc(s.pregunta)}</h2>
+          <p class="respuesta">${esc(s.respuesta)}</p>
+          ${s.nota ? `<p class="nota">${esc(s.nota)}</p>` : ''}
+        </div>
+        <div class="regla"></div>
+      </section>`);
+  });
+
+  // n — Cierre con CTA y logo
+  partes.push(`
+    <section class="slide cierre" data-audiencia="${esc(audiencia)}">
+      <div class="centro caja-ajuste">
+        ${marca()}
+        <div class="cta">${esc(cta)}</div>
+        <div class="web">${esc(datos.web ?? 'camberas.com')}</div>
+      </div>
+      ${COLINAS}
+    </section>`);
+
+  document.body.innerHTML = partes.join('');
+}
+
+/**
+ * Ajuste tipográfico adaptativo.
+ *
+ * Las respuestas varían mucho de longitud. En vez de tocar cada elemento
+ * por separado —que no garantiza que el grupo quepa— se escala el bloque
+ * entero con --escala y se busca por bisección el valor más grande que
+ * sigue cabiendo en su caja. El resultado no desborda nunca y tampoco
+ * deja el slide medio vacío, porque coge el máximo que entra.
+ */
+const ESCALA_MIN = 55;   // 0.55
+const ESCALA_MAX = 190;  // 1.90
+
+/*
+ * Hay que mirar las dos dimensiones. Una palabra larga que no puede
+ * partirse —"INSCRIPCIONES?"— cabe de alto pero se sale por el lado y
+ * overflow:hidden se la come: medir solo scrollHeight dejaba PNG con la
+ * última letra cortada.
+ */
+function cabe(caja) {
+  return (
+    caja.scrollHeight <= caja.clientHeight + 1 &&
+    caja.scrollWidth <= caja.clientWidth + 1
+  );
+}
+
+function ajustar(caja) {
+  let lo = ESCALA_MIN, hi = ESCALA_MAX, mejor = ESCALA_MIN;
+  while (lo <= hi) {
+    const medio = Math.floor((lo + hi) / 2);
+    caja.style.setProperty('--escala', medio / 100);
+    // +1px de tolerancia: el redondeo subpíxel de la fuente da falsos positivos
+    if (cabe(caja)) {
+      mejor = medio;
+      lo = medio + 1;
+    } else {
+      hi = medio - 1;
+    }
+  }
+  caja.style.setProperty('--escala', mejor / 100);
+
+  return {
+    caja: caja.className,
+    escala: mejor / 100,
+    // Ni al mínimo cabe: el texto del JSON es demasiado largo para el slide
+    desbordado: !cabe(caja),
+  };
+}
+
+/**
+ * Comprueba de verdad si una familia está aplicada.
+ *
+ * document.fonts.check() devuelve true para familias que ni siquiera
+ * existen —da por bueno el fallback—, así que mentía. Se mide el ancho
+ * de un texto con la familia y contra monospace: si coinciden, no se
+ * está usando la fuente de marca.
+ */
+function fuenteAplicada(familia, peso) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  const muestra = 'Camberas ¿Cómo? áéíóúñ 0123';
+  ctx.font = `${peso} 72px monospace`;
+  const base = ctx.measureText(muestra).width;
+  ctx.font = `${peso} 72px "${familia}", monospace`;
+  return ctx.measureText(muestra).width !== base;
+}
+
+async function montar() {
+  const datos = JSON.parse(document.getElementById('datos').textContent);
+  construirSlides(datos);
+
+  // Sin las fuentes cargadas, el ajuste mediría con la de reserva y el
+  // tamaño elegido no valdría para la tipografía real.
+  const caras = [
+    ['Archivo Black', 400],
+    ['Barlow Semi Condensed', 400],
+    ['Barlow Semi Condensed', 600],
+    ['Barlow Semi Condensed', 700],
+  ];
+  await Promise.all(
+    caras.map(([f, p]) => document.fonts.load(`${p} 100px "${f}"`, 'Camberas ¿áéíóúñ?'))
+  );
+  await document.fonts.ready;
+
+  window.__FUENTES_FALTAN__ = caras
+    .filter(([f, p]) => !fuenteAplicada(f, p))
+    .map(([f, p]) => `${f} ${p}`);
+
+  const ajustes = [];
+  document.querySelectorAll('.slide').forEach((slide, i) => {
+    slide.querySelectorAll('.caja-ajuste').forEach((c) => {
+      ajustes.push({ slide: i + 1, ...ajustar(c) });
+    });
+  });
+
+  window.__AJUSTES__ = ajustes;
+  window.__LISTO__ = true;
+}
+
+montar();
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Grupetta",
+  "titulo": "Enséñala",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "El mapa",
+      "pregunta": "La ruta que os hicisteis",
+      "respuesta": "Dibujada entera, con su recorrido y sus kilómetros. Sin capturas de pantalla ni recortes a mano."
+    },
+    {
+      "etiqueta": "El perfil",
+      "pregunta": "Con el desnivel que os comisteis",
+      "respuesta": "Las cuestas del día, en su sitio. La que os reventó se ve desde lejos."
+    },
+    {
+      "etiqueta": "Compártela",
+      "pregunta": "Directa a tus redes",
+      "respuesta": "Ya sale con el formato que piden, así que va tal cual a tu perfil o a tu historia."
+    },
+    {
+      "etiqueta": "Y de paso",
+      "pregunta": "Invita a la siguiente",
+      "respuesta": "Quien la vea y le entren ganas ya sabe dónde apuntarse. El domingo que viene sois uno más."
+    }
+  ],
+  "cta": "Presume de salida"
+}
