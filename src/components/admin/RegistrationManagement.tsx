@@ -210,6 +210,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   
   // Import dialog
   const [isImportOpen, setIsImportOpen] = useState(false);
+
+  // Sincronización EventBooking (uno.es): el botón solo aparece si la
+  // carrera seleccionada tiene fila en eventbooking_sync.
+  const [ebConfigurado, setEbConfigurado] = useState(false);
+  const [ebSincronizando, setEbSincronizando] = useState(false);
   
   // Row selection
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -911,6 +916,45 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
   }, [formData.race_id]);
 
+  const carreraActualId = selectedRaceId || (selectedRace !== "all" ? selectedRace : "");
+
+  useEffect(() => {
+    if (!carreraActualId) {
+      setEbConfigurado(false);
+      return;
+    }
+    supabase
+      .from("eventbooking_sync" as never)
+      .select("race_id")
+      .eq("race_id", carreraActualId)
+      .maybeSingle()
+      .then(({ data }) => setEbConfigurado(!!data));
+  }, [carreraActualId]);
+
+  const sincronizarEventbooking = async () => {
+    setEbSincronizando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("eventbooking-sync", {
+        body: { race_id: carreraActualId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
+      toast({
+        title: "Sincronizado con EventBooking",
+        description:
+          partes.join(", ") +
+          (data.errores?.length ? `. ${data.errores.length} con error: ${data.errores.slice(0, 3).join("; ")}` : ""),
+        variant: data.errores?.length ? "destructive" : "default",
+      });
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Error al sincronizar", description: e.message, variant: "destructive" });
+    } finally {
+      setEbSincronizando(false);
+    }
+  };
+
   const fetchDistancesForRace = async (raceId: string) => {
     const { data } = await supabase
       .from("race_distances")
@@ -1438,6 +1482,17 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             <Upload className="h-4 w-4" />
             Importar CSV
           </Button>
+          {ebConfigurado && (
+            <Button
+              onClick={sincronizarEventbooking}
+              variant="outline"
+              className="gap-2"
+              disabled={ebSincronizando}
+            >
+              <RefreshCw className={`h-4 w-4 ${ebSincronizando ? "animate-spin" : ""}`} />
+              {ebSincronizando ? "Sincronizando..." : "Sincronizar EventBooking"}
+            </Button>
+          )}
           <Button onClick={exportToCSV} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
             <Download className="h-4 w-4" />
             Exportar CSV
