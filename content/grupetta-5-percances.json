@@ -12,6 +12,12 @@
       "respuesta": "Te paras a cambiar la cámara y el grupo te ve parado en el mapa. Nadie sigue tirando veinte minutos sin enterarse de que faltas."
     },
     {
+      "etiqueta": "Y si quieres avisar",
+      "pregunta": "Díselo sin escribir nada",
+      "respuesta": "Mantienes pulsado el SOS dos segundos y eliges el motivo. Hay uno hecho para esto: «Avería o pinchazo, estoy reparando». Les llega tu posición exacta y saben que no es nada grave.",
+      "nota": "El aviso va al grupo, no al 112."
+    },
+    {
       "etiqueta": "El que se queda",
       "pregunta": "Nadie tiene que dar media vuelta",
       "respuesta": "Ves a cuánto viene el que se ha descolgado y decidís con datos: esperar en el alto, aflojar un poco o que alguien se descuelgue a buscarlo."
