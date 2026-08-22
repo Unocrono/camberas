@@ -60,6 +60,30 @@ palabra fija.
 `camberas.com`). Úsalo para mandar a la página concreta —
 `camberas.com/grupetta/capo`— en vez de a la portada.
 
+### Imágenes
+
+Un slide admite `imagen` con la ruta **relativa a la raíz del repo**. Se
+coloca entre el titular y la explicación, y escala con el bloque: si la
+imagen es alta, el texto se encoge para dejarle sitio.
+
+```json
+{ "pregunta": "…", "respuesta": "…", "imagen": "capturas/mapa.png" }
+```
+
+Con `"aSangre": true` el slide pasa a ser **solo la imagen**, ocupando el
+slide entero sin cabecera ni regla, y ya no hace falta texto:
+
+```json
+{ "imagen": "capturas/grupetta-mapa.png", "aSangre": true }
+```
+
+Eso es lo que quieren las piezas que **ya traen su propia marca** —el
+cartel de ruta sale a 1080×1350 con logo, título y datos—: encajarlas
+dentro de un slide normal las dejaría con doble cabecera. Se usa
+`contain`, no `cover`: en story sobra alto y es mejor que caiga sobre el
+fondo verde a recortar la pieza. Como el cartel comparte ese mismo fondo,
+el hueco ni se ve.
+
 `pildora` sobrescribe la etiqueta de la portada, que por defecto es
 `Para {audiencia}`. Sirve cuando el carrusel apunta a un papel concreto
 dentro de la audiencia —«Para el capo»— en vez de a toda ella. Va en

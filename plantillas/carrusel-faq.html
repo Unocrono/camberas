@@ -261,6 +261,21 @@ body {
   border-radius: 4px;
 }
 
+/*
+ * Slide a sangre: la imagen ocupa el slide entero, sin cabecera ni regla.
+ * Para piezas que ya vienen con su propia marca —el cartel de ruta, que sale
+ * a 1080x1350 con logo y datos—; encajarlas dentro de un slide normal las
+ * dejaría con doble cabecera. contain, no cover: en story sobra alto y es
+ * preferible que caiga sobre el fondo verde a recortar la pieza.
+ */
+.slide-sangre { padding: 0; }
+.imagen-sangre {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 /* ── Slide de cierre (CTA) ───────────────────────────────────── */
 
 .cierre .centro {
@@ -361,6 +376,13 @@ function construirSlides(datos) {
 
   // 2..n-1 — Una pregunta por slide
   slides.forEach((s, i) => {
+    if (s.aSangre) {
+      partes.push(`
+      <section class="slide slide-sangre" data-audiencia="${esc(audiencia)}">
+        <img class="imagen-sangre" src="${esc(s.imagen)}" alt="" />
+      </section>`);
+      return;
+    }
     partes.push(`
       <section class="slide" data-audiencia="${esc(audiencia)}">
         <div class="cabecera-pregunta">

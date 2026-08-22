@@ -55,8 +55,13 @@ function validar(datos, ruta) {
     fallos.push('"slides" debe ser un array con al menos una pregunta');
   else
     datos.slides.forEach((s, i) => {
-      if (!s.pregunta?.trim()) fallos.push(`slides[${i}]: falta "pregunta"`);
-      if (!s.respuesta?.trim()) fallos.push(`slides[${i}]: falta "respuesta"`);
+      // Un slide a sangre es solo la imagen: no lleva texto que validar
+      if (s.aSangre) {
+        if (!s.imagen) fallos.push(`slides[${i}]: "aSangre" necesita "imagen"`);
+      } else {
+        if (!s.pregunta?.trim()) fallos.push(`slides[${i}]: falta "pregunta"`);
+        if (!s.respuesta?.trim()) fallos.push(`slides[${i}]: falta "respuesta"`);
+      }
       // La ruta de la captura va relativa a la raíz del repo
       if (s.imagen && !existsSync(resolve(RAIZ, s.imagen)))
         fallos.push(`slides[${i}]: no existe la imagen "${s.imagen}"`);
