@@ -1,0 +1,42 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "La plataforma",
+  "titulo": "Los papeles, bajo control",
+  "web": "camberas.com",
+  "slides": [
+    {
+      "etiqueta": "Lo que nadie cuenta",
+      "pregunta": "Una carrera son más papeles que kilómetros",
+      "respuesta": "Permisos municipales, juegos y espectáculos, ETRAZA, seguro de RC, seguro de accidentes, plan de seguridad, medioambiente, federación, protección de datos."
+    },
+    {
+      "etiqueta": "El checklist",
+      "pregunta": "Cada carrera, con su lista",
+      "respuesta": "Defines qué documentos hacen falta y con cuántos días de antelación. Deja de depender de que alguien se acuerde."
+    },
+    {
+      "etiqueta": "Las fechas",
+      "pregunta": "Se recalculan solas",
+      "respuesta": "El límite de cada trámite se cuenta contra la fecha de la carrera. Si mueves la carrera, se mueve la lista entera.",
+      "nota": "Un cambio de fecha ya no te deja el calendario de plazos obsoleto."
+    },
+    {
+      "etiqueta": "Varios por trámite",
+      "pregunta": "Un permiso por ayuntamiento",
+      "respuesta": "Si el recorrido cruza cuatro términos municipales, son cuatro permisos colgando del mismo requisito, cada uno con lo suyo."
+    },
+    {
+      "etiqueta": "Su estado",
+      "pregunta": "Pendiente, subido, en revisión, aprobado",
+      "respuesta": "Y caducado, que es el que se olvida y el que te deja sin carrera la semana de antes."
+    },
+    {
+      "etiqueta": "Dónde se guardan",
+      "pregunta": "En privado, no en un enlace suelto",
+      "respuesta": "Ahí hay datos sensibles. Los archivos viven en almacenamiento privado y se abren con enlaces firmados que caducan, no con una URL pública que circula por WhatsApp."
+    }
+  ],
+  "cta": "Ten los papeles en orden"
+}

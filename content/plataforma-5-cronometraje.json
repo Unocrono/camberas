@@ -1,0 +1,41 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "La plataforma",
+  "titulo": "Cronometraje profesional",
+  "web": "camberas.com/planes",
+  "slides": [
+    {
+      "etiqueta": "Los puestos",
+      "pregunta": "Sin dar de alta a nadie",
+      "respuesta": "Un QR por punto de control. El móvil que lo escanea es ese puesto, con su carrera cargada. Ni usuarios ni contraseñas a las siete de la mañana."
+    },
+    {
+      "etiqueta": "Sin cobertura",
+      "pregunta": "Sigue tomando tiempos",
+      "respuesta": "Los registros se guardan en el dispositivo y suben en cuanto hay señal. Un control en un alto sin cobertura deja de ser un problema."
+    },
+    {
+      "etiqueta": "Si usas chip",
+      "pregunta": "Las lecturas se importan",
+      "respuesta": "Si cronometras con equipo RFID, sus lecturas entran en el mismo sitio que las tomadas a mano y se cruzan con los dorsales."
+    },
+    {
+      "etiqueta": "Los parciales",
+      "pregunta": "Cada paso, en su punto",
+      "respuesta": "No solo el tiempo de meta: el de cada control. Es lo que resuelve una reclamación sin discutir de memoria."
+    },
+    {
+      "etiqueta": "Las clasificaciones",
+      "pregunta": "General, género y categoría",
+      "respuesta": "Salen las tres a la vez y cuadradas entre sí, en cuanto entran los tiempos de meta. Revisas el pódium y publicas."
+    },
+    {
+      "etiqueta": "Y en pantalla",
+      "pregunta": "Grafismo para la retransmisión",
+      "respuesta": "Recorrido, altimetría y moto cámara montados sobre la emisión, sin que nadie tenga que dibujarlos a mano cada carrera."
+    }
+  ],
+  "cta": "Cronometramos tu carrera"
+}

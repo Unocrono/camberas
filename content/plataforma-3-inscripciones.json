@@ -1,0 +1,41 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "La plataforma",
+  "titulo": "Inscripciones que no dan trabajo",
+  "web": "camberas.com",
+  "slides": [
+    {
+      "etiqueta": "El formulario",
+      "pregunta": "Pides lo que necesitas y nada más",
+      "respuesta": "Apagas los campos que te sobran y añades los tuyos: club, licencia federativa, alergias, contacto de urgencia. Y uno distinto por cada distancia."
+    },
+    {
+      "etiqueta": "Sin registro",
+      "pregunta": "El corredor no tiene que crear cuenta",
+      "respuesta": "Se inscribe como invitado y recibe la confirmación por email con su dorsal. Cada paso que le quitas es gente que termina la inscripción."
+    },
+    {
+      "etiqueta": "Cobrado al momento",
+      "pregunta": "Pago con tarjeta, integrado",
+      "respuesta": "Pasarela de Redsys. Rellena, paga, y la inscripción entra ya cobrada y confirmada. Ni transferencias que cuadrar ni pagos que perseguir."
+    },
+    {
+      "etiqueta": "Descuentos",
+      "pregunta": "Cupones y equipos, automáticos",
+      "respuesta": "Códigos con porcentaje o importe y su tope de usos. Y tramos por número de corredores, para que un club se inscriba entero y pague de una vez."
+    },
+    {
+      "etiqueta": "Cancelaciones",
+      "pregunta": "Tu política, por escrito",
+      "respuesta": "Qué se devuelve y hasta cuándo. Escrito antes, no discutido por email dos días antes de la carrera."
+    },
+    {
+      "etiqueta": "Los dorsales",
+      "pregunta": "Se reparten solos",
+      "respuesta": "Cada distancia con su rango, y se asignan según entran. El número te dice la modalidad de un vistazo el día de la carrera."
+    }
+  ],
+  "cta": "Abre inscripciones"
+}

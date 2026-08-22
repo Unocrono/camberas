@@ -1,0 +1,42 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "La plataforma",
+  "titulo": "Seguimiento GPS en vivo",
+  "web": "camberas.com",
+  "slides": [
+    {
+      "etiqueta": "Quién sale en el mapa",
+      "pregunta": "Los corredores y los tuyos",
+      "respuesta": "Los participantes que llevan la app, y también la moto cámara, la ambulancia y la escoba. Todo el dispositivo en la misma pantalla."
+    },
+    {
+      "etiqueta": "Para la organización",
+      "pregunta": "Saber dónde está cada cosa",
+      "respuesta": "Quién va en cabeza, quién se ha descolgado y por dónde va la escoba. Sin llamadas de radio preguntando kilómetros."
+    },
+    {
+      "etiqueta": "Para la familia",
+      "pregunta": "Un enlace y a mirar",
+      "respuesta": "Quien se queda en casa sigue la carrera en directo sin instalarse nada ni crear ninguna cuenta."
+    },
+    {
+      "etiqueta": "Si falla la cobertura",
+      "pregunta": "No se pierde el rastro",
+      "respuesta": "La app guarda los puntos en el móvil y los sincroniza en cuanto vuelve la señal. En montaña eso pasa constantemente."
+    },
+    {
+      "etiqueta": "Sin vigilar a nadie",
+      "pregunta": "Solo emite el día de la carrera",
+      "respuesta": "El corredor lo activa él, y las posiciones solo se aceptan dentro de la ventana de la prueba. Fuera de ahí no se recoge nada.",
+      "nota": "De 24 h antes de la salida a 2 h después del cierre de meta."
+    },
+    {
+      "etiqueta": "Y en la retransmisión",
+      "pregunta": "El mapa y la altimetría, en pantalla",
+      "respuesta": "Hay grafismo listo para meter en la emisión: el recorrido, el perfil y la moto cámara sobre el vídeo."
+    }
+  ],
+  "cta": "Que se vea tu carrera"
+}

@@ -1,0 +1,36 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "La plataforma",
+  "titulo": "¿Qué es Camberas?",
+  "web": "camberas.com/planes",
+  "slides": [
+    {
+      "etiqueta": "En corto",
+      "pregunta": "Todo lo que necesita una carrera",
+      "respuesta": "Inscripciones, documentación, cronometraje, seguimiento GPS y resultados. En un solo sitio y hablándose entre sí."
+    },
+    {
+      "etiqueta": "De dónde sale",
+      "pregunta": "De cronometrar carreras, no de un despacho",
+      "respuesta": "Detrás está UNO Cronometraje. Está pensado por gente que ha pasado frío en una meta a las siete de la mañana."
+    },
+    {
+      "etiqueta": "Lo que te quita",
+      "pregunta": "Cuadrar cinco herramientas a la vez",
+      "respuesta": "La hoja de inscripciones, el Excel de dorsales, el grupo de WhatsApp de los cronometradores y el PDF de resultados. Todo eso pasa a ser una sola cosa."
+    },
+    {
+      "etiqueta": "Para quién",
+      "pregunta": "Desde la salida del domingo hasta las 500 personas",
+      "respuesta": "Una grupetta entre amigos es gratis. Una quedada de hasta 50 son 50 €. Una carrera cronometrada de hasta 500, 700 €. Por evento, no por corredor."
+    },
+    {
+      "etiqueta": "El día de la carrera",
+      "pregunta": "Lo llevas en el bolsillo",
+      "respuesta": "El panel del organizador va en el móvil, los cronometradores entran escaneando un QR y el seguimiento se ve en directo. Nadie está atado a una mesa."
+    }
+  ],
+  "cta": "Mira qué plan te encaja"
+}
