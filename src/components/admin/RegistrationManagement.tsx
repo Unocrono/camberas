@@ -940,6 +940,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
+      if (data.omitidos_sin_pagar) partes.push(`${data.omitidos_sin_pagar} sin pagar omitidos`);
       toast({
         title: "Sincronizado con EventBooking",
         description:

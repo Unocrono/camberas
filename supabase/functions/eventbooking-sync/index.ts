@@ -154,7 +154,7 @@ serve(async (req: Request): Promise<Response> => {
       (existentes ?? []).map((r: any) => [String(r.external_id), r]),
     );
 
-    let nuevos = 0, actualizados = 0, sinCambios = 0;
+    let nuevos = 0, actualizados = 0, sinCambios = 0, omitidosPendientes = 0;
     const errores: string[] = [];
     const inserciones: any[] = [];
 
@@ -176,6 +176,15 @@ serve(async (req: Request): Promise<Response> => {
       const pub = Number(r.published);
       const status = pub === 2 ? "cancelled" : pub === 1 ? "confirmed" : "pending";
       const paymentStatus = pub === 1 ? "paid" : "pending";
+
+      // Los intentos de pago abandonados (published 0) NO se dan de alta:
+      // EventBooking guarda cada intento y el mismo corredor aparece dos
+      // veces (pendiente + pagado). Pero si un ya-importado cambia luego
+      // (p.ej. a cancelado), sí se actualiza más abajo.
+      if (pub !== 1 && !porExternalId.has(externalId)) {
+        omitidosPendientes++;
+        continue;
+      }
 
       const sexo = campo(fields, "Sexo", "Genero", "Género");
       const genero = sexo ? GENERO[normalizar(sexo)] : undefined;
@@ -240,6 +249,7 @@ serve(async (req: Request): Promise<Response> => {
       nuevos,
       actualizados,
       sin_cambios: sinCambios,
+      omitidos_sin_pagar: omitidosPendientes,
       errores,
     };
 
