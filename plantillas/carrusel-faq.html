@@ -218,6 +218,18 @@ body {
   font-size: calc(32px * var(--escala, 1));
 }
 
+/* Captura dentro de un slide: mapa, perfil, pantallazo de la app.
+   Escala con --escala como el texto, así que el ajuste la tiene en cuenta
+   en vez de dejarla desbordar. object-fit:contain para no deformarla. */
+.imagen {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: calc(660px * var(--escala, 1));
+  object-fit: contain;
+  border-radius: 24px;
+}
+
 .pregunta {
   font-family: "Archivo Black", sans-serif;
   text-transform: uppercase;
@@ -358,6 +370,7 @@ function construirSlides(datos) {
         <div class="contenido caja-ajuste">
           ${etiquetaDe(s, i, tipo) ? `<div class="etiqueta">${esc(etiquetaDe(s, i, tipo))}</div>` : ''}
           <h2 class="pregunta">${esc(s.pregunta)}</h2>
+          ${s.imagen ? `<img class="imagen" src="${esc(s.imagen)}" alt="" />` : ''}
           <p class="respuesta">${esc(s.respuesta)}</p>
           ${s.nota ? `<p class="nota">${esc(s.nota)}</p>` : ''}
         </div>
@@ -460,6 +473,13 @@ async function montar() {
     caras.map(([f, p]) => document.fonts.load(`${p} 100px "${f}"`, 'Camberas ¿áéíóúñ?'))
   );
   await document.fonts.ready;
+
+  // Sin esperar a las imágenes, el ajuste mediría con altura cero
+  await Promise.all(
+    [...document.images].map((img) =>
+      img.complete ? null : new Promise((ok) => { img.onload = img.onerror = ok; })
+    )
+  );
 
   window.__FUENTES_FALTAN__ = caras
     .filter(([f, p]) => !fuenteAplicada(f, p))

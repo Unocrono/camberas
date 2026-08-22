@@ -13,6 +13,7 @@
  */
 
 import { readFile, mkdir, writeFile, rm, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
@@ -56,6 +57,9 @@ function validar(datos, ruta) {
     datos.slides.forEach((s, i) => {
       if (!s.pregunta?.trim()) fallos.push(`slides[${i}]: falta "pregunta"`);
       if (!s.respuesta?.trim()) fallos.push(`slides[${i}]: falta "respuesta"`);
+      // La ruta de la captura va relativa a la raíz del repo
+      if (s.imagen && !existsSync(resolve(RAIZ, s.imagen)))
+        fallos.push(`slides[${i}]: no existe la imagen "${s.imagen}"`);
     });
 
   if (fallos.length) {
@@ -88,10 +92,17 @@ function repartir(datos) {
 async function renderizar(navegador, carrusel, formato, plantilla) {
   const { ancho, alto } = FORMATOS[formato];
 
+  const datos = {
+    ...carrusel,
+    slides: carrusel.slides.map((s) =>
+      s.imagen ? { ...s, imagen: `file://${resolve(RAIZ, s.imagen)}` } : s
+    ),
+  };
+
   const html = plantilla.replace(
     '__DATOS__',
     // </script> dentro del JSON cerraría la etiqueta antes de tiempo
-    JSON.stringify(carrusel).replace(/<\//g, '<\\/')
+    JSON.stringify(datos).replace(/<\//g, '<\\/')
   );
 
   // Va junto a la plantilla para que las rutas relativas (fuentes/) resuelvan

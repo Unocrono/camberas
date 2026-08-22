@@ -7,9 +7,14 @@
   "web": "camberas.com/grupetta",
   "slides": [
     {
+      "etiqueta": "Al terminar",
+      "pregunta": "El capo lo genera",
+      "respuesta": "Cuando acaba la salida, el capo saca el mapa del recorrido y el perfil del desnivel. No hay que montar nada a mano ni andar recortando pantallazos."
+    },
+    {
       "etiqueta": "El mapa",
       "pregunta": "La ruta que os hicisteis",
-      "respuesta": "Dibujada entera, con su recorrido y sus kilómetros. Sin capturas de pantalla ni recortes a mano."
+      "respuesta": "Dibujada entera, con su recorrido y sus kilómetros."
     },
     {
       "etiqueta": "El perfil",
@@ -18,8 +23,8 @@
     },
     {
       "etiqueta": "Compártela",
-      "pregunta": "Directa a tus redes",
-      "respuesta": "Ya sale con el formato que piden, así que va tal cual a tu perfil o a tu historia."
+      "pregunta": "A tus redes o al grupo",
+      "respuesta": "La misma imagen vale para presumir en tu perfil y para mandarla al grupo de WhatsApp esa misma tarde."
     },
     {
       "etiqueta": "Y de paso",
