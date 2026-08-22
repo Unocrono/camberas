@@ -469,7 +469,9 @@ const GrupettaCapo = () => {
                                 onClick={() => setAbierta(abierta === g.race_id ? null : g.race_id)}
                               >
                                 {abierta === g.race_id ? (
-                                  <>Cerrar <ChevronUp className="h-4 w-4 ml-1" /></>
+                                  /* "Ocultar", no "Cerrar": en la misma tarjeta está
+                                     CIERRE DE CONEXIONES, y confundirlos asusta */
+                                  <>Ocultar <ChevronUp className="h-4 w-4 ml-1" /></>
                                 ) : (
                                   <>Gestionar <ChevronDown className="h-4 w-4 ml-1" /></>
                                 )}
