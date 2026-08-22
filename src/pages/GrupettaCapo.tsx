@@ -14,8 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp, QrCode } from "lucide-react";
-import { qrConLogo } from "@/lib/qrConLogo";
+import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 // El cartel (SVG grande + exportación a PNG) solo se carga si el capo abre
@@ -116,13 +115,7 @@ const GrupettaCapo = () => {
 
   // QR de unión: en la salida, el capo lo enseña y el nuevo lo escanea
   const [cartelGrupetta, setCartelGrupetta] = useState<MiGrupetta | null>(null);
-  const [qrGrupetta, setQrGrupetta] = useState<MiGrupetta | null>(null);
-  const [qrImagen, setQrImagen] = useState("");
 
-  const mostrarQr = async (g: MiGrupetta) => {
-    setQrGrupetta(g);
-    setQrImagen(await qrConLogo(urlUnion(g.join_code)));
-  };
 
   const copiar = (texto: string) => {
     navigator.clipboard.writeText(texto);
@@ -572,21 +565,16 @@ const GrupettaCapo = () => {
                               </a>
                             </Button>
 
-                            <Button size="sm" variant="secondary" onClick={() => mostrarQr(g)}>
-                              <QrCode className="h-4 w-4 mr-1" /> <span className="truncate">Mostrar QR de unión</span>
-                            </Button>
-
-                            <Button size="sm" variant="ghost" onClick={() => copiar(urlMapa(g.slug))}>
-                              <Copy className="h-4 w-4 mr-1" /> <span className="truncate">Copiar enlace del mapa</span>
-                            </Button>
-
                             {g.gpx && (
-                              <Button size="sm" variant="outline" className="col-span-2"
-                                onClick={() => setCartelGrupetta(g)}>
+                              <Button size="sm" variant="secondary" onClick={() => setCartelGrupetta(g)}>
                                 <ImageIcon className="h-4 w-4 mr-1" />
                                 <span className="truncate">Cartel para redes</span>
                               </Button>
                             )}
+
+                            <Button size="sm" variant="ghost" onClick={() => copiar(urlMapa(g.slug))}>
+                              <Copy className="h-4 w-4 mr-1" /> <span className="truncate">Copiar enlace del mapa</span>
+                            </Button>
 
                             <Button size="sm" variant="outline" asChild disabled={subiendo === g.race_id}>
                               <label className="cursor-pointer">
@@ -685,27 +673,6 @@ const GrupettaCapo = () => {
             />
             </Suspense>
           )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!qrGrupetta} onOpenChange={(o) => !o && setQrGrupetta(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <QrCode className="h-5 w-5" /> Únete a {qrGrupetta?.nombre}
-            </DialogTitle>
-            <DialogDescription>
-              Que lo escanee con la cámara del móvil: entra, pone su nombre y ya está en el grupo.
-            </DialogDescription>
-          </DialogHeader>
-          {qrImagen && (
-            <img src={qrImagen} alt="QR de unión" className="mx-auto rounded-lg border w-64 h-64" />
-          )}
-          <p className="text-center text-sm text-muted-foreground">
-            O con el código{" "}
-            <span className="font-mono font-bold text-foreground">{qrGrupetta?.join_code}</span>{" "}
-            en camberas.com/grupetta
-          </p>
         </DialogContent>
       </Dialog>
 
