@@ -77,6 +77,14 @@ slide entero sin cabecera ni regla, y ya no hace falta texto:
 { "imagen": "capturas/grupetta-mapa.png", "aSangre": true }
 ```
 
+Con `"pantallazo": true` la imagen puede ocupar bastante más alto. Es para
+capturas de móvil, que son 9:19,5: con el tope normal salen como una tira
+de 300 px y no se lee la interfaz.
+
+```json
+{ "pregunta": "…", "respuesta": "…", "imagen": "capturas/sos.jpeg", "pantallazo": true }
+```
+
 Eso es lo que quieren las piezas que **ya traen su propia marca** —el
 cartel de ruta sale a 1080×1350 con logo, título y datos—: encajarlas
 dentro de un slide normal las dejaría con doble cabecera. Se usa
