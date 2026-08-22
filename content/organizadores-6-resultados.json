@@ -1,0 +1,36 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Organizar",
+  "titulo": "Resultados en caliente",
+  "web": "camberas.com/guia-organizador",
+  "slides": [
+    {
+      "etiqueta": "Al cruzar la meta",
+      "pregunta": "La clasificación se hace sola",
+      "respuesta": "Los tiempos que registra el puesto de meta generan el resultado. Nadie teclea nada ni pasa nada a una hoja de cálculo."
+    },
+    {
+      "etiqueta": "De una vez",
+      "pregunta": "General, género y categoría",
+      "respuesta": "Las tres clasificaciones salen a la vez y cuadradas entre sí, que es donde se cuelan los errores cuando se hacen a mano."
+    },
+    {
+      "etiqueta": "Los parciales",
+      "pregunta": "Y por dónde pasó cada uno",
+      "respuesta": "El tiempo en cada punto de control, no solo el de meta. Sirve para resolver reclamaciones sin discutir de memoria."
+    },
+    {
+      "etiqueta": "Antes de publicar",
+      "pregunta": "Repasa el pódium a mano",
+      "respuesta": "Los primeros puestos son los que se miran con lupa. Revísalos, corrige lo que haga falta y publica cuando esté."
+    },
+    {
+      "etiqueta": "Y el corredor",
+      "pregunta": "Lo ve al momento",
+      "respuesta": "En la misma página de la carrera, con su tiempo, su puesto y sus parciales. Sin esperar al lunes ni a que alguien suba un PDF."
+    }
+  ],
+  "cta": "Publica en el mismo día"
+}

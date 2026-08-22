@@ -1,0 +1,37 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Organizar",
+  "titulo": "Cobrar sin montar una pasarela",
+  "web": "camberas.com/guia-organizador",
+  "slides": [
+    {
+      "etiqueta": "El freno",
+      "pregunta": "Cobrar es lo que echa para atrás",
+      "respuesta": "Montar una pasarela, cuadrar transferencias una a una y perseguir por WhatsApp a los que dijeron que ya lo hacían."
+    },
+    {
+      "etiqueta": "Cómo entra",
+      "pregunta": "Paga con tarjeta al inscribirse",
+      "respuesta": "Pasarela de Redsys integrada. El corredor rellena, paga y la inscripción entra ya cobrada y confirmada por email."
+    },
+    {
+      "etiqueta": "Cupones",
+      "pregunta": "Descuentos con código",
+      "respuesta": "Un porcentaje o unos euros, con su código y su tope de usos. Para el club de casa, para la promoción de enero o para quien tú quieras."
+    },
+    {
+      "etiqueta": "Equipos",
+      "pregunta": "Cuantos más vienen, más barato",
+      "respuesta": "Defines tramos por número de corredores y el descuento se aplica solo. El club se inscribe de una vez y paga en un solo pago.",
+      "nota": "Los tramos empiezan en dos corredores."
+    },
+    {
+      "etiqueta": "Cancelaciones",
+      "pregunta": "Tu política, por escrito",
+      "respuesta": "Defines qué se devuelve y hasta cuándo. Deja de ser una discusión por email dos días antes de la carrera."
+    }
+  ],
+  "cta": "Abre inscripciones de pago"
+}

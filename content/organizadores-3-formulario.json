@@ -1,0 +1,37 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Organizar",
+  "titulo": "Pide solo lo que necesitas",
+  "web": "camberas.com/guia-organizador",
+  "slides": [
+    {
+      "etiqueta": "Lo de siempre",
+      "pregunta": "Formularios que piden de todo",
+      "respuesta": "Talla de camiseta en una carrera sin camiseta, y ni un hueco donde apuntar una alergia. El formulario no es tuyo, es el que había."
+    },
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Apaga lo que no uses",
+      "respuesta": "Nombre, email, DNI, teléfono, género, fecha de nacimiento, talla. Enciendes y apagas lo que quieras."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Añade lo tuyo",
+      "respuesta": "Club, licencia federativa, alergias, contacto de urgencia. Los campos que tu carrera necesite, con el nombre que tú les pongas."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Marca lo obligatorio",
+      "respuesta": "Y ordénalos arrastrando, para que el formulario se lea como tú quieres que se lea."
+    },
+    {
+      "etiqueta": "Uno por distancia",
+      "pregunta": "No todas piden lo mismo",
+      "respuesta": "La maratón puede exigir licencia federativa y la marcha popular no. Cada distancia lleva su formulario.",
+      "nota": "Cuantos menos datos pidas, más gente termina la inscripción."
+    }
+  ],
+  "cta": "Haz tu formulario a medida"
+}

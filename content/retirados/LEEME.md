@@ -13,3 +13,6 @@ node generar-carrusel.js content/retirados/manual-grupetta.json
 - **manual-grupetta.json** — «Dejad de contar cabezas», la pieza suelta
   previa a la serie. La sustituyen los carruseles 1, 2 y 3 de grupetta,
   que cuentan lo mismo con más sitio.
+- **faq-organizadores.json** — «Montar tu carrera en Camberas», FAQ suelta
+  de cuando se probaba la herramienta: sin gancho y solapando con el
+  carrusel 2 de organizadores, que cuenta lo mismo con recorrido.

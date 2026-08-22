@@ -1,0 +1,36 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Organizar",
+  "titulo": "De la idea a la meta",
+  "web": "camberas.com/planes",
+  "slides": [
+    {
+      "etiqueta": "El lío",
+      "pregunta": "Una hoja de cálculo y un grupo de WhatsApp",
+      "respuesta": "Así se monta la mayoría de las carreras pequeñas. Y así se pierde media mañana cuadrando inscripciones, transferencias y dorsales a mano."
+    },
+    {
+      "etiqueta": "Qué cubre",
+      "pregunta": "De la inscripción al pódium",
+      "respuesta": "Inscripciones, cobros, dorsales, cronometraje, resultados y seguimiento en vivo. En el mismo sitio y hablándose entre sí."
+    },
+    {
+      "etiqueta": "Dónde se trabaja",
+      "pregunta": "En el navegador, y en el móvil",
+      "respuesta": "El panel va en el ordenador y en el móvil. El día de la carrera lo llevas encima, que es donde hace falta."
+    },
+    {
+      "etiqueta": "Lo que cuesta",
+      "pregunta": "Por evento, no por corredor",
+      "respuesta": "Quedada, 50 € hasta 50 participantes. Crono Profesional, 700 € hasta 500. Sabes lo que pagas antes de abrir inscripciones."
+    },
+    {
+      "etiqueta": "Para probar",
+      "pregunta": "Empieza por una salida en grupo",
+      "respuesta": "Una grupetta es gratis y usa el mismo motor de seguimiento. Buena forma de ver cómo va antes de montar una carrera."
+    }
+  ],
+  "cta": "Mira lo que cuesta tu carrera"
+}

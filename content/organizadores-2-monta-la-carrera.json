@@ -1,0 +1,37 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Organizar",
+  "titulo": "Monta la carrera",
+  "web": "camberas.com/guia-organizador",
+  "slides": [
+    {
+      "etiqueta": "Paso 1",
+      "pregunta": "Crea el evento",
+      "respuesta": "Nombre, fecha, lugar y tipo de carrera. Subes el cartel y la portada y ya tiene su página pública con su enlace."
+    },
+    {
+      "etiqueta": "Paso 2",
+      "pregunta": "Define las distancias",
+      "respuesta": "La maratón, la media, la marcha corta. Cada una con su precio, su límite de plazas y su desnivel."
+    },
+    {
+      "etiqueta": "Paso 3",
+      "pregunta": "Reparte los dorsales",
+      "respuesta": "Un rango por distancia y se asignan solos según entran las inscripciones.",
+      "nota": "Del 1 al 500 la maratón, del 501 en adelante la media: el día de la carrera sabes la modalidad de un vistazo."
+    },
+    {
+      "etiqueta": "Paso 4",
+      "pregunta": "Sube el GPX",
+      "respuesta": "El recorrido aparece dibujado en el mapa de la carrera, y de ahí salen los kilómetros y el desnivel sin que los teclees."
+    },
+    {
+      "etiqueta": "Y ya está viva",
+      "pregunta": "Comparte el enlace",
+      "respuesta": "La carrera tiene su página con toda la información y el botón de inscripción. Eso es lo que pegas en redes."
+    }
+  ],
+  "cta": "Monta la tuya"
+}
