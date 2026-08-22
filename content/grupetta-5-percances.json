@@ -18,6 +18,20 @@
       "nota": "El aviso va al grupo, no al 112."
     },
     {
+      "etiqueta": "Así se ve",
+      "pregunta": "El botón",
+      "respuesta": "Hay que mantenerlo pulsado dos segundos, para que no salte solo en el bolsillo.",
+      "imagen": "capturas/sos-1-boton.jpeg",
+      "pantallazo": true
+    },
+    {
+      "etiqueta": "Y el motivo",
+      "pregunta": "Sin escribir nada",
+      "respuesta": "Cuatro motivos hechos, un hueco para escribirlo a tu manera, y un enlace para cancelar si lo has pulsado sin querer.",
+      "imagen": "capturas/sos-2-motivo.jpeg",
+      "pantallazo": true
+    },
+    {
       "etiqueta": "El que se queda",
       "pregunta": "Nadie tiene que dar media vuelta",
       "respuesta": "Ves a cuánto viene el que se ha descolgado y decidís con datos: esperar en el alto, aflojar un poco o que alguien se descuelgue a buscarlo."
@@ -31,11 +45,6 @@
       "etiqueta": "El avituallamiento",
       "pregunta": "Se acabó contar cabezas",
       "respuesta": "Miras el móvil y sabes quién falta y cuánto le queda. Nadie sale antes de tiempo dejando a dos atrás."
-    },
-    {
-      "etiqueta": "Desde casa",
-      "pregunta": "Y los vuestros lo ven igual",
-      "respuesta": "Con el enlace de seguimiento os siguen avanzar por el mapa, sin instalarse nada. Saben si llegáis tarde antes de que llaméis."
     }
   ],
   "cta": "La próxima, con el grupo en el mapa"

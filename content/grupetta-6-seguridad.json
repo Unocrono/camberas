@@ -28,6 +28,13 @@
       "nota": "Es una ayuda para que los tuyos te encuentren, no un rescate."
     },
     {
+      "etiqueta": "Lo dice la app",
+      "pregunta": "No te lo tienes que creer",
+      "respuesta": "El aviso sale en la propia pantalla al mandar el SOS. Nadie te lo cuenta en letra pequeña.",
+      "imagen": "capturas/sos-3-confirmacion.jpeg",
+      "pantallazo": true
+    },
+    {
       "etiqueta": "Si hay que llamar",
       "pregunta": "Alguien sabrá dónde estás",
       "respuesta": "Lo más difícil de una emergencia en monte es explicar el sitio. Los tuyos tienen tu punto exacto en el mapa y pueden dárselo a quien venga a buscarte."

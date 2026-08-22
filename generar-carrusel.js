@@ -21,9 +21,9 @@ import { chromium } from 'playwright';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const PLANTILLA = join(RAIZ, 'plantillas', 'carrusel-faq.html');
 
-/** Instagram corta el carrusel en 10; nos quedamos en 8 por encargo. */
-const MAX_SLIDES = 8;
-/** Portada + cierre ocupan dos, así que caben 6 preguntas por carrusel. */
+/** Tope real de Instagram. */
+const MAX_SLIDES = 10;
+/** Portada + cierre ocupan dos, así que caben 8 de contenido. */
 const MAX_PREGUNTAS = MAX_SLIDES - 2;
 
 const FORMATOS = {
