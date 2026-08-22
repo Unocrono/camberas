@@ -1,0 +1,36 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Grupetta",
+  "titulo": "¡Pinchazo! Que no cunda la calma",
+  "web": "camberas.com/grupetta",
+  "slides": [
+    {
+      "etiqueta": "El pinchazo",
+      "pregunta": "Pinchas y no pasa nada",
+      "respuesta": "Te paras a cambiar la cámara y el grupo te ve parado en el mapa. Nadie sigue tirando veinte minutos sin enterarse de que faltas."
+    },
+    {
+      "etiqueta": "El que se queda",
+      "pregunta": "Nadie tiene que dar media vuelta",
+      "respuesta": "Ves a cuánto viene el que se ha descolgado y decidís con datos: esperar en el alto, aflojar un poco o que alguien se descuelgue a buscarlo."
+    },
+    {
+      "etiqueta": "El despiste",
+      "pregunta": "Te equivocas de desvío",
+      "respuesta": "Se ve en el mapa cuando todavía son doscientos metros y no cinco kilómetros de rodeo cuesta arriba."
+    },
+    {
+      "etiqueta": "El avituallamiento",
+      "pregunta": "Se acabó contar cabezas",
+      "respuesta": "Miras el móvil y sabes quién falta y cuánto le queda. Nadie sale antes de tiempo dejando a dos atrás."
+    },
+    {
+      "etiqueta": "Desde casa",
+      "pregunta": "Y los vuestros lo ven igual",
+      "respuesta": "Con el enlace de seguimiento os siguen avanzar por el mapa, sin instalarse nada. Saben si llegáis tarde antes de que llaméis."
+    }
+  ],
+  "cta": "La próxima, con el grupo en el mapa"
+}
