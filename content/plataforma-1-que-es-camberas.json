@@ -27,9 +27,10 @@
       "respuesta": "Una grupetta entre amigos es gratis. Una quedada de hasta 50 son 50 €. Una carrera cronometrada de hasta 500, 700 €. Por evento, no por corredor."
     },
     {
-      "etiqueta": "El día de la carrera",
-      "pregunta": "Lo llevas en el bolsillo",
-      "respuesta": "El panel del organizador va en el móvil, los cronometradores entran escaneando un QR y el seguimiento se ve en directo. Nadie está atado a una mesa."
+      "etiqueta": "Desde el primer día",
+      "pregunta": "Con app propia, no con una hoja de cálculo",
+      "respuesta": "Camberas Org se instala en el móvil como una app más. Inscripciones, documentación, voluntarios y resultados, desde que creas la carrera hasta que publicas los tiempos.",
+      "nota": "Y el día de la prueba, los cronometradores entran escaneando un QR."
     }
   ],
   "cta": "Mira qué plan te encaja"
