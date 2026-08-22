@@ -341,7 +341,7 @@ function construirSlides(datos) {
       <div class="centro caja-ajuste">
         <div class="antetitulo">${esc(antetitulo)}</div>
         <h1 class="titulo">${esc(titulo)}</h1>
-        <div class="pildora">Para ${esc(audiencia)}</div>
+        <div class="pildora">${esc(datos.pildora ?? `Para ${audiencia}`)}</div>
       </div>
       <div class="desliza">Desliza →</div>
       ${COLINAS}

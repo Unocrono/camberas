@@ -47,6 +47,7 @@ palabra fija.
   "tipo": "faq",
   "antetitulo": "opcional",
   "titulo": "…",
+  "pildora": "opcional",
   "web": "camberas.com",
   "slides": [
     { "etiqueta": "opcional", "pregunta": "…", "respuesta": "…", "nota": "opcional" }
@@ -58,6 +59,12 @@ palabra fija.
 `web` es lo que aparece bajo el CTA del último slide (por defecto
 `camberas.com`). Úsalo para mandar a la página concreta —
 `camberas.com/grupetta/capo`— en vez de a la portada.
+
+`pildora` sobrescribe la etiqueta de la portada, que por defecto es
+`Para {audiencia}`. Sirve cuando el carrusel apunta a un papel concreto
+dentro de la audiencia —«Para el capo»— en vez de a toda ella. Va en
+tamaño fijo, así que no la alargues: si no cabe de ancho, el ajuste
+encoge el titular entero para hacerle sitio.
 
 Un carrusel son como mucho **8 slides**: portada + hasta 6 de contenido +
 cierre con CTA. Si el JSON trae más, el generador lo parte en varios
