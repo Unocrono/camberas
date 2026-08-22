@@ -642,6 +642,41 @@ export type Database = {
         }
         Relationships: []
       }
+      eventbooking_sync: {
+        Row: {
+          distance_map: Json
+          enabled: boolean
+          event_id: number
+          last_result: Json | null
+          last_sync_at: string | null
+          race_id: string
+        }
+        Insert: {
+          distance_map?: Json
+          enabled?: boolean
+          event_id: number
+          last_result?: Json | null
+          last_sync_at?: string | null
+          race_id: string
+        }
+        Update: {
+          distance_map?: Json
+          enabled?: boolean
+          event_id?: number
+          last_result?: Json | null
+          last_sync_at?: string | null
+          race_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventbooking_sync_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: true
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       finish_photos: {
         Row: {
           athlete_name: string | null
@@ -898,6 +933,7 @@ export type Database = {
           event_id: string | null
           id: string
           linked_at: string | null
+          name_tv: string | null
           participant_name: string | null
           phone: string | null
           send_interval_seconds: number | null
@@ -913,6 +949,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           linked_at?: string | null
+          name_tv?: string | null
           participant_name?: string | null
           phone?: string | null
           send_interval_seconds?: number | null
@@ -928,6 +965,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           linked_at?: string | null
+          name_tv?: string | null
           participant_name?: string | null
           phone?: string | null
           send_interval_seconds?: number | null
@@ -3478,6 +3516,8 @@ export type Database = {
           last_split: string | null
           lastname: string | null
           position: number | null
+          split_id: number | null
+          split_tod: string | null
           status: string | null
           team: string | null
           updated_at: string | null
@@ -3500,6 +3540,8 @@ export type Database = {
           last_split?: string | null
           lastname?: string | null
           position?: number | null
+          split_id?: number | null
+          split_tod?: string | null
           status?: string | null
           team?: string | null
           updated_at?: string | null
@@ -3522,6 +3564,83 @@ export type Database = {
           last_split?: string | null
           lastname?: string | null
           position?: number | null
+          split_id?: number | null
+          split_tod?: string | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      racetec_leaderboard_split: {
+        Row: {
+          athlete_id: number | null
+          bib: string
+          cat_position: number | null
+          category: string | null
+          country: string | null
+          eid: string
+          firstname: string | null
+          gap_display: string | null
+          gap_secs: number | null
+          gender: string | null
+          gender_position: number | null
+          gun_time_display: string | null
+          gun_time_secs: number | null
+          id: number
+          last_split: string | null
+          lastname: string | null
+          position: number | null
+          split_id: number
+          split_tod: string | null
+          status: string | null
+          team: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id?: number | null
+          bib: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          split_id: number
+          split_tod?: string | null
+          status?: string | null
+          team?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: number | null
+          bib?: string
+          cat_position?: number | null
+          category?: string | null
+          country?: string | null
+          eid?: string
+          firstname?: string | null
+          gap_display?: string | null
+          gap_secs?: number | null
+          gender?: string | null
+          gender_position?: number | null
+          gun_time_display?: string | null
+          gun_time_secs?: number | null
+          id?: number
+          last_split?: string | null
+          lastname?: string | null
+          position?: number | null
+          split_id?: number
+          split_tod?: string | null
           status?: string | null
           team?: string | null
           updated_at?: string | null
@@ -3547,6 +3666,8 @@ export type Database = {
           last_split: string | null
           lastname: string | null
           position: number | null
+          split_id: number | null
+          split_tod: string | null
           status: string | null
           team: string | null
           updated_at: string | null
@@ -3569,6 +3690,8 @@ export type Database = {
           last_split?: string | null
           lastname?: string | null
           position?: number | null
+          split_id?: number | null
+          split_tod?: string | null
           status?: string | null
           team?: string | null
           updated_at?: string | null
@@ -3591,6 +3714,8 @@ export type Database = {
           last_split?: string | null
           lastname?: string | null
           position?: number | null
+          split_id?: number | null
+          split_tod?: string | null
           status?: string | null
           team?: string | null
           updated_at?: string | null
@@ -3726,6 +3851,7 @@ export type Database = {
           created_at: string
           dni_passport: string | null
           email: string | null
+          external_id: string | null
           first_name: string | null
           gender: string | null
           gender_id: number | null
@@ -3761,6 +3887,7 @@ export type Database = {
           created_at?: string
           dni_passport?: string | null
           email?: string | null
+          external_id?: string | null
           first_name?: string | null
           gender?: string | null
           gender_id?: number | null
@@ -3796,6 +3923,7 @@ export type Database = {
           created_at?: string
           dni_passport?: string | null
           email?: string | null
+          external_id?: string | null
           first_name?: string | null
           gender?: string | null
           gender_id?: number | null
@@ -4774,6 +4902,84 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_bot_config: {
+        Row: {
+          active_eid: string | null
+          distance_id: string | null
+          enabled: boolean
+          id: number
+          info_url: string | null
+          live_url: string | null
+          position_mode: string
+          race_id: string | null
+          race_info: string
+          race_name: string
+          rate_limit_hour: number
+          results_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          active_eid?: string | null
+          distance_id?: string | null
+          enabled?: boolean
+          id?: number
+          info_url?: string | null
+          live_url?: string | null
+          position_mode?: string
+          race_id?: string | null
+          race_info?: string
+          race_name?: string
+          rate_limit_hour?: number
+          results_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active_eid?: string | null
+          distance_id?: string | null
+          enabled?: boolean
+          id?: number
+          info_url?: string | null
+          live_url?: string | null
+          position_mode?: string
+          race_id?: string | null
+          race_info?: string
+          race_name?: string
+          rate_limit_hour?: number
+          results_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wa_messages: {
+        Row: {
+          body: string | null
+          created_at: string
+          error: string | null
+          intent: string | null
+          reply_sent: boolean
+          wa_id: string
+          wam_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          error?: string | null
+          intent?: string | null
+          reply_sent?: boolean
+          wa_id: string
+          wam_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          error?: string | null
+          intent?: string | null
+          reply_sent?: boolean
+          wa_id?: string
+          wam_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -5039,6 +5245,10 @@ export type Database = {
         Args: { p_registration_id: string }
         Returns: string
       }
+      get_registration_track_full: {
+        Args: { p_race_id?: string; p_registration_id: string }
+        Returns: Json
+      }
       get_token_track: {
         Args: { p_token_id: string }
         Returns: {
@@ -5048,6 +5258,7 @@ export type Database = {
           ts: string
         }[]
       }
+      get_token_track_full: { Args: { p_token_id: string }; Returns: Json }
       get_user_email: { Args: { _user_id: string }; Returns: string }
       get_users_with_emails: {
         Args: never
@@ -5090,6 +5301,14 @@ export type Database = {
         }[]
       }
       link_team_members_by_dni: { Args: { p_user_id: string }; Returns: number }
+      marcar_gallo: {
+        Args: {
+          p_intervalo?: number
+          p_name_tv?: string
+          p_token_row_id: string
+        }
+        Returns: undefined
+      }
       mis_grupettas: {
         Args: never
         Returns: {
@@ -5121,6 +5340,7 @@ export type Database = {
           token_id: string
         }[]
       }
+      nombre_normalizado: { Args: { p: string }; Returns: string }
       process_event_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -5131,6 +5351,7 @@ export type Database = {
       }
       puede_gestionar_carrera: { Args: { p_race_id: string }; Returns: boolean }
       purge_gps_antiguos: { Args: never; Returns: undefined }
+      purge_wa_messages: { Args: never; Returns: undefined }
       revocar_token_corredor: {
         Args: { p_token_row_id: string }
         Returns: undefined
@@ -5156,6 +5377,7 @@ export type Database = {
           distance_id: string
           evento: string
           intervalo: number
+          name_tv: string
           nombre: string
           token: string
           token_row_id: string
