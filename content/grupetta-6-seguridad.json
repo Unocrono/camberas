@@ -3,7 +3,8 @@
   "marca": "camberas",
   "tipo": "manual",
   "antetitulo": "Grupetta",
-  "titulo": "El botón que ojalá no uses",
+  "titulo": "Ojalá no lo uses",
+  "iconoPortada": "sos",
   "web": "camberas.com/grupetta",
   "slides": [
     {

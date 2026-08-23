@@ -36,6 +36,20 @@ cartelería y cualquier pieza nueva. **Ampliar aquí, no inventar colores suelto
 | **Lima** | `#C8E85C` | Sol sobre cielos verdes, acentos frescos |
 | **Sol melocotón** | `#F6C89A` | Sol sobre cielo arena |
 
+## Funcionales
+
+No son colores de marca: no valen para acentos, titulares ni llamadas a la
+acción. Están porque los pinta el producto y hay piezas que lo reproducen.
+
+| Nombre | Hex | Uso |
+|---|---|---|
+| **Rojo SOS** | `#D91F10` | Cuerpo del botón de emergencia de Camberas Track |
+| **Rojo SOS claro** | `#FB493B` | Aro del botón y degradado superior |
+
+Muestreados de la propia app. Ojo al reproducir el botón sobre fondo
+oscuro: el rojo a baja opacidad sobre verde tinta vira a marrón, así que
+nada de halos translúcidos — aro fino y cuerpo sólido.
+
 ## Notas de uso
 
 - **El naranja es el color de acción**: una sola llamada principal por pantalla.
