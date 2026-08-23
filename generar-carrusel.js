@@ -50,6 +50,8 @@ function validar(datos, ruta) {
   if (datos.tipo !== undefined && !['faq', 'manual'].includes(datos.tipo))
     fallos.push('"tipo" debe ser "faq" (por defecto) o "manual"');
   if (!datos.titulo?.trim()) fallos.push('falta "titulo"');
+  if (datos.imagenPortada && !existsSync(resolve(RAIZ, datos.imagenPortada)))
+    fallos.push(`no existe la imagen de portada "${datos.imagenPortada}"`);
   if (!datos.cta?.trim()) fallos.push('falta "cta"');
   if (!Array.isArray(datos.slides) || datos.slides.length === 0)
     fallos.push('"slides" debe ser un array con al menos una pregunta');
@@ -99,6 +101,9 @@ async function renderizar(navegador, carrusel, formato, plantilla) {
 
   const datos = {
     ...carrusel,
+    ...(carrusel.imagenPortada
+      ? { imagenPortada: `file://${resolve(RAIZ, carrusel.imagenPortada)}` }
+      : {}),
     slides: carrusel.slides.map((s) =>
       s.imagen ? { ...s, imagen: `file://${resolve(RAIZ, s.imagen)}` } : s
     ),

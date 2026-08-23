@@ -27,10 +27,6 @@
   --colina-oscura: #1E5B38;
   --lima: #C8E85C;
 
-  /* Rojo del botón SOS de Camberas Track, muestreado de la propia app.
-     Es color funcional, NO de marca: solo para el botón de emergencia. */
-  --rojo-sos: #D91F10;
-  --rojo-sos-claro: #FB493B;
 
   /* Formato: lo fija generar-carrusel.js con data-formato en <html> */
   --ancho: 1080px;
@@ -178,12 +174,15 @@ body {
   opacity: 0.75;
 }
 
-/* Botón SOS dibujado, para portadas que hablan de la emergencia. Va
-   vectorial y no recortado del pantallazo: nítido a cualquier tamaño. */
-.sos {
+/* Pieza de la app en la portada: el botón SOS recortado del pantallazo.
+   Centrada, aunque el resto de la portada vaya alineado a la izquierda:
+   es un objeto, no texto. */
+.portada-imagen {
+  align-self: center;
   display: block;
-  width: calc(250px * var(--escala, 1));
+  width: calc(440px * var(--escala, 1));
   height: auto;
+  border-radius: 20px;
 }
 
 /* ── Slides de pregunta ──────────────────────────────────────── */
@@ -349,25 +348,6 @@ const LOGO = `
   </g>
 </svg>`;
 
-/* Botón SOS: aro fino, cuerpo con degradado y las tres letras.
-   Nada de halos translúcidos: el rojo a baja opacidad sobre verde
-   tinta vira a marrón y ensucia la portada. */
-const BOTON_SOS = `
-<svg class="sos" viewBox="0 0 240 240" role="img" aria-label="Botón SOS">
-  <defs>
-    <linearGradient id="gsos" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#E8281A" />
-      <stop offset="1" stop-color="#CB0100" />
-    </linearGradient>
-  </defs>
-  <circle cx="120" cy="120" r="112" fill="none" stroke="#FB493B"
-          stroke-width="3" opacity="0.40" />
-  <circle cx="120" cy="120" r="96"  fill="url(#gsos)" />
-  <text x="120" y="122" text-anchor="middle" dominant-baseline="central"
-        font-family="Archivo Black, sans-serif" font-size="56"
-        letter-spacing="3" fill="#FAF6EC">SOS</text>
-</svg>`;
-
 /* Colinas en su orden: oscura al fondo, clara delante. */
 const COLINAS = `
 <svg class="colinas" viewBox="0 0 1080 200" preserveAspectRatio="none" aria-hidden="true">
@@ -407,7 +387,7 @@ function construirSlides(datos) {
     <section class="slide portada" data-audiencia="${esc(audiencia)}">
       <div class="cabecera">${marca()}</div>
       <div class="centro caja-ajuste">
-        ${datos.iconoPortada === 'sos' ? BOTON_SOS : ''}
+        ${datos.imagenPortada ? `<img class="portada-imagen" src="${esc(datos.imagenPortada)}" alt="" />` : ''}
         <div class="antetitulo">${esc(antetitulo)}</div>
         <h1 class="titulo">${esc(titulo)}</h1>
         <div class="pildora">${esc(datos.pildora ?? `Para ${audiencia}`)}</div>

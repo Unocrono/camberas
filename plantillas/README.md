@@ -161,3 +161,28 @@ Archivo Black y Barlow Semi Condensed (las mismas que enlaza `index.html`)
 van autoalojadas en `fuentes/`, bajo SIL Open Font License 1.1. El render
 no puede depender de la red: sin ellas los PNG salen con otra tipografía,
 y con las fuentes cargadas por CDN eso pasaba en silencio.
+
+## Recortar una pieza de un pantallazo
+
+`plantillas/herramientas/recortar.mjs` saca un trozo de una captura y le
+cambia el fondo de la app por el del carrusel, para que no se vea el
+rectángulo pegado:
+
+```sh
+node plantillas/herramientas/recortar.mjs \
+  capturas/sos-1-boton.jpeg capturas/sos-boton-recorte.png 178 898 380 212
+```
+
+Los cuatro números son `x y ancho alto` en píxeles del original. El
+recorte se hace en el navegador con canvas y el script escribe el PNG
+directamente: no hace falta ninguna librería de imagen.
+
+La sustitución de fondo va con caída suave —cerca del verde de la app se
+reemplaza entero, en la franja de transición se mezcla— para que el borde
+del círculo no quede con halo.
+
+Para ponerlo en la portada de un carrusel:
+
+```json
+{ "titulo": "…", "imagenPortada": "capturas/sos-boton-recorte.png" }
+```
