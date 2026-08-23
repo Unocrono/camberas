@@ -186,3 +186,32 @@ Para ponerlo en la portada de un carrusel:
 ```json
 { "titulo": "…", "imagenPortada": "capturas/sos-boton-recorte.png" }
 ```
+
+## Vídeo a partir de un carrusel
+
+`plantillas/herramientas/video.mjs` encadena los PNG ya renderizados en un
+MP4, con un fundido corto entre slides:
+
+```sh
+# Reel / story vertical
+node plantillas/herramientas/video.mjs out/corredores/<slug>/story reel.mp4
+
+# Vídeo de feed, 4:5
+node plantillas/herramientas/video.mjs out/corredores/<slug>/feed feed.mp4
+```
+
+Cada slide se queda el tiempo de leerlo: 2,6 s la portada, 4 s los de
+contenido y 3,4 s el cierre. Un carrusel de 7 sale en unos 24 s, que es
+buena duración de Reel.
+
+**Hace falta un ffmpeg con libx264.** El que trae Playwright en
+`/opt/pw-browsers` NO vale: está compilado con `--disable-everything` y
+solo saca WebM/VP8, que Instagram no admite. Se busca en este orden:
+`FFMPEG_PATH` → `ffmpeg` del PATH → `node_modules/ffmpeg-static`.
+
+```sh
+npm i -D ffmpeg-static      # o instala ffmpeg en el sistema
+```
+
+El vídeo sale **mudo**: la música se pone en el propio editor de
+Instagram, que además es donde el audio cuenta para la distribución.
