@@ -86,12 +86,29 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
     }
   };
 
+  /**
+   * La etiqueta de Estado parece informativa pero es un interruptor, y
+   * revocar deja el QR de ese dorsal inservible al instante. Los dorsales
+   * demo de las tiendas se desactivaron DOS veces así (21 y 22-ago), y la
+   * segunda costó el rechazo de Google Play. Ahora hay que confirmar.
+   */
   const revocar = async (row: TokenRow) => {
+    const aviso = row.activo
+      ? `¿Revocar el dorsal ${row.bib}${row.nombre ? " (" + row.nombre + ")" : ""}?
+
+Su QR y su enlace DEJAN DE FUNCIONAR de inmediato, y el móvil que lo lleve
+vinculado no podrá seguir enviando.`
+      : `¿Reactivar el dorsal ${row.bib}${row.nombre ? " (" + row.nombre + ")" : ""}?`;
+    if (!window.confirm(aviso)) return;
+
     const { error } = await supabase.rpc("revocar_token_corredor" as never, {
       p_token_row_id: row.token_row_id,
     } as never);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else await cargar();
+    else {
+      toast({ title: row.activo ? `Dorsal ${row.bib} revocado` : `Dorsal ${row.bib} reactivado` });
+      await cargar();
+    }
   };
 
   const cambiarIntervalo = async (row: TokenRow) => {
@@ -213,7 +230,12 @@ Vacio = quitar del grafismo.`,
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.activo ? "default" : "secondary"} className="cursor-pointer" onClick={() => revocar(row)}>
+                    <Badge
+                      variant={row.activo ? "default" : "secondary"}
+                      className="cursor-pointer"
+                      title={row.activo ? "Clic para REVOCAR este dorsal" : "Clic para reactivarlo"}
+                      onClick={() => revocar(row)}
+                    >
                       {row.activo ? (row.device_id ? "Vinculado" : "Activo") : "Revocado"}
                     </Badge>
                   </TableCell>
