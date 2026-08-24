@@ -418,7 +418,7 @@ const TeamRegister = () => {
               {distanciaId && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>2. Corredores del lote {N > 0 ? `(${N})` : ""}</CardTitle>
+                    <CardTitle>2. Corredores del equipo {N > 0 ? `(${N})` : ""}</CardTitle>
                     <CardDescription>
                       Marca a quién inscribes y completa la ficha de cada uno. Los datos que
                       ya tienes guardados van rellenos.

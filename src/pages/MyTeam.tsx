@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { TeamAccessCard } from "@/components/teams/TeamAccessCard";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Loader2, Users, UserPlus, Trash2, Pencil, ChevronDown, ChevronUp, ShieldCheck, Mail, Flag,
+  Loader2, Users, UserPlus, Trash2, Pencil, ChevronDown, ChevronUp, ShieldCheck, Mail, Flag, Plus,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -67,6 +67,9 @@ const MyTeam = () => {
   const [equiposDondeEstoy, setEquiposDondeEstoy] = useState<Team[]>([]);
   const [nombreEquipo, setNombreEquipo] = useState("");
   const [abierto, setAbierto] = useState<string | null>(null);
+  // El formulario de alta solo se enseña si no tienes equipo; teniéndolo,
+  // lo normal es gestionar el que hay, no crear otro
+  const [mostrarCrear, setMostrarCrear] = useState(false);
 
   // Roster del equipo abierto
   const [miembros, setMiembros] = useState<Member[]>([]);
@@ -102,31 +105,6 @@ const MyTeam = () => {
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, setSearchParams, toast]);
 
-  const cargarEquipos = useCallback(async () => {
-    if (!session) return;
-    // RLS devuelve los equipos que capitaneo y aquellos donde estoy vinculado
-    const { data, error } = await (supabase as any)
-      .from("teams")
-      .select("id, name, captain_user_id, created_at")
-      .order("created_at", { ascending: true });
-    if (error) {
-      toast({ title: "No se pudieron cargar los equipos", description: error.message, variant: "destructive" });
-      return;
-    }
-    const todos = (data ?? []) as Team[];
-    setMisEquipos(todos.filter((t) => t.captain_user_id === session.user.id));
-    setEquiposDondeEstoy(todos.filter((t) => t.captain_user_id !== session.user.id));
-  }, [session, toast]);
-
-  useEffect(() => {
-    if (session) cargarEquipos();
-    else {
-      setMisEquipos([]);
-      setEquiposDondeEstoy([]);
-      setAbierto(null);
-    }
-  }, [session, cargarEquipos]);
-
   const cargarMiembros = useCallback(async (teamId: string) => {
     setCargandoMiembros(true);
     const { data, error } = await (supabase as any)
@@ -141,6 +119,40 @@ const MyTeam = () => {
     }
     setMiembros((data ?? []) as Member[]);
   }, [toast]);
+
+  const cargarEquipos = useCallback(async () => {
+    if (!session) return;
+    // RLS devuelve los equipos que capitaneo y aquellos donde estoy vinculado
+    const { data, error } = await (supabase as any)
+      .from("teams")
+      .select("id, name, captain_user_id, created_at")
+      .order("created_at", { ascending: true });
+    if (error) {
+      toast({ title: "No se pudieron cargar los equipos", description: error.message, variant: "destructive" });
+      return;
+    }
+    const todos = (data ?? []) as Team[];
+    const propios = todos.filter((t) => t.captain_user_id === session.user.id);
+    setMisEquipos(propios);
+    setEquiposDondeEstoy(todos.filter((t) => t.captain_user_id !== session.user.id));
+
+    // Con un solo equipo no hay nada que elegir: se abre solo, que el
+    // capitán viene a gestionarlo. Y el alta solo se ofrece si no hay ninguno.
+    if (propios.length === 1) {
+      setAbierto(propios[0].id);
+      cargarMiembros(propios[0].id);
+    }
+    setMostrarCrear(propios.length === 0);
+  }, [session, toast, cargarMiembros]);
+
+  useEffect(() => {
+    if (session) cargarEquipos();
+    else {
+      setMisEquipos([]);
+      setEquiposDondeEstoy([]);
+      setAbierto(null);
+    }
+  }, [session, cargarEquipos]);
 
   const abrirEquipo = (teamId: string) => {
     const siguiente = abierto === teamId ? null : teamId;
@@ -271,30 +283,8 @@ const MyTeam = () => {
                 <TeamAccessCard />
               ) : (
                 <div className="space-y-6">
-                  {/* Crear equipo */}
-                  <div className="space-y-3 border rounded-xl p-4">
-                    <p className="font-semibold text-sm">✨ Nuevo equipo</p>
-                    <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
-                      <div>
-                        <Label>Nombre del equipo</Label>
-                        <Input
-                          value={nombreEquipo}
-                          onChange={(e) => setNombreEquipo(e.target.value)}
-                          maxLength={60}
-                          placeholder="Ej: CD Camberas Trail"
-                        />
-                      </div>
-                      <Button
-                        variant="secondary"
-                        onClick={crearEquipo}
-                        disabled={cargando || nombreEquipo.trim().length < 3}
-                      >
-                        {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : "CREAR"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Mis equipos (capitán) */}
+                  {/* Mis equipos (capitán) — lo primero: se viene a gestionar
+                      el equipo que ya existe, no a crear otro */}
                   {misEquipos.map((t) => (
                     <div key={t.id} className="border rounded-xl p-4 space-y-3">
                       <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -463,6 +453,54 @@ const MyTeam = () => {
                       )}
                     </div>
                   ))}
+
+                  {/* Crear equipo: en primer plano si no tienes ninguno;
+                      teniéndolo, un enlace discreto al final (un club puede
+                      querer un segundo equipo, pero no es lo habitual) */}
+                  {mostrarCrear ? (
+                    <div className="space-y-3 border rounded-xl p-4">
+                      <p className="font-semibold text-sm">
+                        {misEquipos.length === 0 ? "✨ Crea tu equipo" : "✨ Otro equipo más"}
+                      </p>
+                      <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+                        <div>
+                          <Label>Nombre del equipo</Label>
+                          <Input
+                            value={nombreEquipo}
+                            onChange={(e) => setNombreEquipo(e.target.value)}
+                            maxLength={60}
+                            placeholder="Ej: CD Camberas Trail"
+                            autoFocus={misEquipos.length > 0}
+                          />
+                        </div>
+                        <Button
+                          variant="secondary"
+                          onClick={crearEquipo}
+                          disabled={cargando || nombreEquipo.trim().length < 3}
+                        >
+                          {cargando ? <Loader2 className="h-4 w-4 animate-spin" /> : "CREAR"}
+                        </Button>
+                      </div>
+                      {misEquipos.length > 0 && (
+                        <button
+                          className="text-xs text-muted-foreground underline"
+                          onClick={() => {
+                            setMostrarCrear(false);
+                            setNombreEquipo("");
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                      onClick={() => setMostrarCrear(true)}
+                    >
+                      <Plus className="h-4 w-4" /> Crear otro equipo
+                    </button>
+                  )}
 
                   {/* Equipos donde estoy (vinculado, no capitán) */}
                   {equiposDondeEstoy.length > 0 && (
