@@ -961,6 +961,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (data?.error) throw new Error(data.error);
       const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
       if (data.omitidos_sin_pagar) partes.push(`${data.omitidos_sin_pagar} sin pagar omitidos`);
+      if (data.dorsales_asignados) partes.push(`${data.dorsales_asignados} dorsales asignados`);
       if (data.avisos?.length) partes.push(`ATENCIÓN: ${data.avisos.slice(0, 3).join("; ")}`);
       toast({
         title: "Sincronizado con EventBooking",

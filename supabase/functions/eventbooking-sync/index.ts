@@ -306,12 +306,57 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
       }
     }
 
+    // Dorsales: solo si el recorrido tiene numeracion automatica.
+    // assign_next_bib devuelve el siguiente numero cuando hay rango
+    // configurado, y NULL cuando no lo hay (o esta agotado), asi que la
+    // regla es directa: si la carrera numera sola, el inscrito importado
+    // recibe dorsal igual que uno que se apunta en Camberas; si no numera,
+    // se queda sin dorsal y ya se asignaran al cerrar inscripciones.
+    //
+    // Se asigna DESPUES de dar de alta, no antes: si un alta fallara con el
+    // numero ya pedido, ese dorsal quedaria quemado y abriria un hueco.
+    // Tambien alcanza a los importados en pasadas anteriores que aun no
+    // tengan numero, por si el rango se configuro despues.
+    const { data: pendientesDorsal } = await service
+      .from("registrations")
+      .select("id, race_distance_id")
+      .eq("race_id", race_id)
+      .not("external_id", "is", null)
+      .is("bib_number", null)
+      .neq("status", "cancelled")
+      .order("created_at", { ascending: true });
+
+    let dorsales = 0;
+    const sinNumeracion = new Set<string>();
+    for (const reg of pendientesDorsal ?? []) {
+      if (sinNumeracion.has(reg.race_distance_id)) continue;
+      const { data: bib, error } = await service.rpc("assign_next_bib", {
+        p_distance_id: reg.race_distance_id,
+      });
+      if (error) {
+        errores.push(`Al asignar dorsal: ${error.message}`);
+        break;
+      }
+      if (bib === null || bib === undefined) {
+        // Ese recorrido no numera automaticamente: no insistimos con el resto.
+        sinNumeracion.add(reg.race_distance_id);
+        continue;
+      }
+      const { error: errUpd } = await service
+        .from("registrations")
+        .update({ bib_number: bib })
+        .eq("id", reg.id);
+      if (errUpd) errores.push(`Dorsal ${bib}: ${errUpd.message}`);
+      else dorsales++;
+    }
+
     const resultado = {
       total_eventbooking: registrants.length,
       nuevos,
       actualizados,
       sin_cambios: sinCambios,
       omitidos_sin_pagar: omitidosPendientes,
+      dorsales_asignados: dorsales,
       avisos,
       errores,
     };
