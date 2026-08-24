@@ -12,6 +12,7 @@ import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
+import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
@@ -266,6 +267,8 @@ const AdminDashboard = () => {
             )}
             {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
+            {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
+            {currentView === "teams" && <TeamsManagement />}
             {currentView === "race-documents" && (
               selectedRaceId ? (
                 <RaceDocumentsManagement raceId={selectedRaceId} />

@@ -164,7 +164,20 @@ const PrivacyPolicy = () => {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold text-foreground mb-4">9. Seguridad de los Datos</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-4">9. Equipos y Clubes: Datos de Terceros</h2>
+              <p className="text-muted-foreground">
+                Camberas permite que el capitán de un equipo guarde los datos de sus componentes (nombre, apellidos, documento de identidad, email y teléfono) para inscribirlos en carreras y comunicarse con ellos. Al introducir los datos de otra persona, el capitán declara contar con su autorización para facilitarlos y es responsable de que sean veraces y estén actualizados.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Cualquier componente de un equipo puede solicitar el acceso, la rectificación o la supresión de sus datos escribiendo a info@camberas.com, sin necesidad de dirigirse a su capitán. Si el componente tiene cuenta en Camberas, sus datos quedan vinculados a ella y puede gestionarlos directamente desde su perfil.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Los datos de un equipo solo son visibles para su capitán, para los componentes vinculados a una cuenta y para el personal autorizado de Camberas. Los equipos no se publican ni se muestran a otros usuarios.
+              </p>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-foreground mb-4">10. Seguridad de los Datos</h2>
               <p className="text-muted-foreground">
                 Hemos implementado medidas técnicas y organizativas apropiadas para proteger tus datos personales contra el acceso no autorizado, la alteración, divulgación o destrucción. Estas medidas incluyen:
               </p>
@@ -178,14 +191,14 @@ const PrivacyPolicy = () => {
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold text-foreground mb-4">10. Modificaciones</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-4">11. Modificaciones</h2>
               <p className="text-muted-foreground">
                 Nos reservamos el derecho a modificar esta Política de Privacidad para adaptarla a novedades legislativas o cambios en nuestros servicios. Te notificaremos cualquier cambio significativo a través de la plataforma o por email.
               </p>
             </section>
 
             <section className="mb-8">
-              <h2 className="text-xl font-semibold text-foreground mb-4">11. Contacto</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-4">12. Contacto</h2>
               <p className="text-muted-foreground">
                 Para cualquier consulta relacionada con esta Política de Privacidad o el tratamiento de tus datos, puedes contactarnos en: <a href="mailto:enrique@mazon.es" className="text-primary hover:underline">enrique@mazon.es</a>
               </p>

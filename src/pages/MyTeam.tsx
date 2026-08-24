@@ -430,6 +430,16 @@ const MyTeam = () => {
                                 />
                               </div>
                             </div>
+                            {/* Consentimiento delegado: el capitán teclea datos
+                                de terceros y responde de ellos (ver política de
+                                privacidad, apartado 9) */}
+                            <p className="text-xs text-muted-foreground">
+                              Añade solo a personas que te hayan autorizado a gestionar sus
+                              datos e inscripciones.{" "}
+                              <Link to="/privacy-policy" className="underline">
+                                Cómo tratamos estos datos
+                              </Link>
+                            </p>
                             <div className="flex gap-2">
                               <Button size="sm" type="submit" disabled={guardando}>
                                 {guardando ? <Loader2 className="h-4 w-4 animate-spin" /> : editando ? "Guardar cambios" : "Añadir"}
