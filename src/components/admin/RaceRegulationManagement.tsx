@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CancellationPolicyManagement } from "@/components/admin/CancellationPolicyManagement";
+import { CesionPolicyManagement } from "@/components/admin/CesionPolicyManagement";
 
 interface RaceRegulationManagementProps {
   raceId: string;
@@ -516,6 +517,10 @@ export default function RaceRegulationManagement({ raceId }: RaceRegulationManag
       {/* Tramos de devolución: se publican solos como apartado del
           reglamento y se aplican al cancelar una inscripción */}
       <CancellationPolicyManagement raceId={raceId} />
+
+      {/* Cesión de dorsal: va aquí, junto a la cancelación, porque es la otra
+          mitad de la misma decisión — qué pasa cuando alguien no puede correr */}
+      <CesionPolicyManagement raceId={raceId} />
 
       {availableSections.length > 0 && (
         <Card>

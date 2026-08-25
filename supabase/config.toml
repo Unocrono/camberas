@@ -77,3 +77,8 @@ verify_jwt = false
 # por dentro (has_role). Sin una de las dos cosas responde 401.
 [functions.recuperar-pagos]
 verify_jwt = false
+
+# El cedente sin cuenta pide su enlace por email: no hay sesion que valga.
+# La funcion nunca devuelve el enlace en la respuesta, solo lo manda al correo.
+[functions.cesion-solicitar-enlace]
+verify_jwt = false

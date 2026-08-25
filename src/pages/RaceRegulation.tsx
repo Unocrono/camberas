@@ -40,6 +40,12 @@ const RaceRegulation = () => {
   const [cancellationTiers, setCancellationTiers] = useState<
     { days_before: number; refund_percent: number }[]
   >([]);
+  // Política de cesión de dorsal: solo se pinta si el organizador la activó
+  const [cesion, setCesion] = useState<{
+    fecha_limite: string | null;
+    max_cesiones: number;
+    texto_extra: string | null;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [raceId, setRaceId] = useState<string | null>(null);
 
@@ -123,6 +129,14 @@ const RaceRegulation = () => {
         .eq("race_id", raceId)
         .order("days_before", { ascending: false });
       setCancellationTiers(tiersData || []);
+
+      // Política de cesión de dorsal (tabla nueva aún sin tipos generados)
+      const { data: cesionData } = await (supabase as any)
+        .from("race_cesion_config")
+        .select("permitida, fecha_limite, max_cesiones, texto_extra")
+        .eq("race_id", raceId)
+        .maybeSingle();
+      setCesion(cesionData?.permitida ? cesionData : null);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -213,7 +227,7 @@ const RaceRegulation = () => {
           </CardHeader>
 
           <CardContent>
-            {sections.length === 0 && cancellationTiers.length === 0 ? (
+            {sections.length === 0 && cancellationTiers.length === 0 && !cesion ? (
               <div className="text-center py-12 text-muted-foreground">
                 <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>El reglamento aún no ha sido publicado.</p>
@@ -254,6 +268,60 @@ const RaceRegulation = () => {
                         antelación no se admiten cancelaciones. Las devoluciones se abonan por
                         el mismo medio de pago utilizado en la inscripción.
                       </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Apartado autogenerado con la política de cesión que aplica
+                    de verdad, igual que el de cancelación: no puede quedarse
+                    desactualizado porque lo lee de la misma fila que manda */}
+                {cesion && (
+                  <div className="border-b border-border pb-6 last:border-0">
+                    <h2 className="text-xl font-semibold mb-4">Cesión de dorsal</h2>
+                    <div className="prose prose-sm max-w-none text-muted-foreground">
+                      <p className="mb-3">
+                        Un inscrito que no pueda participar puede ceder su plaza a otra persona.
+                        El dorsal no cambia: cambia el titular. Quien la recibe rellena sus
+                        propios datos y acepta este reglamento, de modo que en la salida figure
+                        quien realmente va a correr.
+                      </p>
+                      <ul className="list-disc pl-6 space-y-1">
+                        <li>
+                          {cesion.fecha_limite ? (
+                            <>
+                              Plazo: hasta el{" "}
+                              <strong>
+                                {new Date(cesion.fecha_limite).toLocaleDateString("es-ES", {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })}
+                              </strong>
+                              .
+                            </>
+                          ) : (
+                            <>Plazo: hasta el día de la carrera.</>
+                          )}
+                        </li>
+                        <li>
+                          Cada dorsal admite{" "}
+                          <strong>
+                            {cesion.max_cesiones === 1
+                              ? "una sola cesión"
+                              : `${cesion.max_cesiones} cesiones`}
+                          </strong>
+                          .
+                        </li>
+                        <li>
+                          No se puede ceder un dorsal que ya tenga lecturas de cronometraje, ni
+                          después de la salida.
+                        </li>
+                        <li>
+                          El importe de la inscripción no se devuelve ni se reparte a través de
+                          la plataforma: es un acuerdo entre las dos personas.
+                        </li>
+                      </ul>
+                      {cesion.texto_extra && <p className="mt-3">{cesion.texto_extra}</p>}
                     </div>
                   </div>
                 )}

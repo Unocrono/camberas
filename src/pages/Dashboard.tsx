@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Calendar, MapPin, Trophy, CreditCard, X, Radio } from "lucide-react";
+import { Calendar, MapPin, Trophy, CreditCard, X, Radio, Share2, Copy, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -99,6 +99,14 @@ const Dashboard = () => {
           (byRace[tier.race_id] ??= []).push(tier);
         }
         setPolicies(byRace);
+
+        const { data: cesiones } = await (supabase as any)
+          .from("race_cesion_config")
+          .select("race_id, permitida, fecha_limite")
+          .in("race_id", raceIds);
+        const cfg: Record<string, { permitida: boolean; fecha_limite: string | null }> = {};
+        for (const c of cesiones ?? []) cfg[c.race_id] = c;
+        setCesionCfg(cfg);
       }
     } catch (error: any) {
       toast({
@@ -108,6 +116,56 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Política de cesión por carrera. Se carga con las inscripciones para no
+   * enseñar un botón que va a fallar: si el organizador no la ha activado,
+   * el botón no existe.
+   */
+  const [cesionCfg, setCesionCfg] = useState<Record<string, { permitida: boolean; fecha_limite: string | null }>>({});
+  // Enlace recién generado, por inscripción
+  const [enlaceCesion, setEnlaceCesion] = useState<Record<string, string>>({});
+  const [generando, setGenerando] = useState<string | null>(null);
+
+  /** Motivos por los que cesion_crear se niega, en cristiano */
+  const MOTIVO_CESION: Record<string, string> = {
+    no_permitida: "Esta carrera no admite cesión de dorsal.",
+    fuera_de_plazo: "Ha pasado la fecha límite para ceder el dorsal en esta carrera.",
+    sin_pagar: "Solo se puede ceder una inscripción que esté pagada.",
+    es_de_equipo: "Las plazas de equipo todavía no se pueden ceder desde aquí: habla con la organización.",
+    es_importada: "Esta inscripción vino de otra plataforma y no se puede ceder desde aquí.",
+    ya_ha_corrido: "Este dorsal ya tiene lecturas de cronometraje.",
+    tope_alcanzado: "Este dorsal ya se cedió una vez y no admite otra.",
+    cancelada: "La inscripción está cancelada.",
+    no_es_tuya: "Esta inscripción no es tuya.",
+  };
+
+  /** Genera el enlace de cesión y lo deja listo para compartir */
+  const cederDorsal = async (registrationId: string) => {
+    setGenerando(registrationId);
+    try {
+      const { data, error } = await (supabase as any).rpc("cesion_crear", {
+        p_registration_id: registrationId,
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        toast({
+          title: "No se puede ceder",
+          description: MOTIVO_CESION[data?.motivo] ?? "No se ha podido generar el enlace.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setEnlaceCesion((prev) => ({
+        ...prev,
+        [registrationId]: `${window.location.origin}/ceder/${data.token}`,
+      }));
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setGenerando(null);
     }
   };
 
@@ -392,8 +450,79 @@ const Dashboard = () => {
                           {!canCancel && registration.status !== "cancelled" && (
                             <p className="text-sm text-muted-foreground self-center">
                               No se puede cancelar (carrera en menos de {cancellation.minDays} días)
+                              {cesionCfg[registration.race.id]?.permitida && ", pero sí ceder el dorsal"}
                             </p>
                           )}
+
+                          {/* Ceder el dorsal. Va pegado a la cancelación y, sobre todo, al
+                              "no se puede cancelar": ese es el instante exacto en el que la
+                              gente abre WhatsApp para colocar su plaza. Si el camino oficial
+                              no está justo ahí, no se usa. */}
+                          {registration.status !== "cancelled" &&
+                            cesionCfg[registration.race.id]?.permitida &&
+                            (registration.payment_status === "paid" ||
+                              registration.payment_status === "not_required") &&
+                            (enlaceCesion[registration.id] ? (
+                              <div className="w-full rounded-lg border border-border p-4 space-y-3">
+                                <p className="text-sm font-semibold">Enlace listo para tu sustituto</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Quien lo abra rellena sus datos y el dorsal pasa a su nombre. Caduca
+                                  en 72 horas y solo sirve una vez.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={() =>
+                                      window.open(
+                                        "https://wa.me/?text=" +
+                                          encodeURIComponent(
+                                            `Te paso mi dorsal para ${registration.race.name} (${registration.distance.name}). ` +
+                                              `Ábrelo, rellena tus datos y la plaza pasa a tu nombre: ${enlaceCesion[registration.id]}`,
+                                          ),
+                                        "_blank",
+                                        "noopener",
+                                      )
+                                    }
+                                  >
+                                    <Share2 className="h-4 w-4" />
+                                    Enviar por WhatsApp
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-2"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(enlaceCesion[registration.id]);
+                                      toast({ title: "Enlace copiado" });
+                                    }}
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    Copiar enlace
+                                  </Button>
+                                </div>
+                                {registration.payment_status === "paid" && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Camberas no mueve el dinero de tu inscripción: si tenéis que
+                                    ajustar cuentas, hacedlo entre vosotros.
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                className="gap-2"
+                                disabled={generando === registration.id}
+                                onClick={() => cederDorsal(registration.id)}
+                              >
+                                {generando === registration.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Share2 className="h-4 w-4" />
+                                )}
+                                Ceder mi dorsal
+                              </Button>
+                            ))}
                         </div>
                       </CardContent>
                     </div>

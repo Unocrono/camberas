@@ -37,6 +37,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import RetomarPago from "./pages/RetomarPago";
+import CederDorsal from "./pages/CederDorsal";
+import CederSolicitar from "./pages/CederSolicitar";
 import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
 import Contact from "./pages/Contact";
@@ -132,6 +134,9 @@ const App = () => (
           <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
           {/* Enlace del email de inscripcion a medias: la identidad es el token */}
           <Route path="/retomar-pago/:token" element={<RetomarPago />} />
+          {/* Cesion de dorsal: el token es la credencial, se abre desde WhatsApp */}
+          <Route path="/ceder" element={<CederSolicitar />} />
+          <Route path="/ceder/:token" element={<CederDorsal />} />
           
           {/* URL amigable con slug de carrera - DEBE estar al final antes del catch-all */}
           <Route path="/:slug" element={<RaceDetail />} />
