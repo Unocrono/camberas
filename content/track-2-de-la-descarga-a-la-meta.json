@@ -1,0 +1,38 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "manual",
+  "antetitulo": "Camberas Track",
+  "titulo": "De la descarga a la meta",
+  "web": "camberas.com/descargas",
+  "slides": [
+    {
+      "pregunta": "Instálala en casa",
+      "respuesta": "Google Play o App Store, busca «Camberas Track». Hazlo con tiempo, no en el aparcamiento con la salida dada."
+    },
+    {
+      "pregunta": "Escanea el QR de tu dorsal",
+      "respuesta": "Abre la app, dale a Escanear QR y apunta. Te salen tu dorsal, tu nombre y la prueba.",
+      "nota": "Si la organización te mandó enlace de activación, con abrirlo vale: hace lo mismo sin escanear."
+    },
+    {
+      "pregunta": "Acepta los permisos",
+      "respuesta": "Ubicación, cámara para el QR y, en Android, notificaciones y batería. Sin ubicación no hay seguimiento.",
+      "nota": "Cada permiso está por una razón comprobada en carreras reales, no por pedir."
+    },
+    {
+      "pregunta": "En la salida, ACTIVAR SEGUIMIENTO",
+      "respuesta": "Ahí, no en casa ni en el coche. Verás «Protegido» y la hora de la última sincronización. Guarda el móvil y corre: puedes apagar la pantalla."
+    },
+    {
+      "pregunta": "Si dudas, mira el estado",
+      "respuesta": "«Al día» es que tu posición está llegando. «N por subir» son posiciones esperando cobertura: en el monte es lo normal, no es un fallo."
+    },
+    {
+      "pregunta": "Al cruzar meta, DETENER",
+      "respuesta": "Mantén pulsado dos segundos y medio. Cuesta a propósito, para que no lo pares sin querer con el móvil en el bolsillo.",
+      "nota": "Si se te olvida, sigue enviando y gastando batería hasta que lo pares."
+    }
+  ],
+  "cta": "Nos vemos en la salida"
+}

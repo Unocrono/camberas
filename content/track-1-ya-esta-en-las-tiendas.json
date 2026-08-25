@@ -1,0 +1,43 @@
+{
+  "audiencia": "corredores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Camberas Track",
+  "titulo": "Ya está en las tiendas",
+  "web": "camberas.com/descargas",
+  "slides": [
+    {
+      "etiqueta": "Qué es",
+      "pregunta": "Alguien sabe dónde estás",
+      "respuesta": "Camberas Track manda tu posición a la organización mientras corres. Si pasa algo, no hay que salir a buscarte."
+    },
+    {
+      "etiqueta": "Qué no te pide",
+      "pregunta": "Ni registro, ni correo, ni contraseña",
+      "respuesta": "Escaneas el QR de tu dorsal y ya estás dentro. No hay cuenta que crear ni datos personales que dejar.",
+      "nota": "Comparte dorsal, posición, velocidad, rumbo y batería. Solo mientras el seguimiento está activo."
+    },
+    {
+      "etiqueta": "El SOS",
+      "pregunta": "Un botón en el centro de la pantalla",
+      "respuesta": "Lo pulsas, confirmas, y a la organización le llega tu dorsal y tu posición exacta.",
+      "nota": "Avisa a la organización, no al 112. Si la cosa es seria llama también: el 112 entra aunque no tengas cobertura de tu operadora."
+    },
+    {
+      "etiqueta": "Sin cobertura",
+      "pregunta": "En el monte no hay raya, y da igual",
+      "respuesta": "La app guarda las posiciones en el móvil y las suelta en cuanto vuelve la señal. En carreras reales ha recuperado tramos de más de una hora."
+    },
+    {
+      "etiqueta": "La batería",
+      "pregunta": "Entre un 2 y un 4 % por hora",
+      "respuesta": "Sal con más de la mitad y quita el ahorro de energía del sistema durante la prueba: es lo único que puede cortarle el GPS."
+    },
+    {
+      "etiqueta": "Dónde está",
+      "pregunta": "Busca «Camberas Track»",
+      "respuesta": "En App Store y en Google Play. Instálala en casa, no en el aparcamiento diez minutos antes de la salida."
+    }
+  ],
+  "cta": "Descárgala antes del domingo"
+}

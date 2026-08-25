@@ -11,6 +11,7 @@ ya resueltas están en `plantillas/TRASPASO.md`.
 | Grupetta (corredores) | `grupetta-1..8` | Lima | 8 carruseles, completos |
 | Organizadores (recorrido) | `organizadores-1..6` | Naranja | 6 carruseles, completos |
 | La plataforma (pilares) | `plataforma-1..5` | Naranja | 5 carruseles, completos |
+| Camberas Track (app) | `track-1..2` | Lima | 2 carruseles, completos |
 | Sueltos | `faq-corredores`, `manual-seguimiento-gps` | Lima | Ver pendientes |
 
 Retirado en `content/retirados/`: `manual-grupetta.json` y
@@ -50,6 +51,23 @@ Retirado en `content/retirados/`: `manual-grupetta.json` y
 7. **Reponer el post del pinchazo.** Lo publicado tiene 7 slides y el JSON
    va por 9, así que los contadores «n/7» no cuadran con lo que se regenera.
    La cuenta no tenía audiencia cuando se publicó: no se pierde nada.
+
+8. **La app nativa contradice a los carruseles viejos.** Camberas Track ya
+   está publicada en App Store y Google Play, y los de `track-*` mandan a
+   la tienda. Pero `grupetta-3-soy-miembro` sigue mandando a instalar la
+   PWA desde `camberas.com/descargas`, y `manual-seguimiento-gps` explica
+   el tracker web («entra en Tracking GPS, con tu cuenta iniciada»), que es
+   otro camino distinto. Se decidió no tocarlos de momento. Cuando se
+   toquen, hay que decidir qué vía es la buena para cada caso: el QR del
+   dorsal en carrera y el código de seis letras en grupetta.
+
+9. **`camberas.com/descargas` no existe como ruta en el repo.** Es el `web`
+   de `track-1`, `track-2` y `grupetta-3`, así que conviene crearla y que
+   reparta a las dos tiendas.
+
+10. **`public/activar.html` sigue ofreciendo TestFlight** (`btn secondary`
+    → «iPHONE — TESTFLIGHT (beta)»). Con la app publicada, ese enlace
+    manda a la beta en vez de a la ficha de App Store.
 
 ## Fuera de este repo
 
