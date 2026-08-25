@@ -39,8 +39,15 @@ export const RedsysPaymentForm = ({
     merchantParams: string;
     signature: string;
     signatureVersion: string;
+    /** Importe que el servidor acaba de firmar: manda sobre el de la prop */
+    amount?: number;
   } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // El importe bueno es el que devuelve la funcion, no el que llega por prop:
+  // el precio se recalcula en servidor y el del cliente puede venir de un
+  // tramo de precio ya caducado (pasa al retomar un pago de hace horas).
+  const importe = paymentData?.amount ?? amount;
 
   useEffect(() => {
     initializePayment();
@@ -123,7 +130,7 @@ export const RedsysPaymentForm = ({
           Pago con Tarjeta
         </CardTitle>
         <p className="text-2xl font-bold text-primary">
-          {amount.toFixed(2)} €
+          {importe.toFixed(2)} €
         </p>
         {description && (
           <p className="text-sm text-muted-foreground">{description}</p>
@@ -180,7 +187,7 @@ export const RedsysPaymentForm = ({
                 Redirigiendo...
               </>
             ) : (
-              `Pagar ${amount.toFixed(2)} €`
+              `Pagar ${importe.toFixed(2)} €`
             )}
           </Button>
         </div>

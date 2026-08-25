@@ -262,6 +262,10 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         orderNumber,
+        // Importe autoritativo: el que se acaba de firmar. El cliente lo
+        // muestra en vez del suyo, que puede venir de un precio caducado
+        // (team-init-payment ya lo devolvia asi)
+        amount,
         merchantParams: merchantParamsB64,
         signature,
         signatureVersion: "HMAC_SHA256_V1",

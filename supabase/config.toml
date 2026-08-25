@@ -71,3 +71,9 @@ verify_jwt = false
 # X-Hub-Signature-256 (ver graph.ts), no con verify_jwt.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+# El robot horario llega desde pg_cron con la cabecera x-cron-key, no con
+# JWT; un admin puede lanzarlo a mano con su sesion y la funcion lo valida
+# por dentro (has_role). Sin una de las dos cosas responde 401.
+[functions.recuperar-pagos]
+verify_jwt = false

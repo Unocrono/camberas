@@ -36,6 +36,7 @@ import OrganizerProfile from "./pages/OrganizerProfile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
+import RetomarPago from "./pages/RetomarPago";
 import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
 import Contact from "./pages/Contact";
@@ -129,6 +130,8 @@ const App = () => (
         
           {/* Otras rutas con parámetros */}
           <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
+          {/* Enlace del email de inscripcion a medias: la identidad es el token */}
+          <Route path="/retomar-pago/:token" element={<RetomarPago />} />
           
           {/* URL amigable con slug de carrera - DEBE estar al final antes del catch-all */}
           <Route path="/:slug" element={<RaceDetail />} />

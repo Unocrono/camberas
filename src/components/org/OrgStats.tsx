@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Shirt, Receipt } from "lucide-react";
+import { Loader2, Shirt, Receipt, ShoppingCart } from "lucide-react";
 
 /** Orden de tallas del pedido; lo que no encaje se lista al final */
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
@@ -31,6 +31,14 @@ interface SourceSummary {
   count: number;
   paid: number;
   revenue: number;
+}
+
+/** Inscripciones que se quedaron en la pasarela y cuántas volvieron */
+interface ResumenRecuperacion {
+  detectadas: number;
+  avisadas: number;
+  recuperadas: number;
+  importe_recuperado: number;
 }
 
 /** Números clave del informe (los mismos del RPC de la portada) */
@@ -55,6 +63,26 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
   // Talla → unidades (global de la carrera)
   const [sizes, setSizes] = useState<Record<string, number> | null>(null);
   const [sizesError, setSizesError] = useState<string | null>(null);
+
+  // Carritos abandonados y cuánto ha rescatado el robot de avisos
+  const [recuperacion, setRecuperacion] = useState<ResumenRecuperacion | null>(null);
+
+  useEffect(() => {
+    if (!raceId) return;
+    let cancelled = false;
+    (async () => {
+      // RPC nueva: casteada hasta que se regenere types.ts
+      const { data, error } = await (supabase as any).rpc("resumen_recuperacion_pagos", {
+        p_race_id: raceId,
+      });
+      // Sin migración aplicada todavía la RPC no existe: el bloque no se pinta
+      if (cancelled || error) return;
+      setRecuperacion((data?.[0] as ResumenRecuperacion) ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [raceId]);
 
   useEffect(() => {
     if (!raceId) return;
@@ -205,6 +233,31 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
             La pasarela factura comisión; las altas manuales y gratuitas, no.
+          </p>
+        </section>
+      )}
+
+      {/* Inscripciones a medias: lo que se estaba perdiendo en la pasarela */}
+      {recuperacion && recuperacion.detectadas > 0 && (
+        <section>
+          <p className="mb-2 flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.14em] text-secondary">
+            <ShoppingCart className="h-4 w-4" /> Pagos a medias
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Abandonos</p>
+              <p className="font-archivo text-3xl text-primary">{recuperacion.detectadas}</p>
+              <p className="text-xs text-muted-foreground">{recuperacion.avisadas} avisados</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Rescatados</p>
+              <p className="font-archivo text-3xl text-secondary">{recuperacion.recuperadas}</p>
+              <p className="text-xs text-muted-foreground">{euro(recuperacion.importe_recuperado)}</p>
+            </div>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Quien empieza a inscribirse y no termina el pago recibe dos avisos, a las 2 h y a las
+            24 h. Solo cuenta como rescatado lo que se pagó después del primer aviso.
           </p>
         </section>
       )}
