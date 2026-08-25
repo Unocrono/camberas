@@ -6,9 +6,10 @@
  * móvil. Aquí se detecta el sistema y se enseña primero el botón que le
  * sirve a quien mira, con el otro a mano por si comparte pantalla.
  *
- * Mientras Android no esté en Google Play, su botón descarga la APK del
- * repositorio público. El día que Play la publique, basta con cambiar
- * ANDROID_URL por el enlace de la tienda y quitar el aviso.
+ * Desde el 25-ago-2026 las dos van a su tienda. El interruptor
+ * ANDROID_EN_TIENDA se queda por si algún día hay que volver a repartir
+ * APK (una beta, un móvil sin servicios de Google): a false, el botón
+ * descarga el fichero y reaparece el aviso de "orígenes desconocidos".
  */
 
 import { useEffect, useState } from "react";
@@ -20,8 +21,8 @@ import { Apple, Smartphone, ShieldCheck, MapPin, WifiOff, Info } from "lucide-re
 
 const IOS_URL = "https://apps.apple.com/es/app/camberas-track/id6792264406";
 const ANDROID_URL =
-  "https://github.com/Unocrono/camberas/releases/download/track-v24/camberas-track-v25a.apk";
-const ANDROID_EN_TIENDA = false; // ← poner a true cuando Google Play la publique
+  "https://play.google.com/store/apps/details?id=com.unocrono.camberastrack";
+const ANDROID_EN_TIENDA = true; // publicada en Google Play el 25-ago-2026
 
 type Sistema = "ios" | "android" | "otro";
 
@@ -66,7 +67,7 @@ const Descargas = () => {
       className="w-full h-auto py-4"
       asChild
     >
-      <a href={ANDROID_URL} rel="noopener noreferrer">
+      <a href={ANDROID_URL} target="_blank" rel="noopener noreferrer">
         <Smartphone className="h-5 w-5 mr-3" />
         <span className="text-left">
           <span className="block font-semibold">Android</span>
