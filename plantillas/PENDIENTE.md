@@ -1,7 +1,8 @@
 # Estado y pendientes de los carruseles
 
-Traspaso para retomar en otra sesión. Lo que hay hecho está en `content/`
-y se regenera entero con `node generar-carrusel.js content`.
+Lo que hay hecho está en `content/` y se regenera entero con
+`node generar-carrusel.js content`. El porqué de cada decisión y las trampas
+ya resueltas están en `plantillas/TRASPASO.md`.
 
 ## Series montadas
 
@@ -17,13 +18,11 @@ Retirado en `content/retirados/`: `manual-grupetta.json` y
 
 ## Pendientes
 
-1. **Capturas del SOS en el carrusel del pinchazo.** Faltan dos JPEG en
-   `capturas/`: el botón «Mantén pulsado 2 s» y el selector de motivo con
-   «Avería o pinchazo, estoy reparando». Van con `"pantallazo": true` en
-   `grupetta-5-percances.json`. La tercera captura (la confirmación con el
-   aviso del 112) va en `grupetta-6-seguridad.json`.
-   Con las dos, el pinchazo llega a 10 slides, que es el tope de Instagram:
-   valorar quitar el slide «Desde casa».
+1. **Capturas del SOS: hechas.** Las tres están en `capturas/`
+   (`sos-1-boton`, `sos-2-motivo`, `sos-3-confirmacion`). El botón sale
+   recortado y con el fondo remapeado en `sos-boton-recorte.png`, que es la
+   portada de `grupetta-6-seguridad.json`. El carrusel del pinchazo se quedó
+   en 9 slides, con margen de uno hasta el tope de Instagram.
 
 2. **«Sin comisión por inscripción»** no está escrito en ningún carrusel
    porque no se ha podido confirmar. Si no hay comisión sobre el precio de
@@ -48,9 +47,9 @@ Retirado en `content/retirados/`: `manual-grupetta.json` y
 6. **La rama va por detrás de `main`.** Conviene mergear antes de abrir a
    revisión el PR.
 
-7. **El post del pinchazo ya publicado tiene 7 slides**, pero el JSON ya
-   va por 8 (entró el slide del motivo de SOS). Los contadores «n/7» de lo
-   publicado no cuadran con lo regenerado: hay que reponer el post.
+7. **Reponer el post del pinchazo.** Lo publicado tiene 7 slides y el JSON
+   va por 9, así que los contadores «n/7» no cuadran con lo que se regenera.
+   La cuenta no tenía audiencia cuando se publicó: no se pierde nada.
 
 ## Fuera de este repo
 
