@@ -91,7 +91,7 @@ const Descargas = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="container mx-auto px-4 py-12 max-w-2xl">
+      <main className="container mx-auto px-4 pt-28 pb-16 max-w-2xl">
         <div className="text-center mb-10">
           <h1 className="font-archivo text-4xl uppercase text-foreground mb-3">
             Descargar Camberas Track
