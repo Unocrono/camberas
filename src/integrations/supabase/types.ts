@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1160,6 +1160,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      menu_items_backup_20260824: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          group_label: string | null
+          icon: string | null
+          id: string | null
+          is_visible: boolean | null
+          menu_type: string | null
+          parent_id: string | null
+          requires_auth: boolean | null
+          route: string | null
+          title: string | null
+          updated_at: string | null
+          view_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          group_label?: string | null
+          icon?: string | null
+          id?: string | null
+          is_visible?: boolean | null
+          menu_type?: string | null
+          parent_id?: string | null
+          requires_auth?: boolean | null
+          route?: string | null
+          title?: string | null
+          updated_at?: string | null
+          view_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          group_label?: string | null
+          icon?: string | null
+          id?: string | null
+          is_visible?: boolean | null
+          menu_type?: string | null
+          parent_id?: string | null
+          requires_auth?: boolean | null
+          route?: string | null
+          title?: string | null
+          updated_at?: string | null
+          view_name?: string | null
+        }
+        Relationships: []
       }
       microgate_times: {
         Row: {
@@ -3722,6 +3770,92 @@ export type Database = {
         }
         Relationships: []
       }
+      recuperacion_pagos: {
+        Row: {
+          abandonada_at: string
+          aviso_1_at: string | null
+          aviso_2_at: string | null
+          caduca_at: string
+          created_at: string
+          email: string
+          id: string
+          importe_avisado: number | null
+          nombre: string | null
+          race_distance_id: string
+          race_id: string
+          recuperado_at: string | null
+          registration_id: string | null
+          team_id: string | null
+          tipo: string
+          token: string
+        }
+        Insert: {
+          abandonada_at: string
+          aviso_1_at?: string | null
+          aviso_2_at?: string | null
+          caduca_at: string
+          created_at?: string
+          email: string
+          id?: string
+          importe_avisado?: number | null
+          nombre?: string | null
+          race_distance_id: string
+          race_id: string
+          recuperado_at?: string | null
+          registration_id?: string | null
+          team_id?: string | null
+          tipo: string
+          token?: string
+        }
+        Update: {
+          abandonada_at?: string
+          aviso_1_at?: string | null
+          aviso_2_at?: string | null
+          caduca_at?: string
+          created_at?: string
+          email?: string
+          id?: string
+          importe_avisado?: number | null
+          nombre?: string | null
+          race_distance_id?: string
+          race_id?: string
+          recuperado_at?: string | null
+          registration_id?: string | null
+          team_id?: string | null
+          tipo?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recuperacion_pagos_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recuperacion_pagos_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recuperacion_pagos_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recuperacion_pagos_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registration_form_fields: {
         Row: {
           created_at: string
@@ -5001,6 +5135,25 @@ export type Database = {
         Returns: undefined
       }
       assign_next_bib: { Args: { p_distance_id: string }; Returns: number }
+      avisos_pago_pendientes: {
+        Args: never
+        Returns: {
+          distance_name: string
+          email: string
+          id: string
+          importe: number
+          n_corredores: number
+          nombre: string
+          race_date: string
+          race_location: string
+          race_name: string
+          race_slug: string
+          ronda: number
+          team_name: string
+          tipo: string
+          token: string
+        }[]
+      }
       borrar_grupetta: { Args: { p_race_id: string }; Returns: undefined }
       calculate_race_results: {
         Args: { p_race_distance_id: string }
@@ -5035,6 +5188,7 @@ export type Database = {
         Args: { p_intervalo: number; p_token_row_id: string }
         Returns: undefined
       }
+      cerrar_recuperaciones_pagadas: { Args: never; Returns: number }
       coupon_uses: {
         Args: { p_coupon_id: string; p_email?: string }
         Returns: number
@@ -5301,6 +5455,10 @@ export type Database = {
         }[]
       }
       link_team_members_by_dni: { Args: { p_user_id: string }; Returns: number }
+      marcar_aviso_pago: {
+        Args: { p_id: string; p_importe?: number; p_ronda: number }
+        Returns: undefined
+      }
       marcar_gallo: {
         Args: {
           p_intervalo?: number
@@ -5341,6 +5499,7 @@ export type Database = {
         }[]
       }
       nombre_normalizado: { Args: { p: string }; Returns: string }
+      plazas_libres: { Args: { p_distance_id: string }; Returns: number }
       process_event_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -5352,6 +5511,29 @@ export type Database = {
       puede_gestionar_carrera: { Args: { p_race_id: string }; Returns: boolean }
       purge_gps_antiguos: { Args: never; Returns: undefined }
       purge_wa_messages: { Args: never; Returns: undefined }
+      recuperacion_pago_info: { Args: { p_token: string }; Returns: Json }
+      registrar_pagos_a_medias: {
+        Args: { p_ventana_horas?: number }
+        Returns: number
+      }
+      resolver_inscripcion_previa: {
+        Args: {
+          p_email?: string
+          p_race_distance_id: string
+          p_race_id: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
+      resumen_recuperacion_pagos: {
+        Args: { p_race_id: string }
+        Returns: {
+          avisadas: number
+          detectadas: number
+          importe_recuperado: number
+          recuperadas: number
+        }[]
+      }
       revocar_token_corredor: {
         Args: { p_token_row_id: string }
         Returns: undefined
@@ -5367,6 +5549,10 @@ export type Database = {
       seed_requisitos_documentales: {
         Args: { p_race_id: string }
         Returns: number
+      }
+      token_recuperacion_inscripcion: {
+        Args: { p_registration_id: string }
+        Returns: string
       }
       tokens_corredores_carrera: {
         Args: { p_race_id: string }
