@@ -3,19 +3,25 @@
   "marca": "camberas",
   "tipo": "faq",
   "antetitulo": "Camberas Track",
-  "titulo": "Ya está en las tiendas",
+  "titulo": "Ya tenemos app",
+  "pildora": "Para iOS y Android",
   "web": "camberas.com/descargas",
   "slides": [
     {
-      "etiqueta": "Qué es",
-      "pregunta": "Alguien sabe dónde estás",
-      "respuesta": "Camberas Track manda tu posición a la organización mientras corres. Si pasa algo, no hay que salir a buscarte."
+      "etiqueta": "¿Qué hace la app?",
+      "pregunta": "Alguien sabrá dónde estarás",
+      "respuesta": "Camberas Track manda tu posición durante todo el recorrido, y la organización sabe dónde estás."
     },
     {
-      "etiqueta": "Qué no te pide",
-      "pregunta": "Ni registro, ni correo, ni contraseña",
+      "etiqueta": "¡La app no hace nada!",
+      "pregunta": "Correcto: necesitas un QR para activar el seguimiento",
       "respuesta": "Escaneas el QR de tu dorsal y ya estás dentro. No hay cuenta que crear ni datos personales que dejar.",
-      "nota": "Comparte dorsal, posición, velocidad, rumbo y batería. Solo mientras el seguimiento está activo."
+      "nota": "Solo se comparte dorsal, posición, velocidad, rumbo y batería."
+    },
+    {
+      "etiqueta": "¡La app me sigue!",
+      "pregunta": "Sí, va contigo en tu móvil",
+      "respuesta": "El seguimiento lo activas tú. Y nuestros servidores solo recopilan la información desde una hora antes de la carrera hasta una hora después del cierre de control."
     },
     {
       "etiqueta": "El SOS",
@@ -25,19 +31,15 @@
     },
     {
       "etiqueta": "Sin cobertura",
-      "pregunta": "En el monte no hay raya, y da igual",
-      "respuesta": "La app guarda las posiciones en el móvil y las suelta en cuanto vuelve la señal. En carreras reales ha recuperado tramos de más de una hora."
+      "pregunta": "No pasa nada",
+      "respuesta": "Lógicamente no puedes enviar tu posición, pero la app las guarda en el móvil y las suelta en cuanto vuelve la señal. En carreras reales ha recuperado tramos de más de una hora.",
+      "nota": "En la pantalla ves las posiciones que aún no han subido al servidor."
     },
     {
       "etiqueta": "La batería",
       "pregunta": "Entre un 2 y un 4 % por hora",
-      "respuesta": "Sal con más de la mitad y quita el ahorro de energía del sistema durante la prueba: es lo único que puede cortarle el GPS."
-    },
-    {
-      "etiqueta": "Dónde está",
-      "pregunta": "Busca «Camberas Track»",
-      "respuesta": "En App Store y en Google Play. Instálala en casa, no en el aparcamiento diez minutos antes de la salida."
+      "respuesta": "Sal con más de la mitad y QUITA EL AHORRO DE ENERGÍA del sistema durante la prueba: es lo único que puede cortar el GPS."
     }
   ],
-  "cta": "Descárgala antes del domingo"
+  "cta": "Descárgala y a disfrutar seguro"
 }
