@@ -41,3 +41,10 @@ ios/
 
 # Configuracion local de Claude Code
 .claude/
+
+# Copias de seguridad de la base de datos: data.sql lleva datos personales de
+# inscritos y pagos. Van a %USERPROFILE%\Backups\camberas, nunca aqui.
+# Ver docs/copias-de-seguridad.md
+backups/
+restauracion/
+*.dump
