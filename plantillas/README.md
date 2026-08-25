@@ -204,6 +204,14 @@ Cada slide se queda el tiempo de leerlo: 2,6 s la portada, 4 s los de
 contenido y 3,4 s el cierre. Un carrusel de 7 sale en unos 24 s, que es
 buena duración de Reel.
 
+`--ritmo=N` estira o encoge todos los tiempos a la vez, fundido incluido.
+Con `1.3` el mismo carrusel de 7 se va a 31 s, que se lee mucho más
+tranquilo; con `0.8` queda más nervioso.
+
+```sh
+node plantillas/herramientas/video.mjs out/organizadores/<slug>/story reel.mp4 --ritmo=1.3
+```
+
 **Hace falta un ffmpeg con libx264.** El que trae Playwright en
 `/opt/pw-browsers` NO vale: está compilado con `--disable-everything` y
 solo saca WebM/VP8, que Instagram no admite. Se busca en este orden:

@@ -7,6 +7,10 @@
  * Cada slide se queda en pantalla el tiempo que cuesta leerlo y se encadena
  * con el siguiente mediante un fundido corto.
  *
+ * Con --ritmo=N se estiran o encogen todos los tiempos a la vez: 1.3 deja el
+ * vídeo un 30 % más lento, 0.8 lo acelera. El fundido se estira igual, para
+ * que no quede seco en un vídeo pausado.
+ *
  * Necesita un ffmpeg con libx264 (el que trae Playwright NO vale: solo saca
  * WebM/VP8, que Instagram no admite). Se busca en este orden:
  *   FFMPEG_PATH → ffmpeg del PATH → node_modules/ffmpeg-static
@@ -41,9 +45,16 @@ function ejecutar(bin, args) {
   });
 }
 
-const [ , , carpeta, destino ] = process.argv;
+const args = process.argv.slice(2);
+const [ carpeta, destino ] = args.filter((a) => !a.startsWith('--'));
+const ritmo = Number((args.find((a) => a.startsWith('--ritmo=')) ?? '').split('=')[1] ?? 1);
+
 if (!carpeta || !destino) {
-  console.error('Uso: node plantillas/herramientas/video.mjs <carpeta-de-slides> <salida.mp4>');
+  console.error('Uso: node plantillas/herramientas/video.mjs <carpeta-de-slides> <salida.mp4> [--ritmo=N]');
+  process.exit(1);
+}
+if (!Number.isFinite(ritmo) || ritmo <= 0) {
+  console.error('✖ --ritmo tiene que ser un número mayor que cero');
   process.exit(1);
 }
 if (!(await stat(carpeta).catch(() => null))?.isDirectory()) {
@@ -54,23 +65,24 @@ if (!(await stat(carpeta).catch(() => null))?.isDirectory()) {
 const slides = (await readdir(carpeta)).filter((f) => f.endsWith('.png')).sort();
 if (!slides.length) { console.error(`✖ ${carpeta} no tiene PNG`); process.exit(1); }
 
+const fundido = FUNDIDO * ritmo;
 const dur = slides.map((_, i) =>
-  i === 0 ? SEG_PORTADA : i === slides.length - 1 ? SEG_CIERRE : SEG_CONTENIDO
+  (i === 0 ? SEG_PORTADA : i === slides.length - 1 ? SEG_CIERRE : SEG_CONTENIDO) * ritmo
 );
 
 // Una entrada por slide, cada una congelada su duración (+ el fundido, que
 // se solapa con la siguiente y si no se comería el final del clip)
 const entradas = slides.flatMap((f, i) => [
-  '-loop', '1', '-t', String(dur[i] + FUNDIDO), '-i', join(carpeta, f),
+  '-loop', '1', '-t', String(dur[i] + fundido), '-i', join(carpeta, f),
 ]);
 
 // Cadena de fundidos: el desplazamiento de cada uno descuenta los anteriores
 let filtro = '', etiqueta = '[0:v]', acumulado = 0;
 for (let i = 1; i < slides.length; i++) {
   acumulado += dur[i - 1];
-  const off = (acumulado - FUNDIDO * (i - 1)).toFixed(3);
+  const off = (acumulado - fundido * (i - 1)).toFixed(3);
   const salida = i === slides.length - 1 ? '[v]' : `[x${i}]`;
-  filtro += `${etiqueta}[${i}:v]xfade=transition=fade:duration=${FUNDIDO}:offset=${off}${salida};`;
+  filtro += `${etiqueta}[${i}:v]xfade=transition=fade:duration=${fundido.toFixed(3)}:offset=${off}${salida};`;
   etiqueta = salida;
 }
 filtro = filtro.replace(/;$/, '');
@@ -84,5 +96,5 @@ await ejecutar(bin, [
   destino,
 ]);
 
-const total = dur.reduce((a, b) => a + b, 0) - FUNDIDO * (slides.length - 1);
+const total = dur.reduce((a, b) => a + b, 0) - fundido * (slides.length - 1);
 console.log(`✔ ${destino} · ${slides.length} slides · ${total.toFixed(1)} s`);
