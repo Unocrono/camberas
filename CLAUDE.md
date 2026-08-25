@@ -41,7 +41,12 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
 
 - **Toda RPC nueva lleva `GRANT EXECUTE ... TO authenticated`** (y `anon` si la usan invitados).
   `REVOKE ... FROM PUBLIC` rompe a `authenticated` sin GRANT explícito — ya pasó.
-- **Para CERRAR una función hay que revocar por nombre de rol, no de `PUBLIC`.** El proyecto trae
+- **Para CERRAR una función hay que revocar de `anon`, `authenticated` Y `PUBLIC`, las tres.**
+  El repo se ha equivocado en los dos sentidos opuestos: `20260820180000_gallos_name_tv.sql:37`
+  revocó solo de `anon` (y `anon` seguía entrando por PUBLIC), y
+  `20260825140000_retomar_pago_sin_callejon.sql:94` revocó solo de `PUBLIC` (y `anon` seguía
+  entrando por su GRANT explícito). Solo cierra la forma completa.
+- **Detalle de por qué no basta revocar de `PUBLIC`.** El proyecto trae
   `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated,
   service_role`, así que toda función nueva nace con permiso **explícito** para `anon`. Un
   `REVOKE ... FROM PUBLIC` no lo quita: revoca otro permiso distinto y deja la puerta abierta.
