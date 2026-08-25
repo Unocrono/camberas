@@ -85,6 +85,30 @@ Esta guía documenta los errores más comunes que pueden aparecer en la aplicaci
 
 ## Errores de Validación
 
+### `Este email ya tiene una inscripción para esta carrera` con una inscripción sin pagar
+
+**Mensaje mostrado:** "Este email ya tiene una inscripción para esta carrera" (o "Ya estás inscrito" con cuenta), aunque la persona nunca llegó a pagar.
+
+**Causa:** El control de duplicados miraba solo el email (invitados) o el `user_id` (con cuenta) y la carrera, **sin mirar el estado de la inscripción**. Como la fila se crea con `payment_status='pending'` ANTES de ir a Redsys, quien abandonaba el pago quedaba bloqueado para siempre en esa carrera, aunque su plaza se hubiera liberado a los 30 minutos. En el camino con cuenta, además, el `.maybeSingle()` reventaba en cuanto había más de una fila.
+
+**Solución aplicada:** La decisión vive ahora en la RPC `resolver_inscripcion_previa(p_race_id, p_race_distance_id, p_email, p_user_id)`, que usan `guest-register` y `RaceDetail.tsx`. Devuelve `libre`, `duplicada` o `retomar` (con el token del enlace `/retomar-pago/<token>`). Una cancelada no bloquea; un abandono en otro recorrido de la misma carrera se cancela solo.
+
+**Estado:** ✅ Corregido (agosto 2026)
+
+---
+
+### Una función `SECURITY DEFINER` queda abierta a `anon` sin querer
+
+**Mensaje mostrado:** Ninguno. No falla nada: simplemente cualquiera con la clave anónima —que viaja en el propio navegador— puede llamar a la función.
+
+**Causa:** `CREATE FUNCTION` concede `EXECUTE` a **PUBLIC** por defecto, y `anon` pertenece a PUBLIC. Un `GRANT ... TO service_role` no cierra nada: solo añade. Pasó con `avisos_pago_pendientes()`, que devuelve los correos de quien dejó una inscripción a medias.
+
+**Solución:** Toda función de robot o de servidor lleva `REVOKE EXECUTE ... FROM PUBLIC` **con su GRANT explícito detrás**. Ojo con lo contrario, que también ha pasado: un REVOKE sin GRANT deja fuera a `authenticated` y rompe la aplicación (ver CLAUDE.md).
+
+**Estado:** ✅ Corregido (agosto 2026)
+
+---
+
 ### `Expected number, received nan`
 
 **Mensaje mostrado:** "Error de validación" o "Expected number, received nan"
