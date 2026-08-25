@@ -440,10 +440,24 @@ const RaceDetail = () => {
         if (fnError) {
           // FunctionsHttpError: extraer el mensaje real del cuerpo
           let message = fnError.message;
+          let body: any = null;
           try {
-            const body = await (fnError as any).context?.json?.();
+            body = await (fnError as any).context?.json?.();
             if (body?.error) message = body.error;
           } catch { /* usar el mensaje genérico */ }
+
+          // Empezó la inscripción y no llegó a pagar: no es un error, es un
+          // pago sin terminar. Se le lleva a terminarlo en vez de dejarle
+          // en un callejón sin salida.
+          if (body?.code === "PENDIENTE" && body?.retomarPath) {
+            toast({
+              title: "Ya habías empezado",
+              description: "Te llevamos a terminar el pago que dejaste a medias.",
+            });
+            navigate(body.retomarPath);
+            return;
+          }
+
           toast({
             title: "Error al inscribirse",
             description: message,
@@ -499,17 +513,23 @@ const RaceDetail = () => {
         // Authenticated user registration
         if (!user) return;
 
-        // Check if user is already registered for this race
-        const { data: existingRegistration, error: checkError } = await supabase
-          .from("registrations")
-          .select("id")
-          .eq("user_id", user.id)
-          .eq("race_id", raceId)
-          .maybeSingle();
+        // ¿Ya tiene inscripción en esta carrera? Mirar solo si la fila existe
+        // dejaba encerrado a quien no llegó a pagar, y el .maybeSingle() de
+        // antes reventaba en cuanto había más de una. La regla vive en SQL,
+        // compartida con guest-register, para que los dos decidan igual.
+        // RPC nueva: casteada hasta que se regenere types.ts
+        const { data: previa, error: checkError } = await (supabase as any).rpc(
+          "resolver_inscripcion_previa",
+          {
+            p_race_id: raceId,
+            p_race_distance_id: selectedDistance.id,
+            p_user_id: user.id,
+          },
+        );
 
         if (checkError) throw checkError;
 
-        if (existingRegistration) {
+        if (previa?.verdicto === "duplicada" || previa?.verdicto === "denegado") {
           toast({
             title: "Ya estás inscrito",
             description: "Ya tienes una inscripción para esta carrera",
@@ -517,6 +537,17 @@ const RaceDetail = () => {
           });
           setIsDialogOpen(false);
           setIsSubmitting(false);
+          return;
+        }
+
+        // Empezó y no llegó a pagar este mismo recorrido: se le lleva a
+        // terminarlo en vez de dejarle en un callejón sin salida
+        if (previa?.verdicto === "retomar" && previa?.token) {
+          toast({
+            title: "Ya habías empezado",
+            description: "Te llevamos a terminar el pago que dejaste a medias.",
+          });
+          navigate(`/retomar-pago/${previa.token}`);
           return;
         }
 

@@ -76,6 +76,38 @@ serve(async (req) => {
       return json({ error: "Distancia no encontrada" }, 404);
     }
 
+    // Inscripción previa en la misma carrera. Mirar solo el email dejaba a
+    // la gente encerrada: una pendiente sin pagar bloqueaba para siempre,
+    // aunque la plaza llevara horas libre. La regla vive en SQL para que el
+    // camino con cuenta (RaceDetail) decida exactamente lo mismo.
+    const { data: previa, error: previaErr } = await supabase.rpc("resolver_inscripcion_previa", {
+      p_race_id: raceId,
+      p_race_distance_id: distanceId,
+      p_email: email,
+    });
+    if (previaErr) {
+      console.error("resolver_inscripcion_previa:", previaErr.message);
+      return json({ error: "No se pudo comprobar tu inscripción. Inténtalo de nuevo." }, 500);
+    }
+
+    if (previa?.verdicto === "duplicada") {
+      return json({ error: "Este email ya tiene una inscripción para esta carrera", code: "DUPLICATE" }, 409);
+    }
+
+    // Empezó y no llegó a pagar el mismo recorrido: no es un duplicado, es
+    // un pago sin terminar. Se le devuelve la puerta, no el muro.
+    if (previa?.verdicto === "retomar") {
+      return json(
+        {
+          error: "Ya empezaste esta inscripción y el pago se quedó a medias. Te llevamos a terminarlo.",
+          code: "PENDIENTE",
+          // Ruta relativa a propósito: vale igual en producción y en local
+          retomarPath: `/retomar-pago/${previa.token}`,
+        },
+        409,
+      );
+    }
+
     // Aforo, comprobado en servidor (la UI sola no basta: se podría
     // saltar llamando directamente a la función). Ocupan plaza las de
     // pago resuelto y las pendientes recientes (reserva de 30 min
@@ -93,18 +125,6 @@ serve(async (req) => {
       }
     }
 
-    // Duplicado: mismo email en la misma carrera (con service role el
-    // check funciona también para invitados, cosa que RLS impedía)
-    const { data: existing } = await supabase
-      .from("registrations")
-      .select("id")
-      .eq("race_id", raceId)
-      .ilike("email", email)
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      return json({ error: "Este email ya tiene una inscripción para esta carrera", code: "DUPLICATE" }, 409);
-    }
 
     // Precio vigente: tarifa por tramos si existe, si no el precio base
     const nowIso = new Date().toISOString();
