@@ -85,9 +85,23 @@ serve(async (req) => {
       p_race_distance_id: distanceId,
       p_email: email,
     });
+    // Si la RPC no esta (migracion sin aplicar todavia, o funcion desplegada
+    // antes que el SQL), se vuelve al control de siempre en vez de tumbar
+    // TODAS las inscripciones de invitado, tambien las de quien nunca se
+    // habia inscrito. Es peor comportamiento, pero es el de ayer.
     if (previaErr) {
-      console.error("resolver_inscripcion_previa:", previaErr.message);
-      return json({ error: "No se pudo comprobar tu inscripción. Inténtalo de nuevo." }, 500);
+      console.error("resolver_inscripcion_previa no disponible, se usa el control antiguo:", previaErr.message);
+      const { data: existing } = await supabase
+        .from("registrations")
+        .select("id")
+        .eq("race_id", raceId)
+        .ilike("email", email)
+        .neq("status", "cancelled")
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return json({ error: "Este email ya tiene una inscripción para esta carrera", code: "DUPLICATE" }, 409);
+      }
     }
 
     if (previa?.verdicto === "duplicada") {

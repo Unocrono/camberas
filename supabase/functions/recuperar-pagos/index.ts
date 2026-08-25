@@ -51,6 +51,18 @@ const fechaLarga = (iso: string) =>
     year: "numeric",
   });
 
+/**
+ * 1.174,50 € — en un correo en español el punto decimal canta, y un lote de
+ * equipo llega a cuatro cifras. useGrouping va explícito porque no todos los
+ * runtimes agrupan por defecto.
+ */
+const euros = (n: number) =>
+  n.toLocaleString("es-ES", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }) + " €";
+
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -75,17 +87,19 @@ function cuerpo(a: Aviso, enlace: string): string {
          y el pago se quedó a medias.`
       : "Empezaste tu inscripción y el pago se quedó a medias.";
 
+  const suyos = a.tipo === "equipo" ? "Los datos del equipo siguen" : "Tus datos siguen";
+  const plazas = a.tipo === "equipo" ? "las plazas no quedan reservadas" : "la plaza no queda reservada";
   const urgencia =
     a.ronda === 1
-      ? "Tus datos siguen guardados: solo falta completar el pago."
-      : "Seguimos guardando tus datos, pero la plaza no queda reservada hasta que el pago se confirme.";
+      ? `${suyos} guardados: solo falta completar el pago.`
+      : `${suyos} guardados, pero ${plazas} hasta que el pago se confirme.`;
 
   const filaImporte =
     a.importe != null
       ? `<tr>
            <td style="padding: 6px 0; color: #4b5563;">Importe pendiente</td>
            <td style="padding: 6px 0; color: ${VERDE}; font-weight: bold; text-align: right;">
-             ${Number(a.importe).toFixed(2)} €
+             ${euros(Number(a.importe))}
            </td>
          </tr>`
       : "";
@@ -105,7 +119,9 @@ function cuerpo(a: Aviso, enlace: string): string {
     </div>
 
     <div style="padding: 36px 30px;">
-      <h2 style="color: #1f2937; margin: 0 0 16px; font-size: 21px;">Tu inscripción se quedó a medias</h2>
+      <h2 style="color: #1f2937; margin: 0 0 16px; font-size: 21px;">${
+        a.tipo === "equipo" ? "La inscripción de tu equipo se quedó a medias" : "Tu inscripción se quedó a medias"
+      }</h2>
 
       <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${saludo}</p>
       <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">

@@ -527,7 +527,28 @@ const RaceDetail = () => {
           },
         );
 
-        if (checkError) throw checkError;
+        // Si la RPC no esta (migracion sin aplicar), se vuelve al control de
+        // siempre en vez de dejar la inscripcion muerta para todo el mundo
+        if (checkError) {
+          console.warn("resolver_inscripcion_previa no disponible, se usa el control antiguo:", checkError.message);
+          const { data: previasCrudas } = await supabase
+            .from("registrations")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("race_id", raceId)
+            .neq("status", "cancelled")
+            .limit(1);
+          if (previasCrudas && previasCrudas.length > 0) {
+            toast({
+              title: "Ya estás inscrito",
+              description: "Ya tienes una inscripción para esta carrera",
+              variant: "destructive",
+            });
+            setIsDialogOpen(false);
+            setIsSubmitting(false);
+            return;
+          }
+        }
 
         if (previa?.verdicto === "duplicada" || previa?.verdicto === "denegado") {
           toast({
