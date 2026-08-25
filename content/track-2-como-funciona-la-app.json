@@ -48,7 +48,7 @@
     {
       "etiqueta": "Paso 7",
       "pregunta": "Se me olvidó cerrar la app",
-      "respuesta": "No pasa nada. Una hora después del cierre de control de tu carrera el servidor deja de recibir posiciones, y el código QR ya no es operativo."
+      "respuesta": "No pasa nada. Dos horas después del cierre de control se cierra la ventana de tu carrera: el servidor deja de recibir posiciones y el código QR ya no es operativo."
     }
   ],
   "cta": "Nos vemos en la montaña"

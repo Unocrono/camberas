@@ -21,7 +21,8 @@
     {
       "etiqueta": "¡La app me sigue!",
       "pregunta": "Sí, va contigo en tu móvil",
-      "respuesta": "El seguimiento lo activas tú. Y nuestros servidores solo recopilan la información desde una hora antes de la carrera hasta una hora después del cierre de control."
+      "respuesta": "El seguimiento lo enciendes tú y lo apagas tú: fuera de eso, la app no emite nada.",
+      "nota": "Y el servidor solo acepta posiciones dentro de la ventana de la carrera: desde 24 h antes de la salida hasta 2 h después del cierre de control."
     },
     {
       "etiqueta": "El SOS",
