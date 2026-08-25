@@ -71,8 +71,7 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
     if (!raceId) return;
     let cancelled = false;
     (async () => {
-      // RPC nueva: casteada hasta que se regenere types.ts
-      const { data, error } = await (supabase as any).rpc("resumen_recuperacion_pagos", {
+      const { data, error } = await supabase.rpc("resumen_recuperacion_pagos", {
         p_race_id: raceId,
       });
       // Sin migración aplicada todavía la RPC no existe: el bloque no se pinta

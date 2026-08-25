@@ -517,8 +517,7 @@ const RaceDetail = () => {
         // dejaba encerrado a quien no llegó a pagar, y el .maybeSingle() de
         // antes reventaba en cuanto había más de una. La regla vive en SQL,
         // compartida con guest-register, para que los dos decidan igual.
-        // RPC nueva: casteada hasta que se regenere types.ts
-        const { data: previa, error: checkError } = await (supabase as any).rpc(
+        const { data: previaJson, error: checkError } = await supabase.rpc(
           "resolver_inscripcion_previa",
           {
             p_race_id: raceId,
@@ -526,6 +525,8 @@ const RaceDetail = () => {
             p_user_id: user.id,
           },
         );
+        // La RPC devuelve jsonb, que en los tipos generados es Json
+        const previa = previaJson as { verdicto?: string; token?: string } | null;
 
         // Si la RPC no esta (migracion sin aplicar), se vuelve al control de
         // siempre en vez de dejar la inscripcion muerta para todo el mundo

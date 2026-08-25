@@ -135,14 +135,14 @@ const RetomarPago = () => {
         setCargando(false);
         return;
       }
-      // La RPC no está en types.ts hasta que se regenere: va casteada
-      const { data, error: rpcError } = await (supabase as any).rpc("recuperacion_pago_info", {
+      const { data, error: rpcError } = await supabase.rpc("recuperacion_pago_info", {
         p_token: token,
       });
       if (rpcError) {
         setError(rpcError.message);
       } else {
-        setInfo(data as Info);
+        // La RPC devuelve jsonb, que en los tipos generados es Json
+        setInfo(data as unknown as Info);
       }
       setCargando(false);
     };
