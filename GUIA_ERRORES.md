@@ -101,9 +101,20 @@ Esta guía documenta los errores más comunes que pueden aparecer en la aplicaci
 
 **Mensaje mostrado:** Ninguno. No falla nada: simplemente cualquiera con la clave anónima —que viaja en el propio navegador— puede llamar a la función.
 
-**Causa:** `CREATE FUNCTION` concede `EXECUTE` a **PUBLIC** por defecto, y `anon` pertenece a PUBLIC. Un `GRANT ... TO service_role` no cierra nada: solo añade. Pasó con `avisos_pago_pendientes()`, que devuelve los correos de quien dejó una inscripción a medias.
+**Causa:** Dos capas, y la segunda es la que engaña. `CREATE FUNCTION` concede `EXECUTE` a **PUBLIC**; pero además el proyecto tiene puesto `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated, service_role`, así que cada función nueva nace también con un permiso **explícito para `anon`**. Un `REVOKE ... FROM PUBLIC` revoca la primera capa y deja la segunda intacta: la función sigue abierta y no da ningún error que lo delate. Pasó con `avisos_pago_pendientes()`, que devuelve los nombres y correos de quien dejó una inscripción a medias, y estuvo accesible con la clave anónima —la que viaja en el bundle del navegador— hasta que se comprobó a mano.
 
-**Solución:** Toda función de robot o de servidor lleva `REVOKE EXECUTE ... FROM PUBLIC` **con su GRANT explícito detrás**. Ojo con lo contrario, que también ha pasado: un REVOKE sin GRANT deja fuera a `authenticated` y rompe la aplicación (ver CLAUDE.md).
+**Solución:** Revocar **por nombre de rol**: `REVOKE EXECUTE ON FUNCTION ... FROM anon, authenticated, PUBLIC;` y después el `GRANT` de quien sí debe entrar. Ojo con lo contrario, que también ha pasado: un REVOKE sin GRANT detrás deja fuera a `authenticated` y rompe la aplicación (ver CLAUDE.md).
+
+**Cómo comprobarlo** (no te fíes del SQL escrito, mira el resultado):
+
+```sql
+SELECT p.proname,
+       has_function_privilege('anon', p.oid, 'EXECUTE') AS anon,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') AS con_sesion
+FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.prosecdef
+ORDER BY 2 DESC, 1;
+```
 
 **Estado:** ✅ Corregido (agosto 2026)
 

@@ -41,6 +41,15 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
 
 - **Toda RPC nueva lleva `GRANT EXECUTE ... TO authenticated`** (y `anon` si la usan invitados).
   `REVOKE ... FROM PUBLIC` rompe a `authenticated` sin GRANT explícito — ya pasó.
+- **Para CERRAR una función hay que revocar por nombre de rol, no de `PUBLIC`.** El proyecto trae
+  `ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO anon, authenticated,
+  service_role`, así que toda función nueva nace con permiso **explícito** para `anon`. Un
+  `REVOKE ... FROM PUBLIC` no lo quita: revoca otro permiso distinto y deja la puerta abierta.
+  Lo correcto es `REVOKE EXECUTE ON FUNCTION ... FROM anon, authenticated, PUBLIC` y después el
+  GRANT de quien sí debe entrar. Ya pasó con `avisos_pago_pendientes`, que devolvía correos a
+  cualquiera con la clave anónima (ver `20260825230000_blindar_funciones_frente_a_anon.sql`).
+- **Comprueba el resultado, no te fíes del SQL escrito.** Una función queda expuesta sin dar ningún
+  error: `SELECT has_function_privilege('anon', p.oid, 'EXECUTE') FROM pg_proc p ...`.
 - Las RPCs son `SECURITY DEFINER SET search_path = public` y validan el token dentro: superficie
   más estrecha que abrir tablas a `anon`.
 - **PostgREST corta en 1.000 filas.** Cualquier RPC que devuelva series largas (tracks GPS,
