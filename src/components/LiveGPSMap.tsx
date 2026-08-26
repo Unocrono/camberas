@@ -1622,10 +1622,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           isMobile && isRunnersPanelExpanded ? 'hidden' : ''
         }`}>
           <div className="space-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-1 bg-[#FF6B35] rounded" />
-              <span>Recorrido GPX</span>
-            </div>
+            {/* Solo si hay recorrido de verdad. Se pintaba siempre, y en una
+                carrera sin GPX hacia creer que habia una ruta cargada que no
+                se veia — cuando lo que pasaba es que no habia ninguna. */}
+            {gpxUrl && (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-1 bg-[#FF6B35] rounded" />
+                <span>Recorrido GPX</span>
+              </div>
+            )}
             {selectedRunner && (
               <div className="flex items-center gap-2">
                 <div className="w-4 h-1 bg-[#3b82f6] rounded" />
