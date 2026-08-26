@@ -391,6 +391,118 @@ export type Database = {
         }
         Relationships: []
       }
+      cesiones_dorsal: {
+        Row: {
+          acepta_privacidad_at: string | null
+          acepta_reglamento_at: string | null
+          acta: Json | null
+          anulada_at: string | null
+          caduca_at: string
+          cedente_email: string | null
+          cedente_nombre: string | null
+          cedente_user_id: string | null
+          cesionario_email: string | null
+          completada_at: string | null
+          creada_at: string
+          datos_nuevos: Json | null
+          dorsal: number | null
+          estado: string
+          id: string
+          importe_referencia: number | null
+          motivo_anulacion: string | null
+          race_distance_id: string | null
+          race_id: string | null
+          registration_id: string | null
+          reglamento_id: string | null
+          reglamento_version: number | null
+          respuestas_nuevas: Json | null
+          tasa: number
+          titular_anterior: Json
+          token: string
+          tutor: Json | null
+        }
+        Insert: {
+          acepta_privacidad_at?: string | null
+          acepta_reglamento_at?: string | null
+          acta?: Json | null
+          anulada_at?: string | null
+          caduca_at: string
+          cedente_email?: string | null
+          cedente_nombre?: string | null
+          cedente_user_id?: string | null
+          cesionario_email?: string | null
+          completada_at?: string | null
+          creada_at?: string
+          datos_nuevos?: Json | null
+          dorsal?: number | null
+          estado?: string
+          id?: string
+          importe_referencia?: number | null
+          motivo_anulacion?: string | null
+          race_distance_id?: string | null
+          race_id?: string | null
+          registration_id?: string | null
+          reglamento_id?: string | null
+          reglamento_version?: number | null
+          respuestas_nuevas?: Json | null
+          tasa?: number
+          titular_anterior: Json
+          token?: string
+          tutor?: Json | null
+        }
+        Update: {
+          acepta_privacidad_at?: string | null
+          acepta_reglamento_at?: string | null
+          acta?: Json | null
+          anulada_at?: string | null
+          caduca_at?: string
+          cedente_email?: string | null
+          cedente_nombre?: string | null
+          cedente_user_id?: string | null
+          cesionario_email?: string | null
+          completada_at?: string | null
+          creada_at?: string
+          datos_nuevos?: Json | null
+          dorsal?: number | null
+          estado?: string
+          id?: string
+          importe_referencia?: number | null
+          motivo_anulacion?: string | null
+          race_distance_id?: string | null
+          race_id?: string | null
+          registration_id?: string | null
+          reglamento_id?: string | null
+          reglamento_version?: number | null
+          respuestas_nuevas?: Json | null
+          tasa?: number
+          titular_anterior?: Json
+          token?: string
+          tutor?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cesiones_dorsal_race_distance_id_fkey"
+            columns: ["race_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cesiones_dorsal_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cesiones_dorsal_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_conversations: {
         Row: {
           created_at: string
@@ -2375,6 +2487,53 @@ export type Database = {
             foreignKeyName: "race_categories_race_id_fkey"
             columns: ["race_id"]
             isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      race_cesion_config: {
+        Row: {
+          created_at: string
+          fecha_limite: string | null
+          max_cesiones: number
+          permitida: boolean
+          quien_paga_tasa: string
+          race_id: string
+          requiere_aprobacion: boolean
+          tasa: number
+          texto_extra: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_limite?: string | null
+          max_cesiones?: number
+          permitida?: boolean
+          quien_paga_tasa?: string
+          race_id: string
+          requiere_aprobacion?: boolean
+          tasa?: number
+          texto_extra?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fecha_limite?: string | null
+          max_cesiones?: number
+          permitida?: boolean
+          quien_paga_tasa?: string
+          race_id?: string
+          requiere_aprobacion?: boolean
+          tasa?: number
+          texto_extra?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "race_cesion_config_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: true
             referencedRelation: "races"
             referencedColumns: ["id"]
           },
@@ -5189,6 +5348,39 @@ export type Database = {
         Returns: undefined
       }
       cerrar_recuperaciones_pagadas: { Args: never; Returns: number }
+      cesion_aceptar: {
+        Args: {
+          p_acepta_privacidad?: boolean
+          p_acepta_reglamento?: boolean
+          p_datos: Json
+          p_respuestas?: Json
+          p_token: string
+          p_tutor?: Json
+        }
+        Returns: Json
+      }
+      cesion_anular: {
+        Args: { p_cesion_id: string; p_motivo?: string }
+        Returns: Json
+      }
+      cesion_crear: { Args: { p_registration_id: string }; Returns: Json }
+      cesion_ejecutar: { Args: { p_cesion_id: string }; Returns: Json }
+      cesion_info: { Args: { p_token: string }; Returns: Json }
+      cesiones_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          cede: string
+          completada_at: string
+          creada_at: string
+          dorsal: number
+          estado: string
+          id: string
+          recibe: string
+          recorrido: string
+          reglamento_version: number
+          tasa: number
+        }[]
+      }
       coupon_uses: {
         Args: { p_coupon_id: string; p_email?: string }
         Returns: number
@@ -5436,6 +5628,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      hora_salida_recorrido: {
+        Args: { p_distance_id: string }
+        Returns: string
+      }
       is_guest_registration: { Args: { reg_id: string }; Returns: boolean }
       is_timer_for_race: {
         Args: { _race_id: string; _user_id: string }
@@ -5524,6 +5720,23 @@ export type Database = {
           p_user_id?: string
         }
         Returns: Json
+      }
+      resolver_race_category_id: {
+        Args: {
+          p_birth_date: string
+          p_gender: string
+          p_race_distance_id: string
+        }
+        Returns: string
+      }
+      resumen_cesiones: {
+        Args: { p_race_id: string }
+        Returns: {
+          caducadas: number
+          completadas: number
+          iniciadas: number
+          tasas: number
+        }[]
       }
       resumen_recuperacion_pagos: {
         Args: { p_race_id: string }
