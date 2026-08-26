@@ -938,9 +938,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
           .setLngLat([alert.lng, alert.lat])
           .setPopup(
             new mapboxgl.Popup({ offset: 25 }).setHTML(
+              // El dorsal solo lo devuelve la RPC a admin u organizador: en el
+              // mapa publico viene NULL a proposito, y ahi no se pinta la linea
+              // en vez de dejar un "Dorsal: N/A" que no dice nada
               `<div class="p-2">
                 <strong>🆘 SOS — ${alert.runner_name}</strong><br/>
-                Dorsal: ${alert.bib_number || 'N/A'}<br/>
+                ${alert.bib_number ? `Dorsal: ${alert.bib_number}<br/>` : ''}
                 ${formatLocalTime(alert.triggered_at)}
               </div>`
             )
