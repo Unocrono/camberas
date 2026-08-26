@@ -97,6 +97,8 @@ interface RegistrationFormData {
   status: string;
   payment_status: string;
   bib_number: string;
+  /** Lo cobrado FUERA de la pasarela en un alta manual (en mano, transferencia) */
+  importe_manual: string;
 }
 
 const emptyFormData: RegistrationFormData = {
@@ -109,6 +111,7 @@ const emptyFormData: RegistrationFormData = {
   race_distance_id: "",
   status: "pending",
   payment_status: "pending",
+  importe_manual: "",
   bib_number: "",
 };
 
@@ -1223,6 +1226,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
         // Alta desde el panel: no pasa por la pasarela, no factura comisión
         source: "manual",
+        // Lo cobrado a mano. NO suma a la recaudación de pasarela: se muestra
+        // en su propia cifra, para que el organizador sepa lo que lleva
+        // cobrado sin mezclarlo con lo que Camberas puede verificar.
+        importe_manual: formData.importe_manual ? Number(formData.importe_manual) : null,
       };
 
       const { error } = await supabase.from("registrations").insert(insertData);
@@ -2271,6 +2278,25 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 />
               </div>
             </div>
+
+            {/* Sin esto, cobrar 30 € en la carpa y marcar "Pagado" dejaba la
+                recaudación a cero: no había ningún sitio donde anotarlo. */}
+            {formData.payment_status === "paid" && (
+              <div className="space-y-2">
+                <Label>Importe cobrado (€)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="lo que te ha pagado en mano"
+                  value={formData.importe_manual}
+                  onChange={(e) => setFormData({ ...formData, importe_manual: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  No entra en la recaudación de la pasarela: se muestra aparte, como cobrado a mano.
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>

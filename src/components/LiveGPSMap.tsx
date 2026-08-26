@@ -294,7 +294,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       setMapReady(true);
     };
     map.current.on('load', marcarListo);
-    map.current.on('idle', marcarListo);
+    // once, NO on: marcarListo llama a resize(), y resize() puede provocar otro
+    // repintado que dispara 'idle' otra vez. Con on() eso es un bucle que se
+    // come la CPU y cuelga la pestana — comprobado por las malas.
+    map.current.once('idle', marcarListo);
 
     if (map.current.isStyleLoaded()) {
       marcarListo();

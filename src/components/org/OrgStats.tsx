@@ -30,7 +30,10 @@ interface SourceSummary {
   source: string;
   count: number;
   paid: number;
+  /** Cobrado por la pasarela */
   revenue: number;
+  /** Cobrado fuera de la pasarela, en un alta manual */
+  revenue_manual?: number;
 }
 
 /** Inscripciones que se quedaron en la pasarela y cuántas volvieron */
@@ -226,12 +229,21 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
                     {s.count} inscripciones · {s.paid} pagadas
                   </p>
                 </div>
-                <p className="font-archivo text-lg text-secondary">{euro(s.revenue)}</p>
+                <div className="text-right">
+                  <p className="font-archivo text-lg text-secondary">{euro(s.revenue)}</p>
+                  {(s.revenue_manual ?? 0) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      + {euro(s.revenue_manual ?? 0)} a mano
+                    </p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            La pasarela factura comisión; las altas manuales y gratuitas, no.
+            La pasarela factura comisión; las altas manuales y gratuitas, no. Lo cobrado a
+            mano se anota aparte y no entra en la recaudación de arriba: esa cifra es solo
+            lo que ha pasado por la pasarela.
           </p>
         </section>
       )}
