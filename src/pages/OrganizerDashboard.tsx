@@ -31,6 +31,7 @@ import { PuestosManagement } from "@/components/admin/PuestosManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import { CamberasTrackMap } from "@/components/CamberasTrackMap";
+import { PantallasManagement } from "@/components/admin/PantallasManagement";
 import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
@@ -283,11 +284,16 @@ const OrganizerDashboard = () => {
                 eventos. (Antes iba clavado el de La Chuleta y las demás
                 carreras salían sin recorrido.) */}
             {currentView === "camberas-track" && (
-              <CamberasTrackMap
-                eventId={selectedRaceId || undefined}
-                showSOSPanel={true}
-                height="75vh"
-              />
+              <div className="space-y-6">
+                {/* Aqui, y no en un apartado propio: quien viene a mirar el
+                    seguimiento es quien quiere sacarlo a una pantalla */}
+                {selectedRaceId && <PantallasManagement raceId={selectedRaceId} />}
+                <CamberasTrackMap
+                  eventId={selectedRaceId || undefined}
+                  showSOSPanel={true}
+                  height="75vh"
+                />
+              </div>
             )}
             {currentView === "storage" && <StorageManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-faqs" && (
