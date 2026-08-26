@@ -31,11 +31,15 @@
     Lee el aviso del doc antes de activarlo.
 
 .EXAMPLE
-    .\scripts\copia-seguridad.ps1
+    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1
     Pide la cadena de conexion y hace la copia completa.
 
+    El -ExecutionPolicy Bypass hace falta siempre: Windows trae la ejecucion de
+    scripts en Restricted. Se salta por invocacion, sin tocar la politica del
+    sistema.
+
 .EXAMPLE
-    .\scripts\copia-seguridad.ps1 -SoloEsquema
+    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -SoloEsquema
     Prueba rapida, sin datos.
 #>
 [CmdletBinding()]

@@ -30,15 +30,17 @@ pero **una base restaurada no funciona hasta volver a poner los secrets a mano**
 ## 2. Requisito, una sola vez
 
 Hace falta `pg_dump` (y `psql`, que viene en el mismo paquete y es lo que
-restaura). No está instalado en la máquina de desarrollo:
+restaura). En la máquina de desarrollo ya está: **PostgreSQL 17.11**, instalado el
+25-ago-2026 en `C:\Program Files\PostgreSQL\17\bin`. En una máquina nueva:
 
 ```powershell
 winget install -e --id PostgreSQL.PostgreSQL.17
 ```
 
-Después, **consola nueva** para que coja el PATH. Si el instalador no lo añadió,
-los binarios están en `C:\Program Files\PostgreSQL\17\bin`; el script los busca
-ahí solo.
+No quedó en el `PATH`, así que `pg_dump` a secas no responde desde la consola. No
+importa para el script, que busca en `C:\Program Files\PostgreSQL\*\bin` y coge la
+versión más alta. Para usar `psql` a mano en la restauración, invócalo por su ruta
+completa.
 
 Instala la versión 17 o superior: `pg_dump` se niega a volcar una base más nueva
 que él, y Supabase va actualizando el servidor.
@@ -53,8 +55,14 @@ que él, y Supabase va actualizando el servidor.
 ## 3. Hacer una copia
 
 ```powershell
-.\scripts\copia-seguridad.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1
 ```
+
+**El `-ExecutionPolicy Bypass` no es opcional.** Windows viene con la ejecución de
+scripts deshabilitada (`Restricted`) y sin él sale
+`No se puede cargar el archivo ... porque la ejecución de scripts está deshabilitada`.
+Se salta por invocación, que es lo correcto: no hay que cambiar la política del
+sistema para lanzar un script propio.
 
 Pide la cadena de conexión de Postgres. Se saca del panel:
 **Project Settings → Database → Connection string → URI**, sustituyendo
@@ -79,19 +87,19 @@ peor que ninguna, porque da confianza falsa.
 ### Opciones
 
 ```powershell
-.\scripts\copia-seguridad.ps1 -SoloEsquema
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -SoloEsquema
 ```
 Sin datos. Para comprobar que el circuito funciona sin descargarlo todo.
 
 ```powershell
-.\scripts\copia-seguridad.ps1 -IncluirAuth
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -IncluirAuth
 ```
 Añade `auth_storage.sql` con los usuarios. Necesario si quieres poder restaurar
 en un proyecto nuevo y que la gente pueda entrar; **este fichero es todavía más
 sensible que el resto**.
 
 ```powershell
-.\scripts\copia-seguridad.ps1 -Destino "D:\Backups\camberas" -Conservar 20
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Destino "D:\Backups\camberas" -Conservar 20
 ```
 
 ### Sin escribir la contraseña cada vez
