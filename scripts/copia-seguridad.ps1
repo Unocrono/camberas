@@ -112,6 +112,22 @@ if ($origen.Length -eq 0) {
     exit 1
 }
 
+# --- 1b. No archivar dos veces el mismo export -----------------------------
+# Lovable solo deja un export cada 24 h, asi que es facil volver a archivar el
+# fichero que ya esta guardado y creerse que hay dos copias donde hay una.
+if (Test-Path $Destino) {
+    $hashOrigen = (Get-FileHash $origen.FullName -Algorithm SHA256).Hash
+    foreach ($ya in (Get-ChildItem $Destino -Filter 'camberas_*.zip' -ErrorAction SilentlyContinue)) {
+        if ((Get-FileHash $ya.FullName -Algorithm SHA256).Hash -eq $hashOrigen) {
+            Escribe ''
+            Escribe "  Este export ya esta archivado como $($ya.Name)." 'Yellow'
+            Escribe '  No se archiva otra vez.' 'Yellow'
+            Escribe ''
+            exit 0
+        }
+    }
+}
+
 # --- 2. Verificar el contenido ---------------------------------------------
 # Un export puede descargarse a medias y pesar lo suficiente para parecer bueno.
 # Se comprueba que las tablas que importan estan de verdad dentro.
@@ -132,49 +148,86 @@ function Buscar-Bin($nombre) {
 }
 
 $verificada = $false
+$temporal = $null
 if ($SinVerificar) {
     Escribe '  (-SinVerificar: se archiva sin comprobar el contenido)' 'Yellow'
 } else {
     Escribe ''
     Escribe '  Verificando contenido...' 'White'
     $encontradas = @()
+    $aLeer = $origen
 
-    if ($origen.Extension -eq '.sql') {
-        # Volcado en texto plano: se busca tabla por tabla.
-        foreach ($tabla in $TablasCriticas) {
-            if (Select-String -Path $origen.FullName -Pattern "\b$tabla\b" -Quiet) { $encontradas += $tabla }
-        }
-        $verificada = $true
-    } else {
-        # Formato binario de pg_dump: se lee el indice con pg_restore --list.
-        $pgRestore = Buscar-Bin 'pg_restore'
-        if ($pgRestore) {
-            $indiceDump = & $pgRestore --list $origen.FullName 2>$null
-            if ($LASTEXITCODE -eq 0 -and $indiceDump) {
-                $texto = $indiceDump -join "`n"
-                foreach ($tabla in $TablasCriticas) {
-                    if ($texto -match "\b$tabla\b") { $encontradas += $tabla }
-                }
-                $verificada = $true
+    try {
+        # Lovable entrega el volcado dentro de un .zip con un unico fichero.
+        # Se saca a un temporal para poder leerlo y se borra al terminar: lleva
+        # datos personales de inscritos y pagos.
+        if ($origen.Extension -eq '.zip') {
+            $temporal = Join-Path ([IO.Path]::GetTempPath()) ('camberas_verif_' + [Guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Path $temporal -Force | Out-Null
+            Expand-Archive -Path $origen.FullName -DestinationPath $temporal -Force
+            $dentro = @(Get-ChildItem $temporal -File -Recurse)
+            if ($dentro.Count -eq 1) {
+                $aLeer = $dentro[0]
+                Escribe "     dentro del zip: $($aLeer.Name)" 'DarkGray'
+            } else {
+                Escribe "     el zip trae $($dentro.Count) ficheros, no se sabe cual es el volcado" 'Yellow'
+                $aLeer = $null
             }
         }
+
+        if ($aLeer) {
+            if ($aLeer.Extension -eq '.sql') {
+                # Volcado en texto plano: las filas van en COPY o en INSERT.
+                foreach ($tabla in $TablasCriticas) {
+                    if (Select-String -Path $aLeer.FullName -Pattern "(COPY|INSERT INTO) public\.$tabla\b" -Quiet) {
+                        $encontradas += $tabla
+                    }
+                }
+                $verificada = $true
+            } else {
+                # Formato custom/tar de pg_dump: se lee el indice con pg_restore.
+                # "TABLE DATA" y no "TABLE" a secas: un volcado de solo estructura
+                # no es una copia de seguridad.
+                $pgRestore = Buscar-Bin 'pg_restore'
+                if ($pgRestore) {
+                    $indiceDump = & $pgRestore --list $aLeer.FullName 2>$null
+                    if ($LASTEXITCODE -eq 0 -and $indiceDump) {
+                        $texto = $indiceDump -join "`n"
+                        foreach ($tabla in $TablasCriticas) {
+                            if ($texto -match "TABLE DATA public $tabla ") { $encontradas += $tabla }
+                        }
+                        $conDatos = ([regex]::Matches($texto, 'TABLE DATA public ')).Count
+                        Escribe "     $conDatos tablas con datos en el volcado" 'DarkGray'
+                        $verificada = $true
+                    }
+                } else {
+                    Escribe '     No hay pg_restore para leer este formato.' 'Yellow'
+                    Escribe '     Instala PostgreSQL: winget install -e --id PostgreSQL.PostgreSQL.17' 'DarkGray'
+                }
+            }
+        }
+
         if (-not $verificada) {
             Escribe '     No se ha podido leer el formato de este fichero.' 'Yellow'
             Escribe '     Se archiva igualmente, pero SIN verificar.' 'Yellow'
         }
-    }
 
-    if ($verificada) {
-        $faltan = $TablasCriticas | Where-Object { $_ -notin $encontradas }
-        if ($faltan.Count -gt 0) {
-            Escribe ''
-            Escribe "  Este export no trae estas tablas: $($faltan -join ', ')" 'Red'
-            Escribe '  O esta incompleto, o no es el export de la base de Camberas.' 'Red'
-            Escribe '  NO se archiva.' 'Red'
-            Escribe ''
-            exit 1
+        if ($verificada) {
+            $faltan = $TablasCriticas | Where-Object { $_ -notin $encontradas }
+            if ($faltan.Count -gt 0) {
+                Escribe ''
+                Escribe "  Este export no trae datos de: $($faltan -join ', ')" 'Red'
+                Escribe '  O esta incompleto, o no es el export de la base de Camberas.' 'Red'
+                Escribe '  NO se archiva.' 'Red'
+                Escribe ''
+                exit 1
+            }
+            Escribe "     $($TablasCriticas.Count) tablas criticas con datos" 'Green'
         }
-        Escribe "     $($TablasCriticas.Count) tablas criticas presentes" 'Green'
+    } finally {
+        if ($temporal -and (Test-Path $temporal)) {
+            Remove-Item $temporal -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -187,7 +240,13 @@ $zip = Join-Path $Destino "camberas_$marca$sufijo.zip"
 
 Escribe ''
 Escribe '  Archivando...' 'White'
-Compress-Archive -Path $origen.FullName -DestinationPath $zip -CompressionLevel Optimal
+if ($origen.Extension -eq '.zip') {
+    # Ya viene comprimido (es lo que entrega Lovable): se copia tal cual, que
+    # meter un zip dentro de otro no comprime nada y estorba al restaurar.
+    Copy-Item -Path $origen.FullName -Destination $zip -Force
+} else {
+    Compress-Archive -Path $origen.FullName -DestinationPath $zip -CompressionLevel Optimal
+}
 $mbZip = [math]::Round((Get-Item $zip).Length / 1MB, 2)
 Escribe "     $(Split-Path $zip -Leaf)  ($mbZip MB)" 'Green'
 

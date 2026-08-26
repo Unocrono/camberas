@@ -52,6 +52,14 @@ que sacar exports propios.
 Límites: **5 GB** por export y **uno cada 24 horas**. No es un mecanismo para
 disparar a menudo: elige bien el momento (ver §4).
 
+**Qué te descargas.** Comprobado con el export del 26-ago-2026: un `.zip` que
+contiene un único fichero `.backup`, que es un volcado nativo de PostgreSQL en
+**formato CUSTOM** (cabecera `PGDMP`, comprimido con zstd). Aquel traía 112
+tablas, 98 de ellas con datos, y 116 funciones, en 27 MB.
+
+Lo generó `pg_dump` **18.4** contra un servidor PostgreSQL **17.6**. Eso importa
+para restaurar: ver §6.2.
+
 ### 3.2. Archivar lo descargado
 
 ```powershell
@@ -66,17 +74,25 @@ un script propio.
 
 El script busca el export en `Descargas`, te deja elegirlo de una lista, y:
 
-1. **Verifica** que dentro están `registrations`, `payment_intents`, `races`,
-   `timing_readings` y `user_roles`. Un export puede descargarse a medias y pesar
-   lo suficiente para parecer bueno; si falta una tabla crítica **no lo archiva**
-   y sale con error. Los volcados en texto los lee directamente; los binarios,
-   con `pg_restore --list`.
-2. Lo comprime en `%USERPROFILE%\Backups\camberas\camberas_AAAA-MM-DD_HHmmss.zip`,
-   fuera del repositorio.
-3. Conserva las 10 últimas.
+1. **Comprueba que no esté ya archivado**, comparando el hash. Con un export cada
+   24 horas es fácil guardar dos veces el mismo fichero y creer que tienes dos
+   copias donde hay una.
+2. **Verifica que trae datos** de `registrations`, `payment_intents`, `races`,
+   `timing_readings` y `user_roles`. Abre el `.zip`, lee el índice del volcado con
+   `pg_restore --list` y busca `TABLE DATA`, no `TABLE` a secas: un volcado de
+   solo estructura no es una copia de seguridad. Los volcados en texto los lee
+   directamente, buscando `COPY` o `INSERT INTO`. Si falta una tabla crítica **no
+   lo archiva** y sale con error.
+3. Lo guarda en `%USERPROFILE%\Backups\camberas\camberas_AAAA-MM-DD_HHmmss.zip`,
+   fuera del repositorio. Si el origen ya venía comprimido, lo copia tal cual en
+   vez de meter un zip dentro de otro.
+4. Conserva las 10 últimas.
 
 Si no puede leer el formato, lo archiva marcándolo `_SIN-VERIFICAR` en el nombre,
 para que no se confunda con una copia comprobada.
+
+El fichero que extrae para verificar va a un temporal y se borra siempre al
+terminar, incluso si la verificación falla: lleva datos personales.
 
 Con la ruta puesta a mano:
 
@@ -141,26 +157,32 @@ eligiendo el snapshot anterior al estropicio. No hace falta el export.
 
 ### 6.2. Fuera de Lovable (el export propio)
 
-El export es un backup de Postgres, así que se restaura con las herramientas
-nativas. **PostgreSQL 17.11 ya está instalado** en la máquina de desarrollo, en
-`C:\Program Files\PostgreSQL\17\bin` (no quedó en el `PATH`: invócalo por ruta
-completa).
+El export es un volcado nativo de Postgres en formato CUSTOM, así que se restaura
+con `pg_restore`, no con `psql`. Primero hay que **descomprimir el `.zip`** y
+sacar el `.backup` de dentro.
 
-Contra un proyecto de Supabase propio y vacío, para un volcado en texto:
-
-```
-"C:\Program Files\PostgreSQL\17\bin\psql.exe" --single-transaction --variable ON_ERROR_STOP=1 --command "SET session_replication_role = replica" --file export.sql --dbname "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres"
-```
-
-`session_replication_role = replica` desactiva triggers y claves ajenas mientras
-entran los datos; sin eso, el orden de las tablas hace fallar la carga.
-
-Si el export viene en formato binario, se usa `pg_restore` en lugar de `psql`.
-Para ver qué trae dentro antes de tocar nada:
+**PostgreSQL 17.11 está instalado** en `C:\Program Files\PostgreSQL\17\bin` (no
+quedó en el `PATH`: invócalo por ruta completa). Para inspeccionar el volcado sin
+tocar nada, sirve de sobra:
 
 ```
-"C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" --list export.dump
+"C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" --list camberas_260826.backup
 ```
+
+> **Antes de restaurar de verdad, instala PostgreSQL 18.** El export lo genera
+> `pg_dump` 18.4, y `pg_restore` debe ser de versión igual o superior a la que
+> creó el archivo. El 17 lo lista bien —comprobado— pero no des por hecho que lo
+> restaura entero.
+
+Contra un proyecto de Supabase propio y vacío:
+
+```
+"C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" --no-owner --no-privileges --disable-triggers --dbname "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres" camberas_260826.backup
+```
+
+`--disable-triggers` evita que las claves ajenas hagan fallar la carga por el
+orden de las tablas. `--no-owner` porque los roles del proyecto de destino no son
+los del origen.
 
 Después quedan por rehacer a mano: los secrets, el despliegue de las Edge
 Functions, los ficheros de Storage, las variables `VITE_SUPABASE_*` y los
@@ -179,7 +201,7 @@ Fecha de la última prueba de restauración: _(sin probar todavía)_
 
 ## 7. Pendiente
 
-- La primera copia real: nunca se ha generado un export.
+- ~~La primera copia real~~ — hecha el 26-ago-2026: 112 tablas, 98 con datos, 27 MB.
 - La prueba de restauración (§6.3).
 - Descarga de los ficheros de Storage.
 - Inventario de los secrets en un gestor de contraseñas (§5.1).
