@@ -277,13 +277,27 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       'top-right'
     );
 
-    map.current.on('load', () => {
+    // Marcar el mapa como listo. Se engancha a DOS eventos a proposito: con
+    // solo 'load' habia cargas en las que mapReady se quedaba en false para
+    // siempre, y entonces no se pintaba ni el recorrido ni los puntos de
+    // control — el mapa se quedaba en su centro por defecto, Madrid, y el
+    // boton "Recorrido" apagado. Al cambiar de recorrido a mano funcionaba,
+    // porque el componente ya estaba montado: de ahi que pareciera
+    // intermitente. 'idle' dispara cada vez que el mapa se queda quieto, asi
+    // que rescata el caso en que 'load' se pierde.
+    const marcarListo = () => {
+      // El contenedor crece despues de crear el mapa (la tarjeta que lo
+      // envuelve se pinta antes de tener alto). Sin resize, Mapbox sigue
+      // creyendo que mide lo de antes y lo que se encuadre despues sale a un
+      // zoom sin tiles: el mapa en beige.
+      map.current?.resize();
       setMapReady(true);
-    });
+    };
+    map.current.on('load', marcarListo);
+    map.current.on('idle', marcarListo);
 
-    // If style already loaded
     if (map.current.isStyleLoaded()) {
-      setMapReady(true);
+      marcarListo();
     }
 
     return () => {
@@ -315,6 +329,12 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     roadbookMarkers.current = [];
     
     setGpxUrl(null);
+    // Y el estado que cuelga de la ruta, tambien. Se limpiaba la capa del mapa
+    // pero no esto, asi que al pasar a un recorrido sin GPX el boton
+    // "Recorrido" seguia activo y llevaba al trazado del recorrido ANTERIOR.
+    routeCoordinates.current = [];
+    setHasRoute(false);
+    setRouteIndex(null);
     fetchGpx();
     fetchCheckpoints();
     fetchRoadbookItems();
@@ -659,8 +679,14 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       if (!distanceError && distanceData?.gpx_file_url) {
         setGpxUrl(distanceData.gpx_file_url);
         loadGpxRoute(distanceData.gpx_file_url);
-        return;
       }
+      // Y si ESE recorrido no tiene GPX, no se dibuja ninguno. Antes se caia a
+      // los respaldos de abajo y acababa pintando el recorrido de OTRA
+      // distancia de la misma carrera: quien entraba a ver el Trail de 25 km
+      // veia el trazado de la Marcha de 15 dibujado como si fuera el suyo.
+      // Los respaldos valen cuando no se ha elegido recorrido —mejor algo que
+      // nada—, pero con uno concreto seleccionado mienten.
+      return;
     }
 
     // Fallback: try to get GPX from race_distances with GPS enabled
@@ -674,8 +700,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       .maybeSingle();
 
     if (!distanceError && distanceData?.gpx_file_url) {
-      setGpxUrl(distanceData.gpx_file_url);
-      loadGpxRoute(distanceData.gpx_file_url);
+      // Sin setGpxUrl: no hay recorrido propio que anunciar en la leyenda
+      loadGpxRoute(distanceData.gpx_file_url, true);
       return;
     }
 
@@ -689,8 +715,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
       .maybeSingle();
 
     if (!anyDistanceError && anyDistanceData?.gpx_file_url) {
-      setGpxUrl(anyDistanceData.gpx_file_url);
-      loadGpxRoute(anyDistanceData.gpx_file_url);
+      loadGpxRoute(anyDistanceData.gpx_file_url, true);
       return;
     }
 
@@ -707,7 +732,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     }
   };
 
-  const loadGpxRoute = async (url: string) => {
+  /**
+   * Carga el GPX y lo dibuja. Con soloEncuadrar solo mueve el mapa a esa zona
+   * SIN dibujar la linea: se usa cuando el recorrido elegido no tiene ruta
+   * propia y se toma prestada la de otro de la misma carrera, nada mas que
+   * para no dejar el mapa plantado en su centro por defecto, que es Madrid.
+   * Encuadrar en la comarca correcta ayuda; dibujar el trazado de otra
+   * distancia como si fuera el tuyo es mentir.
+   */
+  const loadGpxRoute = async (url: string, soloEncuadrar = false) => {
     try {
       const response = await fetch(url);
       const gpxText = await response.text();
@@ -719,13 +752,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
         return;
       }
 
-      addGpxToMap(parsedGpx);
+      addGpxToMap(parsedGpx, soloEncuadrar);
     } catch (error) {
       console.error('Error loading GPX:', error);
     }
   };
 
-  const addGpxToMap = (gpx: ReturnType<typeof parseGpxFile>) => {
+  const addGpxToMap = (gpx: ReturnType<typeof parseGpxFile>, soloEncuadrar = false) => {
     if (!map.current) return;
 
     const coordinates: [number, number][] = [];
@@ -737,6 +770,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     });
 
     if (coordinates.length === 0) return;
+
+    // Prestado de otro recorrido: solo sirve para saber por donde cae la
+    // carrera. Ni se dibuja, ni se guarda como ruta, ni enciende los controles
+    // de recorrido — no es el trazado de quien esta mirando.
+    if (soloEncuadrar) {
+      const encuadre = new mapboxgl.LngLatBounds();
+      coordinates.forEach((coord) => encuadre.extend(coord));
+      map.current.fitBounds(encuadre, { padding: 50, maxZoom: 15 });
+      return;
+    }
 
     // Store coordinates for map controls
     routeCoordinates.current = coordinates;
@@ -783,7 +826,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     // Fit map to route bounds
     const bounds = new mapboxgl.LngLatBounds();
     coordinates.forEach(coord => bounds.extend(coord));
-    map.current.fitBounds(bounds, { padding: 50 });
+    // maxZoom: una ruta corta encuadrada sin tope se va a un zoom donde no
+    // hay tiles y el mapa aparece en blanco
+    map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
   };
 
   const fetchInitialPositions = async () => {
