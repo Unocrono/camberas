@@ -92,6 +92,21 @@ dentro de un slide normal las dejaría con doble cabecera. Se usa
 fondo verde a recortar la pieza. Como el cartel comparte ese mismo fondo,
 el hueco ni se ve.
 
+### Destacar una palabra en la portada
+
+Rodeando una palabra de asteriscos en `antetitulo` o `titulo` se resalta:
+
+```json
+{ "antetitulo": "¿Sabes qué es un *GPX*?", "titulo": "Sí, claro" }
+```
+
+En el antetítulo, que va en cuerpo pequeño, el énfasis es de **tamaño**:
+la palabra pasa a Archivo Black casi al doble. En el titular, que ya es
+enorme, es de **color**: agrandarlo más rompería el bloque.
+
+Solo funciona en la portada, y el texto se escapa antes, así que por ahí
+no se cuela HTML.
+
 `pildora` sobrescribe la etiqueta de la portada, que por defecto es
 `Para {audiencia}`. Sirve cuando el carrusel apunta a un papel concreto
 dentro de la audiencia —«Para el capo»— en vez de a toda ella. Va en

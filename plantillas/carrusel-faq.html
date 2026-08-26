@@ -141,6 +141,21 @@ body {
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--acento);
+  line-height: 1.3;
+}
+
+/* *palabra* en el antetítulo o el titular de portada. En el antetítulo, que
+   va en cuerpo pequeño, el énfasis es de tamaño; en el titular, que ya es
+   enorme, es de color: agrandarlo más solo rompería el bloque. */
+.antetitulo .resalte {
+  font-family: "Archivo Black", sans-serif;
+  font-style: normal;
+  font-size: 1.8em;
+  letter-spacing: 0.06em;
+}
+.titulo .resalte {
+  font-style: normal;
+  color: var(--acento);
 }
 
 .titulo {
@@ -359,6 +374,10 @@ const COLINAS = `
 const esc = (s) =>
   String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
+/* *palabra* → énfasis. Se escapa antes, así que el JSON no puede colar HTML. */
+const resalte = (s) =>
+  esc(s).replace(/\*([^*]+)\*/g, '<em class="resalte">$1</em>');
+
 const marca = () => `<div class="marca">${LOGO}<div class="wordmark">Camberas</div></div>`;
 
 /* Etiqueta por defecto de la portada según el tipo de carrusel. */
@@ -388,8 +407,8 @@ function construirSlides(datos) {
       <div class="cabecera">${marca()}</div>
       <div class="centro caja-ajuste">
         ${datos.imagenPortada ? `<img class="portada-imagen" src="${esc(datos.imagenPortada)}" alt="" />` : ''}
-        <div class="antetitulo">${esc(antetitulo)}</div>
-        <h1 class="titulo">${esc(titulo)}</h1>
+        <div class="antetitulo">${resalte(antetitulo)}</div>
+        <h1 class="titulo">${resalte(titulo)}</h1>
         <div class="pildora">${esc(datos.pildora ?? `Para ${audiencia}`)}</div>
       </div>
       <div class="desliza">Desliza →</div>
