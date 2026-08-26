@@ -72,6 +72,28 @@ Si la contraseña lleva caracteres especiales (`@`, `/`, `#`, `?`, `:`), hay que
 codificarlos en porcentaje. Un `@` sin codificar parte la URI y la conexión acaba
 apuntando a un servidor que no existe.
 
+### Si no sabes la contraseña porque entras por Lovable
+
+Es lo normal: Lovable pilota el proyecto por la Management API con OAuth y nunca
+te enseña la contraseña de Postgres. Se resetea desde el panel, y **no rompe
+nada**:
+
+**Project Settings → Database → Database password → Reset database password.**
+
+En este proyecto esa contraseña no la usa nadie. Comprobado el 25-ago-2026: no
+hay ninguna cadena de conexión directa en el repo, las ~30 Edge Functions se
+conectan por API con la `service_role key`, la web con la `anon key`, y no hay
+cliente `pg`, Prisma ni Drizzle en las dependencias. Resetearla no afecta ni a la
+web, ni a las Edge Functions, ni a Lovable.
+
+Lo único que se rompería es algo **externo al repo** conectado por conexión
+directa (una herramienta de BI, n8n, un script en otra máquina). Si existe, hay
+que actualizarle la cadena.
+
+Guarda la contraseña nueva en el gestor de contraseñas. El script la pide por
+teclado (`Read-Host -AsSecureString`), no la escribe en disco y la descarta al
+terminar.
+
 El script:
 
 1. Vuelca esquema y datos de `public` en dos `.sql`.
