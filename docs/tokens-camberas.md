@@ -50,6 +50,36 @@ en lugar de a un texto sin sentido.
 | Moto | `/activar.html?t=` | Admin → Motos GPS → botón QR |
 | Cronometraje | `/timing?t=` | Admin → Puntos de cronometraje → QR |
 
+## Pantalla de seguimiento — un token que no lleva QR
+
+Añadido el 26-ago-2026. Una pantalla encendida seis horas en la carpa es un
+**puesto**, igual que un punto de cronometraje: no es una persona con sesión.
+
+| | |
+|---|---|
+| URL | `/pantalla/<token>` |
+| Se genera en | Panel → Seguimiento GPS → Camberas Track (y en Admin → Dorsales GPS) |
+| Tabla | `pantallas_seguimiento` |
+| RPC públicas | `pantalla_contexto(token)`, `pantalla_sos(token)` |
+| RPC de gestión | `generar_token_pantalla`, `pantallas_carrera`, `revocar_token_pantalla` |
+
+**No lleva QR** y es la única del grupo que no lo lleva: no se escanea con un
+móvil, se pega en la barra de un navegador. Por eso el panel ofrece copiar el
+enlace y abrirlo en ventana nueva, en vez de imprimir un código.
+
+Dos cosas que la distinguen del resto:
+
+- **Ve las alertas SOS CON dorsal y nombre**, al revés que el mapa público
+  (ver `20260826180000_sos_quien_ve_que.sql`). Quien mira esa pantalla es quien
+  tiene que mandar la ayuda.
+- **Late cada minuto** contra `pantalla_contexto`, que sella `last_seen_at`. Es
+  lo que permite que el organizador vea desde la mesa si la pantalla de meta
+  sigue viva o se ha quedado sin internet.
+
+Se revoca desde el panel (`activa = false`) y deja de funcionar al instante.
+Conviene hacerlo al acabar la carrera: mientras el token viva, quien tenga la
+URL ve los nombres.
+
 ## Preparado para tokens de seguridad (v2)
 
 El resultado de `parseCamberasToken` ya transporta lo que hará falta cuando los
