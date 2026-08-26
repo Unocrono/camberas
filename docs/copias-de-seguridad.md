@@ -1,221 +1,186 @@
 # Copias de seguridad
 
 Cómo se respalda y cómo se restaura la base de datos de Camberas
-(proyecto Supabase `rsahtxjpisnldxnsmupk`).
+(proyecto `rsahtxjpisnldxnsmupk`, alojado en **Lovable Cloud**).
 
 ---
 
-## 1. Qué entra y qué no
+## 1. El punto de partida: no tenemos las llaves
 
-| Contenido | ¿En la copia? | Dónde vive si no |
-|---|---|---|
-| Esquema `public`: tablas, funciones, RLS, permisos (`schema.sql`) | ✅ | también en `supabase/migrations/` |
-| Datos del esquema `public` (`data.sql`) | ✅ | **solo aquí** |
-| Usuarios de `auth` y metadatos de `storage` | ⚠️ solo con `-IncluirAuth` | Supabase Auth |
-| Ficheros de Storage (carteles, fotos, GPX) | ❌ | Supabase Storage |
-| Secrets de Edge Functions (Redsys, Mapbox, push, WhatsApp) | ❌ | panel de Supabase |
-| Código y Edge Functions | ❌ (no hace falta) | GitHub `Unocrono/camberas` |
+El backend lo gestiona **Lovable Cloud**, que administra el proyecto de Supabase
+por debajo pero **no entrega las credenciales**:
 
-Lo que está en la copia es lo irrecuperable: inscripciones, pagos, lecturas de
-cronometraje, posiciones GPS, resultados. Lo que queda fuera se puede rehacer,
-pero **una base restaurada no funciona hasta volver a poner los secrets a mano**.
+- no hay acceso al panel de Supabase (`supabase.com/dashboard`),
+- no hay contraseña de Postgres, así que **no se puede conectar con `pg_dump` ni
+  `psql`**,
+- no hay `service_role key` visible.
 
-> **Datos personales.** El fichero `data.sql` contiene nombres, DNI, correos,
-> teléfonos y referencias de pago de los inscritos. No va al repositorio, no se
-> sube a un chat, no se manda por correo. Se guarda en `%USERPROFILE%\Backups\camberas\`
-> y ahí se queda. Si un `.zip` de estos sale de tu máquina, es una brecha de datos.
+Todo lo que sigue está condicionado por eso. Se intentó el camino directo con
+`pg_dump` y no es viable: sin cadena de conexión no hay por dónde entrar.
 
----
-
-## 2. Requisito, una sola vez
-
-Hace falta `pg_dump` (y `psql`, que viene en el mismo paquete y es lo que
-restaura). En la máquina de desarrollo ya está: **PostgreSQL 17.11**, instalado el
-25-ago-2026 en `C:\Program Files\PostgreSQL\17\bin`. En una máquina nueva:
-
-```powershell
-winget install -e --id PostgreSQL.PostgreSQL.17
-```
-
-No quedó en el `PATH`, así que `pg_dump` a secas no responde desde la consola. No
-importa para el script, que busca en `C:\Program Files\PostgreSQL\*\bin` y coge la
-versión más alta. Para usar `psql` a mano en la restauración, invócalo por su ruta
-completa.
-
-Instala la versión 17 o superior: `pg_dump` se niega a volcar una base más nueva
-que él, y Supabase va actualizando el servidor.
-
-> **Por qué no el CLI de Supabase.** `supabase db dump` levanta un contenedor
-> para ejecutar `pg_dump` dentro, así que exige Docker Desktop. Instalar Docker
-> para esto no compensa cuando el binario nativo pesa lo que pesa y además
-> resuelve la restauración.
+> **Consecuencia de fondo, más grave que la copia.** Con este montaje, el acceso
+> a la base de datos de un producto con pagos reales e inscritos reales depende
+> por completo de Lovable. La salida, si algún día compensa, es migrar a un
+> Supabase propio (Lovable lo soporta: "connect your own Supabase project", y da
+> panel, credenciales y `pg_dump`). No es una decisión para tomar con prisa, pero
+> conviene tenerla presente. Ver §6.
 
 ---
 
-## 3. Hacer una copia
+## 2. Qué respalda Lovable solo
+
+Lovable hace **un backup diario** de la base (estructura y datos) y permite
+restaurar a cualquiera de los snapshots recientes, con una retención del orden de
+**dos semanas**. Es la red de seguridad ante un `DELETE` sin `WHERE`.
+
+Lo que esa red **no** te da: no te la puedes llevar, no controlas la retención, y
+si el problema es el acceso a la cuenta de Lovable, se va con ella. Por eso hay
+que sacar exports propios.
+
+---
+
+## 3. Sacar una copia propia
+
+### 3.1. Generar el export en Lovable
+
+1. Pestaña **Cloud → Overview → Advanced settings**.
+2. En *Export project data*, botón **Export data**.
+3. En la tarjeta **Database**, **Export** → **Start export**.
+4. Lovable **avisa por correo** cuando está listo.
+5. Se descarga desde **Cloud → Storage**.
+
+Límites: **5 GB** por export y **uno cada 24 horas**. No es un mecanismo para
+disparar a menudo: elige bien el momento (ver §4).
+
+### 3.2. Archivar lo descargado
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1
 ```
 
-**El `-ExecutionPolicy Bypass` no es opcional.** Windows viene con la ejecución de
-scripts deshabilitada (`Restricted`) y sin él sale
+**El `-ExecutionPolicy Bypass` no es opcional.** Windows trae la ejecución de
+scripts en `Restricted` y sin él sale
 `No se puede cargar el archivo ... porque la ejecución de scripts está deshabilitada`.
-Se salta por invocación, que es lo correcto: no hay que cambiar la política del
-sistema para lanzar un script propio.
+Se salta por invocación: no hay que cambiar la política del sistema para lanzar
+un script propio.
 
-Pide la cadena de conexión de Postgres. Se saca del panel:
-**Project Settings → Database → Connection string → URI**, sustituyendo
-`[YOUR-PASSWORD]` por la contraseña real.
+El script busca el export en `Descargas`, te deja elegirlo de una lista, y:
 
-Si la contraseña lleva caracteres especiales (`@`, `/`, `#`, `?`, `:`), hay que
-codificarlos en porcentaje. Un `@` sin codificar parte la URI y la conexión acaba
-apuntando a un servidor que no existe.
+1. **Verifica** que dentro están `registrations`, `payment_intents`, `races`,
+   `timing_readings` y `user_roles`. Un export puede descargarse a medias y pesar
+   lo suficiente para parecer bueno; si falta una tabla crítica **no lo archiva**
+   y sale con error. Los volcados en texto los lee directamente; los binarios,
+   con `pg_restore --list`.
+2. Lo comprime en `%USERPROFILE%\Backups\camberas\camberas_AAAA-MM-DD_HHmmss.zip`,
+   fuera del repositorio.
+3. Conserva las 10 últimas.
 
-### Si no sabes la contraseña porque entras por Lovable
+Si no puede leer el formato, lo archiva marcándolo `_SIN-VERIFICAR` en el nombre,
+para que no se confunda con una copia comprobada.
 
-Es lo normal: Lovable pilota el proyecto por la Management API con OAuth y nunca
-te enseña la contraseña de Postgres. Se resetea desde el panel, y **no rompe
-nada**:
-
-**Project Settings → Database → Database password → Reset database password.**
-
-En este proyecto esa contraseña no la usa nadie. Comprobado el 25-ago-2026: no
-hay ninguna cadena de conexión directa en el repo, las ~30 Edge Functions se
-conectan por API con la `service_role key`, la web con la `anon key`, y no hay
-cliente `pg`, Prisma ni Drizzle en las dependencias. Resetearla no afecta ni a la
-web, ni a las Edge Functions, ni a Lovable.
-
-Lo único que se rompería es algo **externo al repo** conectado por conexión
-directa (una herramienta de BI, n8n, un script en otra máquina). Si existe, hay
-que actualizarle la cadena.
-
-Guarda la contraseña nueva en el gestor de contraseñas. El script la pide por
-teclado (`Read-Host -AsSecureString`), no la escribe en disco y la descarta al
-terminar.
-
-El script:
-
-1. Vuelca esquema y datos de `public` en dos `.sql`.
-2. **Verifica** que en `data.sql` aparecen `registrations`, `payment_intents`,
-   `races`, `timing_readings` y `user_roles`. `pg_dump` puede salir con código 0
-   y dejar un volcado a medias; sin esta comprobación la copia parecería buena.
-3. Comprime en `camberas_AAAA-MM-DD_HHmmss.zip`.
-4. Conserva las 10 últimas y borra las anteriores.
-
-Si algo falla, borra el volcado incompleto y sale con error. Una copia parcial es
-peor que ninguna, porque da confianza falsa.
-
-### Opciones
+Con la ruta puesta a mano:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -SoloEsquema
-```
-Sin datos. Para comprobar que el circuito funciona sin descargarlo todo.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -IncluirAuth
-```
-Añade `auth_storage.sql` con los usuarios. Necesario si quieres poder restaurar
-en un proyecto nuevo y que la gente pueda entrar; **este fichero es todavía más
-sensible que el resto**.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Destino "D:\Backups\camberas" -Conservar 20
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero "C:\Users\UNO\Downloads\export.sql"
 ```
 
-### Sin escribir la contraseña cada vez
+**Borra el original de `Descargas`** cuando confirmes que el `.zip` está bien.
 
-Solo en tu máquina, para la sesión actual de la consola:
-
-```powershell
-$env:CAMBERAS_DB_URL = "postgresql://..."
-```
-
-No la metas en `.env` ni en ningún fichero del repo.
+> **Datos personales.** El export contiene nombres, DNI, correos, teléfonos y
+> referencias de pago de los inscritos. No va al repositorio, no se sube a un
+> chat, no se manda por correo. Si uno de estos ficheros sale de tu máquina, es
+> una brecha de datos.
 
 ---
 
-## 4. Cuándo hacerla
+## 4. Cuándo sacarla
 
-No hay automatismo: se dispara a mano, a propósito.
+Con el límite de un export cada 24 horas, se dispara a propósito:
 
 - **Antes de cada carrera**, con las inscripciones ya cerradas. Es el momento en
   que la base vale más.
 - **Después de la carrera**, con resultados y lecturas consolidados.
-- **Antes de aplicar una migración gorda** o cualquier `DELETE`/`UPDATE` masivo
-  desde el editor SQL.
+- **Antes de aplicar una migración gorda** o cualquier `DELETE`/`UPDATE` masivo.
 - **Después de cada pasada de Lovable sobre la base**, que ya ha cerrado permisos
   y roto paneles en silencio más de una vez.
 
-Supabase mantiene su propio backup diario, pero con retención corta y sin control
-tuyo. Estas copias son las que puedes llevarte y las que puedes probar.
+Entre medias, la red es el backup diario de Lovable (§2).
 
 ---
 
-## 5. Restaurar
+## 5. Qué NO está en la copia
 
-Esto es lo que hay que saber hacer sin improvisar.
+| Contenido | ¿En el export? | Dónde vive |
+|---|---|---|
+| Estructura y datos de la base | ✅ | — |
+| Ficheros de Storage (carteles, fotos, GPX) | ❌ | Lovable → Cloud → Storage |
+| Código de las Edge Functions | ❌ (no hace falta) | GitHub `Unocrono/camberas` |
+| Secrets (Redsys, Mapbox, VAPID push, WhatsApp) | ❌ | Lovable, y solo ahí |
+| Contraseñas de los usuarios **en forma utilizable** | ❌ | — |
 
-### 5.1. Descomprimir
+Esa última fila importa: **restaurar la base en otro sitio no devuelve el acceso
+a los usuarios**. Tendrían que restablecer contraseña.
 
-```powershell
-Expand-Archive "$env:USERPROFILE\Backups\camberas\camberas_2026-08-25_120000.zip" -DestinationPath "$env:USERPROFILE\restauracion"
+Los ficheros de Storage se descargan aparte, desde **Cloud → Storage**.
+
+### 5.1. Los secrets, la pieza que falta
+
+Sin las claves de Redsys no se cobra, y sin las de push/WhatsApp no se avisa a
+nadie. No están en ningún export ni en el repositorio: viven solo en Lovable.
+Merecen su propio inventario en un gestor de contraseñas. **Sigue pendiente.**
+
+---
+
+## 6. Restaurar
+
+### 6.1. Dentro de Lovable (lo normal)
+
+Para un desastre corriente —un borrado accidental, una migración que se llevó por
+delante lo que no debía— la vía es **restaurar el backup diario desde Lovable**,
+eligiendo el snapshot anterior al estropicio. No hace falta el export.
+
+### 6.2. Fuera de Lovable (el export propio)
+
+El export es un backup de Postgres, así que se restaura con las herramientas
+nativas. **PostgreSQL 17.11 ya está instalado** en la máquina de desarrollo, en
+`C:\Program Files\PostgreSQL\17\bin` (no quedó en el `PATH`: invócalo por ruta
+completa).
+
+Contra un proyecto de Supabase propio y vacío, para un volcado en texto:
+
+```
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" --single-transaction --variable ON_ERROR_STOP=1 --command "SET session_replication_role = replica" --file export.sql --dbname "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres"
 ```
 
-Fuera del repositorio. Si lo descomprimes dentro, `data.sql` acaba a un `git add .`
-de distancia de GitHub (hay una regla en `.gitignore` para tapar el descuido, pero
-no te apoyes en ella).
+`session_replication_role = replica` desactiva triggers y claves ajenas mientras
+entran los datos; sin eso, el orden de las tablas hace fallar la carga.
 
-### 5.2. Restaurar en un proyecto vacío
-
-Crea un proyecto nuevo en Supabase (o vacía el actual, con mucho cuidado) y lanza,
-desde la carpeta descomprimida:
+Si el export viene en formato binario, se usa `pg_restore` en lugar de `psql`.
+Para ver qué trae dentro antes de tocar nada:
 
 ```
-psql --single-transaction --variable ON_ERROR_STOP=1 --file schema.sql --command "SET session_replication_role = replica" --file data.sql --dbname "postgresql://postgres:[PASSWORD]@db.[REF].supabase.co:5432/postgres"
+"C:\Program Files\PostgreSQL\17\bin\pg_restore.exe" --list export.dump
 ```
 
-`session_replication_role = replica` desactiva triggers y comprobaciones de clave
-ajena mientras entran los datos. Sin eso, el orden de las tablas hace fallar la
-carga.
+Después quedan por rehacer a mano: los secrets, el despliegue de las Edge
+Functions, los ficheros de Storage, las variables `VITE_SUPABASE_*` y los
+webhooks externos (GPS, Redsys) apuntando a la URL nueva.
 
-Si incluiste `auth_storage.sql`, va después, en una llamada aparte y con la misma
-opción de `session_replication_role`.
-
-Los roles de la base (`anon`, `authenticated`, `service_role`) no se vuelcan: un
-proyecto de Supabase ya los trae. Los `GRANT` sobre funciones y tablas sí van en
-`schema.sql`, que es lo que importa en este proyecto.
-
-### 5.3. Lo que hay que rehacer a mano
-
-Una base restaurada **no es un proyecto funcionando**. Falta:
-
-1. **Los secrets de las Edge Functions**: claves de Redsys, Mapbox, VAPID de push,
-   WhatsApp. Se vuelven a poner en Project Settings → Edge Functions → Secrets.
-   Sin esto no se cobra ni se envía nada.
-2. **Desplegar las Edge Functions** al proyecto nuevo.
-3. **Los ficheros de Storage**: carteles, fotos, GPX. El volcado guarda los
-   metadatos, no los ficheros.
-4. **Apuntar la web al proyecto nuevo**: `VITE_SUPABASE_URL`,
-   `VITE_SUPABASE_PROJECT_ID` y `VITE_SUPABASE_PUBLISHABLE_KEY` en `.env` y en el
-   despliegue.
-5. **Rehacer los webhooks externos** (GPS, Redsys) contra la URL nueva.
-
-### 5.4. Prueba de restauración
+### 6.3. Prueba de restauración
 
 Una copia que no se ha restaurado nunca no es una copia, es un fichero. Al menos
-una vez, y después de cualquier cambio grande de esquema: crea un proyecto de
-usar y tirar, restaura ahí, comprueba que `registrations` y `payment_intents`
-traen el número de filas que esperas, y bórralo.
+una vez: monta un proyecto de Supabase de usar y tirar, restaura ahí el export,
+comprueba que `registrations` y `payment_intents` traen las filas que esperas, y
+bórralo.
 
 Fecha de la última prueba de restauración: _(sin probar todavía)_
 
 ---
 
-## 6. Pendiente
+## 7. Pendiente
 
-- Copia de los ficheros de Storage.
-- Inventario cifrado de los secrets de Edge Functions.
-- Automatizar el disparo: requiere decidir dónde vive la contraseña de Postgres
-  en la máquina que lo ejecute.
+- La primera copia real: nunca se ha generado un export.
+- La prueba de restauración (§6.3).
+- Descarga de los ficheros de Storage.
+- Inventario de los secrets en un gestor de contraseñas (§5.1).
+- Decidir si conviene migrar a un Supabase propio (§1).

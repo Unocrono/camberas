@@ -1,59 +1,57 @@
 <#
 .SYNOPSIS
-    Copia de seguridad de la base de datos de Camberas (Supabase alojado).
+    Archiva y verifica una copia de seguridad de la base de datos de Camberas.
 
 .DESCRIPTION
-    Vuelca el esquema y los datos del proyecto rsahtxjpisnldxnsmupk con pg_dump,
-    los comprime con marca de tiempo y rota las copias antiguas. No toca el
-    repositorio: los volcados salen fuera, porque contienen datos personales de
-    inscritos y pagos.
+    El proyecto vive en Lovable Cloud, que gestiona el Supabase y NO da las
+    credenciales: no hay contrasena de Postgres ni service_role key, asi que no
+    se puede volcar la base con pg_dump desde aqui.
 
-    Usa pg_dump nativo, NO el CLI de Supabase: "supabase db dump" ejecuta pg_dump
-    dentro de Docker y aqui no hay Docker. Ademas pg_dump viene con psql, que es
-    lo que hace falta para restaurar.
+    La copia se genera desde Lovable (Cloud > Overview > Advanced settings >
+    Export project data > Database > Export) y se descarga cuando llega el aviso
+    por correo. Este script coge ese fichero descargado, comprueba que trae las
+    tablas que importan, lo archiva con marca de tiempo fuera del repositorio y
+    rota las copias antiguas.
 
-    Requisito, una sola vez:  winget install -e --id PostgreSQL.PostgreSQL.17
-    Procedimiento de restauracion en docs/copias-de-seguridad.md.
+    Procedimiento completo y restauracion en docs/copias-de-seguridad.md.
+
+.PARAMETER Fichero
+    Ruta del export descargado de Lovable. Si no se indica, busca candidatos en
+    la carpeta de Descargas y deja elegir.
 
 .PARAMETER Destino
-    Carpeta donde se guardan los .zip. Por defecto %USERPROFILE%\Backups\camberas.
+    Carpeta donde se archivan las copias. Por defecto %USERPROFILE%\Backups\camberas.
 
 .PARAMETER Conservar
     Numero de copias a mantener. Las mas antiguas se borran. Por defecto 10.
 
-.PARAMETER SoloEsquema
-    Vuelca solo la estructura, sin datos. Sirve para comprobar que el circuito
-    funciona sin descargar toda la base.
-
-.PARAMETER IncluirAuth
-    Anade un volcado de los esquemas auth y storage (usuarios y metadatos de
-    ficheros). Sin esto, una base restaurada no tiene con quien entrar.
-    Lee el aviso del doc antes de activarlo.
+.PARAMETER SinVerificar
+    Archiva sin comprobar el contenido. Solo para formatos que el script no sabe
+    leer; deja constancia de que la copia no esta verificada.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1
-    Pide la cadena de conexion y hace la copia completa.
+    Busca el export en Descargas, lo verifica y lo archiva.
 
     El -ExecutionPolicy Bypass hace falta siempre: Windows trae la ejecucion de
     scripts en Restricted. Se salta por invocacion, sin tocar la politica del
     sistema.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -SoloEsquema
-    Prueba rapida, sin datos.
+    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero "C:\Users\UNO\Downloads\export.sql"
 #>
 [CmdletBinding()]
 param(
+    [string]$Fichero,
     [string]$Destino = (Join-Path $env:USERPROFILE 'Backups\camberas'),
     [int]$Conservar = 10,
-    [switch]$SoloEsquema,
-    [switch]$IncluirAuth
+    [switch]$SinVerificar
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Tablas que tienen que aparecer en el volcado de datos. Si falta alguna, la
-# copia esta incompleta aunque pg_dump haya salido con codigo 0.
+# Tablas que tienen que aparecer en el volcado. Si falta alguna, el export esta
+# incompleto o no es lo que creemos que es.
 $TablasCriticas = @('registrations', 'payment_intents', 'races', 'timing_readings', 'user_roles')
 
 function Escribe($texto, $color = 'Gray') { Write-Host $texto -ForegroundColor $color }
@@ -63,154 +61,162 @@ Escribe '  COPIA DE SEGURIDAD - Base de datos de Camberas' 'Cyan'
 Escribe '  ---------------------------------------------' 'Cyan'
 Escribe ''
 
-# --- 1. Localizar pg_dump --------------------------------------------------
-# Primero en el PATH; si no, en las instalaciones tipicas de PostgreSQL en
-# Windows, cogiendo siempre la version mas alta disponible.
-function Buscar-PgDump {
-    $enPath = Get-Command pg_dump -ErrorAction SilentlyContinue
-    if ($enPath) { return $enPath.Source }
+# --- 1. Localizar el fichero de export -------------------------------------
+if (-not $Fichero) {
+    $descargas = Join-Path $env:USERPROFILE 'Downloads'
+    Escribe "  Buscando el export en $descargas ..."
+    $candidatos = @(Get-ChildItem $descargas -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -in '.sql', '.dump', '.backup', '.tar', '.gz', '.zip' } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 5)
 
-    $candidatos = @()
+    if ($candidatos.Count -eq 0) {
+        Escribe '  No hay ningun fichero que parezca un export en Descargas.' 'Red'
+        Escribe ''
+        Escribe '  Genera la copia desde Lovable:' 'Yellow'
+        Escribe '    Cloud > Overview > Advanced settings > Export project data' 'White'
+        Escribe '    > tarjeta Database > Export > Start export' 'White'
+        Escribe '  Llega un correo cuando esta lista. Se descarga desde Cloud > Storage.' 'Yellow'
+        Escribe ''
+        exit 1
+    }
+
+    Escribe ''
+    for ($i = 0; $i -lt $candidatos.Count; $i++) {
+        $c = $candidatos[$i]
+        $mb = [math]::Round($c.Length / 1MB, 1)
+        Escribe ("    [{0}] {1}  ({2} MB, {3})" -f ($i + 1), $c.Name, $mb, $c.LastWriteTime.ToString('yyyy-MM-dd HH:mm'))
+    }
+    Escribe ''
+    $eleccion = Read-Host '  Cual es el export de Lovable? (numero, o Enter para cancelar)'
+    if ([string]::IsNullOrWhiteSpace($eleccion)) { Escribe '  Cancelado.' 'Yellow'; exit 1 }
+    $indice = 0
+    if (-not [int]::TryParse($eleccion, [ref]$indice) -or $indice -lt 1 -or $indice -gt $candidatos.Count) {
+        Escribe '  Eleccion no valida.' 'Red'; exit 1
+    }
+    $Fichero = $candidatos[$indice - 1].FullName
+}
+
+if (-not (Test-Path $Fichero)) {
+    Escribe "  No existe el fichero: $Fichero" 'Red'
+    exit 1
+}
+
+$origen = Get-Item $Fichero
+$mbOrigen = [math]::Round($origen.Length / 1MB, 2)
+Escribe ''
+Escribe "  Fichero: $($origen.Name)  ($mbOrigen MB)" 'White'
+
+if ($origen.Length -eq 0) {
+    Escribe '  El fichero esta vacio. Eso no es una copia.' 'Red'
+    exit 1
+}
+
+# --- 2. Verificar el contenido ---------------------------------------------
+# Un export puede descargarse a medias y pesar lo suficiente para parecer bueno.
+# Se comprueba que las tablas que importan estan de verdad dentro.
+function Buscar-Bin($nombre) {
+    $enPath = Get-Command $nombre -ErrorAction SilentlyContinue
+    if ($enPath) { return $enPath.Source }
     foreach ($raiz in @("$env:ProgramFiles\PostgreSQL", "${env:ProgramFiles(x86)}\PostgreSQL")) {
         if (Test-Path $raiz) {
-            $candidatos += Get-ChildItem $raiz -Directory |
+            $hit = Get-ChildItem $raiz -Directory |
                 Sort-Object { [int]($_.Name -replace '\D', '0') } -Descending |
-                ForEach-Object { Join-Path $_.FullName 'bin\pg_dump.exe' } |
-                Where-Object { Test-Path $_ }
+                ForEach-Object { Join-Path $_.FullName "bin\$nombre.exe" } |
+                Where-Object { Test-Path $_ } |
+                Select-Object -First 1
+            if ($hit) { return $hit }
         }
     }
-    return ($candidatos | Select-Object -First 1)
+    return $null
 }
 
-$pgDump = Buscar-PgDump
-if (-not $pgDump) {
-    Escribe '  No se encuentra pg_dump.' 'Red'
-    Escribe ''
-    Escribe '  Instala las herramientas de PostgreSQL (una sola vez):' 'Yellow'
-    Escribe '      winget install -e --id PostgreSQL.PostgreSQL.17' 'White'
-    Escribe ''
-    Escribe '  Luego abre una consola nueva y vuelve a lanzar este script.' 'Yellow'
-    Escribe '  Si el instalador no lo puso en el PATH, esta en:' 'DarkGray'
-    Escribe '      C:\Program Files\PostgreSQL\17\bin' 'DarkGray'
-    Escribe ''
-    exit 1
-}
-$versionDump = (& $pgDump --version | Select-Object -First 1)
-Escribe "  $versionDump"
-Escribe "  ($pgDump)" 'DarkGray'
-
-# --- 2. Cadena de conexion -------------------------------------------------
-# Se lee de la variable de entorno CAMBERAS_DB_URL si existe; si no, se pide por
-# teclado. Nunca se escribe en disco ni se muestra por pantalla.
-if ($env:CAMBERAS_DB_URL) {
-    $dbUrl = $env:CAMBERAS_DB_URL
-    Escribe '  Cadena de conexion: leida de CAMBERAS_DB_URL'
+$verificada = $false
+if ($SinVerificar) {
+    Escribe '  (-SinVerificar: se archiva sin comprobar el contenido)' 'Yellow'
 } else {
     Escribe ''
-    Escribe '  Pega la cadena de conexion de Postgres.' 'Yellow'
-    Escribe '  Panel de Supabase > Project Settings > Database > Connection string > URI' 'DarkGray'
-    Escribe '  (con la contrasena ya sustituida en [YOUR-PASSWORD])' 'DarkGray'
-    $segura = Read-Host '  URI' -AsSecureString
-    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($segura)
-    try { $dbUrl = [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
-    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-}
+    Escribe '  Verificando contenido...' 'White'
+    $encontradas = @()
 
-if ([string]::IsNullOrWhiteSpace($dbUrl) -or -not $dbUrl.StartsWith('postgres')) {
-    Escribe '  Esa no es una cadena de conexion valida: tiene que empezar por postgres:// o postgresql://' 'Red'
-    exit 1
-}
-
-# --- 3. Carpeta de trabajo -------------------------------------------------
-$marca = Get-Date -Format 'yyyy-MM-dd_HHmmss'
-$carpeta = Join-Path $Destino $marca
-New-Item -ItemType Directory -Path $carpeta -Force | Out-Null
-Escribe ''
-Escribe "  Destino: $carpeta"
-Escribe ''
-
-function Volcar($descripcion, $fichero, $argumentos) {
-    Escribe "  -> $descripcion..." 'White'
-    $ruta = Join-Path $carpeta $fichero
-    # La URI va la primera y sin comillas extra: PowerShell ya la pasa entera.
-    $todos = @($dbUrl, '--no-owner', '--file', $ruta) + $argumentos
-    & $pgDump @todos | ForEach-Object { Escribe "     $_" 'DarkGray' }
-    if ($LASTEXITCODE -ne 0) { throw "Fallo el volcado de $descripcion (codigo $LASTEXITCODE)." }
-    if (-not (Test-Path $ruta)) { throw "pg_dump no genero $fichero." }
-    $bytes = (Get-Item $ruta).Length
-    if ($bytes -eq 0) { throw "$fichero salio vacio." }
-    $kb = [math]::Round($bytes / 1KB, 1)
-    Escribe "     $fichero  ($kb KB)" 'Green'
-    return $ruta
-}
-
-try {
-    # --- 4. Los volcados ---------------------------------------------------
-    # Solo el esquema public: auth, storage y realtime los gestiona Supabase y un
-    # proyecto nuevo ya los trae puestos.
-    Volcar 'Esquema (tablas, funciones, RLS, permisos)' 'schema.sql' `
-        @('--schema=public', '--schema-only', '--no-publications', '--no-subscriptions') | Out-Null
-
-    if ($SoloEsquema) {
-        Escribe '  (modo -SoloEsquema: no se vuelcan datos)' 'Yellow'
-    } else {
-        $rutaDatos = Volcar 'Datos' 'data.sql' @('--schema=public', '--data-only')
-
-        # Verificacion: que las tablas que importan esten de verdad en el fichero.
-        # pg_dump puede terminar bien y dejar un volcado a medias.
-        Escribe ''
-        Escribe '  Verificando el volcado de datos...' 'White'
-        $faltan = @()
+    if ($origen.Extension -eq '.sql') {
+        # Volcado en texto plano: se busca tabla por tabla.
         foreach ($tabla in $TablasCriticas) {
-            if (-not (Select-String -Path $rutaDatos -Pattern "COPY public\.$tabla " -Quiet)) {
-                $faltan += $tabla
+            if (Select-String -Path $origen.FullName -Pattern "\b$tabla\b" -Quiet) { $encontradas += $tabla }
+        }
+        $verificada = $true
+    } else {
+        # Formato binario de pg_dump: se lee el indice con pg_restore --list.
+        $pgRestore = Buscar-Bin 'pg_restore'
+        if ($pgRestore) {
+            $indiceDump = & $pgRestore --list $origen.FullName 2>$null
+            if ($LASTEXITCODE -eq 0 -and $indiceDump) {
+                $texto = $indiceDump -join "`n"
+                foreach ($tabla in $TablasCriticas) {
+                    if ($texto -match "\b$tabla\b") { $encontradas += $tabla }
+                }
+                $verificada = $true
             }
         }
+        if (-not $verificada) {
+            Escribe '     No se ha podido leer el formato de este fichero.' 'Yellow'
+            Escribe '     Se archiva igualmente, pero SIN verificar.' 'Yellow'
+        }
+    }
+
+    if ($verificada) {
+        $faltan = $TablasCriticas | Where-Object { $_ -notin $encontradas }
         if ($faltan.Count -gt 0) {
-            throw "La copia esta incompleta, no aparecen estas tablas: $($faltan -join ', ')"
+            Escribe ''
+            Escribe "  Este export no trae estas tablas: $($faltan -join ', ')" 'Red'
+            Escribe '  O esta incompleto, o no es el export de la base de Camberas.' 'Red'
+            Escribe '  NO se archiva.' 'Red'
+            Escribe ''
+            exit 1
         }
         Escribe "     $($TablasCriticas.Count) tablas criticas presentes" 'Green'
     }
-
-    if ($IncluirAuth) {
-        Volcar 'Usuarios y storage' 'auth_storage.sql' `
-            @('--schema=auth', '--schema=storage', '--data-only') | Out-Null
-    }
-
-    # --- 5. Comprimir ------------------------------------------------------
-    Escribe ''
-    Escribe '  Comprimiendo...' 'White'
-    $zip = Join-Path $Destino "camberas_$marca.zip"
-    Compress-Archive -Path (Join-Path $carpeta '*') -DestinationPath $zip -CompressionLevel Optimal
-    Remove-Item -Path $carpeta -Recurse -Force
-    $mb = [math]::Round((Get-Item $zip).Length / 1MB, 2)
-    Escribe "     $(Split-Path $zip -Leaf)  ($mb MB)" 'Green'
-
-    # --- 6. Rotacion -------------------------------------------------------
-    $copias = Get-ChildItem -Path $Destino -Filter 'camberas_*.zip' | Sort-Object LastWriteTime -Descending
-    if ($copias.Count -gt $Conservar) {
-        foreach ($vieja in ($copias | Select-Object -Skip $Conservar)) {
-            Remove-Item $vieja.FullName -Force
-            Escribe "     borrada copia antigua: $($vieja.Name)" 'DarkGray'
-        }
-    }
-
-    $quedan = (Get-ChildItem -Path $Destino -Filter 'camberas_*.zip').Count
-    Escribe ''
-    Escribe "  LISTO. $quedan copias en $Destino" 'Green'
-    Escribe '  Restauracion: docs/copias-de-seguridad.md' 'DarkGray'
-    Escribe ''
-} catch {
-    Escribe ''
-    Escribe "  FALLO: $_" 'Red'
-    Escribe '  La copia NO es valida. No la des por buena.' 'Red'
-    if (Test-Path $carpeta) {
-        Remove-Item -Path $carpeta -Recurse -Force
-        Escribe '  (se ha borrado el volcado incompleto)' 'DarkGray'
-    }
-    Escribe ''
-    exit 1
-} finally {
-    $dbUrl = $null
-    [GC]::Collect()
 }
+
+# --- 3. Archivar -----------------------------------------------------------
+$marca = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+New-Item -ItemType Directory -Path $Destino -Force | Out-Null
+
+$sufijo = if ($verificada) { '' } else { '_SIN-VERIFICAR' }
+$zip = Join-Path $Destino "camberas_$marca$sufijo.zip"
+
+Escribe ''
+Escribe '  Archivando...' 'White'
+Compress-Archive -Path $origen.FullName -DestinationPath $zip -CompressionLevel Optimal
+$mbZip = [math]::Round((Get-Item $zip).Length / 1MB, 2)
+Escribe "     $(Split-Path $zip -Leaf)  ($mbZip MB)" 'Green'
+
+# --- 4. Rotacion -----------------------------------------------------------
+$copias = Get-ChildItem -Path $Destino -Filter 'camberas_*.zip' | Sort-Object LastWriteTime -Descending
+if ($copias.Count -gt $Conservar) {
+    foreach ($vieja in ($copias | Select-Object -Skip $Conservar)) {
+        Remove-Item $vieja.FullName -Force
+        Escribe "     borrada copia antigua: $($vieja.Name)" 'DarkGray'
+    }
+}
+
+$quedan = (Get-ChildItem -Path $Destino -Filter 'camberas_*.zip').Count
+Escribe ''
+Escribe "  LISTO. $quedan copias en $Destino" 'Green'
+if (-not $verificada) {
+    Escribe '  OJO: esta copia no se ha podido verificar.' 'Yellow'
+}
+Escribe ''
+Escribe '  Recuerda que el export de Lovable NO incluye:' 'DarkGray'
+Escribe '    - los ficheros de Storage (carteles, fotos, GPX)' 'DarkGray'
+Escribe '    - el codigo de las Edge Functions (eso esta en GitHub)' 'DarkGray'
+Escribe '    - los secrets del proyecto (Redsys, Mapbox, push, WhatsApp)' 'DarkGray'
+Escribe '    - las contrasenas de los usuarios de forma utilizable' 'DarkGray'
+Escribe '  Detalle en docs/copias-de-seguridad.md' 'DarkGray'
+Escribe ''
+
+# El export original se queda en Descargas: borralo tu cuando confirmes que el
+# archivo comprimido esta bien. Lleva datos personales de inscritos y pagos.
+Escribe "  El original sigue en $($origen.DirectoryName)" 'DarkGray'
+Escribe '  Borralo cuando compruebes el archivo: lleva datos personales.' 'DarkGray'
+Escribe ''

@@ -167,9 +167,10 @@ Consúltala antes de rehacer análisis:
 - **`docs/paleta-camberas.md`** — paleta oficial. Verde Camberas `#235940`, naranja de acción
   `#EC7C2B`, crema `#FAF6EC`. **Ampliar ahí, no inventar colores sueltos**; una sola llamada a la
   acción por pantalla.
-- **`docs/copias-de-seguridad.md`** — qué se copia de la BD, cómo (`scripts/copia-seguridad.ps1`,
-  con `pg_dump` nativo: el CLI de Supabase exige Docker) y **cómo se restaura**. Los volcados salen
-  fuera del repo: `data.sql` lleva datos personales de inscritos y pagos.
+- **`docs/copias-de-seguridad.md`** — cómo se respalda y se restaura la BD. **Lovable Cloud no da
+  credenciales de Postgres**, así que no hay `pg_dump`: la copia sale del export nativo de Lovable
+  y `scripts/copia-seguridad.ps1` la verifica y archiva fuera del repo (lleva datos personales de
+  inscritos y pagos). Los secrets y el Storage no van en el export.
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
 
