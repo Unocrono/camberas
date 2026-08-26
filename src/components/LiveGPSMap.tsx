@@ -81,12 +81,19 @@ interface RoadbookItem {
 }
 
 interface LiveGPSMapProps {
+  /**
+   * Token de una pantalla de seguimiento. Si viene, las alertas SOS se piden
+   * con pantalla_sos, que SI devuelve dorsal y nombre: en la carpa hace falta
+   * saber a quien hay que ir a buscar. Sin token se usa get_race_sos_alerts,
+   * que oculta la identidad a quien no gestiona la carrera.
+   */
+  pantallaToken?: string;
   raceId: string;
   distanceId?: string;
   mapboxToken: string;
 }
 
-export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps) {
+export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: LiveGPSMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
@@ -928,9 +935,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
 
   // ── Alertas SOS ──────────────────────────────────────────────────────────
   const fetchSosAlerts = async () => {
-    const { data, error } = await supabase.rpc('get_race_sos_alerts', {
-      p_race_id: raceId,
-    });
+    const { data, error } = pantallaToken
+      ? await (supabase as any).rpc('pantalla_sos', { p_token: pantallaToken })
+      : await supabase.rpc('get_race_sos_alerts', { p_race_id: raceId });
     if (error) {
       console.error('Error fetching SOS alerts:', error);
       return;
@@ -964,7 +971,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken }: LiveGPSMapProps)
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [raceId, mapReady]);
+  }, [raceId, mapReady, pantallaToken]);
 
   // Pintar marcadores SOS (solo alertas sin resolver)
   useEffect(() => {

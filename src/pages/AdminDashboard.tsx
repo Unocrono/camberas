@@ -41,6 +41,7 @@ import { AdminNotificationsPanel } from "@/components/admin/AdminNotificationsPa
 import { MenuManagement } from "@/components/admin/MenuManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { GpsTokensManagement } from "@/components/admin/GpsTokensManagement";
+import { PantallasManagement } from "@/components/admin/PantallasManagement";
 import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
 import { PuestosManagement } from "@/components/admin/PuestosManagement";
 import { TiposPuestoManagement } from "@/components/admin/TiposPuestoManagement";
@@ -315,7 +316,12 @@ const AdminDashboard = () => {
             {currentView === "menu-management" && <MenuManagement />}
             {currentView === "gps-tokens" && (
               selectedRaceId ? (
-                <GpsTokensManagement selectedRaceId={selectedRaceId} />
+                <div className="space-y-6">
+                  {/* Va aqui y no en un apartado propio: es seguimiento, como
+                      los dorsales GPS, y asi no hay que tocar el menu */}
+                  <PantallasManagement raceId={selectedRaceId} />
+                  <GpsTokensManagement selectedRaceId={selectedRaceId} />
+                </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera para gestionar sus dorsales GPS</p>
