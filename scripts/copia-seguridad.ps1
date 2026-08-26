@@ -9,9 +9,12 @@
 
     La copia se genera desde Lovable (Cloud > Overview > Advanced settings >
     Export project data > Database > Export) y se descarga cuando llega el aviso
-    por correo. Este script coge ese fichero descargado, comprueba que trae las
-    tablas que importan, lo archiva con marca de tiempo fuera del repositorio y
-    rota las copias antiguas.
+    por correo. Este script coge ese fichero descargado, comprueba que trae datos
+    de las tablas que importan, lo archiva con marca de tiempo fuera del
+    repositorio y rota las copias antiguas.
+
+    Con -Cifrada deja ademas una segunda copia cifrada en Dropbox, que es la que
+    sobrevive a que se rompa el portatil.
 
     Procedimiento completo y restauracion en docs/copias-de-seguridad.md.
 
@@ -27,34 +30,161 @@
 
 .PARAMETER SinVerificar
     Archiva sin comprobar el contenido. Solo para formatos que el script no sabe
-    leer; deja constancia de que la copia no esta verificada.
+    leer; deja constancia marcando el nombre.
+
+.PARAMETER Cifrada
+    Ademas de la copia local, deja una copia cifrada con AES-256 en Dropbox.
+    Pide la contrasena por teclado y comprueba que el archivo se abre con ella.
+    Necesita 7-Zip:  winget install -e --id 7zip.7zip
+
+.PARAMETER DestinoCifrado
+    Carpeta de la copia cifrada. Por defecto %USERPROFILE%\Dropbox\Camberas-Backups.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1
-    Busca el export en Descargas, lo verifica y lo archiva.
+    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Cifrada
+    Busca el export en Descargas, lo verifica, lo archiva y deja copia en Dropbox.
 
     El -ExecutionPolicy Bypass hace falta siempre: Windows trae la ejecucion de
     scripts en Restricted. Se salta por invocacion, sin tocar la politica del
     sistema.
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero "C:\Users\UNO\Downloads\export.sql"
+    powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero "C:\Users\UNO\Downloads\export.zip"
 #>
 [CmdletBinding()]
 param(
     [string]$Fichero,
     [string]$Destino = (Join-Path $env:USERPROFILE 'Backups\camberas'),
     [int]$Conservar = 10,
-    [switch]$SinVerificar
+    [switch]$SinVerificar,
+    [switch]$Cifrada,
+    [string]$DestinoCifrado = (Join-Path $env:USERPROFILE 'Dropbox\Camberas-Backups')
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Tablas que tienen que aparecer en el volcado. Si falta alguna, el export esta
-# incompleto o no es lo que creemos que es.
+# Tablas que tienen que traer datos. Si falta alguna, el export esta incompleto o
+# no es lo que creemos que es.
 $TablasCriticas = @('registrations', 'payment_intents', 'races', 'timing_readings', 'user_roles')
 
 function Escribe($texto, $color = 'Gray') { Write-Host $texto -ForegroundColor $color }
+
+function Buscar-Bin($nombre) {
+    $enPath = Get-Command $nombre -ErrorAction SilentlyContinue
+    if ($enPath) { return $enPath.Source }
+    foreach ($raiz in @("$env:ProgramFiles\PostgreSQL", "${env:ProgramFiles(x86)}\PostgreSQL")) {
+        if (Test-Path $raiz) {
+            $hit = Get-ChildItem $raiz -Directory |
+                Sort-Object { [int]($_.Name -replace '\D', '0') } -Descending |
+                ForEach-Object { Join-Path $_.FullName "bin\$nombre.exe" } |
+                Where-Object { Test-Path $_ } |
+                Select-Object -First 1
+            if ($hit) { return $hit }
+        }
+    }
+    return $null
+}
+
+# --- Copia cifrada fuera del equipo ----------------------------------------
+# C: y D: son particiones del MISMO disco, asi que la copia local no sobrevive a
+# que se rompa el portatil. Esta segunda va a Dropbox, y va CIFRADA porque lleva
+# datos personales de inscritos y pagos: sin cifrar no sale de la maquina.
+# Devuelve $true si la copia cifrada quedo hecha y comprobada.
+function Invoke-CopiaCifrada($zipOrigen) {
+    Escribe ''
+    Escribe '  Copia cifrada fuera del equipo' 'Cyan'
+
+    $sevenZip = @("$env:ProgramFiles\7-Zip\7z.exe", "${env:ProgramFiles(x86)}\7-Zip\7z.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $sevenZip) {
+        $enPath = Get-Command 7z -ErrorAction SilentlyContinue
+        if ($enPath) { $sevenZip = $enPath.Source }
+    }
+    if (-not $sevenZip) {
+        Escribe '     No esta 7-Zip, que es quien cifra.' 'Yellow'
+        Escribe '     Instalalo con:  winget install -e --id 7zip.7zip' 'White'
+        Escribe '     La copia local SI esta hecha; solo falta la de Dropbox.' 'Yellow'
+        return $false
+    }
+
+    $padre = Split-Path $DestinoCifrado -Parent
+    if (-not (Test-Path $padre)) {
+        Escribe "     No existe $padre. Se salta la copia cifrada." 'Yellow'
+        return $false
+    }
+    New-Item -ItemType Directory -Path $DestinoCifrado -Force | Out-Null
+
+    $cifrado = Join-Path $DestinoCifrado ([IO.Path]::GetFileNameWithoutExtension($zipOrigen) + '.7z')
+    if (Test-Path $cifrado) {
+        Escribe "     Ya existe $(Split-Path $cifrado -Leaf). No se cifra otra vez." 'Yellow'
+        return $false
+    }
+
+    # La contrasena se pide dos veces y se compara: un archivo cifrado con una
+    # contrasena mal tecleada es papel mojado y no se nota hasta que hace falta.
+    Escribe ''
+    Escribe '     Contrasena para cifrar el archivo.' 'Yellow'
+    Escribe '     Guardala en tu gestor: sin ella esta copia no sirve de nada.' 'DarkGray'
+    $p1 = Read-Host '     Contrasena' -AsSecureString
+    $p2 = Read-Host '     Repitela  ' -AsSecureString
+    $b1 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($p1)
+    $b2 = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($p2)
+    try {
+        $clave = [Runtime.InteropServices.Marshal]::PtrToStringAuto($b1)
+        $claveRepetida = [Runtime.InteropServices.Marshal]::PtrToStringAuto($b2)
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b1)
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($b2)
+    }
+
+    if ([string]::IsNullOrWhiteSpace($clave)) {
+        Escribe '     Contrasena vacia. No se cifra nada.' 'Red'
+        return $false
+    }
+    if ($clave -ne $claveRepetida) {
+        Escribe '     Las dos contrasenas no coinciden. No se cifra nada.' 'Red'
+        return $false
+    }
+
+    try {
+        Escribe ''
+        Escribe '     Cifrando (AES-256)...' 'White'
+        # -mhe=on cifra tambien los nombres de fichero, no solo el contenido.
+        & $sevenZip a -t7z "-p$clave" -mhe=on -bso0 -bsp0 $cifrado $zipOrigen | Out-Null
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $cifrado)) {
+            Escribe '     Fallo al cifrar. No queda copia en Dropbox.' 'Red'
+            return $false
+        }
+
+        # Comprobar que el archivo cifrado se abre de verdad con esa contrasena.
+        Escribe '     Comprobando que se puede abrir...' 'White'
+        & $sevenZip t "-p$clave" -bso0 -bsp0 $cifrado | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item $cifrado -Force -ErrorAction SilentlyContinue
+            Escribe '     El archivo cifrado no se abre. Se ha borrado.' 'Red'
+            Escribe '     Una copia que no se puede abrir es peor que ninguna.' 'Red'
+            return $false
+        }
+    } finally {
+        $clave = $null
+        $claveRepetida = $null
+        [GC]::Collect()
+    }
+
+    $mbCif = [math]::Round((Get-Item $cifrado).Length / 1MB, 2)
+    Escribe "     $(Split-Path $cifrado -Leaf)  ($mbCif MB)  verificado" 'Green'
+
+    # Misma rotacion que en local, para no llenar Dropbox.
+    $cifradas = Get-ChildItem -Path $DestinoCifrado -Filter 'camberas_*.7z' | Sort-Object LastWriteTime -Descending
+    if ($cifradas.Count -gt $Conservar) {
+        foreach ($vieja in ($cifradas | Select-Object -Skip $Conservar)) {
+            Remove-Item $vieja.FullName -Force
+            Escribe "     borrada copia antigua: $($vieja.Name)" 'DarkGray'
+        }
+    }
+    Escribe '     Dropbox la sincronizara solo.' 'DarkGray'
+    return $true
+}
 
 Escribe ''
 Escribe '  COPIA DE SEGURIDAD - Base de datos de Camberas' 'Cyan'
@@ -115,12 +245,19 @@ if ($origen.Length -eq 0) {
 # --- 1b. No archivar dos veces el mismo export -----------------------------
 # Lovable solo deja un export cada 24 h, asi que es facil volver a archivar el
 # fichero que ya esta guardado y creerse que hay dos copias donde hay una.
+# Si ademas se pidio -Cifrada, se sigue con la de Dropbox usando lo ya archivado.
 if (Test-Path $Destino) {
     $hashOrigen = (Get-FileHash $origen.FullName -Algorithm SHA256).Hash
     foreach ($ya in (Get-ChildItem $Destino -Filter 'camberas_*.zip' -ErrorAction SilentlyContinue)) {
         if ((Get-FileHash $ya.FullName -Algorithm SHA256).Hash -eq $hashOrigen) {
             Escribe ''
             Escribe "  Este export ya esta archivado como $($ya.Name)." 'Yellow'
+            if ($Cifrada) {
+                Escribe '  Se usa esa copia para la de Dropbox.' 'Yellow'
+                $hecha = Invoke-CopiaCifrada $ya.FullName
+                Escribe ''
+                if ($hecha) { exit 0 } else { exit 1 }
+            }
             Escribe '  No se archiva otra vez.' 'Yellow'
             Escribe ''
             exit 0
@@ -130,23 +267,6 @@ if (Test-Path $Destino) {
 
 # --- 2. Verificar el contenido ---------------------------------------------
 # Un export puede descargarse a medias y pesar lo suficiente para parecer bueno.
-# Se comprueba que las tablas que importan estan de verdad dentro.
-function Buscar-Bin($nombre) {
-    $enPath = Get-Command $nombre -ErrorAction SilentlyContinue
-    if ($enPath) { return $enPath.Source }
-    foreach ($raiz in @("$env:ProgramFiles\PostgreSQL", "${env:ProgramFiles(x86)}\PostgreSQL")) {
-        if (Test-Path $raiz) {
-            $hit = Get-ChildItem $raiz -Directory |
-                Sort-Object { [int]($_.Name -replace '\D', '0') } -Descending |
-                ForEach-Object { Join-Path $_.FullName "bin\$nombre.exe" } |
-                Where-Object { Test-Path $_ } |
-                Select-Object -First 1
-            if ($hit) { return $hit }
-        }
-    }
-    return $null
-}
-
 $verificada = $false
 $temporal = $null
 if ($SinVerificar) {
@@ -265,6 +385,12 @@ Escribe "  LISTO. $quedan copias en $Destino" 'Green'
 if (-not $verificada) {
     Escribe '  OJO: esta copia no se ha podido verificar.' 'Yellow'
 }
+
+# --- 5. Segunda copia, cifrada, en Dropbox ---------------------------------
+if ($Cifrada) {
+    Invoke-CopiaCifrada $zip | Out-Null
+}
+
 Escribe ''
 Escribe '  Recuerda que el export de Lovable NO incluye:' 'DarkGray'
 Escribe '    - los ficheros de Storage (carteles, fotos, GPX)' 'DarkGray'
@@ -273,9 +399,6 @@ Escribe '    - los secrets del proyecto (Redsys, Mapbox, push, WhatsApp)' 'DarkG
 Escribe '    - las contrasenas de los usuarios de forma utilizable' 'DarkGray'
 Escribe '  Detalle en docs/copias-de-seguridad.md' 'DarkGray'
 Escribe ''
-
-# El export original se queda en Descargas: borralo tu cuando confirmes que el
-# archivo comprimido esta bien. Lleva datos personales de inscritos y pagos.
 Escribe "  El original sigue en $($origen.DirectoryName)" 'DarkGray'
 Escribe '  Borralo cuando compruebes el archivo: lleva datos personales.' 'DarkGray'
 Escribe ''

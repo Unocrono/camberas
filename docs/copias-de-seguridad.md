@@ -104,8 +104,55 @@ powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero 
 
 > **Datos personales.** El export contiene nombres, DNI, correos, teléfonos y
 > referencias de pago de los inscritos. No va al repositorio, no se sube a un
-> chat, no se manda por correo. Si uno de estos ficheros sale de tu máquina, es
-> una brecha de datos.
+> chat, no se manda por correo sin cifrar. Si uno de estos ficheros sale de tu
+> máquina en claro, es una brecha de datos.
+
+### 3.3. Segunda copia, cifrada, en Dropbox
+
+La copia local no basta. En esta máquina `C:` y `D:` son **dos particiones del
+mismo SSD** (disco 0, un NVMe de 512 GB) y `E:` es un disco virtual: guardar en
+`D:` no protege de nada: si ese disco muere, se van las dos a la vez.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Cifrada
+```
+
+Deja una segunda copia en `%USERPROFILE%\Dropbox\Camberas-Backups`, **cifrada con
+AES-256**, y Dropbox la sincroniza sola. El cifrado no es opcional: sin él estarías
+subiendo DNI, correos, teléfonos y referencias de pago de tus inscritos a un
+servicio de terceros.
+
+Necesita 7-Zip, una vez:
+
+```powershell
+winget install -e --id 7zip.7zip
+```
+
+Qué hace el script:
+
+1. Pide la contraseña **dos veces y las compara**. Un archivo cifrado con una
+   contraseña mal tecleada es papel mojado, y no te enteras hasta el día que lo
+   necesitas.
+2. Cifra con `-mhe=on`, que oculta también **los nombres de fichero**, no solo el
+   contenido.
+3. **Comprueba que el archivo se abre** con esa contraseña. Si no abre, lo borra:
+   una copia que no se puede abrir es peor que ninguna, porque da falsa confianza.
+4. Rota las 10 últimas, igual que en local.
+
+**Guarda esa contraseña en tu gestor.** Sin ella la copia de Dropbox no vale nada,
+y ese es exactamente el punto de cifrarla.
+
+Si el export ya estaba archivado, el script lo detecta y usa la copia local para
+generar la cifrada, sin pedirte otra vez el fichero:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\copia-seguridad.ps1 -Fichero "$env:USERPROFILE\Backups\camberas\camberas_2026-08-26_101754.zip" -Cifrada
+```
+
+> **Detalle honesto.** La contraseña se le pasa a 7-Zip como argumento, así que
+> durante el par de segundos que dura el cifrado es visible para quien pueda
+> inspeccionar los procesos de tu propia sesión de Windows. En una máquina
+> personal el riesgo es bajo; en una compartida, cifra a mano.
 
 ---
 
