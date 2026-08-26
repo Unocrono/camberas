@@ -1,0 +1,43 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "¿Sabes qué es un GPX?",
+  "titulo": "Sí, claro",
+  "web": "camberas.com",
+  "slides": [
+    {
+      "etiqueta": "Entonces te lo ahorro",
+      "pregunta": "Bienvenido a Camberas. Ésta es tu plataforma",
+      "respuesta": "No te vamos a explicar qué es un archivo con coordenadas. Vamos directos a lo que hacemos con él."
+    },
+    {
+      "etiqueta": "Lo sueltas y ya",
+      "pregunta": "Un archivo, media carrera montada",
+      "respuesta": "Subes el GPX y de ahí salen el mapa, el perfil y los kilómetros. Sin volver a teclear nada."
+    },
+    {
+      "etiqueta": "Los waypoints",
+      "pregunta": "Tus chinchetas se convierten en puntos de control",
+      "respuesta": "Las que marcaste en el reloj o en Wikiloc entran como avituallamientos, controles de paso y puntos de cronometraje.",
+      "nota": "Los eliges en un mapa antes de guardarlos. No entra todo a lo bruto."
+    },
+    {
+      "etiqueta": "En carrera",
+      "pregunta": "La traza deja de ser un dibujo",
+      "respuesta": "El seguimiento en vivo va sobre ella: por dónde va cada corredor y cuánto le queda se calculan contra tu recorrido, no contra una línea recta."
+    },
+    {
+      "etiqueta": "Para la retransmisión",
+      "pregunta": "El perfil y el mapa, en pantalla",
+      "respuesta": "Salen como grafismo para OBS y se mueven con la carrera. El mismo archivo que subiste el primer día."
+    },
+    {
+      "etiqueta": "El vicio",
+      "pregunta": "Un vuelo en 3D sobre tu recorrido",
+      "respuesta": "Cámara aérea siguiendo la traza, con el relieve de verdad debajo. Para el vídeo de presentación de la prueba.",
+      "nota": "Sí, se puede grabar. Sí, queda bien."
+    }
+  ],
+  "cta": "Sube el tuyo y míralo"
+}

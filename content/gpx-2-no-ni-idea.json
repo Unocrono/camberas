@@ -1,0 +1,42 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "¿Sabes qué es un GPX?",
+  "titulo": "No, ni idea",
+  "web": "camberas.com",
+  "slides": [
+    {
+      "etiqueta": "Sin dramas",
+      "pregunta": "Pues toca actualizarse",
+      "respuesta": "Se tarda menos en entenderlo que en pintar el recorrido a mano en un mapa. Dos minutos y ya no vuelves atrás."
+    },
+    {
+      "etiqueta": "Qué es",
+      "pregunta": "Tu recorrido, metido en un archivo",
+      "respuesta": "Una lista de coordenadas puestas en orden. Ya está. Si lo abres es texto feo; si lo sueltas en un mapa, es tu carrera dibujada."
+    },
+    {
+      "etiqueta": "De dónde sale",
+      "pregunta": "Ya lo tienes, aunque no lo sepas",
+      "respuesta": "Del reloj con el que fuiste a marcar el recorrido, de Strava, de Wikiloc. Exportar y elegir GPX.",
+      "nota": "Y si lo marcó otro, pídeselo: pesa menos que una foto y va por WhatsApp."
+    },
+    {
+      "etiqueta": "Los waypoints",
+      "pregunta": "Las chinchetas viajan dentro",
+      "respuesta": "Cada punto que marcaste sobre la marcha —el avituallamiento, el cruce chungo, el control— va en el mismo archivo."
+    },
+    {
+      "etiqueta": "Para qué lo queremos",
+      "pregunta": "Para no volver a preguntarte nada",
+      "respuesta": "De ahí salen el mapa, el perfil, los kilómetros y los puntos de control. Lo subes una vez y el resto se rellena solo."
+    },
+    {
+      "etiqueta": "Y el día de la carrera",
+      "pregunta": "Es lo que dice dónde va cada uno",
+      "respuesta": "El seguimiento en vivo mide contra tu traza: quién va por dónde y cuánto le queda hasta meta. Sin GPX, eso no se puede hacer."
+    }
+  ],
+  "cta": "Búscalo, expórtalo y súbelo"
+}
