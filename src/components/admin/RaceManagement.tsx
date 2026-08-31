@@ -91,6 +91,13 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   });
   
   // Image cropper states
+  // Borrado de carrera: qué carrera, qué contiene, y el nombre tecleado para
+  // confirmar. El de verdad lo protege un trigger en la BD
+  // (20260828100000_borrado_carrera_protegido): esto es la parte amable.
+  const [deletingRace, setDeletingRace] = useState<Race | null>(null);
+  const [deleteCounts, setDeleteCounts] = useState<{ inscripciones: number; recorridos: number } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
   const [cropperOpen, setCropperOpen] = useState(false);
   const [currentImageFile, setCurrentImageFile] = useState<File | null>(null);
   const [currentImageType, setCurrentImageType] = useState<"race" | "distance" | "logo" | "cover" | "poster">("race");
@@ -458,25 +465,41 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     }
   };
 
-  const handleDelete = async (raceId: string) => {
+  const abrirBorrado = async (race: Race) => {
+    setDeletingRace(race);
+    setDeleteConfirmText("");
+    setDeleteCounts(null);
+    // Contar lo que hay dentro ANTES de preguntar: "¿eliminar carrera?" no es
+    // lo mismo que "¿eliminar carrera con 143 inscritos?"
+    const [regs, dists] = await Promise.all([
+      supabase.from("registrations").select("id", { count: "exact", head: true }).eq("race_id", race.id),
+      supabase.from("race_distances").select("id", { count: "exact", head: true }).eq("race_id", race.id),
+    ]);
+    setDeleteCounts({ inscripciones: regs.count ?? 0, recorridos: dists.count ?? 0 });
+  };
+
+  const handleDelete = async () => {
+    if (!deletingRace) return;
     try {
       const { error } = await supabase
         .from("races")
         .delete()
-        .eq("id", raceId);
+        .eq("id", deletingRace.id);
 
       if (error) throw error;
 
       toast({
         title: "Carrera eliminada",
-        description: "La carrera se ha eliminado exitosamente",
+        description: `"${deletingRace.name}" se ha eliminado.`,
       });
 
+      setDeletingRace(null);
       fetchRaces();
       triggerRefresh("races");
     } catch (error: any) {
+      // El trigger de la BD explica por qué no; se enseña tal cual
       toast({
-        title: "Error al eliminar",
+        title: "No se puede eliminar",
         description: error.message,
         variant: "destructive",
       });
@@ -942,6 +965,63 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         </Dialog>
       </div>
 
+      {/* Borrar carrera: un solo diálogo, con lo que contiene a la vista y el
+          nombre tecleado como confirmación. La protección de verdad es el
+          trigger de la BD; esto evita llegar a él sin querer. */}
+      <AlertDialog open={!!deletingRace} onOpenChange={(o) => !o && setDeletingRace(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar "{deletingRace?.name}"</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                {deleteCounts === null ? (
+                  <p>Comprobando qué contiene…</p>
+                ) : deleteCounts.inscripciones > 0 ? (
+                  <p className="rounded-md bg-destructive/10 p-3 text-destructive font-medium">
+                    Esta carrera tiene {deleteCounts.inscripciones}{" "}
+                    {deleteCounts.inscripciones === 1 ? "inscripción" : "inscripciones"} y no se
+                    puede eliminar. Si de verdad quieres borrarla, elimina antes sus inscripciones
+                    desde el panel.
+                  </p>
+                ) : (
+                  <p>
+                    Se eliminará la carrera
+                    {deleteCounts.recorridos > 0
+                      ? ` con sus ${deleteCounts.recorridos} ${deleteCounts.recorridos === 1 ? "recorrido" : "recorridos"} y su configuración`
+                      : " y su configuración"}
+                    . <strong>No se puede deshacer.</strong>
+                  </p>
+                )}
+                {deleteCounts !== null && deleteCounts.inscripciones === 0 && (
+                  <div className="space-y-1.5">
+                    <p className="text-sm">
+                      Escribe el nombre de la carrera para confirmar:
+                    </p>
+                    <Input
+                      value={deleteConfirmText}
+                      onChange={(e) => setDeleteConfirmText(e.target.value)}
+                      placeholder={deletingRace?.name}
+                    />
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {deleteCounts !== null && deleteCounts.inscripciones === 0 && (
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deleteConfirmText.trim() !== (deletingRace?.name ?? "").trim()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Eliminar definitivamente
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <ImageCropper
         open={cropperOpen}
         onClose={() => setCropperOpen(false)}
@@ -986,30 +1066,14 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     <Button variant="outline" size="icon" onClick={() => handleOpenDialog(race)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>¿Eliminar carrera?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta acción eliminará permanentemente <strong>{race.name}</strong> y todas sus distancias e inscripciones relacionadas.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(race.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Eliminar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      title="Eliminar carrera"
+                      onClick={() => abrirBorrado(race)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
