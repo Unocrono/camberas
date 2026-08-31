@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate , useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -58,6 +58,11 @@ function occupiesPlace(reg: {
 
 const RaceDetail = () => {
   const { id, slug } = useParams();
+  // Cupon que viene en el enlace (?cupon=CODIGO): lo manda el organizador por
+  // WhatsApp desde la app /org. Se aplica solo al abrir la inscripcion, para
+  // que quien recibe el enlace no tenga que teclear nada.
+  const [searchParams] = useSearchParams();
+  const cuponDeUrl = (searchParams.get("cupon") ?? searchParams.get("coupon") ?? "").trim();
   const [raceId, setRaceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -343,14 +348,26 @@ const RaceDetail = () => {
     setIsGuestRegistration(!user);
     setRegistrationStep('form');
     setPendingRegistration(null);
-    setCouponInput("");
+    setCouponInput(cuponDeUrl);
     setAppliedCoupon(null);
     setCouponError(null);
     setIsDialogOpen(true);
+    // El cupon del enlace se valida solo. Si no vale (caducado, agotado, de
+    // otro recorrido), el error sale en el propio formulario y se puede
+    // teclear otro: mismo camino que un cupon escrito a mano.
+    if (cuponDeUrl) {
+      setTimeout(() => applyCouponCode(distance, cuponDeUrl), 0);
+    }
   };
 
   const applyCoupon = async (distance: any, silent = false) => {
     const code = (silent ? appliedCoupon?.code : couponInput)?.trim();
+    return applyCouponCode(distance, code ?? "", silent);
+  };
+
+  /** Igual que applyCoupon pero con el codigo en mano: hace falta al llegar
+      por enlace, porque el estado de React aun no se ha asentado */
+  const applyCouponCode = async (distance: any, code: string, silent = false) => {
     if (!code) return;
     setValidatingCoupon(true);
     if (!silent) setCouponError(null);

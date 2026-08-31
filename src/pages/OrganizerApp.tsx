@@ -27,6 +27,7 @@ import { qrConLogo } from "@/lib/qrConLogo";
 import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
+import { OrgCupones } from "@/components/org/OrgCupones";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
@@ -38,8 +39,7 @@ import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
-  Bike, ShieldCheck, Timer,
-} from "lucide-react";
+  Bike, ShieldCheck, Timer, TicketPercent } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 
@@ -180,7 +180,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -212,6 +212,7 @@ const ORG_MENU: OrgMenuGroup[] = [
       // ficha, marcar pagado, dar dorsal)
       { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
       { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
+      { id: "cupones-app", title: "Cupones", icon: TicketPercent, screen: "cupones" },
     ],
   },
   {
@@ -675,6 +676,8 @@ const OrganizerApp = () => {
                 <OrgAddGuest raceId={raceId} />
               ) : openScreen?.screen === "inscripciones" ? (
                 <OrgRegistrations raceId={raceId} />
+              ) : openScreen?.screen === "cupones" ? (
+                <OrgCupones raceId={raceId} />
               ) : openScreen?.screen === "estadisticas" ? (
                 <OrgStats
                   raceId={raceId}
