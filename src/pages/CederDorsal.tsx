@@ -167,6 +167,8 @@ const CederDorsal = () => {
   const [enviando, setEnviando] = useState(false);
   const [hecho, setHecho] = useState<{ dorsal: number | null; sinCuenta: boolean } | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  // Obligatorios del formulario aún sin rellenar (los mantiene DynamicRegistrationForm)
+  const [camposQueFaltan, setCamposQueFaltan] = useState<string[]>([]);
 
   useEffect(() => {
     const cargar = async () => {
@@ -208,6 +210,12 @@ const CederDorsal = () => {
 
   const enviar = async () => {
     if (!info || !token) return;
+    // Aquí no hay <form> nativo que frene los vacíos: se comprueba a mano
+    // la lista de obligatorios que mantiene DynamicRegistrationForm
+    if (camposQueFaltan.length > 0) {
+      setAviso(`Faltan campos obligatorios: ${camposQueFaltan.join(", ")}`);
+      return;
+    }
     setAviso(null);
     setEnviando(true);
     try {
@@ -454,6 +462,7 @@ const CederDorsal = () => {
               distanceId={info.race_distance_id}
               formData={formData}
               onChange={onChange}
+              onMissingRequiredChange={setCamposQueFaltan}
               prefillFromProfile={!!user}
             />
           </CardContent>

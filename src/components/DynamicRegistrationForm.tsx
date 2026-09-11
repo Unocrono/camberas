@@ -34,6 +34,13 @@ interface DynamicRegistrationFormProps {
   /** Notifica el suplemento total (€) que aportan los campos con importe */
   onSupplementChange?: (supplement: number) => void;
   /**
+   * Notifica qué campos obligatorios siguen sin rellenar (sus etiquetas).
+   * La validación nativa del navegador solo cubre los Input; los
+   * desplegables, radios y checkboxes son de Radix y se le escapan — quien
+   * envía debe comprobar que esta lista esté vacía antes de continuar.
+   */
+  onMissingRequiredChange?: (labels: string[]) => void;
+  /**
    * Pre-rellenar con el perfil del usuario logueado (por defecto sí).
    * En la inscripción de EQUIPO va a false: cada formulario es de un
    * miembro del roster, no del capitán que está logueado.
@@ -41,7 +48,7 @@ interface DynamicRegistrationFormProps {
   prefillFromProfile?: boolean;
 }
 
-export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange, onSupplementChange, prefillFromProfile = true }: DynamicRegistrationFormProps) => {
+export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange, onSupplementChange, onMissingRequiredChange, prefillFromProfile = true }: DynamicRegistrationFormProps) => {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -86,6 +93,24 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
     if (!onSupplementChange) return;
     onSupplementChange(computeSupplement(fields, formData));
   }, [fields, formData, onSupplementChange]);
+
+  // Avisar al padre de qué obligatorios faltan. Los "readonly" informativos
+  // no cuentan, salvo la categoría, que sí lleva valor (elegido o calculado).
+  useEffect(() => {
+    if (!onMissingRequiredChange) return;
+    const faltan = fields
+      .filter((f) => f.is_required && f.is_visible !== false)
+      .filter((f) => f.field_type !== "readonly" || f.field_name === "category")
+      .filter((f) => {
+        const v = formData[f.field_name];
+        if (f.field_type === "checkbox") {
+          return Array.isArray(v) ? v.length === 0 : v !== true;
+        }
+        return v === undefined || v === null || String(v).trim() === "";
+      })
+      .map((f) => f.field_label);
+    onMissingRequiredChange(faltan);
+  }, [fields, formData, onMissingRequiredChange]);
 
   // Pre-fill form with profile data when user is logged in and fields are loaded
   useEffect(() => {

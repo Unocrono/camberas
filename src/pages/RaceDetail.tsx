@@ -85,6 +85,8 @@ const RaceDetail = () => {
   const [pendingRegistration, setPendingRegistration] = useState<any>(null);
   // Suplemento (€) que aportan los campos del formulario con importe
   const [fieldSupplement, setFieldSupplement] = useState(0);
+  // Obligatorios del formulario aún sin rellenar (los mantiene DynamicRegistrationForm)
+  const [camposQueFaltan, setCamposQueFaltan] = useState<string[]>([]);
   // Cupón de descuento: validate-coupon (servidor) decide si vale y cuánto
   // descuenta; aquí solo se muestra el desglose. El importe real lo
   // recalculan guest-register / redsys-init-payment.
@@ -417,9 +419,22 @@ const RaceDetail = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedDistance) return;
-    
+
+    // La validación nativa del navegador solo frena los Input vacíos; los
+    // desplegables, radios y checkboxes (Radix) se le escapan. Esta lista la
+    // mantiene DynamicRegistrationForm con TODOS los obligatorios del
+    // formulario configurado, la categoría incluida.
+    if (camposQueFaltan.length > 0) {
+      toast({
+        title: "Faltan campos obligatorios",
+        description: camposQueFaltan.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -1262,6 +1277,7 @@ const RaceDetail = () => {
                                       formData={customFormData}
                                       onChange={handleCustomFieldChange}
                                       onSupplementChange={setFieldSupplement}
+                                      onMissingRequiredChange={setCamposQueFaltan}
                                     />
 
                                     <div className="pt-4 border-t border-border">
