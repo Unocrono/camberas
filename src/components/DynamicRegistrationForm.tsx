@@ -46,12 +46,40 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [calculatedCategory, setCalculatedCategory] = useState<string | null>(null);
+  // Las categorías del RECORRIDO, para que el campo "Categoría" del
+  // formulario esté vinculado a lo que el organizador configuró en el evento
+  const [eventCategories, setEventCategories] = useState<{ name: string; age_dependent: boolean }[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     fetchFormFields();
   }, [raceId, distanceId]);
+
+  // Cargar las categorías del recorrido. Deciden cómo se comporta el campo
+  // "Categoría": si son de EDAD se calcula sola (como siempre); si son de
+  // ELECCIÓN (Absoluta/Militar, Federado/No federado...) el corredor elige de
+  // un desplegable; si solo hay una, se enseña y punto.
+  useEffect(() => {
+    if (!distanceId) {
+      setEventCategories([]);
+      return;
+    }
+    supabase
+      .from("race_categories")
+      .select("name, age_dependent")
+      .eq("race_distance_id", distanceId)
+      .order("display_order")
+      .then(({ data }) => setEventCategories(data ?? []));
+  }, [distanceId]);
+
+  // Modo del campo Categoría según lo configurado en el evento
+  const categoriasDeElegir = useMemo(
+    () => (eventCategories.some((c) => c.age_dependent) ? [] : eventCategories),
+    [eventCategories],
+  );
+  const modoCategoria: "elegir" | "fija" | "calculada" =
+    categoriasDeElegir.length >= 2 ? "elegir" : categoriasDeElegir.length === 1 ? "fija" : "calculada";
 
   // Recalcular el suplemento de los campos con importe y avisar al padre
   useEffect(() => {
@@ -68,17 +96,28 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
 
   // Calculate category when birth_date or gender_id changes
   useEffect(() => {
+    // Con categorías de elección o única, aquí no hay nada que calcular
+    if (modoCategoria !== "calculada") return;
     const birthDate = formData.birth_date;
     // Support both gender_id (new) and gender (legacy)
     const genderId = formData.gender_id;
     const genderText = formData.gender;
-    
+
     if (birthDate && (genderId || genderText) && raceId) {
       calculateCategory(birthDate, genderId, genderText);
     } else {
       setCalculatedCategory(null);
     }
-  }, [formData.birth_date, formData.gender_id, formData.gender, raceId]);
+  }, [formData.birth_date, formData.gender_id, formData.gender, raceId, modoCategoria]);
+
+  // Categoría única: se fija sola para que viaje con la inscripción, igual
+  // que viajaría la calculada
+  useEffect(() => {
+    if (modoCategoria === "fija" && formData.category !== categoriasDeElegir[0].name) {
+      onChange("category", categoriasDeElegir[0].name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modoCategoria, categoriasDeElegir]);
 
   const calculateCategory = async (birthDate: string, genderId?: number, genderText?: string) => {
     try {
@@ -385,15 +424,47 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       case "readonly":
         // Special handling for category field
         if (field.field_name === 'category') {
+          // Categorías de ELECCIÓN (Absoluta/Militar...): las configuró el
+          // organizador en el evento y el corredor tiene que escoger una
+          if (modoCategoria === "elegir") {
+            return (
+              <div key={field.id} className="space-y-2">
+                <Label htmlFor={field.field_name}>
+                  {field.field_label}
+                  {field.is_required && <span className="text-destructive ml-1">*</span>}
+                </Label>
+                <Select
+                  value={value}
+                  onValueChange={(v) => onChange(field.field_name, v)}
+                  required={field.is_required}
+                >
+                  <SelectTrigger id={field.field_name}>
+                    <SelectValue placeholder="Elige tu categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoriasDeElegir.map((c) => (
+                      <SelectItem key={c.name} value={c.name}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {field.help_text && (
+                  <p className="text-sm text-muted-foreground">{field.help_text}</p>
+                )}
+              </div>
+            );
+          }
+          // Categoría única o calculada por edad: se enseña, no se toca
+          const categoriaAEnsenar =
+            modoCategoria === "fija" ? categoriasDeElegir[0].name : calculatedCategory;
           return (
             <div key={field.id} className="space-y-2">
               <Label htmlFor={field.field_name}>
                 {field.field_label}
               </Label>
               <div className="flex items-center h-10 px-3 py-2 border rounded-md bg-muted">
-                {calculatedCategory ? (
+                {categoriaAEnsenar ? (
                   <Badge variant="secondary" className="text-sm">
-                    {calculatedCategory}
+                    {categoriaAEnsenar}
                   </Badge>
                 ) : (
                   <span className="text-muted-foreground text-sm">
