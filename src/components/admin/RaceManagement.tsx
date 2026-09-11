@@ -10,11 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User, Wand2 } from "lucide-react";
 import { calculateUtcOffsetFromDateString, formatUtcOffset, parseUtcOffset } from "@/lib/timezoneUtils";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
+import { RaceWizard } from "./RaceWizard";
 
 // Texto de ejemplo insertable con el botón "+" junto a Información Adicional
 const ADDITIONAL_INFO_EXAMPLE = [
@@ -65,6 +66,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   const [races, setRaces] = useState<Race[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRace, setEditingRace] = useState<Race | null>(null);
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
@@ -517,9 +519,15 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           <h2 className="text-3xl font-bold">Gestión de Carreras</h2>
           <p className="text-muted-foreground">Crea, edita y elimina carreras</p>
         </div>
+        <div className="flex items-center gap-2">
+          {/* El camino corto: carrera + recorridos en cuatro pasos */}
+          <Button onClick={() => setWizardOpen(true)} className="gap-2">
+            <Wand2 className="h-4 w-4" />
+            Crear con asistente
+          </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gap-2">
+            <Button variant="outline" onClick={() => handleOpenDialog()} className="gap-2">
               <Plus className="h-4 w-4" />
               Nueva Carrera
             </Button>
@@ -963,7 +971,18 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      <RaceWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        isOrganizer={isOrganizer}
+        onCreated={() => {
+          fetchRaces();
+          triggerRefresh("races");
+        }}
+      />
 
       {/* Borrar carrera: un solo diálogo, con lo que contiene a la vista y el
           nombre tecleado como confirmación. La protección de verdad es el
