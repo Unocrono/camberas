@@ -11,6 +11,7 @@ import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { WavesManagement } from "@/components/admin/WavesManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
+import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
 import { StorageManagement } from "@/components/admin/StorageManagement";
@@ -239,7 +240,13 @@ const OrganizerDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {currentView === "registrations" && (
+              <div className="space-y-6">
+                {/* Mesas de recogida: con las inscripciones, como en admin */}
+                {selectedRaceId && <MesasRecogidaManagement raceId={selectedRaceId} />}
+                <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />
+              </div>
+            )}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-documents" && (
               selectedRaceId ? (

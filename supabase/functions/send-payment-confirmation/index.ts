@@ -19,6 +19,8 @@ const requestSchema = z.object({
   amount: z.number().nonnegative().max(100000),
   orderNumber: z.string().max(20).nullish(),
   bibNumber: z.number().int().nullish(),
+  // URL de la página "Mi dorsal" del corredor (con su QR para la recogida)
+  miDorsalUrl: z.string().url().max(300).nullish(),
   formData: z.array(z.object({
     label: z.string().max(200),
     value: z.string().max(1000),
@@ -62,7 +64,7 @@ const handler = async (req: Request): Promise<Response> => {
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
 
-    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber, formData, organizerEmail } = input;
+    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber, formData, organizerEmail, miDorsalUrl } = input;
     const userName = [firstName, lastName].filter(Boolean).join(" ") || "corredor/a";
 
     // Bloque con todas las respuestas del formulario de inscripción
@@ -100,6 +102,19 @@ const handler = async (req: Request): Promise<Response> => {
               <p style="margin: 8px 0; color: #4b5563;"><strong>Importe Pagado:</strong> ${amount.toFixed(2)}€</p>
               ${orderNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Referencia de pago:</strong> ${orderNumber}</p>` : ''}
             </div>
+
+            ${miDorsalUrl ? `
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${miDorsalUrl}"
+                 style="display: inline-block; background-color: #235940; color: #FAF6EC; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+                Ver mi dorsal
+              </a>
+              <p style="margin: 12px 0 0 0; color: #6b7280; font-size: 13px;">
+                Guarda este enlace: es tu código para la <strong>recogida de dorsales</strong>.
+                Enséñalo en el móvil y te atienden en segundos.
+              </p>
+            </div>
+            ` : ''}
             ${formDataBlock}
             <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb;">
               <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">¿Qué viene ahora?</h3>

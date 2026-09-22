@@ -168,13 +168,19 @@ serve(async (req) => {
       try {
         const registration = paymentIntent.registrations;
         if (registration) {
-          const [{ data: race }, { data: distance }, { data: responses }] = await Promise.all([
+          const [{ data: race }, { data: distance }, { data: responses }, { data: regToken }] = await Promise.all([
             supabase.from("races").select("name, organizer_email, organizer_id").eq("id", registration.race_id).single(),
             supabase.from("race_distances").select("name").eq("id", registration.race_distance_id).single(),
             supabase
               .from("registration_responses")
               .select("field_value, registration_form_fields(field_label, field_order)")
               .eq("registration_id", paymentIntent.registration_id),
+            // Token de la página "Mi dorsal" (QR de la recogida de dorsales)
+            supabase
+              .from("registrations")
+              .select("token_inscripcion")
+              .eq("id", paymentIntent.registration_id)
+              .maybeSingle(),
           ]);
 
           // Email del organizador: organizer_email de la carrera como override,
@@ -216,6 +222,10 @@ serve(async (req) => {
               bibNumber: assignedBib ?? registration.bib_number,
               formData,
               organizerEmail,
+              // Mismo dominio fijo que los enlaces de recuperación de pagos
+              miDorsalUrl: regToken?.token_inscripcion
+                ? `https://camberas.com/mi-dorsal/${regToken.token_inscripcion}`
+                : null,
             }),
           });
 

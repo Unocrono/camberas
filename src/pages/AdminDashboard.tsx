@@ -11,6 +11,7 @@ import { RaceSelectorHeader } from "@/components/admin/RaceSelectorHeader";
 import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
+import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
@@ -266,7 +267,15 @@ const AdminDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "registrations" && (
+              <div className="space-y-6">
+                {/* Las mesas de recogida van con las inscripciones: es su
+                    logística de día de carrera. La herramienta en sí es un
+                    puesto con token, fuera del panel (decisión 5-ago). */}
+                {selectedRaceId && <MesasRecogidaManagement raceId={selectedRaceId} />}
+                <RegistrationManagement selectedRaceId={selectedRaceId} />
+              </div>
+            )}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
             {currentView === "teams" && <TeamsManagement />}
