@@ -36,15 +36,21 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
   const fetchTshirtSummary = async () => {
     setLoading(true);
     try {
-      // First get the organizer's races
+      // Con carrera seleccionada se consulta directa: este componente lo
+      // montan el panel de ADMIN y el del organizador, y el filtro por
+      // organizer_id dejaba al admin con el resumen vacío (la carrera no es
+      // suya). Los datos de abajo ya los protege la RLS: cada cual ve las
+      // inscripciones que le tocan. Sin carrera seleccionada, se listan las
+      // del organizador, como siempre.
       let racesQuery = supabase
         .from("races")
         .select("id, name")
-        .eq("organizer_id", user!.id)
         .order("date", { ascending: false });
 
       if (selectedRaceId) {
         racesQuery = racesQuery.eq("id", selectedRaceId);
+      } else {
+        racesQuery = racesQuery.eq("organizer_id", user!.id);
       }
 
       const { data: races, error: racesError } = await racesQuery;
@@ -83,19 +89,18 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
 
       if (fieldsError) throw fieldsError;
 
-      if (!fields || fields.length === 0) {
-        setSummaries([]);
-        setLoading(false);
-        return;
-      }
+      // Sin campo de talla en el formulario NO se sale: la talla puede estar
+      // en la columna de la inscripción (respaldo de más abajo).
+      const fieldsList = fields ?? [];
 
-      const fieldIds = fields.map(f => f.id);
-      const fieldToDistance = new Map(fields.map(f => [f.id, f.race_distance_id]));
+      const fieldIds = fieldsList.map(f => f.id);
 
-      // Get all registrations for these races that are confirmed
+      // La talla también viaja en la COLUMNA tshirt_size (la escriben
+      // guest-register, las altas manuales y las importaciones). Se pide
+      // aquí para usarla de respaldo, igual que hace /org.
       const { data: registrations, error: regsError } = await supabase
         .from("registrations")
-        .select("id, race_distance_id")
+        .select("id, race_distance_id, tshirt_size")
         .in("race_id", raceIds)
         .eq("status", "confirmed");
 
@@ -121,14 +126,19 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
 
       const registrationIds = registrations.map(r => r.id);
 
-      // Get tshirt size responses
-      const { data: responses, error: responsesError } = await supabase
-        .from("registration_responses")
-        .select("registration_id, field_id, field_value")
-        .in("field_id", fieldIds)
-        .in("registration_id", registrationIds);
-
-      if (responsesError) throw responsesError;
+      // Respuestas de talla, en lotes: in() con miles de ids revienta la URL
+      const responses: { registration_id: string; field_value: string | null }[] = [];
+      if (fieldIds.length > 0) {
+        for (let i = 0; i < registrationIds.length; i += 500) {
+          const { data, error: responsesError } = await supabase
+            .from("registration_responses")
+            .select("registration_id, field_value")
+            .in("field_id", fieldIds)
+            .in("registration_id", registrationIds.slice(i, i + 500));
+          if (responsesError) throw responsesError;
+          responses.push(...(data ?? []));
+        }
+      }
 
       // Build summaries
       const summaryMap = new Map<string, SizeSummary>();
@@ -148,18 +158,31 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
       // Map registration to distance
       const regToDistance = new Map(registrations.map(r => [r.id, r.race_distance_id]));
 
-      responses?.forEach(response => {
-        const distanceId = regToDistance.get(response.registration_id);
-        if (!distanceId) return;
-
+      const anotar = (distanceId: string | undefined, valor: string | null) => {
+        if (!distanceId) return false;
         const summary = summaryMap.get(distanceId);
-        if (!summary) return;
+        if (!summary) return false;
+        const size = (valor || "").toUpperCase().trim();
+        if (!TSHIRT_SIZES.includes(size)) return false;
+        summary.sizes[size] = (summary.sizes[size] || 0) + 1;
+        summary.total += 1;
+        return true;
+      };
 
-        const size = response.field_value?.toUpperCase().trim();
-        if (TSHIRT_SIZES.includes(size)) {
-          summary.sizes[size] = (summary.sizes[size] || 0) + 1;
-          summary.total += 1;
+      // 1º la respuesta del formulario
+      const contadas = new Set<string>();
+      responses.forEach(response => {
+        if (anotar(regToDistance.get(response.registration_id), response.field_value)) {
+          contadas.add(response.registration_id);
         }
+      });
+
+      // 2º respaldo: la columna de la inscripción, para las que no tenían
+      // respuesta (altas manuales, importaciones, formularios sin el campo).
+      // Mismo criterio que /org, para que las dos cifras coincidan.
+      registrations.forEach(r => {
+        if (contadas.has(r.id)) return;
+        anotar(r.race_distance_id, (r as any).tshirt_size ?? null);
       });
 
       setSummaries(Array.from(summaryMap.values()).filter(s => s.total > 0 || !selectedRaceId));
