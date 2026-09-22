@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode } from "lucide-react";
+import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode } from "lucide-react";
+import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
@@ -1420,12 +1421,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
   };
 
-  const exportToCSV = () => {
-    // El CSV es un espejo de la tabla: exporta LAS COLUMNAS MARCADAS en
-    // "Columnas", en su mismo orden y con los mismos valores que se ven en
-    // pantalla. "Participante" se desdobla en Nombre y Apellidos, que para
-    // eso es un fichero de datos. La carrera va siempre delante: en la vista
-    // de todas las carreras es lo único que distingue las filas.
+  // La exportación (CSV y Excel) es un espejo de la tabla: salen LAS
+  // COLUMNAS MARCADAS en "Columnas", en su mismo orden y con los mismos
+  // valores que se ven en pantalla. "Participante" se desdobla en Nombre y
+  // Apellidos, que para eso es un fichero de datos. La carrera va siempre
+  // delante: en la vista de todas las carreras es lo único que distingue
+  // las filas.
+  const datosParaExportar = () => {
     const ESTADO_CSV: Record<string, string> = {
       pending: "Pendiente",
       confirmed: "Confirmada",
@@ -1488,6 +1490,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       ),
     ]);
 
+    return { headers, rows };
+  };
+
+  const exportToCSV = () => {
+    const { headers, rows } = datosParaExportar();
+
     const csvContent = [
       headers.join(","),
       // Comillas interiores dobladas, que un club con comillas no rompa la fila
@@ -1504,6 +1512,28 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    toast({
+      title: "Exportación exitosa",
+      description: `Se han exportado ${filteredRegistrations.length} inscripciones`,
+    });
+  };
+
+  const exportToExcel = () => {
+    const { headers, rows } = datosParaExportar();
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Ancho de columna a la medida del contenido, con tope para los textos largos
+    ws["!cols"] = headers.map((h, i) => ({
+      wch: Math.min(
+        40,
+        Math.max(h.length, ...rows.map((r) => String(r[i] ?? "").length)) + 2,
+      ),
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Inscripciones");
+    XLSX.writeFile(wb, `inscripciones_${new Date().toISOString().split("T")[0]}.xlsx`);
 
     toast({
       title: "Exportación exitosa",
@@ -1563,6 +1593,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           <Button onClick={exportToCSV} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
             <Download className="h-4 w-4" />
             Exportar CSV
+          </Button>
+          <Button onClick={exportToExcel} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
+            <FileSpreadsheet className="h-4 w-4" />
+            Exportar Excel
           </Button>
         </div>
       </div>
