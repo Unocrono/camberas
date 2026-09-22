@@ -1619,7 +1619,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Recorrido</Label>
               <Select value={selectedDistance} onValueChange={setSelectedDistance} disabled={!selectedRace || selectedRace === "all"}>
@@ -1631,6 +1631,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     <SelectItem key={d.id} value={d.id}>
                       {d.name} ({d.distance_km}km)
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* El mismo filtro que el caret de la columna Categoría (mismo
+                estado): aquí porque es donde el organizador lo busca */}
+            <div className="space-y-2">
+              <Label>Categoría</Label>
+              <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todas las categorías" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {uniqueCategories.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
