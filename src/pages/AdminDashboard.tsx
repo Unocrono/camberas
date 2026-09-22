@@ -267,14 +267,27 @@ const AdminDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "registrations" && (
-              <div className="space-y-6">
-                {/* Las mesas de recogida van con las inscripciones: es su
-                    logística de día de carrera. La herramienta en sí es un
-                    puesto con token, fuera del panel (decisión 5-ago). */}
-                {selectedRaceId && <MesasRecogidaManagement raceId={selectedRaceId} />}
-                <RegistrationManagement selectedRaceId={selectedRaceId} />
-              </div>
+            {currentView === "registrations" && <RegistrationManagement selectedRaceId={selectedRaceId} />}
+            {/* Puestos del día de carrera con su entrada propia en el menú
+                (grupo Organización / Seguimiento GPS): antes iban colgados
+                de otras pantallas "para no tocar el menú", y estorbaban. */}
+            {currentView === "mesas-recogida" && (
+              selectedRaceId ? (
+                <MesasRecogidaManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus mesas de recogida</p>
+                </div>
+              )
+            )}
+            {currentView === "pantallas-seguimiento" && (
+              selectedRaceId ? (
+                <PantallasManagement raceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para gestionar sus pantallas de seguimiento</p>
+                </div>
+              )
             )}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
@@ -325,12 +338,7 @@ const AdminDashboard = () => {
             {currentView === "menu-management" && <MenuManagement />}
             {currentView === "gps-tokens" && (
               selectedRaceId ? (
-                <div className="space-y-6">
-                  {/* Va aqui y no en un apartado propio: es seguimiento, como
-                      los dorsales GPS, y asi no hay que tocar el menu */}
-                  <PantallasManagement raceId={selectedRaceId} />
-                  <GpsTokensManagement selectedRaceId={selectedRaceId} />
-                </div>
+                <GpsTokensManagement selectedRaceId={selectedRaceId} />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-muted-foreground">Selecciona una carrera para gestionar sus dorsales GPS</p>

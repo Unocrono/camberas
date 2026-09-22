@@ -240,12 +240,21 @@ const OrganizerDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "registrations" && (
-              <div className="space-y-6">
-                {/* Mesas de recogida: con las inscripciones, como en admin */}
-                {selectedRaceId && <MesasRecogidaManagement raceId={selectedRaceId} />}
-                <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />
-              </div>
+            {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {/* Puestos del día de carrera con entrada propia en el menú, como en admin */}
+            {currentView === "mesas-recogida" && (
+              selectedRaceId ? (
+                <MesasRecogidaManagement raceId={selectedRaceId} />
+              ) : (
+                <p className="text-muted-foreground">Selecciona una carrera para gestionar sus mesas de recogida</p>
+              )
+            )}
+            {currentView === "pantallas-seguimiento" && (
+              selectedRaceId ? (
+                <PantallasManagement raceId={selectedRaceId} />
+              ) : (
+                <p className="text-muted-foreground">Selecciona una carrera para gestionar sus pantallas de seguimiento</p>
+              )
             )}
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-documents" && (
@@ -292,9 +301,6 @@ const OrganizerDashboard = () => {
                 carreras salían sin recorrido.) */}
             {currentView === "camberas-track" && (
               <div className="space-y-6">
-                {/* Aqui, y no en un apartado propio: quien viene a mirar el
-                    seguimiento es quien quiere sacarlo a una pantalla */}
-                {selectedRaceId && <PantallasManagement raceId={selectedRaceId} />}
                 <CamberasTrackMap
                   eventId={selectedRaceId || undefined}
                   showSOSPanel={true}
