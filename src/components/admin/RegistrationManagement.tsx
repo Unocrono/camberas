@@ -1421,45 +1421,81 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   };
 
   const exportToCSV = () => {
-    const headers = [
-      "Nombre",
-      "Apellidos",
-      "DNI/Pasaporte",
-      "Teléfono",
-      "Email",
-      "Tipo",
-      "Carrera",
-      "Distancia",
-      "Dorsal",
-      "Estado",
-      "Estado de Pago",
-      "Fecha de Inscripción",
-    ];
+    // El CSV es un espejo de la tabla: exporta LAS COLUMNAS MARCADAS en
+    // "Columnas", en su mismo orden y con los mismos valores que se ven en
+    // pantalla. "Participante" se desdobla en Nombre y Apellidos, que para
+    // eso es un fichero de datos. La carrera va siempre delante: en la vista
+    // de todas las carreras es lo único que distingue las filas.
+    const ESTADO_CSV: Record<string, string> = {
+      pending: "Pendiente",
+      confirmed: "Confirmada",
+      cancelled: "Cancelada",
+    };
+    const PAGO_CSV: Record<string, string> = {
+      paid: "Pagado",
+      refunded: "Reembolsado",
+      not_required: "Gratis",
+      pending: "Pendiente",
+    };
 
-    const rows = filteredRegistrations.map((reg) => {
-      const isGuest = !reg.user_id;
-      return [
-        reg.profiles?.first_name || reg.first_name || "",
-        reg.profiles?.last_name || reg.last_name || "",
-        reg.profiles?.dni_passport || reg.dni_passport || "",
-        reg.profiles?.phone || reg.phone || "",
-        reg.email || "",
-        isGuest ? "Invitado" : "Registrado",
-        reg.race.name,
-        `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`,
-        reg.bib_number || "",
-        reg.status,
-        reg.payment_status,
-        new Date(reg.created_at).toLocaleDateString("es-ES"),
-      ];
-    });
+    const valorDe = (reg: Registration, col: ColumnKey): string => {
+      switch (col) {
+        case "bib_number": return reg.bib_number?.toString() ?? "";
+        case "email": return reg.email || "";
+        case "dni": return reg.profiles?.dni_passport || reg.dni_passport || "";
+        case "phone": return reg.profiles?.phone || reg.phone || "";
+        case "gender": return getGenderDisplay(reg);
+        case "birth_date": {
+          const b = reg.birth_date || reg.profiles?.birth_date || "";
+          return b ? new Date(b).toLocaleDateString("es-ES") : "";
+        }
+        case "category": return getCategoryShortName(reg);
+        case "club": return reg.club || reg.profiles?.club || "";
+        case "team": return reg.team || reg.profiles?.team || "";
+        case "country": return reg.country || reg.profiles?.country || "";
+        case "created_at":
+          return reg.created_at
+            ? new Date(reg.created_at).toLocaleString("es-ES", {
+                day: "2-digit", month: "2-digit", year: "numeric",
+                hour: "2-digit", minute: "2-digit",
+              })
+            : "";
+        case "type": return reg.user_id ? "Registrado" : "Invitado";
+        case "origen": return ORIGEN_LABELS[reg.source ?? ""]?.label ?? "";
+        case "distance": return `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`;
+        case "status": return ESTADO_CSV[reg.status] ?? reg.status;
+        case "payment": return PAGO_CSV[reg.payment_status] ?? reg.payment_status;
+        default: return "";
+      }
+    };
+
+    const columnas = ALL_COLUMNS.filter(
+      (c) => c.key !== "actions" && visibleColumns.has(c.key),
+    );
+    const headers = [
+      "Carrera",
+      ...columnas.flatMap((c) => (c.key === "participant" ? ["Nombre", "Apellidos"] : [c.label])),
+    ];
+    const rows = filteredRegistrations.map((reg) => [
+      reg.race.name,
+      ...columnas.flatMap((c) =>
+        c.key === "participant"
+          ? [
+              reg.profiles?.first_name || reg.first_name || "",
+              reg.profiles?.last_name || reg.last_name || "",
+            ]
+          : [valorDe(reg, c.key)],
+      ),
+    ]);
 
     const csvContent = [
       headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      // Comillas interiores dobladas, que un club con comillas no rompa la fila
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
     ].join("\n");
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    // El BOM es para Excel: sin él, las tildes y las eñes llegan rotas
+    const blob = new Blob(["﻿" + csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
