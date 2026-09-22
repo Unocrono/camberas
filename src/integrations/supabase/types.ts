@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -754,6 +754,55 @@ export type Database = {
         }
         Relationships: []
       }
+      entregas_dorsal: {
+        Row: {
+          entregado_at: string
+          id: string
+          mesa_id: string | null
+          race_id: string
+          recogido_por: string | null
+          registration_id: string
+        }
+        Insert: {
+          entregado_at?: string
+          id?: string
+          mesa_id?: string | null
+          race_id: string
+          recogido_por?: string | null
+          registration_id: string
+        }
+        Update: {
+          entregado_at?: string
+          id?: string
+          mesa_id?: string | null
+          race_id?: string
+          recogido_por?: string | null
+          registration_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entregas_dorsal_mesa_id_fkey"
+            columns: ["mesa_id"]
+            isOneToOne: false
+            referencedRelation: "mesas_recogida"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entregas_dorsal_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entregas_dorsal_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: true
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventbooking_sync: {
         Row: {
           distance_map: Json
@@ -1042,6 +1091,7 @@ export type Database = {
           created_at: string | null
           device_id: string | null
           email: string | null
+          es_organizacion: boolean
           event_id: string | null
           id: string
           linked_at: string | null
@@ -1058,6 +1108,7 @@ export type Database = {
           created_at?: string | null
           device_id?: string | null
           email?: string | null
+          es_organizacion?: boolean
           event_id?: string | null
           id?: string
           linked_at?: string | null
@@ -1074,6 +1125,7 @@ export type Database = {
           created_at?: string | null
           device_id?: string | null
           email?: string | null
+          es_organizacion?: boolean
           event_id?: string | null
           id?: string
           linked_at?: string | null
@@ -1320,6 +1372,44 @@ export type Database = {
           view_name?: string | null
         }
         Relationships: []
+      }
+      mesas_recogida: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          nombre: string
+          race_id: string
+          token: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          nombre: string
+          race_id: string
+          token?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          nombre?: string
+          race_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mesas_recogida_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       microgate_times: {
         Row: {
@@ -2191,6 +2281,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      pantallas_seguimiento: {
+        Row: {
+          activa: boolean
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          nombre: string
+          race_id: string
+          token: string
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          nombre: string
+          race_id: string
+          token?: string
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          nombre?: string
+          race_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pantallas_seguimiento_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_intent_items: {
         Row: {
@@ -3511,6 +3639,7 @@ export type Database = {
           created_at: string
           date: string
           description: string | null
+          es_demo: boolean
           gps_tracking_enabled: boolean | null
           gps_update_frequency: number | null
           gpx_file_url: string | null
@@ -3543,6 +3672,7 @@ export type Database = {
           created_at?: string
           date: string
           description?: string | null
+          es_demo?: boolean
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
           gpx_file_url?: string | null
@@ -3575,6 +3705,7 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string | null
+          es_demo?: boolean
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
           gpx_file_url?: string | null
@@ -3607,6 +3738,7 @@ export type Database = {
           athlete_id: number | null
           bib: string
           category: string | null
+          club: string | null
           country: string | null
           eid: string
           firstname: string | null
@@ -3624,6 +3756,7 @@ export type Database = {
           athlete_id?: number | null
           bib: string
           category?: string | null
+          club?: string | null
           country?: string | null
           eid: string
           firstname?: string | null
@@ -3641,6 +3774,7 @@ export type Database = {
           athlete_id?: number | null
           bib?: string
           category?: string | null
+          club?: string | null
           country?: string | null
           eid?: string
           firstname?: string | null
@@ -4149,6 +4283,7 @@ export type Database = {
           gender: string | null
           gender_id: number | null
           id: string
+          importe_manual: number | null
           last_name: string | null
           payment_status: string
           phone: string | null
@@ -4162,6 +4297,7 @@ export type Database = {
           team_discount: number | null
           team_id: string | null
           team_member_id: string | null
+          token_inscripcion: string
           tshirt_size: string | null
           updated_at: string
           user_id: string | null
@@ -4185,6 +4321,7 @@ export type Database = {
           gender?: string | null
           gender_id?: number | null
           id?: string
+          importe_manual?: number | null
           last_name?: string | null
           payment_status?: string
           phone?: string | null
@@ -4198,6 +4335,7 @@ export type Database = {
           team_discount?: number | null
           team_id?: string | null
           team_member_id?: string | null
+          token_inscripcion?: string
           tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
@@ -4221,6 +4359,7 @@ export type Database = {
           gender?: string | null
           gender_id?: number | null
           id?: string
+          importe_manual?: number | null
           last_name?: string | null
           payment_status?: string
           phone?: string | null
@@ -4234,6 +4373,7 @@ export type Database = {
           team_discount?: number | null
           team_id?: string | null
           team_member_id?: string | null
+          token_inscripcion?: string
           tshirt_size?: string | null
           updated_at?: string
           user_id?: string | null
@@ -5485,6 +5625,7 @@ export type Database = {
         Args: { p_falsa?: boolean; p_motivo?: string; p_token_id: string }
         Returns: boolean
       }
+      dorsal_organizacion: { Args: { p_distance_id: string }; Returns: string }
       es_miembro_del_equipo: {
         Args: { p_team_id: string; p_user: string }
         Returns: boolean
@@ -5502,8 +5643,16 @@ export type Database = {
         Args: { p_distance_id?: string; p_timing_point_id: string }
         Returns: Json
       }
+      generar_token_mesa_recogida: {
+        Args: { p_nombre?: string; p_race_id: string }
+        Returns: Json
+      }
       generar_token_moto: {
         Args: { p_distance_id?: string; p_race_moto_id: string }
+        Returns: Json
+      }
+      generar_token_pantalla: {
+        Args: { p_nombre?: string; p_race_id: string }
         Returns: Json
       }
       generate_split_times: {
@@ -5663,6 +5812,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      mesas_recogida_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          activa: boolean
+          created_at: string
+          entregados: number
+          id: string
+          last_seen_at: string
+          nombre: string
+          token: string
+        }[]
+      }
+      mi_dorsal_info: { Args: { p_token: string }; Returns: Json }
       mis_grupettas: {
         Args: never
         Returns: {
@@ -5695,6 +5857,30 @@ export type Database = {
         }[]
       }
       nombre_normalizado: { Args: { p: string }; Returns: string }
+      pantalla_contexto: { Args: { p_token: string }; Returns: Json }
+      pantalla_sos: {
+        Args: { p_token: string }
+        Returns: {
+          bib_number: string
+          id: string
+          lat: number
+          lng: number
+          resolved_at: string
+          runner_name: string
+          triggered_at: string
+        }[]
+      }
+      pantallas_carrera: {
+        Args: { p_race_id: string }
+        Returns: {
+          activa: boolean
+          created_at: string
+          id: string
+          last_seen_at: string
+          nombre: string
+          token: string
+        }[]
+      }
       plazas_libres: { Args: { p_distance_id: string }; Returns: number }
       process_event_results: {
         Args: { p_race_distance_id: string }
@@ -5707,6 +5893,53 @@ export type Database = {
       puede_gestionar_carrera: { Args: { p_race_id: string }; Returns: boolean }
       purge_gps_antiguos: { Args: never; Returns: undefined }
       purge_wa_messages: { Args: never; Returns: undefined }
+      recogida_buscar: {
+        Args: { p_texto: string; p_token: string }
+        Returns: {
+          apellidos: string
+          dni_final: string
+          dorsal: number
+          edad_carrera: number
+          entregado_at: string
+          entregado_mesa: string
+          nombre: string
+          pago: string
+          recogido_por: string
+          recorrido: string
+          registration_id: string
+          talla: string
+        }[]
+      }
+      recogida_contexto: { Args: { p_token: string }; Returns: Json }
+      recogida_deshacer: {
+        Args: { p_registration_id: string; p_token: string }
+        Returns: boolean
+      }
+      recogida_entregar: {
+        Args: {
+          p_recogido_por?: string
+          p_registration_id: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      recogida_por_qr: {
+        Args: { p_token: string; p_token_inscripcion: string }
+        Returns: {
+          apellidos: string
+          dni_final: string
+          dorsal: number
+          edad_carrera: number
+          entregado_at: string
+          entregado_mesa: string
+          nombre: string
+          pago: string
+          recogido_por: string
+          recorrido: string
+          registration_id: string
+          talla: string
+        }[]
+      }
       recuperacion_pago_info: { Args: { p_token: string }; Returns: Json }
       registrar_pagos_a_medias: {
         Args: { p_ventana_horas?: number }
@@ -5751,6 +5984,11 @@ export type Database = {
         Args: { p_token_row_id: string }
         Returns: undefined
       }
+      revocar_token_mesa_recogida: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      revocar_token_pantalla: { Args: { p_id: string }; Returns: undefined }
       seed_default_registration_fields: {
         Args: { p_race_id: string }
         Returns: undefined
@@ -5893,12 +6131,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5922,11 +6160,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5947,11 +6185,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5972,11 +6210,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -5989,11 +6227,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
