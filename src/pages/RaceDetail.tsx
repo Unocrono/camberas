@@ -644,6 +644,18 @@ const RaceDetail = () => {
             coupon_id: appliedCoupon?.couponId ?? null,
             coupon_discount: appliedCoupon ? couponDiscount : null,
             bib_number: assignedBib ?? null,
+            // Identidad del corredor. Hasta sep-2026 no se guardaba y la
+            // inscripción con cuenta quedaba sin email ni nombre: sin
+            // comprobante tras pagar y sin aviso de pago a medias. El email
+            // es SIEMPRE el de la cuenta, nunca el tecleado: hay permisos de
+            // lectura y edición por email, y uno ajeno daría acceso a otro.
+            // Lo que falte lo completa el trigger con el perfil.
+            email: user.email ? user.email.trim().toLowerCase() : null,
+            first_name: firstName ? String(firstName).trim() : null,
+            last_name: lastName ? String(lastName).trim() : null,
+            phone: phone ? String(phone).trim() : null,
+            dni_passport: documentNumber ? String(documentNumber).trim() : null,
+            birth_date: birthDate || null,
             // Campos del formulario que tienen columna propia: se copian
             // para que el panel, los informes y los exports los vean
             gender: customFormData.gender ? String(customFormData.gender) : null,

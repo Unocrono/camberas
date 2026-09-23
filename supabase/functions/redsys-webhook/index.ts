@@ -205,29 +205,63 @@ serve(async (req) => {
             .sort((a: any, b: any) => a.order - b.order)
             .map(({ label, value }: any) => ({ label, value }));
 
-          await fetch(`${SUPABASE_URL}/functions/v1/send-payment-confirmation`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            },
-            body: JSON.stringify({
-              email: registration.email,
-              firstName: registration.first_name,
-              lastName: registration.last_name,
-              raceName: race?.name ?? "Carrera",
-              distanceName: distance?.name ?? "",
-              amount: paymentIntent.amount,
-              orderNumber: orderNumber,
-              bibNumber: assignedBib ?? registration.bib_number,
-              formData,
-              organizerEmail,
-              // Mismo dominio fijo que los enlaces de recuperación de pagos
-              miDorsalUrl: regToken?.token_inscripcion
-                ? `https://camberas.com/mi-dorsal/${regToken.token_inscripcion}`
-                : null,
-            }),
-          });
+          // Inscripciones hechas con cuenta: hasta sep-2026 se guardaban sin
+          // email ni nombre, y el comprobante se caía en silencio (400 por
+          // email nulo). El email bueno es el de la cuenta; el nombre, el del
+          // perfil.
+          let emailCorredor: string | null = (registration.email ?? "").trim() || null;
+          let nombreCorredor: string | null = registration.first_name ?? null;
+          let apellidosCorredor: string | null = registration.last_name ?? null;
+          if (registration.user_id && (!emailCorredor || !nombreCorredor)) {
+            const [{ data: cuenta }, { data: perfil }] = await Promise.all([
+              supabase.auth.admin.getUserById(registration.user_id),
+              supabase
+                .from("profiles")
+                .select("email, first_name, last_name")
+                .eq("id", registration.user_id)
+                .maybeSingle(),
+            ]);
+            emailCorredor = emailCorredor || cuenta?.user?.email || perfil?.email || null;
+            nombreCorredor = nombreCorredor || perfil?.first_name || null;
+            apellidosCorredor = apellidosCorredor || perfil?.last_name || null;
+          }
+          registration.first_name = nombreCorredor;
+          registration.last_name = apellidosCorredor;
+
+          if (!emailCorredor) {
+            console.error(`Comprobante sin enviar: la inscripción ${paymentIntent.registration_id} no tiene email`);
+          } else {
+            const confirmacion = await fetch(`${SUPABASE_URL}/functions/v1/send-payment-confirmation`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+              },
+              body: JSON.stringify({
+                email: emailCorredor,
+                firstName: nombreCorredor,
+                lastName: apellidosCorredor,
+                raceName: race?.name ?? "Carrera",
+                distanceName: distance?.name ?? "",
+                amount: paymentIntent.amount,
+                orderNumber: orderNumber,
+                bibNumber: assignedBib ?? registration.bib_number,
+                formData,
+                organizerEmail,
+                // Mismo dominio fijo que los enlaces de recuperación de pagos
+                miDorsalUrl: regToken?.token_inscripcion
+                  ? `https://camberas.com/mi-dorsal/${regToken.token_inscripcion}`
+                  : null,
+              }),
+            });
+            // Antes nadie miraba la respuesta y un fallo pasaba sin rastro
+            if (!confirmacion.ok) {
+              console.error(
+                `send-payment-confirmation respondió ${confirmacion.status}:`,
+                await confirmacion.text().catch(() => ""),
+              );
+            }
+          }
 
           // "Clinc" con la app cerrada: push al organizador de la carrera
           if (race?.organizer_id) {

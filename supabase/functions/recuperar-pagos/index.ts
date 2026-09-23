@@ -191,12 +191,24 @@ serve(async (req: Request): Promise<Response> => {
     const CRON_KEY = Deno.env.get("RECUPERAR_PAGOS_CRON_KEY");
     const SITE_URL = Deno.env.get("SITE_URL") ?? "https://camberas.com";
 
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
     // ── Quién llama: el robot con su clave, o un admin con su sesión ─────
+    // La clave del robot vive en el Vault de la base de datos (la crea la
+    // migración 20260923210000 y el cron la lee de allí); el secreto de
+    // entorno se sigue aceptando por si algún día se configura a mano.
     const cronKey = req.headers.get("x-cron-key");
     let autorizado = false;
 
-    if (CRON_KEY && cronKey && cronKey === CRON_KEY) {
+    if (cronKey && CRON_KEY && cronKey === CRON_KEY) {
       autorizado = true;
+    } else if (cronKey) {
+      const { data: valida, error: errClave } = await supabase.rpc("clave_cron_valida", {
+        p_nombre: "recuperar_pagos_cron_key",
+        p_clave: cronKey,
+      });
+      if (errClave) console.error("clave_cron_valida:", errClave.message);
+      autorizado = valida === true;
     } else {
       const authHeader = req.headers.get("Authorization");
       if (authHeader) {
@@ -228,17 +240,24 @@ serve(async (req: Request): Promise<Response> => {
     const dryRun = params.dryRun === true;
     const limite = params.limite ?? 200;
 
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    // El ensayo no escribe NADA. Antes cerraba y daba de alta filas aunque
+    // fuera ensayo, y las altas ponían en marcha el reloj de los avisos. A
+    // cambio, el ensayo solo ve los abandonos que ya estaban dados de alta.
+    let cerradas = 0;
+    let nuevas = 0;
+    if (!dryRun) {
+      // 1. Cerrar las que ya se pagaron, para no escribirles
+      const { data: nCerradas, error: errCerrar } = await supabase.rpc("cerrar_recuperaciones_pagadas");
+      if (errCerrar) throw new Error(`cerrar_recuperaciones_pagadas: ${errCerrar.message}`);
+      cerradas = nCerradas ?? 0;
 
-    // 1. Cerrar las que ya se pagaron, para no escribirles
-    const { data: cerradas, error: errCerrar } = await supabase.rpc("cerrar_recuperaciones_pagadas");
-    if (errCerrar) throw new Error(`cerrar_recuperaciones_pagadas: ${errCerrar.message}`);
-
-    // 2. Dar de alta los abandonos nuevos
-    const { data: nuevas, error: errRegistrar } = await supabase.rpc("registrar_pagos_a_medias", {
-      p_ventana_horas: ventanaHoras,
-    });
-    if (errRegistrar) throw new Error(`registrar_pagos_a_medias: ${errRegistrar.message}`);
+      // 2. Dar de alta los abandonos nuevos
+      const { data: nNuevas, error: errRegistrar } = await supabase.rpc("registrar_pagos_a_medias", {
+        p_ventana_horas: ventanaHoras,
+      });
+      if (errRegistrar) throw new Error(`registrar_pagos_a_medias: ${errRegistrar.message}`);
+      nuevas = nNuevas ?? 0;
+    }
 
     // 3. Los avisos que tocan ahora
     const { data: avisos, error: errAvisos } = await supabase.rpc("avisos_pago_pendientes");
@@ -250,8 +269,7 @@ serve(async (req: Request): Promise<Response> => {
       console.log(`recuperar-pagos [ENSAYO]: ${cola.length} avisos saldrían ahora`);
       return json({
         ensayo: true,
-        cerradas,
-        nuevas,
+        nota: "El ensayo no escribe: no incluye abandonos que el robot aún no ha dado de alta",
         pendientes: cola.length,
         avisos: cola.map((a) => ({
           ronda: a.ronda,
@@ -271,7 +289,9 @@ serve(async (req: Request): Promise<Response> => {
     let enviados = 0;
     const fallos: { email: string; error: string }[] = [];
 
-    for (const a of cola) {
+    for (const [i, a] of cola.entries()) {
+      // Resend admite unas 2 peticiones por segundo
+      if (i > 0) await new Promise((r) => setTimeout(r, 550));
       const enlace = `${SITE_URL}/retomar-pago/${a.token}`;
       try {
         const { error: sendError } = await resend.emails.send({
@@ -280,7 +300,19 @@ serve(async (req: Request): Promise<Response> => {
           subject: asunto(a),
           html: cuerpo(a, enlace),
         });
-        if (sendError) throw new Error(sendError.message ?? String(sendError));
+        if (sendError) {
+          // Dirección que Resend rechaza ("Invalid `to` field"): no va a
+          // mejorar sola. Se sella la ronda para no reintentarla cada hora
+          // hasta que caduque. Solo ese caso: un validation_error por el
+          // dominio remitente afectaría a todos y no debe darse por enviado.
+          if (
+            (sendError as { name?: string }).name === "validation_error" &&
+            /invalid\s+`?to`?\s+field/i.test(sendError.message ?? "")
+          ) {
+            await supabase.rpc("marcar_aviso_pago", { p_id: a.id, p_ronda: a.ronda, p_importe: a.importe });
+          }
+          throw new Error(sendError.message ?? String(sendError));
+        }
 
         // Se sella en cuanto el envío sale: mejor perder un aviso que
         // mandar el mismo dos veces
