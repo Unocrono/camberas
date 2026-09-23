@@ -5,6 +5,7 @@ import { triggerRefresh } from "@/hooks/useDataRefresh";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -183,6 +184,9 @@ const MOTIVOS_OMISION: Record<string, string> = {
   reembolsada: "reembolsadas",
   importada_de_uno_es: "importadas de uno.es (ya recibieron el suyo)",
   sin_email: "sin email",
+  sin_dorsal: "sin dorsal asignado (asígnalo primero)",
+  sin_gps_en_recorrido: "de un recorrido sin seguimiento GPS",
+  sin_dorsal_gps: "sin dorsal GPS creado (genéralos en Dorsales GPS (QR))",
   estado_desconocido: "con un estado de pago desconocido",
 };
 
@@ -296,6 +300,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // selección) con el diálogo abierto
   const [reenvioIds, setReenvioIds] = useState<string[]>([]);
   const [reenvioExternas, setReenvioExternas] = useState(false);
+  // Qué email: el comprobante, "tu dorsal" (QR para la mesa de recogida) o
+  // Camberas Track (instalar y activar). Nacieron para la Marcha ADEMCO.
+  const [reenvioPlantilla, setReenvioPlantilla] = useState<"comprobante" | "dorsal" | "track">("comprobante");
+  const [reenvioMensaje, setReenvioMensaje] = useState("");
   const [reenvioEnsayo, setReenvioEnsayo] = useState<ResumenReenvio | null>(null);
   const [reenvioFinal, setReenvioFinal] = useState<ResumenReenvio | null>(null);
   const [reenvioFase, setReenvioFase] = useState<"calculando" | "listo" | "enviando" | "hecho">("calculando");
@@ -742,6 +750,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     dryRun: boolean,
     incluirExternas: boolean,
     alAvanzar?: (hechas: number) => void,
+    plantilla: "comprobante" | "dorsal" | "track" = "comprobante",
+    mensaje = "",
   ): Promise<ResumenReenvio> => {
     const suma: ResumenReenvio = { total: 0, enviados: 0, se_enviarian: 0, omitidos: 0, fallidos: 0, resultados: [] };
     const tamLote = dryRun ? REENVIO_LOTE_ENSAYO : REENVIO_LOTE_ENVIO;
@@ -752,7 +762,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       let estadoHttp: number | undefined;
       try {
         const { data, error } = await supabase.functions.invoke("reenviar-comprobantes", {
-          body: { registrationIds: lote, dryRun, incluirExternas },
+          body: { registrationIds: lote, dryRun, incluirExternas, plantilla, mensaje },
         });
         if (error) {
           estadoHttp = (error as any).context?.status;
@@ -790,14 +800,18 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     return suma;
   };
 
-  const calcularReenvio = async (ids: string[], incluirExternas: boolean) => {
+  const calcularReenvio = async (
+    ids: string[],
+    incluirExternas: boolean,
+    plantilla: "comprobante" | "dorsal" | "track" = "comprobante",
+  ) => {
     // Si se cierra y se reabre (o se marca la casilla) con un ensayo aún en
     // marcha, solo cuenta la respuesta del último
     const peticion = ++reenvioPeticion.current;
     setReenvioFase("calculando");
     setReenvioEnsayo(null);
     try {
-      const ensayo = await llamarReenvio(ids, true, incluirExternas);
+      const ensayo = await llamarReenvio(ids, true, incluirExternas, undefined, plantilla);
       if (peticion !== reenvioPeticion.current) return;
       setReenvioEnsayo(ensayo);
       setReenvioFase("listo");
@@ -812,6 +826,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     const ids = Array.from(selectedRows);
     setReenvioIds(ids);
     setReenvioExternas(false);
+    setReenvioPlantilla("comprobante");
+    setReenvioMensaje("");
     setReenvioFinal(null);
     setReenvioProgreso(0);
     setReenvioDialog(true);
@@ -827,11 +843,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     if (ids.length === 0) return;
     setReenvioFase("enviando");
     setReenvioProgreso(0);
-    const final = await llamarReenvio(ids, false, reenvioExternas, setReenvioProgreso);
+    const final = await llamarReenvio(ids, false, reenvioExternas, setReenvioProgreso, reenvioPlantilla, reenvioMensaje);
     setReenvioFinal(final);
     setReenvioFase("hecho");
     toast({
-      title: `${final.enviados} ${final.enviados === 1 ? "comprobante enviado" : "comprobantes enviados"}`,
+      title: `${final.enviados} ${final.enviados === 1 ? "email enviado" : "emails enviados"}`,
       description: final.fallidos > 0 ? `${final.fallidos} no se pudieron enviar: mira el detalle` : undefined,
       variant: final.fallidos > 0 ? "destructive" : undefined,
     });
@@ -1902,7 +1918,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               </DropdownMenuItem>
               <DropdownMenuItem onClick={abrirReenvio}>
                 <Mail className="h-4 w-4 mr-2" />
-                Reenviar comprobante por email
+                Enviar email a los seleccionados…
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Datos de inscripción</DropdownMenuLabel>
@@ -2750,11 +2766,54 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Reenviar comprobante por email</DialogTitle>
+            <DialogTitle>Enviar email a los inscritos</DialogTitle>
             <DialogDescription>
               {reenvioIds.length} {reenvioIds.length === 1 ? "inscripción seleccionada" : "inscripciones seleccionadas"}
             </DialogDescription>
           </DialogHeader>
+
+          {(reenvioFase === "calculando" || reenvioFase === "listo") && (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label>Qué email</Label>
+                <Select
+                  value={reenvioPlantilla}
+                  onValueChange={(v) => {
+                    const plantilla = v as "comprobante" | "dorsal" | "track";
+                    setReenvioPlantilla(plantilla);
+                    calcularReenvio(reenvioIds, reenvioExternas, plantilla);
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="comprobante">Comprobante de inscripción</SelectItem>
+                    <SelectItem value="dorsal">Tu dorsal y QR para la recogida</SelectItem>
+                    <SelectItem value="track">Camberas Track: instalar y activar el dorsal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {reenvioPlantilla !== "comprobante" && (
+                <div className="space-y-1">
+                  <Label>
+                    {reenvioPlantilla === "dorsal"
+                      ? "Recogida de dorsales: lugar y horario (opcional)"
+                      : "Mensaje de la organización (opcional)"}
+                  </Label>
+                  <Textarea
+                    rows={3}
+                    maxLength={1500}
+                    value={reenvioMensaje}
+                    onChange={(e) => setReenvioMensaje(e.target.value)}
+                    placeholder={
+                      reenvioPlantilla === "dorsal"
+                        ? "Sábado 26 de 17 a 20 h y domingo desde las 8 h en la carpa de la plaza. Trae tu DNI."
+                        : "Lo que quieras añadir al pie del email."
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {reenvioFase === "calculando" && (
             <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -2819,7 +2878,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       onCheckedChange={(v) => {
                         const incluir = v === true;
                         setReenvioExternas(incluir);
-                        calcularReenvio(reenvioIds, incluir);
+                        calcularReenvio(reenvioIds, incluir, reenvioPlantilla);
                       }}
                     />
                     <Label htmlFor="reenvio-externas" className="font-normal leading-snug">
@@ -2829,7 +2888,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  Cada persona recibe sus datos, su dorsal y el enlace «Ver mi dorsal». No se manda copia al organizador.
+                  {reenvioPlantilla === "comprobante"
+                    ? "Cada persona recibe sus datos, su dorsal y el enlace «Ver mi dorsal». No se manda copia al organizador."
+                    : reenvioPlantilla === "dorsal"
+                      ? "Cada persona recibe su dorsal en grande y el enlace «Ver mi dorsal» con el QR para la mesa de recogida."
+                      : "Cada persona recibe los enlaces de las tiendas y SU botón de activación, que vincula el dorsal al móvil desde el que lo pulse."}
                   {aEnviar.length >= 10 &&
                     (aEnviar.length * 0.7 < 60
                       ? ` Tardará menos de un minuto.`
@@ -2849,7 +2912,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           {reenvioFase === "hecho" && reenvioFinal && (
             <div className="space-y-3 text-sm">
               <p className="font-medium">
-                {reenvioFinal.enviados} {reenvioFinal.enviados === 1 ? "comprobante enviado" : "comprobantes enviados"}
+                {reenvioFinal.enviados} {reenvioFinal.enviados === 1 ? "email enviado" : "emails enviados"}
                 {reenvioFinal.omitidos > 0 && ` · ${reenvioFinal.omitidos} omitidos al enviar (cambiaron desde la comprobación)`}
               </p>
               {reenvioFinal.fallidos > 0 && (

@@ -40,13 +40,14 @@ const urlActivacion = (token: string) => `https://camberas.com/activar.html?t=${
 export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string }) {
   const { toast } = useToast();
   const [tokens, setTokens] = useState<TokenRow[]>([]);
-  const [distances, setDistances] = useState<{ id: string; name: string }[]>([]);
+  const [distances, setDistances] = useState<{ id: string; name: string; gps_tracking_enabled?: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [bib, setBib] = useState("");
   const [nombre, setNombre] = useState("");
   const [distId, setDistId] = useState("");
   const [intervalo, setIntervalo] = useState("");
   const [creando, setCreando] = useState(false);
+  const [generandoTodos, setGenerandoTodos] = useState(false);
   const [qrRow, setQrRow] = useState<TokenRow | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
 
@@ -54,7 +55,7 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
     setLoading(true);
     const [t, d] = await Promise.all([
       supabase.rpc("tokens_corredores_carrera" as never, { p_race_id: selectedRaceId } as never),
-      supabase.from("race_distances").select("id, name").eq("race_id", selectedRaceId)
+      supabase.from("race_distances").select("id, name, gps_tracking_enabled").eq("race_id", selectedRaceId)
         .order("display_order", { ascending: true, nullsFirst: false }),
     ]);
     setTokens(((t.data as unknown) as TokenRow[]) ?? []);
@@ -83,6 +84,59 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
       toast({ title: "No se pudo crear", description: e.message, variant: "destructive" });
     } finally {
       setCreando(false);
+    }
+  };
+
+  /**
+   * Crea de golpe el dorsal GPS de todos los inscritos confirmados con dorsal
+   * (solo recorridos con seguimiento GPS). Los que ya lo tienen se saltan: la
+   * misma regla que el QR individual del panel de inscripciones. Lo pide el
+   * email "Camberas Track", que necesita el enlace de activación de cada uno.
+   */
+  const generarTodos = async () => {
+    setGenerandoTodos(true);
+    try {
+      const conGps = new Set(distances.filter((d) => d.gps_tracking_enabled).map((d) => d.id));
+      const { data: regs, error } = await supabase
+        .from("registrations")
+        .select("id, race_distance_id, bib_number, first_name, last_name")
+        .eq("race_id", selectedRaceId)
+        .eq("status", "confirmed")
+        .not("bib_number", "is", null)
+        .order("bib_number", { ascending: true });
+      if (error) throw error;
+
+      const existentes = new Set(
+        tokens.filter((t) => t.activo).map((t) => `${t.distance_id}|${String(t.bib).trim()}`),
+      );
+      let creados = 0, yaTenian = 0, sinGps = 0, fallos = 0;
+      for (const r of regs ?? []) {
+        if (!conGps.has(r.race_distance_id)) { sinGps++; continue; }
+        const clave = `${r.race_distance_id}|${String(r.bib_number).trim()}`;
+        if (existentes.has(clave)) { yaTenian++; continue; }
+        const nombreCompleto = `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim();
+        const { error: e } = await supabase.rpc("generar_token_corredor" as never, {
+          p_distance_id: r.race_distance_id, p_bib: String(r.bib_number), p_nombre: nombreCompleto || null,
+        } as never);
+        if (e) fallos++;
+        else { creados++; existentes.add(clave); }
+      }
+
+      toast({
+        title: `${creados} ${creados === 1 ? "dorsal GPS creado" : "dorsales GPS creados"}`,
+        description:
+          [
+            yaTenian ? `${yaTenian} ya lo tenían` : "",
+            sinGps ? `${sinGps} en recorridos sin seguimiento GPS` : "",
+            fallos ? `${fallos} fallos` : "",
+          ].filter(Boolean).join(" · ") || undefined,
+        variant: fallos ? "destructive" : undefined,
+      });
+      await cargar();
+    } catch (e: any) {
+      toast({ title: "No se pudieron generar", description: e.message, variant: "destructive" });
+    } finally {
+      setGenerandoTodos(false);
     }
   };
 
@@ -192,6 +246,15 @@ Vacio = quitar del grafismo.`,
           <Input className="w-32" type="number" min={1} max={120} placeholder="Interv. (15s)" value={intervalo} onChange={(e) => setIntervalo(e.target.value)} title="Segundos entre posiciones GPS (vacio = 15 s)" />
           <Button onClick={crear} disabled={creando || !bib.trim() || !distId}>
             {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={generarTodos}
+            disabled={generandoTodos || loading}
+            title="Crea el dorsal GPS de cada inscrito confirmado con dorsal en los recorridos con seguimiento GPS; los que ya lo tienen se saltan"
+          >
+            {generandoTodos ? <Loader2 className="h-4 w-4 animate-spin" /> : "Generar para todos los inscritos con dorsal"}
           </Button>
         </CardContent>
       </Card>
