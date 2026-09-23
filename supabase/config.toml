@@ -82,3 +82,8 @@ verify_jwt = false
 # La funcion nunca devuelve el enlace en la respuesta, solo lo manda al correo.
 [functions.cesion-solicitar-enlace]
 verify_jwt = false
+
+# Accion masiva del panel: solo con sesion. Ademas la funcion comprueba que
+# quien llama es admin u organizador de todas las carreras afectadas.
+[functions.reenviar-comprobantes]
+verify_jwt = true

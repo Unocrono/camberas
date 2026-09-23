@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { triggerRefresh } from "@/hooks/useDataRefresh";
@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode } from "lucide-react";
+import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
@@ -151,6 +151,41 @@ const ORIGEN_LABELS: Record<string, { label: string; variant: "default" | "secon
   external: { label: "UNO", variant: "outline" },
 };
 
+// Respuesta de la función reenviar-comprobantes (sumada si hay varios lotes)
+interface ResultadoReenvio {
+  registrationId: string;
+  resultado: "enviado" | "se_enviaria" | "omitido" | "fallido";
+  plantilla?: "pagada" | "gratuita";
+  motivo?: string;
+  email?: string;
+  error?: string;
+}
+interface ResumenReenvio {
+  total: number;
+  enviados: number;
+  se_enviarian: number;
+  omitidos: number;
+  fallidos: number;
+  resultados: ResultadoReenvio[];
+}
+
+// La función acepta 50 inscripciones por llamada. El ensayo no manda nada y
+// va rápido; el envío real va de 10 en 10 (unos 7 s por lote) para que el
+// contador avance y cada llamada quede lejos del tiempo máximo.
+const REENVIO_LOTE_ENSAYO = 50;
+const REENVIO_LOTE_ENVIO = 10;
+
+// Por qué no se manda a alguien, en plural para el recuento del diálogo
+const MOTIVOS_OMISION: Record<string, string> = {
+  pendiente_de_pago: "pendientes de pago (todavía no tienen comprobante)",
+  pendiente_de_confirmar: "gratuitas pendientes de confirmar",
+  cancelada: "canceladas",
+  reembolsada: "reembolsadas",
+  importada_de_uno_es: "importadas de uno.es (ya recibieron el suyo)",
+  sin_email: "sin email",
+  estado_desconocido: "con un estado de pago desconocido",
+};
+
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   // QR del dorsal GPS: reutiliza (o crea) el token del corredor y abre el QR
   const abrirQrDorsal = async (reg: any) => {
@@ -253,7 +288,20 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [bulkCategory, setBulkCategory] = useState("");
   const [bulkClub, setBulkClub] = useState("");
   const [bulkTeam, setBulkTeam] = useState("");
-  
+
+  // Reenviar comprobante por email: primero un ensayo que cuenta a quién le
+  // llegaría y a quién no (y por qué); después, el envío de verdad
+  const [reenvioDialog, setReenvioDialog] = useState(false);
+  // La selección se congela al abrir: la lista puede recargarse (y vaciar la
+  // selección) con el diálogo abierto
+  const [reenvioIds, setReenvioIds] = useState<string[]>([]);
+  const [reenvioExternas, setReenvioExternas] = useState(false);
+  const [reenvioEnsayo, setReenvioEnsayo] = useState<ResumenReenvio | null>(null);
+  const [reenvioFinal, setReenvioFinal] = useState<ResumenReenvio | null>(null);
+  const [reenvioFase, setReenvioFase] = useState<"calculando" | "listo" | "enviando" | "hecho">("calculando");
+  const [reenvioProgreso, setReenvioProgreso] = useState(0);
+  const reenvioPeticion = useRef(0);
+
   // Form fields and responses
   const [formFields, setFormFields] = useState<any[]>([]);
   const [registrationResponses, setRegistrationResponses] = useState<Map<string, Map<string, string>>>(new Map());
@@ -683,6 +731,125 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     } finally {
       setBulkActionLoading(false);
     }
+  };
+
+  // Llama a reenviar-comprobantes en lotes y suma las respuestas. En el
+  // ensayo un error corta (no hay nada que enseñar); en el envío real un lote
+  // fallido se apunta como fallido y se sigue con el siguiente, para no
+  // perder la cuenta de lo que ya salió.
+  const llamarReenvio = async (
+    ids: string[],
+    dryRun: boolean,
+    incluirExternas: boolean,
+    alAvanzar?: (hechas: number) => void,
+  ): Promise<ResumenReenvio> => {
+    const suma: ResumenReenvio = { total: 0, enviados: 0, se_enviarian: 0, omitidos: 0, fallidos: 0, resultados: [] };
+    const tamLote = dryRun ? REENVIO_LOTE_ENSAYO : REENVIO_LOTE_ENVIO;
+    for (let i = 0; i < ids.length; i += tamLote) {
+      const lote = ids.slice(i, i + tamLote);
+      // Código HTTP de la respuesta, si la hubo: un 4xx sale antes de mandar
+      // nada; sin respuesta o con un 5xx no se sabe qué salió
+      let estadoHttp: number | undefined;
+      try {
+        const { data, error } = await supabase.functions.invoke("reenviar-comprobantes", {
+          body: { registrationIds: lote, dryRun, incluirExternas },
+        });
+        if (error) {
+          estadoHttp = (error as any).context?.status;
+          // El error genérico de invoke esconde el motivo; el cuerpo lo trae
+          let detalle = error.message;
+          try {
+            const cuerpo = await (error as any).context?.json();
+            if (cuerpo?.error) detalle = cuerpo.error;
+          } catch { /* sin cuerpo legible */ }
+          throw new Error(detalle);
+        }
+        if (data?.error) throw new Error(data.error);
+        const r = data as ResumenReenvio;
+        suma.total += r.total;
+        suma.enviados += r.enviados;
+        suma.se_enviarian += r.se_enviarian;
+        suma.omitidos += r.omitidos;
+        suma.fallidos += r.fallidos;
+        suma.resultados.push(...r.resultados);
+      } catch (e: any) {
+        if (dryRun) throw e;
+        const quizaSalio = estadoHttp === undefined || estadoHttp >= 500;
+        suma.total += lote.length;
+        suma.fallidos += lote.length;
+        suma.resultados.push(
+          ...lote.map((registrationId) => ({
+            registrationId,
+            resultado: "fallido" as const,
+            error: quizaSalio ? `${e.message} (puede que alguno de este lote sí saliera)` : e.message,
+          })),
+        );
+      }
+      alAvanzar?.(Math.min(i + tamLote, ids.length));
+    }
+    return suma;
+  };
+
+  const calcularReenvio = async (ids: string[], incluirExternas: boolean) => {
+    // Si se cierra y se reabre (o se marca la casilla) con un ensayo aún en
+    // marcha, solo cuenta la respuesta del último
+    const peticion = ++reenvioPeticion.current;
+    setReenvioFase("calculando");
+    setReenvioEnsayo(null);
+    try {
+      const ensayo = await llamarReenvio(ids, true, incluirExternas);
+      if (peticion !== reenvioPeticion.current) return;
+      setReenvioEnsayo(ensayo);
+      setReenvioFase("listo");
+    } catch (error: any) {
+      if (peticion !== reenvioPeticion.current) return;
+      toast({ title: "No se pudo preparar el reenvío", description: error.message, variant: "destructive" });
+      setReenvioDialog(false);
+    }
+  };
+
+  const abrirReenvio = () => {
+    const ids = Array.from(selectedRows);
+    setReenvioIds(ids);
+    setReenvioExternas(false);
+    setReenvioFinal(null);
+    setReenvioProgreso(0);
+    setReenvioDialog(true);
+    calcularReenvio(ids, false);
+  };
+
+  const enviarReenvio = async () => {
+    if (!reenvioEnsayo) return;
+    // Solo las que el ensayo dio por buenas; el servidor las vuelve a mirar
+    const ids = reenvioEnsayo.resultados
+      .filter((r) => r.resultado === "se_enviaria")
+      .map((r) => r.registrationId);
+    if (ids.length === 0) return;
+    setReenvioFase("enviando");
+    setReenvioProgreso(0);
+    const final = await llamarReenvio(ids, false, reenvioExternas, setReenvioProgreso);
+    setReenvioFinal(final);
+    setReenvioFase("hecho");
+    toast({
+      title: `${final.enviados} ${final.enviados === 1 ? "comprobante enviado" : "comprobantes enviados"}`,
+      description: final.fallidos > 0 ? `${final.fallidos} no se pudieron enviar: mira el detalle` : undefined,
+      variant: final.fallidos > 0 ? "destructive" : undefined,
+    });
+    // Si algo falló, se quedan seleccionadas SOLO las fallidas: reintentar
+    // con la selección entera volvería a escribir a quien ya lo recibió
+    setSelectedRows(
+      new Set(final.resultados.filter((r) => r.resultado === "fallido").map((r) => r.registrationId)),
+    );
+  };
+
+  /** Nombre visible de una inscripción de la lista cargada, para los avisos */
+  const nombreInscripcion = (id: string) => {
+    const reg = registrations.find((r) => r.id === id);
+    if (!reg) return "inscripción";
+    const nombre =
+      [reg.first_name, reg.last_name].filter(Boolean).join(" ") ||
+      [reg.profiles?.first_name, reg.profiles?.last_name].filter(Boolean).join(" ");
+    return [reg.bib_number != null ? `#${reg.bib_number}` : "", nombre || reg.email || "sin nombre"].filter(Boolean).join(" ");
   };
 
   const handleRecalculateCategories = async () => {
@@ -1733,6 +1900,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 <Hash className="h-4 w-4 mr-2" />
                 Asignar dorsales automáticamente
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={abrirReenvio}>
+                <Mail className="h-4 w-4 mr-2" />
+                Reenviar comprobante por email
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuLabel>Datos de inscripción</DropdownMenuLabel>
               <DropdownMenuItem onClick={() => setBulkGenderDialog(true)}>
@@ -2567,6 +2738,163 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reenviar comprobante por email */}
+      <Dialog
+        open={reenvioDialog}
+        onOpenChange={(open) => {
+          // Mientras se envía no se cierra: se perdería el resumen
+          if (!open && reenvioFase === "enviando") return;
+          setReenvioDialog(open);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Reenviar comprobante por email</DialogTitle>
+            <DialogDescription>
+              {reenvioIds.length} {reenvioIds.length === 1 ? "inscripción seleccionada" : "inscripciones seleccionadas"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {reenvioFase === "calculando" && (
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Comprobando a quién se le puede enviar…
+            </div>
+          )}
+
+          {reenvioFase === "listo" && reenvioEnsayo && (() => {
+            const aEnviar = reenvioEnsayo.resultados.filter((r) => r.resultado === "se_enviaria");
+            const pagadas = aEnviar.filter((r) => r.plantilla === "pagada").length;
+            const gratuitas = aEnviar.length - pagadas;
+            const omitidas = reenvioEnsayo.resultados.filter((r) => r.resultado === "omitido");
+            const porMotivo = new Map<string, string[]>();
+            for (const o of omitidas) {
+              const lista = porMotivo.get(o.motivo ?? "estado_desconocido") ?? [];
+              lista.push(o.registrationId);
+              porMotivo.set(o.motivo ?? "estado_desconocido", lista);
+            }
+            const hayExternas = porMotivo.has("importada_de_uno_es") || reenvioExternas;
+            return (
+              <div className="space-y-4 text-sm">
+                <div className="rounded-md border p-3 bg-muted/20">
+                  <p className="font-medium">
+                    {aEnviar.length === 0
+                      ? "No hay a quién enviárselo"
+                      : `Se enviará a ${aEnviar.length} ${aEnviar.length === 1 ? "persona" : "personas"}`}
+                  </p>
+                  {aEnviar.length > 0 && (
+                    <p className="text-muted-foreground">
+                      {[pagadas ? `${pagadas} pagadas` : "", gratuitas ? `${gratuitas} gratuitas` : ""]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
+                </div>
+
+                {omitidas.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="font-medium">No se enviará a {omitidas.length}:</p>
+                    <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                      {[...porMotivo.entries()].map(([motivo, ids]) => (
+                        <li key={motivo}>
+                          {ids.length} {MOTIVOS_OMISION[motivo] ?? motivo}
+                          {motivo === "sin_email" && (
+                            <span className="block text-xs">
+                              {ids.slice(0, 5).map(nombreInscripcion).join(", ")}
+                              {ids.length > 5 ? ` y ${ids.length - 5} más` : ""}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {hayExternas && (
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id="reenvio-externas"
+                      checked={reenvioExternas}
+                      onCheckedChange={(v) => {
+                        const incluir = v === true;
+                        setReenvioExternas(incluir);
+                        calcularReenvio(reenvioIds, incluir);
+                      }}
+                    />
+                    <Label htmlFor="reenvio-externas" className="font-normal leading-snug">
+                      Incluir también las importadas de uno.es
+                    </Label>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Cada persona recibe sus datos, su dorsal y el enlace «Ver mi dorsal». No se manda copia al organizador.
+                  {aEnviar.length >= 10 &&
+                    (aEnviar.length * 0.7 < 60
+                      ? ` Tardará menos de un minuto.`
+                      : ` Tardará unos ${Math.ceil((aEnviar.length * 0.7) / 60)} minutos.`)}
+                </p>
+              </div>
+            );
+          })()}
+
+          {reenvioFase === "enviando" && reenvioEnsayo && (
+            <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Enviando… {reenvioProgreso} de {reenvioEnsayo.se_enviarian}. No cierres esta ventana.
+            </div>
+          )}
+
+          {reenvioFase === "hecho" && reenvioFinal && (
+            <div className="space-y-3 text-sm">
+              <p className="font-medium">
+                {reenvioFinal.enviados} {reenvioFinal.enviados === 1 ? "comprobante enviado" : "comprobantes enviados"}
+                {reenvioFinal.omitidos > 0 && ` · ${reenvioFinal.omitidos} omitidos al enviar (cambiaron desde la comprobación)`}
+              </p>
+              {reenvioFinal.fallidos > 0 && (
+                <div className="space-y-1">
+                  <p className="font-medium text-destructive">{reenvioFinal.fallidos} no se pudieron enviar:</p>
+                  <ul className="list-disc pl-5 text-muted-foreground space-y-1 max-h-48 overflow-y-auto">
+                    {reenvioFinal.resultados
+                      .filter((r) => r.resultado === "fallido")
+                      .map((r) => (
+                        <li key={r.registrationId}>
+                          {nombreInscripcion(r.registrationId)}
+                          {r.email ? ` (${r.email})` : ""}: {r.error}
+                        </li>
+                      ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground">
+                    Se han quedado seleccionadas solo estas, por si quieres reintentarlo.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            {reenvioFase === "hecho" ? (
+              <Button onClick={() => setReenvioDialog(false)}>Cerrar</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setReenvioDialog(false)} disabled={reenvioFase === "enviando"}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={enviarReenvio}
+                  disabled={reenvioFase !== "listo" || !reenvioEnsayo || reenvioEnsayo.se_enviarian === 0}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {reenvioEnsayo && reenvioEnsayo.se_enviarian > 0
+                    ? `Enviar ${reenvioEnsayo.se_enviarian} ${reenvioEnsayo.se_enviarian === 1 ? "email" : "emails"}`
+                    : "Enviar"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk Gender Dialog */}
       <Dialog open={bulkGenderDialog} onOpenChange={setBulkGenderDialog}>
