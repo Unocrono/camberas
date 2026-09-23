@@ -12,6 +12,7 @@ import { RaceManagement } from "@/components/admin/RaceManagement";
 import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
+import { PlantillasEmailManagement } from "@/components/admin/PlantillasEmailManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
@@ -155,7 +156,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -292,6 +293,7 @@ const AdminDashboard = () => {
             {currentView === "coupons" && <CouponsManagement selectedRaceId={selectedRaceId} />}
             {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
             {currentView === "teams" && <TeamsManagement />}
+            {currentView === "plantillas-email" && <PlantillasEmailManagement />}
             {currentView === "race-documents" && (
               selectedRaceId ? (
                 <RaceDocumentsManagement raceId={selectedRaceId} />

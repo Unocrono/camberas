@@ -68,10 +68,17 @@ const CAMPOS_DE_LA_INSCRIPCION = new Set([
 ]);
 
 type Plantilla = "pagada" | "gratuita";
-// Qué email se manda: el comprobante de siempre, "tu dorsal" (con el enlace
-// al QR de la recogida) o "Camberas Track" (instalar la app y activar el
-// dorsal). Los dos últimos nacieron para la Marcha ADEMCO (sep-2026).
-type Tipo = "comprobante" | "dorsal" | "track";
+// Qué email se manda lo decide una PLANTILLA (tabla plantillas_email, la
+// edita el admin): texto con variables y bloques; el diseño lo pone esta
+// función. Ver 20260923220000_plantillas_email.sql.
+interface PlantillaEmail {
+  clave: string;
+  asunto: string;
+  titulo: string;
+  cuerpo: string;
+  etiqueta_mensaje: string | null;
+  omitir_uno: boolean;
+}
 type Motivo =
   | "cancelada"
   | "reembolsada"
@@ -124,9 +131,10 @@ function fila(etiqueta: string, valor: string, destacado = false): string {
 
 interface Datos {
   plantilla: Plantilla;
-  tipo: Tipo;
   /** Texto libre de la organización (lugar y horario de recogida, avisos) */
   mensaje: string | null;
+  /** Título del recuadro del mensaje (de la plantilla) */
+  etiquetaMensaje: string | null;
   /** Track: enlace de activación del dorsal en la app (gps_tokens) */
   activacionUrl: string | null;
   nombre: string | null;
@@ -142,90 +150,172 @@ interface Datos {
   respuestas: { label: string; value: string }[];
 }
 
-function cuerpo(d: Datos): string {
-  const saludo = d.nombre ? `Hola ${esc(d.nombre)},` : "Hola,";
-  const estado = d.plantilla === "pagada" ? "Pagada" : "Confirmada (inscripción gratuita)";
-
-  const filas = [
-    d.nombre ? fila("Corredor/a", d.nombre) : "",
-    d.dorsal != null ? fila("Dorsal", String(d.dorsal), true) : "",
-    fila("Carrera", d.carrera),
-    d.recorrido ? fila("Recorrido", d.recorrido) : "",
-    d.fecha ? fila("Fecha", fechaLarga(d.fecha)) : "",
-    d.lugar ? fila("Lugar", d.lugar) : "",
-    fila("Estado", estado),
-    d.plantilla === "pagada" && d.importe != null ? fila("Importe pagado", euros(d.importe), true) : "",
-    d.plantilla === "pagada" && d.referencia ? fila("Referencia de pago", d.referencia) : "",
-  ].join("");
-
-  const botonDorsal = d.miDorsalUrl
-    ? `<div style="text-align: center; margin: 28px 0;">
-        <a href="${esc(d.miDorsalUrl)}"
-           style="display: inline-block; background: ${VERDE}; color: ${CREMA}; text-decoration: none;
-                  padding: 14px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">
-          Ver mi dorsal
-        </a>
-        <p style="margin: 12px 0 0; color: #6b7280; font-size: 13px;">
-          Es tu código para la <strong>recogida de dorsales</strong>: enséñalo en el móvil.
-        </p>
-      </div>`
-    : "";
-
-  const bloqueRespuestas = d.respuestas.length
-    ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
-        <h3 style="margin: 0 0 8px; color: #1f2937; font-size: 15px;">Datos de tu inscripción</h3>
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-          ${d.respuestas.map((r) => fila(r.label, valorLegible(r.value))).join("")}
-        </table>
-      </div>`
-    : "";
-
-  return `
-  <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: ${VERDE}; padding: 28px 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 0.5px;">Camberas</h1>
-      <p style="color: ${CREMA}; margin: 8px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
-    </div>
-
-    <div style="padding: 36px 30px;">
-      <h2 style="color: #1f2937; margin: 0 0 16px; font-size: 21px;">Comprobante de inscripción</h2>
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${saludo}</p>
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-        Te reenviamos, a petición de la organización, el comprobante de tu inscripción en
-        <strong>${esc(d.carrera)}</strong>.
-      </p>
-
-      <div style="background: ${CREMA}; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 18px 20px; margin: 24px 0;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">${filas}</table>
-      </div>
-
-      ${botonDorsal}
-      ${bloqueRespuestas}
-
-      <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 24px 0 0;">
-        Si algún dato no es correcto, ponte en contacto con la organización de la carrera.
-      </p>
-    </div>
-
-    <div style="background: ${CREMA}; padding: 18px 30px; text-align: center;">
-      <p style="color: #6b7280; font-size: 12px; margin: 0;">
-        Inscripción gestionada con <strong>camberas.com</strong>
-      </p>
-    </div>
-  </div>`;
-}
-
-
 const APP_STORE = "https://apps.apple.com/es/app/camberas-track/id6792264406";
 const PLAY_STORE = "https://play.google.com/store/apps/details?id=com.unocrono.camberastrack";
 
-/** Texto libre de la organización, escapado y con sus saltos de línea */
-function bloqueMensaje(titulo: string, mensaje: string | null): string {
-  if (!mensaje) return "";
-  return `<div style="background: #f9fafb; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
-    <h3 style="margin: 0 0 8px; color: #1f2937; font-size: 15px;">${esc(titulo)}</h3>
-    <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${esc(mensaje).replace(/\n/g, "<br>")}</p>
+// Plantillas de fábrica: los MISMOS textos que siembra la migración
+// 20260923220000_plantillas_email.sql. Se usan si la tabla aún no existe o si
+// falta la fila de una de sistema; así el envío nunca depende de la migración.
+const PLANTILLAS_BASE: Record<string, PlantillaEmail> = {
+  comprobante: {
+    clave: "comprobante",
+    asunto: "Comprobante de inscripción: {carrera}",
+    titulo: "Comprobante de inscripción",
+    cuerpo: "Hola {nombre},\n\nTe reenviamos, a petición de la organización, el comprobante de tu inscripción en **{carrera}**.\n\n[[resumen_inscripcion]]\n\n[[boton_mi_dorsal]]\n> Es tu código para la **recogida de dorsales**: enséñalo en el móvil.\n\n[[datos_inscripcion]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
+    etiqueta_mensaje: null,
+    omitir_uno: true,
+  },
+  dorsal: {
+    clave: "dorsal",
+    asunto: "Tu dorsal {dorsal} para {carrera}",
+    titulo: "Tu dorsal para la carrera",
+    cuerpo: "Hola {nombre},\n\nYa tienes dorsal para **{carrera}**.\n\n[[tarjeta_dorsal]]\n\n[[boton_mi_dorsal]]\n> Al pulsar verás tu dorsal y un **código QR**. Enséñalo en el móvil en la **mesa de recogida de dorsales** y te atienden en segundos. Guarda este correo.\n\n[[mensaje]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
+    etiqueta_mensaje: "Recogida de dorsales",
+    omitir_uno: false,
+  },
+  track: {
+    clave: "track",
+    asunto: "Sigue {carrera} en directo con Camberas Track",
+    titulo: "Sigue la carrera en directo",
+    cuerpo: "Hola {nombre},\n\nEn **{carrera}** usamos **Camberas Track**: la organización sabe dónde estás durante la prueba y tu gente puede seguirte en el mapa en directo. Solo hay que hacer tres cosas:\n\n## 1. Instala Camberas Track en tu móvil\nEs gratis y no pide registro.\n[[botones_tiendas]]\n\n## 2. Activa tu dorsal {dorsal}\nCon la app ya instalada, pulsa este botón **desde ese mismo móvil**: tu dorsal queda vinculado a él. Este enlace es personal, no lo compartas.\n[[boton_activar]]\n\n## 3. El día de la carrera\nAbre la app antes de la salida, comprueba que aparece tu dorsal y lleva el móvil contigo. Nada más: la app envía tu posición sola, también con la pantalla apagada.\n\n> Sin registro ni datos personales: solo tu dorsal y tu posición durante la carrera.\n\n[[mensaje]]",
+    etiqueta_mensaje: "De la organización",
+    omitir_uno: false,
+  },
+};
+
+/** Un bloque [[nombre]] solo en su línea (sin \s* solapados: sin retroceso) */
+const BLOQUE_EN_LINEA = /^\[\[([^\]]*)\]\]$/;
+/** Longitud máxima de una línea con formato; el editor rechaza las más largas */
+const MAX_LINEA = 2000;
+
+const ESTILO_P = "color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px;";
+const ESTILO_NOTA = "color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0 0 16px;";
+const ESTILO_LISTA = "color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0 0 16px; padding-left: 22px;";
+
+function variables(d: Datos): Record<string, string> {
+  return {
+    nombre: d.nombre ?? "",
+    carrera: d.carrera,
+    dorsal: d.dorsal != null ? String(d.dorsal) : "",
+    recorrido: d.recorrido ?? "",
+    fecha: d.fecha ? fechaLarga(d.fecha) : "",
+    lugar: d.lugar ?? "",
+  };
+}
+
+/** {variable} → su valor; las que no existen se quedan tal cual */
+const sustituir = (texto: string, vars: Record<string, string>, escapar: boolean) =>
+  texto.replace(/\{([a-z_]+)\}/g, (m, k) => (k in vars ? (escapar ? esc(vars[k]) : vars[k]) : m));
+
+/** "Hola ," cuando falta el nombre → "Hola,"; y sin dobles espacios */
+const limpiar = (s: string) => s.replace(/[ \t]+([,.;:!?])/g, "$1").replace(/[ \t]{2,}/g, " ").trim();
+
+/**
+ * Una línea de texto de la plantilla a HTML. Primero se escapa el texto del
+ * admin, luego el formato (**negrita**, [texto](https://...)) y al final las
+ * variables, ya escapadas: un nombre con asteriscos o corchetes no se
+ * convierte en formato ni en enlace.
+ */
+function enLinea(texto: string, vars: Record<string, string>): string {
+  // Una línea desmesurada (el editor no deja guardarla, pero la vista previa
+  // la recibe tal cual) va sin formato: las regex de formato y de limpieza
+  // son cuadráticas y no deben poder colgar la función
+  if (texto.length > MAX_LINEA) return sustituir(esc(texto), vars, true);
+  let h = esc(texto);
+  h = h.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_m, t, url) => `<a href="${url}" style="color: ${VERDE}; font-weight: bold;">${t}</a>`,
+  );
+  return limpiar(sustituir(h, vars, true));
+}
+
+const boton = (href: string, texto: string) =>
+  `<div style="text-align: center; margin: 24px 0 12px;">
+    <a href="${esc(href)}"
+       style="display: inline-block; background: ${VERDE}; color: ${CREMA}; text-decoration: none;
+              padding: 14px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">${esc(texto)}</a>
   </div>`;
+
+const tienda = (href: string, texto: string) =>
+  `<a href="${href}" style="display: inline-block; background: #1f2937; color: #ffffff; text-decoration: none;
+      padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: bold; margin: 6px 8px 6px 0;">${texto}</a>`;
+
+/** "## 1. Instala la app" → círculo verde con el número; "## Título" → subtítulo */
+function subtitulo(texto: string, vars: Record<string, string>): string {
+  const m = texto.match(/^(\d{1,2})\.\s+(.*)$/);
+  if (!m) {
+    return `<p style="margin: 24px 0 8px; color: #1f2937; font-size: 17px; font-weight: bold;">${enLinea(texto, vars)}</p>`;
+  }
+  return `<table style="width: 100%; border-collapse: collapse; margin: 24px 0 6px;"><tr>
+    <td style="width: 34px; vertical-align: middle;">
+      <div style="width: 34px; height: 34px; border-radius: 17px; background: ${VERDE}; color: ${CREMA};
+                  font-weight: bold; font-size: 16px; text-align: center; line-height: 34px;">${m[1]}</div>
+    </td>
+    <td style="vertical-align: middle; padding-left: 12px; color: #1f2937; font-size: 16px; font-weight: bold;">${enLinea(m[2], vars)}</td>
+  </tr></table>`;
+}
+
+/** Los bloques [[...]]: piezas de diseño que el admin coloca, no escribe */
+function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
+  switch (nombre) {
+    case "tarjeta_dorsal": {
+      const linea = [d.recorrido, d.fecha ? fechaLarga(d.fecha) : null, d.lugar]
+        .filter((x): x is string => !!x)
+        .map((x) => esc(x))
+        .join(" · ");
+      return `<div style="background: ${VERDE}; color: ${CREMA}; border-radius: 10px; padding: 22px; text-align: center; margin: 24px 0;">
+        <p style="margin: 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85;">Dorsal</p>
+        <p style="margin: 6px 0 0; font-size: 56px; font-weight: bold; line-height: 1;">${d.dorsal ?? "—"}</p>
+        ${linea ? `<p style="margin: 12px 0 0; font-size: 13px; opacity: 0.9;">${linea}</p>` : ""}
+      </div>`;
+    }
+    case "boton_mi_dorsal":
+      return d.miDorsalUrl ? boton(d.miDorsalUrl, "Ver mi dorsal") : "";
+    case "resumen_inscripcion": {
+      const estado = d.plantilla === "pagada" ? "Pagada" : "Confirmada (inscripción gratuita)";
+      const filas = [
+        d.nombre ? fila("Corredor/a", d.nombre) : "",
+        d.dorsal != null ? fila("Dorsal", String(d.dorsal), true) : "",
+        fila("Carrera", d.carrera),
+        d.recorrido ? fila("Recorrido", d.recorrido) : "",
+        d.fecha ? fila("Fecha", fechaLarga(d.fecha)) : "",
+        d.lugar ? fila("Lugar", d.lugar) : "",
+        fila("Estado", estado),
+        d.plantilla === "pagada" && d.importe != null ? fila("Importe pagado", euros(d.importe), true) : "",
+        d.plantilla === "pagada" && d.referencia ? fila("Referencia de pago", d.referencia) : "",
+      ].join("");
+      return `<div style="background: ${CREMA}; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 18px 20px; margin: 24px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">${filas}</table>
+      </div>`;
+    }
+    case "datos_inscripcion":
+      return d.respuestas.length
+        ? `<div style="background: #f9fafb; border-left: 4px solid #9ca3af; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
+            <h3 style="margin: 0 0 8px; color: #1f2937; font-size: 15px;">Datos de tu inscripción</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              ${d.respuestas.map((r) => fila(r.label, valorLegible(r.value))).join("")}
+            </table>
+          </div>`
+        : "";
+    case "botones_tiendas":
+      return `<p style="margin: 4px 0 16px;">${tienda(APP_STORE, "App Store (iPhone)")}${tienda(PLAY_STORE, "Google Play (Android)")}</p>`;
+    case "boton_activar":
+      return d.activacionUrl ? boton(d.activacionUrl, `Activar mi dorsal ${d.dorsal ?? ""}`.trim()) : "";
+    case "mensaje":
+      return d.mensaje
+        ? `<div style="background: #f9fafb; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
+            <h3 style="margin: 0 0 8px; color: #1f2937; font-size: 15px;">${esc(d.etiquetaMensaje || "De la organización")}</h3>
+            <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">${esc(d.mensaje).replace(/\n/g, "<br>")}</p>
+          </div>`
+        : "";
+    default:
+      // Un bloque que no existe no llega nunca a un corredor; en la vista
+      // previa se enseña en rojo para que el admin vea la errata
+      return vistaPrevia
+        ? `<p style="color: #b91c1c; font-size: 13px; font-weight: bold; margin: 0 0 16px;">[[${esc(nombre)}]] — este bloque no existe</p>`
+        : "";
+  }
 }
 
 function envoltorio(titulo: string, interior: string): string {
@@ -247,101 +337,58 @@ function envoltorio(titulo: string, interior: string): string {
   </div>`;
 }
 
-/** "Tu dorsal": el número en grande y el enlace a la página con el QR de la recogida */
-function cuerpoDorsal(d: Datos): string {
-  const saludo = d.nombre ? `Hola ${esc(d.nombre)},` : "Hola,";
-  const linea = [d.recorrido, d.fecha ? fechaLarga(d.fecha) : null, d.lugar]
-    .filter((x): x is string => !!x)
-    .map((x) => esc(x))
-    .join(" · ");
-  return envoltorio("Tu dorsal para la carrera", `
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${saludo}</p>
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-        Ya tienes dorsal para <strong>${esc(d.carrera)}</strong>.
-      </p>
-      <div style="background: ${VERDE}; color: ${CREMA}; border-radius: 10px; padding: 22px; text-align: center; margin: 24px 0;">
-        <p style="margin: 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85;">Dorsal</p>
-        <p style="margin: 6px 0 0; font-size: 56px; font-weight: bold; line-height: 1;">${d.dorsal ?? "—"}</p>
-        ${linea ? `<p style="margin: 12px 0 0; font-size: 13px; opacity: 0.9;">${linea}</p>` : ""}
-      </div>
-      ${
-        d.miDorsalUrl
-          ? `<div style="text-align: center; margin: 28px 0;">
-        <a href="${esc(d.miDorsalUrl)}"
-           style="display: inline-block; background: ${VERDE}; color: ${CREMA}; text-decoration: none;
-                  padding: 14px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">
-          Ver mi dorsal
-        </a>
-        <p style="margin: 12px 0 0; color: #6b7280; font-size: 13px; line-height: 1.6;">
-          Al pulsar verás tu dorsal y un <strong>código QR</strong>. Enséñalo en el móvil en la
-          <strong>mesa de recogida de dorsales</strong> y te atienden en segundos. Guarda este correo.
-        </p>
-      </div>`
-          : ""
-      }
-      ${bloqueMensaje("Recogida de dorsales", d.mensaje)}
-      <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 24px 0 0;">
-        Si algún dato no es correcto, ponte en contacto con la organización de la carrera.
-      </p>`);
+/**
+ * El cuerpo de la plantilla a HTML, línea a línea:
+ *   [[bloque]] sola en su línea · "## " subtítulo · "> " nota pequeña ·
+ *   "- " lista · línea en blanco = párrafo nuevo · resto = texto (las líneas
+ *   seguidas se unen con salto de línea).
+ */
+function renderCuerpo(p: PlantillaEmail, d: Datos, vistaPrevia = false): string {
+  const vars = variables(d);
+  const out: string[] = [];
+  let parrafo: string[] = [];
+  let nota: string[] = [];
+  let lista: string[] = [];
+  const cerrar = () => {
+    if (parrafo.length) out.push(`<p style="${ESTILO_P}">${parrafo.map((l) => enLinea(l, vars)).join("<br>")}</p>`);
+    if (nota.length) out.push(`<p style="${ESTILO_NOTA}">${nota.map((l) => enLinea(l, vars)).join("<br>")}</p>`);
+    if (lista.length) out.push(`<ul style="${ESTILO_LISTA}">${lista.map((l) => `<li>${enLinea(l, vars)}</li>`).join("")}</ul>`);
+    parrafo = [];
+    nota = [];
+    lista = [];
+  };
+  for (const cruda of p.cuerpo.replace(/\r\n?/g, "\n").split("\n")) {
+    const linea = cruda.trim();
+    if (!linea) { cerrar(); continue; }
+    const b = linea.match(BLOQUE_EN_LINEA);
+    if (b) { cerrar(); out.push(bloque(b[1].trim(), d, vistaPrevia)); continue; }
+    if (linea.startsWith("## ")) { cerrar(); out.push(subtitulo(linea.slice(3).trim(), vars)); continue; }
+    if (linea.startsWith("> ")) { if (parrafo.length || lista.length) cerrar(); nota.push(linea.slice(2)); continue; }
+    if (linea.startsWith("- ")) { if (parrafo.length || nota.length) cerrar(); lista.push(linea.slice(2)); continue; }
+    if (nota.length || lista.length) cerrar();
+    parrafo.push(linea);
+  }
+  cerrar();
+  return envoltorio(limpiar(sustituir(p.titulo, vars, false)), out.join("\n"));
 }
 
-/** "Camberas Track": instalar la app y activar el dorsal, en tres pasos */
-function cuerpoTrack(d: Datos): string {
-  const saludo = d.nombre ? `Hola ${esc(d.nombre)},` : "Hola,";
-  const paso = (n: number, titulo: string, contenido: string) => `
-      <table style="width: 100%; border-collapse: collapse; margin: 18px 0;"><tr>
-        <td style="width: 34px; vertical-align: top; padding-top: 4px;">
-          <div style="width: 34px; height: 34px; border-radius: 17px; background: ${VERDE}; color: ${CREMA};
-                      font-weight: bold; font-size: 16px; text-align: center; line-height: 34px;">${n}</div>
-        </td>
-        <td style="vertical-align: top; padding-left: 14px;">
-          <p style="margin: 6px 0 4px; color: #1f2937; font-size: 16px; font-weight: bold;">${esc(titulo)}</p>
-          ${contenido}
-        </td>
-      </tr></table>`;
-  const tienda = (href: string, texto: string) =>
-    `<a href="${href}" style="display: inline-block; background: #1f2937; color: #ffffff; text-decoration: none;
-        padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: bold; margin: 6px 8px 6px 0;">${texto}</a>`;
-  return envoltorio("Sigue la carrera en directo", `
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${saludo}</p>
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 12px;">
-        En <strong>${esc(d.carrera)}</strong> usamos <strong>Camberas Track</strong>: la organización sabe dónde
-        estás durante la prueba y tu gente puede seguirte en el mapa en directo. Solo hay que hacer tres cosas:
-      </p>
-      ${paso(1, "Instala Camberas Track en tu móvil", `
-          <p style="margin: 0 0 6px; color: #4b5563; font-size: 14px; line-height: 1.6;">Es gratis y no pide registro.</p>
-          ${tienda(APP_STORE, "App Store (iPhone)")}${tienda(PLAY_STORE, "Google Play (Android)")}`)}
-      ${paso(2, `Activa tu dorsal ${d.dorsal ?? ""}`.trim(), `
-          <p style="margin: 0 0 10px; color: #4b5563; font-size: 14px; line-height: 1.6;">
-            Con la app ya instalada, pulsa este botón <strong>desde ese mismo móvil</strong>: tu dorsal queda
-            vinculado a él. Este enlace es personal, no lo compartas.
-          </p>
-          ${
-            d.activacionUrl
-              ? `<a href="${esc(d.activacionUrl)}" style="display: inline-block; background: ${VERDE}; color: ${CREMA}; text-decoration: none;
-                  padding: 14px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">Activar mi dorsal ${d.dorsal ?? ""}</a>`
-              : ""
-          }`)}
-      ${paso(3, "El día de la carrera", `
-          <p style="margin: 0; color: #4b5563; font-size: 14px; line-height: 1.6;">
-            Abre la app antes de la salida, comprueba que aparece tu dorsal y lleva el móvil contigo.
-            Nada más: la app envía tu posición sola, también con la pantalla apagada.
-          </p>`)}
-      <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 20px 0 0;">
-        Sin registro ni datos personales: solo tu dorsal y tu posición durante la carrera.
-      </p>
-      ${bloqueMensaje("De la organización", d.mensaje)}`);
+const renderAsunto = (p: PlantillaEmail, d: Datos) =>
+  limpiar(sustituir(p.asunto, variables(d), false).replace(/\s+/g, " "));
+
+/** Lo que exige la plantilla según lo que usa */
+function requisitos(p: PlantillaEmail) {
+  // Los mismos bloques que pinta renderCuerpo: solo los que van solos en su línea
+  const bloques = new Set(
+    p.cuerpo
+      .replace(/\r\n?/g, "\n")
+      .split("\n")
+      .map((l) => l.trim().match(BLOQUE_EN_LINEA)?.[1].trim())
+      .filter((x): x is string => !!x),
+  );
+  const track = bloques.has("boton_activar");
+  const dorsal = track || bloques.has("tarjeta_dorsal") || `${p.asunto}\n${p.titulo}\n${p.cuerpo}`.includes("{dorsal}");
+  return { dorsal, track };
 }
-
-const asunto = (d: Datos) =>
-  d.tipo === "dorsal"
-    ? `Tu dorsal ${d.dorsal ?? ""} para ${d.carrera}`.replace(/\s+/g, " ")
-    : d.tipo === "track"
-      ? `Sigue ${d.carrera} en directo con Camberas Track`
-      : `Comprobante de inscripción: ${d.carrera}`;
-
-const cuerpoPorTipo = (d: Datos) =>
-  d.tipo === "dorsal" ? cuerpoDorsal(d) : d.tipo === "track" ? cuerpoTrack(d) : cuerpo(d);
 
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -366,11 +413,63 @@ serve(async (req: Request): Promise<Response> => {
     const uid = userData.user.id;
 
     // ── Qué pide ───────────────────────────────────────────────────────────
-    let body: { registrationIds?: unknown; dryRun?: unknown; incluirExternas?: unknown; plantilla?: unknown; mensaje?: unknown } = {};
+    let body: {
+      registrationIds?: unknown;
+      dryRun?: unknown;
+      incluirExternas?: unknown;
+      plantilla?: unknown;
+      mensaje?: unknown;
+      vistaPrevia?: unknown;
+    } = {};
     try {
       body = await req.json();
     } catch {
       return json({ error: "Cuerpo de la petición no válido" }, 400);
+    }
+    const mensaje = typeof body.mensaje === "string" ? body.mensaje.trim().slice(0, 1500) : "";
+
+    // ── Vista previa del editor de plantillas: datos de ejemplo, no se
+    //    envía nada ni se lee ninguna inscripción ──────────────────────────
+    if (body.vistaPrevia && typeof body.vistaPrevia === "object") {
+      const { data: rolesVp } = await service.from("user_roles").select("role").eq("user_id", uid);
+      const puede = (rolesVp ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "organizer");
+      if (!puede) return json({ error: "Sin permiso" }, 403);
+      const vp = body.vistaPrevia as Record<string, unknown>;
+      const texto = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+      const plantillaVp: PlantillaEmail = {
+        clave: "vista-previa",
+        asunto: texto(vp.asunto, 200),
+        titulo: texto(vp.titulo, 200),
+        cuerpo: texto(vp.cuerpo, 20000),
+        etiqueta_mensaje: texto(vp.etiqueta_mensaje, 80) || null,
+        omitir_uno: false,
+      };
+      const cero = "00000000-0000-0000-0000-000000000000";
+      const muestra: Datos = {
+        plantilla: "pagada",
+        mensaje: mensaje || "Aquí aparece el texto que escribas al enviar.",
+        etiquetaMensaje: plantillaVp.etiqueta_mensaje,
+        activacionUrl: `${SITE_URL}/activar.html?t=${cero}`,
+        nombre: "Nombre Apellido",
+        carrera: "Carrera de ejemplo",
+        fecha: new Date().toISOString().slice(0, 10),
+        lugar: "Localidad",
+        recorrido: "Trail 21K",
+        dorsal: 123,
+        importe: 25,
+        referencia: "260923123456",
+        miDorsalUrl: `${SITE_URL}/mi-dorsal/${cero}`,
+        respuestas: [
+          { label: "Documento", value: "12345678Z" },
+          { label: "Club", value: "Club de ejemplo" },
+          { label: "Talla de camiseta", value: "M" },
+        ],
+      };
+      return json({
+        asunto: renderAsunto(plantillaVp, muestra),
+        html: renderCuerpo(plantillaVp, muestra, true),
+        requisitos: requisitos(plantillaVp),
+      });
     }
     const ids = Array.isArray(body.registrationIds)
       ? [...new Set(body.registrationIds.filter((x): x is string => typeof x === "string" && UUID.test(x)))]
@@ -381,8 +480,43 @@ serve(async (req: Request): Promise<Response> => {
     }
     const dryRun = body.dryRun === true;
     const incluirExternas = body.incluirExternas === true;
-    const tipo: Tipo = body.plantilla === "dorsal" || body.plantilla === "track" ? body.plantilla : "comprobante";
-    const mensaje = typeof body.mensaje === "string" ? body.mensaje.trim().slice(0, 1500) : "";
+
+    // ── La plantilla, por su clave. Si la tabla aún no existe (migración sin
+    //    aplicar) o falta una de sistema, la de fábrica; una desactivada no
+    //    se manda. ──────────────────────────────────────────────────────────
+    const clave = typeof body.plantilla === "string" && body.plantilla.trim() ? body.plantilla.trim() : "comprobante";
+    let plantillaEmail: PlantillaEmail | null = null;
+    {
+      const { data: fila, error: errPlantilla } = await service
+        .from("plantillas_email")
+        .select("clave, asunto, titulo, cuerpo, etiqueta_mensaje, omitir_uno, activa")
+        .eq("clave", clave)
+        .maybeSingle();
+      const sinTabla =
+        !!errPlantilla &&
+        (errPlantilla.code === "42P01" ||
+          errPlantilla.code === "PGRST205" ||
+          /does not exist|could not find the table/i.test(errPlantilla.message ?? ""));
+      if (errPlantilla && !sinTabla) {
+        // Un fallo pasajero NO debe mandar el texto de fábrica en lugar del
+        // editado: el lote falla y el panel lo deja para reintentar
+        throw new Error(`plantillas_email: ${errPlantilla.message}`);
+      }
+      if (sinTabla || !fila) {
+        plantillaEmail = PLANTILLAS_BASE[clave] ?? null;
+      } else if (fila.activa) {
+        plantillaEmail = {
+          clave: fila.clave,
+          asunto: fila.asunto,
+          titulo: fila.titulo,
+          cuerpo: fila.cuerpo,
+          etiqueta_mensaje: fila.etiqueta_mensaje,
+          omitir_uno: fila.omitir_uno === true,
+        };
+      }
+    }
+    if (!plantillaEmail) return json({ error: `La plantilla «${clave}» no existe o está desactivada` }, 400);
+    const pide = requisitos(plantillaEmail);
 
     // ── Las inscripciones y el permiso sobre sus carreras ─────────────────
     const { data: regs, error: regsErr } = await service
@@ -473,7 +607,7 @@ serve(async (req: Request): Promise<Response> => {
     // Track: el enlace de activación de cada dorsal es el token GPS activo de
     // ese evento + dorsal (los crea el panel en "Dorsales GPS (QR)")
     const activacionPorDorsal = new Map<string, string>();
-    if (tipo === "track" && distanceIds.length) {
+    if (pide.track && distanceIds.length) {
       const toks = await leer<any>(
         "gps_tokens",
         service.from("gps_tokens").select("event_id, bib_number, token, active").in("event_id", distanceIds).eq("active", true),
@@ -542,7 +676,7 @@ serve(async (req: Request): Promise<Response> => {
       if (r.status === "cancelled") motivo = "cancelada";
       else if (r.payment_status === "refunded") motivo = "reembolsada";
       else if (r.payment_status === "pending") motivo = "pendiente_de_pago";
-      else if (tipo === "comprobante" && r.source === "external" && !incluirExternas) motivo = "importada_de_uno_es";
+      else if (plantillaEmail.omitir_uno && r.source === "external" && !incluirExternas) motivo = "importada_de_uno_es";
       else if (r.payment_status === "paid") plantilla = "pagada";
       // La gratuita dice "Confirmada": solo si lo está (el organizador puede
       // haberla dejado pendiente, p. ej. mientras revisa una licencia)
@@ -550,10 +684,10 @@ serve(async (req: Request): Promise<Response> => {
       else if (r.payment_status === "not_required") plantilla = "gratuita";
       else motivo = "estado_desconocido";
 
-      // "Tu dorsal" y "Track" necesitan el dorsal puesto; Track, además, el
-      // GPS activo en el recorrido y el token de activación de ese dorsal
-      if (!motivo && tipo !== "comprobante" && r.bib_number == null) motivo = "sin_dorsal";
-      if (!motivo && tipo === "track") {
+      // Si la plantilla usa el dorsal, solo a quien lo tiene; si usa el botón
+      // de activación, además GPS en el recorrido y dorsal GPS generado
+      if (!motivo && pide.dorsal && r.bib_number == null) motivo = "sin_dorsal";
+      if (!motivo && pide.track) {
         if (!gpsEnRecorrido.get(r.race_distance_id)) motivo = "sin_gps_en_recorrido";
         else if (!activacionPorDorsal.has(`${r.race_distance_id}|${String(r.bib_number).trim()}`)) motivo = "sin_dorsal_gps";
       }
@@ -585,8 +719,8 @@ serve(async (req: Request): Promise<Response> => {
 
       const datos: Datos = {
         plantilla,
-        tipo,
         mensaje: mensaje || null,
+        etiquetaMensaje: plantillaEmail.etiqueta_mensaje,
         activacionUrl: activacionPorDorsal.get(`${r.race_distance_id}|${String(r.bib_number ?? "").trim()}`) ?? null,
         nombre,
         carrera: carrera?.name ?? "Carrera",
@@ -620,8 +754,8 @@ serve(async (req: Request): Promise<Response> => {
         resend!.emails.send({
           from: "Camberas <noreply@camberas.com>",
           to: [email],
-          subject: asunto(datos),
-          html: cuerpoPorTipo(datos),
+          subject: renderAsunto(plantillaEmail!, datos),
+          html: renderCuerpo(plantillaEmail!, datos),
         });
 
       try {
@@ -643,6 +777,9 @@ serve(async (req: Request): Promise<Response> => {
     const cuenta = (t: Resultado["resultado"]) => resultados.filter((x) => x.resultado === t).length;
     const resumen = {
       ensayo: dryRun,
+      // El panel lo comprueba: una función anterior a las plantillas no lo
+      // devuelve y mandaría el comprobante en lugar de la plantilla pedida
+      plantilla: plantillaEmail.clave,
       total: resultados.length,
       enviados: cuenta("enviado"),
       se_enviarian: cuenta("se_enviaria"),

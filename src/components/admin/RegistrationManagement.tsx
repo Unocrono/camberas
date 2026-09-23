@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { PLANTILLAS_BASE, usaMensaje, type PlantillaEmail } from "@/lib/plantillasEmail";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -168,6 +169,8 @@ interface ResumenReenvio {
   omitidos: number;
   fallidos: number;
   resultados: ResultadoReenvio[];
+  /** Clave de la plantilla que usó la función (las anteriores a las plantillas no la devuelven) */
+  plantilla?: string;
 }
 
 // La función acepta 50 inscripciones por llamada. El ensayo no manda nada y
@@ -302,11 +305,22 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [reenvioExternas, setReenvioExternas] = useState(false);
   // Qué email: el comprobante, "tu dorsal" (QR para la mesa de recogida) o
   // Camberas Track (instalar y activar). Nacieron para la Marcha ADEMCO.
-  const [reenvioPlantilla, setReenvioPlantilla] = useState<"comprobante" | "dorsal" | "track">("comprobante");
+  const [reenvioPlantilla, setReenvioPlantilla] = useState<string>("comprobante");
+  // Las plantillas activas (las edita el admin en Inscripciones > Plantillas
+  // de email). Si la tabla aún no existe, las de fábrica.
+  const [plantillasEmail, setPlantillasEmail] = useState<PlantillaEmail[]>(PLANTILLAS_BASE);
+  // ¿El catálogo salió de la tabla? Entonces la función DEBE confirmar qué
+  // plantilla usó: una anterior a las plantillas ignora lo que edita el admin
+  const [catalogoDeTabla, setCatalogoDeTabla] = useState(false);
   const [reenvioMensaje, setReenvioMensaje] = useState("");
   const [reenvioEnsayo, setReenvioEnsayo] = useState<ResumenReenvio | null>(null);
   const [reenvioFinal, setReenvioFinal] = useState<ResumenReenvio | null>(null);
-  const [reenvioFase, setReenvioFase] = useState<"calculando" | "listo" | "enviando" | "hecho">("calculando");
+  const [reenvioFase, setReenvioFase] = useState<
+    "calculando" | "listo" | "enviando" | "hecho" | "error" | "sin_plantillas"
+  >("calculando");
+  // Error del ensayo: se enseña DENTRO del diálogo, que sigue abierto para
+  // poder elegir otra plantilla (antes lo cerraba)
+  const [reenvioError, setReenvioError] = useState<string | null>(null);
   const [reenvioProgreso, setReenvioProgreso] = useState(0);
   const reenvioPeticion = useRef(0);
 
@@ -750,7 +764,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     dryRun: boolean,
     incluirExternas: boolean,
     alAvanzar?: (hechas: number) => void,
-    plantilla: "comprobante" | "dorsal" | "track" = "comprobante",
+    plantilla = "comprobante",
     mensaje = "",
   ): Promise<ResumenReenvio> => {
     const suma: ResumenReenvio = { total: 0, enviados: 0, se_enviarian: 0, omitidos: 0, fallidos: 0, resultados: [] };
@@ -782,6 +796,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         suma.omitidos += r.omitidos;
         suma.fallidos += r.fallidos;
         suma.resultados.push(...r.resultados);
+        suma.plantilla = r.plantilla;
       } catch (e: any) {
         if (dryRun) throw e;
         const quizaSalio = estadoHttp === undefined || estadoHttp >= 500;
@@ -803,35 +818,71 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const calcularReenvio = async (
     ids: string[],
     incluirExternas: boolean,
-    plantilla: "comprobante" | "dorsal" | "track" = "comprobante",
+    plantilla = "comprobante",
+    exigirVersion = false,
   ) => {
     // Si se cierra y se reabre (o se marca la casilla) con un ensayo aún en
     // marcha, solo cuenta la respuesta del último
     const peticion = ++reenvioPeticion.current;
     setReenvioFase("calculando");
     setReenvioEnsayo(null);
+    setReenvioError(null);
     try {
       const ensayo = await llamarReenvio(ids, true, incluirExternas, undefined, plantilla);
+      // La función anterior a las plantillas no las lee: mandaría su texto
+      // de siempre (o el comprobante) sin avisar. Si el catálogo viene de la
+      // tabla, se exige que confirme la plantilla para TODAS, también las de
+      // sistema, cuyo texto puede estar editado.
+      const exigir = exigirVersion || !["comprobante", "dorsal", "track"].includes(plantilla);
+      if (exigir && ensayo.plantilla !== plantilla) {
+        throw new Error(
+          "La función de envío está desactualizada y no lee las plantillas: hay que desplegar reenviar-comprobantes.",
+        );
+      }
       if (peticion !== reenvioPeticion.current) return;
       setReenvioEnsayo(ensayo);
       setReenvioFase("listo");
     } catch (error: any) {
       if (peticion !== reenvioPeticion.current) return;
-      toast({ title: "No se pudo preparar el reenvío", description: error.message, variant: "destructive" });
-      setReenvioDialog(false);
+      setReenvioError(error.message);
+      setReenvioFase("error");
     }
   };
 
-  const abrirReenvio = () => {
+  const plantillaElegida = plantillasEmail.find((p) => p.clave === reenvioPlantilla) ?? null;
+
+  const abrirReenvio = async () => {
     const ids = Array.from(selectedRows);
     setReenvioIds(ids);
     setReenvioExternas(false);
-    setReenvioPlantilla("comprobante");
     setReenvioMensaje("");
+    setReenvioError(null);
+    setReenvioEnsayo(null);
     setReenvioFinal(null);
     setReenvioProgreso(0);
+    setReenvioFase("calculando");
     setReenvioDialog(true);
-    calcularReenvio(ids, false);
+    // Primero el catálogo: la plantilla por defecto tiene que estar activa
+    // (si el admin desactivó el comprobante, se abre con la primera activa).
+    // Sin tabla (migración sin aplicar), las de fábrica.
+    const peticion = ++reenvioPeticion.current;
+    const { data, error } = await (supabase as any)
+      .from("plantillas_email")
+      .select("clave, nombre, descripcion, asunto, titulo, cuerpo, etiqueta_mensaje, omitir_uno, orden")
+      .eq("activa", true)
+      .order("orden", { ascending: true });
+    if (peticion !== reenvioPeticion.current) return;
+    const deTabla = !error;
+    const lista: PlantillaEmail[] = deTabla ? (data ?? []) : PLANTILLAS_BASE;
+    setPlantillasEmail(lista);
+    setCatalogoDeTabla(deTabla);
+    if (lista.length === 0) {
+      setReenvioFase("sin_plantillas");
+      return;
+    }
+    const clave = lista.some((p) => p.clave === "comprobante") ? "comprobante" : lista[0].clave;
+    setReenvioPlantilla(clave);
+    calcularReenvio(ids, false, clave, deTabla);
   };
 
   const enviarReenvio = async () => {
@@ -843,7 +894,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     if (ids.length === 0) return;
     setReenvioFase("enviando");
     setReenvioProgreso(0);
-    const final = await llamarReenvio(ids, false, reenvioExternas, setReenvioProgreso, reenvioPlantilla, reenvioMensaje);
+    const mensaje = plantillaElegida && usaMensaje(plantillaElegida) ? reenvioMensaje : "";
+    const final = await llamarReenvio(ids, false, reenvioExternas, setReenvioProgreso, reenvioPlantilla, mensaje);
     setReenvioFinal(final);
     setReenvioFase("hecho");
     toast({
@@ -2772,43 +2824,47 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             </DialogDescription>
           </DialogHeader>
 
-          {(reenvioFase === "calculando" || reenvioFase === "listo") && (
+          {reenvioFase === "sin_plantillas" && (
+            <p className="rounded-md border p-3 text-sm">
+              No hay ninguna plantilla de email activa. Un administrador puede activarlas en Inscripciones →
+              Plantillas de email.
+            </p>
+          )}
+
+          {reenvioFase === "error" && reenvioError && (
+            <p className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm">
+              No se pudo preparar el envío: {reenvioError}
+            </p>
+          )}
+
+          {(reenvioFase === "calculando" || reenvioFase === "listo" || reenvioFase === "error") && (
             <div className="space-y-3">
               <div className="space-y-1">
                 <Label>Qué email</Label>
                 <Select
                   value={reenvioPlantilla}
-                  onValueChange={(v) => {
-                    const plantilla = v as "comprobante" | "dorsal" | "track";
-                    setReenvioPlantilla(plantilla);
-                    calcularReenvio(reenvioIds, reenvioExternas, plantilla);
+                  onValueChange={(clave) => {
+                    setReenvioPlantilla(clave);
+                    calcularReenvio(reenvioIds, reenvioExternas, clave, catalogoDeTabla);
                   }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="comprobante">Comprobante de inscripción</SelectItem>
-                    <SelectItem value="dorsal">Tu dorsal y QR para la recogida</SelectItem>
-                    <SelectItem value="track">Camberas Track: instalar y activar el dorsal</SelectItem>
+                    {plantillasEmail.map((p) => (
+                      <SelectItem key={p.clave} value={p.clave}>{p.nombre}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              {reenvioPlantilla !== "comprobante" && (
+              {plantillaElegida && usaMensaje(plantillaElegida) && (
                 <div className="space-y-1">
-                  <Label>
-                    {reenvioPlantilla === "dorsal"
-                      ? "Recogida de dorsales: lugar y horario (opcional)"
-                      : "Mensaje de la organización (opcional)"}
-                  </Label>
+                  <Label>{plantillaElegida.etiqueta_mensaje || "Mensaje de la organización"} (opcional)</Label>
                   <Textarea
                     rows={3}
                     maxLength={1500}
                     value={reenvioMensaje}
                     onChange={(e) => setReenvioMensaje(e.target.value)}
-                    placeholder={
-                      reenvioPlantilla === "dorsal"
-                        ? "Sábado 26 de 17 a 20 h y domingo desde las 8 h en la carpa de la plaza. Trae tu DNI."
-                        : "Lo que quieras añadir al pie del email."
-                    }
+                    placeholder="Sale en un recuadro dentro del email. Si lo dejas vacío, no aparece."
                   />
                 </div>
               )}
@@ -2878,7 +2934,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       onCheckedChange={(v) => {
                         const incluir = v === true;
                         setReenvioExternas(incluir);
-                        calcularReenvio(reenvioIds, incluir, reenvioPlantilla);
+                        calcularReenvio(reenvioIds, incluir, reenvioPlantilla, catalogoDeTabla);
                       }}
                     />
                     <Label htmlFor="reenvio-externas" className="font-normal leading-snug">
@@ -2888,11 +2944,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 )}
 
                 <p className="text-xs text-muted-foreground">
-                  {reenvioPlantilla === "comprobante"
-                    ? "Cada persona recibe sus datos, su dorsal y el enlace «Ver mi dorsal». No se manda copia al organizador."
-                    : reenvioPlantilla === "dorsal"
-                      ? "Cada persona recibe su dorsal en grande y el enlace «Ver mi dorsal» con el QR para la mesa de recogida."
-                      : "Cada persona recibe los enlaces de las tiendas y SU botón de activación, que vincula el dorsal al móvil desde el que lo pulse."}
+                  {plantillaElegida?.descripcion ?? ""} No se manda copia al organizador.
                   {aEnviar.length >= 10 &&
                     (aEnviar.length * 0.7 < 60
                       ? ` Tardará menos de un minuto.`
