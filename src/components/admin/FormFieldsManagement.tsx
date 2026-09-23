@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock, Copy, Link } from "lucide-react";
+import { Plus, Pencil, Trash2, GripVertical, FileText, Eye, EyeOff, Lock, Copy, Link, GitBranch } from "lucide-react";
+import { TIPOS_CONTROLADOR, dependientesDe, textoCondicion } from "@/lib/fieldConditions";
 import { z } from "zod";
 import {
   DndContext,
@@ -61,6 +62,10 @@ interface FormField {
   is_system_field?: boolean;
   is_visible?: boolean;
   profile_field?: string | null;
+  // Campo condicional: solo se ve si el campo depends_on_field_id vale
+  // depends_on_value (ver src/lib/fieldConditions.ts)
+  depends_on_field_id?: string | null;
+  depends_on_value?: string | null;
 }
 
 // Campos disponibles en la tabla profiles para vincular
@@ -97,9 +102,11 @@ interface SortableFieldItemProps {
   onEdit: (field: FormField) => void;
   onDelete: (fieldId: string) => void;
   onToggleVisibility: (field: FormField) => void;
+  /** Texto de la condición si el campo es condicional */
+  condicion?: string | null;
 }
 
-function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleVisibility }: SortableFieldItemProps) {
+function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleVisibility, condicion }: SortableFieldItemProps) {
   const {
     attributes,
     listeners,
@@ -179,6 +186,12 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
                   </>
                 )}
               </CardDescription>
+              {condicion && (
+                <p className="mt-2 inline-flex items-center gap-1 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                  <GitBranch className="h-3 w-3" />
+                  Se muestra {condicion}
+                </p>
+              )}
               {field.help_text && (
                 <p className="text-sm text-muted-foreground mt-2">{field.help_text}</p>
               )}
@@ -327,9 +340,37 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     fee_enabled: false,
     fees: [] as string[],      // importe por opción (paralelo a options)
     fee_amount: "",            // importe único (checkbox) o por unidad (number)
+    // Condición: mostrar solo si otro campo tiene un valor ("" = siempre)
+    depends_on_field_id: "",
+    depends_on_value: "",
   });
 
   const [optionInput, setOptionInput] = useState("");
+
+  // Posibles controladores del campo que se edita: desplegables, radios y
+  // casillas del mismo recorrido, menos él mismo y los que ya dependen de
+  // él (directa o indirectamente), para que no se pueda montar un ciclo.
+  const posiblesControladores = fields.filter((f) => {
+    if (!TIPOS_CONTROLADOR.includes(f.field_type)) return false;
+    if (!editingField) return true;
+    if (f.id === editingField.id) return false;
+    return !dependientesDe(editingField.id, fields).has(f.id);
+  });
+  const controladorElegido = fields.find((f) => f.id === formData.depends_on_field_id) ?? null;
+  const opcionesDelControlador: { valor: string; etiqueta: string }[] = !controladorElegido
+    ? []
+    : controladorElegido.field_type === "checkbox"
+      ? [
+          { valor: "true", etiqueta: "Marcada" },
+          { valor: "false", etiqueta: "Sin marcar" },
+        ]
+      : (Array.isArray(controladorElegido.field_options)
+          ? controladorElegido.field_options
+          : controladorElegido.field_options?.options || []
+        )
+          .filter((o: unknown) => typeof o === "string" && o.trim() !== "")
+          .map((o: string) => ({ valor: o.trim(), etiqueta: o }));
+  const esCondicional = !!formData.depends_on_field_id;
 
   useEffect(() => {
     if (distanceId) {
@@ -467,38 +508,73 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
           description: `Los siguientes campos ya existen: ${duplicates.map(d => d.field_label).join(", ")}. Se omitirán.`,
           variant: "default",
         });
-        
-        // Filter out duplicates
-        const fieldsToInsert = newFields.filter(f => !existingFieldNames.includes(f.field_name));
-        
-        if (fieldsToInsert.length === 0) {
-          setIsCopyDialogOpen(false);
-          setIsCopying(false);
-          return;
-        }
-
-        const { error: insertError } = await supabase
-          .from("registration_form_fields")
-          .insert(fieldsToInsert);
-
-        if (insertError) throw insertError;
-
-        toast({
-          title: "Campos copiados",
-          description: `Se han copiado ${fieldsToInsert.length} campos personalizados.`,
-        });
-      } else {
-        const { error: insertError } = await supabase
-          .from("registration_form_fields")
-          .insert(newFields);
-
-        if (insertError) throw insertError;
-
-        toast({
-          title: "Campos copiados",
-          description: `Se han copiado ${newFields.length} campos personalizados.`,
-        });
       }
+
+      const fieldsToInsert = newFields.filter(f => !existingFieldNames.includes(f.field_name));
+
+      if (fieldsToInsert.length === 0) {
+        setIsCopyDialogOpen(false);
+        setIsCopying(false);
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from("registration_form_fields")
+        .insert(fieldsToInsert);
+
+      if (insertError) throw insertError;
+
+      // Condiciones: se copian aparte porque apuntan por id a un campo del
+      // recorrido de ORIGEN. Se reenganchan con el campo del mismo nombre en
+      // el recorrido destino (que puede ser uno ya existente o uno recién
+      // copiado, o un campo de sistema, que no se copia pero existe en los
+      // dos). Si en el destino no hay equivalente, la condición se pierde y
+      // se avisa, en vez de dejarla apuntando al recorrido equivocado.
+      const insertedNames = new Set(fieldsToInsert.map(f => f.field_name));
+      const conCondicion = sourceFields.filter(
+        f => f.depends_on_field_id && insertedNames.has(f.field_name),
+      );
+      let condicionesPerdidas = 0;
+
+      if (conCondicion.length > 0) {
+        const [{ data: origen }, { data: destino }] = await Promise.all([
+          supabase
+            .from("registration_form_fields")
+            .select("id, field_name")
+            .eq("race_distance_id", selectedSourceDistance),
+          supabase
+            .from("registration_form_fields")
+            .select("id, field_name")
+            .eq("race_distance_id", distanceId),
+        ]);
+        const nombreEnOrigen = new Map((origen ?? []).map(f => [f.id, f.field_name]));
+        const idEnDestino = new Map((destino ?? []).map(f => [f.field_name, f.id]));
+
+        for (const f of conCondicion) {
+          const nombreControlador = nombreEnOrigen.get(f.depends_on_field_id!);
+          const controladorDestino = nombreControlador ? idEnDestino.get(nombreControlador) : undefined;
+          const copiaId = idEnDestino.get(f.field_name);
+          if (!controladorDestino || !copiaId) {
+            condicionesPerdidas++;
+            continue;
+          }
+          const { error: condError } = await supabase
+            .from("registration_form_fields")
+            .update({ depends_on_field_id: controladorDestino, depends_on_value: f.depends_on_value })
+            .eq("id", copiaId);
+          if (condError) condicionesPerdidas++;
+        }
+      }
+
+      toast({
+        title: "Campos copiados",
+        description:
+          `Se han copiado ${fieldsToInsert.length} campos personalizados.` +
+          (condicionesPerdidas > 0
+            ? ` ${condicionesPerdidas} ${condicionesPerdidas === 1 ? "campo perdió su condición" : "campos perdieron su condición"}: el campo del que dependían no existe en este recorrido. Revísalos.`
+            : ""),
+        variant: condicionesPerdidas > 0 ? "destructive" : "default",
+      });
 
       setIsCopyDialogOpen(false);
       fetchFields();
@@ -536,6 +612,8 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         fee_enabled: (!Array.isArray(opts) && opts?.fee_enabled) === true,
         fees: options.map((_: string, i: number) => storedFees[i] != null ? String(storedFees[i]) : "0"),
         fee_amount: (!Array.isArray(opts) && opts?.fee_amount != null) ? String(opts.fee_amount) : "",
+        depends_on_field_id: field.depends_on_field_id || "",
+        depends_on_value: field.depends_on_value || "",
       });
     } else {
       setEditingField(null);
@@ -551,6 +629,8 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
         fee_enabled: false,
         fees: [],
         fee_amount: "",
+        depends_on_field_id: "",
+        depends_on_value: "",
       });
     }
     setOptionInput("");
@@ -629,11 +709,15 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
   // select/radio → fees[] paralelo a options; checkbox/number/text → fee_amount
   const buildFieldOptions = (): any => {
     const hasOptions = ["select", "radio"].includes(formData.field_type);
-    if (!hasOptions && !formData.fee_enabled) return null;
+    // Un campo condicional no puede llevar importe: la base de datos lo
+    // rechaza (el servidor cobra sin mirar condiciones, ver la migración
+    // 20260923120000_campos_condicionales.sql)
+    const conImporte = formData.fee_enabled && !esCondicional;
+    if (!hasOptions && !conImporte) return null;
 
     const out: any = {};
     if (hasOptions) out.options = formData.options;
-    if (formData.fee_enabled) {
+    if (conImporte) {
       out.fee_enabled = true;
       if (hasOptions) {
         out.fees = formData.options.map((_, i) => parseFloat(formData.fees[i]) || 0);
@@ -684,6 +768,16 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
 
         const fieldOptions = buildFieldOptions();
 
+        // Condición: si hay controlador, tiene que haber valor
+        if (esCondicional && !formData.depends_on_value) {
+          throw new Error(
+            `Elige con qué valor de «${controladorElegido?.field_label ?? "el campo"}» se muestra este campo`,
+          );
+        }
+        const condicion = esCondicional
+          ? { depends_on_field_id: formData.depends_on_field_id, depends_on_value: formData.depends_on_value }
+          : { depends_on_field_id: null, depends_on_value: null };
+
         if (editingField) {
           const { error } = await supabase
             .from("registration_form_fields")
@@ -696,6 +790,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               is_required: validatedData.is_required,
               field_options: fieldOptions,
               profile_field: formData.profile_field || null,
+              ...condicion,
             })
             .eq("id", editingField.id);
 
@@ -726,6 +821,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               is_system_field: false,
               is_visible: true,
               profile_field: formData.profile_field || null,
+              ...condicion,
             }]);
 
           if (error) throw error;
@@ -1017,7 +1113,70 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && (
+                {!isSystemFieldEditing && (
+                  <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+                    <Label className="flex items-center gap-2">
+                      <GitBranch className="h-4 w-4" />
+                      Mostrar este campo
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <Select
+                        value={formData.depends_on_field_id || "siempre"}
+                        onValueChange={(v) =>
+                          setFormData({
+                            ...formData,
+                            depends_on_field_id: v === "siempre" ? "" : v,
+                            depends_on_value: "",
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="siempre">Siempre</SelectItem>
+                          {posiblesControladores.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              Solo si «{c.field_label}» es…
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {esCondicional && (
+                        <Select
+                          value={formData.depends_on_value}
+                          onValueChange={(v) => setFormData({ ...formData, depends_on_value: v })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Elige el valor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {opcionesDelControlador.map((o) => (
+                              <SelectItem key={o.valor} value={o.valor}>
+                                {o.etiqueta}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {esCondicional
+                        ? "El campo solo aparece con esa respuesta. Mientras esté oculto no es obligatorio, y si el corredor cambia de respuesta, lo que hubiera escrito se borra."
+                        : posiblesControladores.length === 0
+                          ? "Para condicionar este campo, crea antes un desplegable, una opción única o una casilla (por ejemplo «¿Eres militar?» con Sí/No)."
+                          : "Puedes hacer que este campo aparezca solo según la respuesta a otro."}
+                    </p>
+                  </div>
+                )}
+
+                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && esCondicional && (
+                  <p className="text-xs text-muted-foreground rounded-md border p-3 bg-muted/20">
+                    Un campo condicional no puede modificar el precio de la inscripción.
+                  </p>
+                )}
+
+                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && !esCondicional && (
                   <div className="space-y-2 rounded-md border p-3 bg-muted/20">
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -1141,6 +1300,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                     onEdit={handleOpenDialog}
                     onDelete={handleDelete}
                     onToggleVisibility={handleToggleVisibility}
+                    condicion={textoCondicion(field, fields)}
                   />
                 ))}
               </div>

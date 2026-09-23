@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { getGenderCode, getGenderIdFromText } from "@/lib/genderUtils";
 import { computeSupplement, optionLabelWithFee, getFieldFee } from "@/lib/fieldFees";
+import { camposVisibles, estaVacio } from "@/lib/fieldConditions";
 interface FormField {
   id: string;
   field_name: string;
@@ -24,6 +25,8 @@ interface FormField {
   is_visible?: boolean;
   is_system_field?: boolean;
   profile_field?: string | null;
+  depends_on_field_id?: string | null;
+  depends_on_value?: string | null;
 }
 
 interface DynamicRegistrationFormProps {
@@ -88,17 +91,36 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   const modoCategoria: "elegir" | "fija" | "calculada" =
     categoriasDeElegir.length >= 2 ? "elegir" : categoriasDeElegir.length === 1 ? "fija" : "calculada";
 
+  // Campos a la vista con las respuestas actuales: los condicionales solo
+  // aparecen cuando el campo del que dependen tiene su valor (p. ej.
+  // "Unidad de destino" solo si "¿Eres militar?" = Sí).
+  const visibles = useMemo(() => camposVisibles(fields, formData), [fields, formData]);
+
+  // Un campo que se oculta suelta lo que tuviera escrito: si el corredor
+  // pone "Sí", rellena la unidad y luego cambia a "No", la unidad no debe
+  // guardarse. Los tres puntos de guardado descartan valores vacíos.
+  useEffect(() => {
+    const aLaVista = new Set(visibles.map((f) => f.id));
+    for (const f of fields) {
+      if (!aLaVista.has(f.id) && !estaVacio(formData[f.field_name])) {
+        onChange(f.field_name, "");
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibles, fields]);
+
   // Recalcular el suplemento de los campos con importe y avisar al padre
   useEffect(() => {
     if (!onSupplementChange) return;
-    onSupplementChange(computeSupplement(fields, formData));
-  }, [fields, formData, onSupplementChange]);
+    onSupplementChange(computeSupplement(visibles, formData));
+  }, [visibles, formData, onSupplementChange]);
 
   // Avisar al padre de qué obligatorios faltan. Los "readonly" informativos
   // no cuentan, salvo la categoría, que sí lleva valor (elegido o calculado).
+  // Un campo oculto por condición no cuenta: no puede bloquear la inscripción.
   useEffect(() => {
     if (!onMissingRequiredChange) return;
-    const faltan = fields
+    const faltan = visibles
       .filter((f) => f.is_required && f.is_visible !== false)
       .filter((f) => f.field_type !== "readonly" || f.field_name === "category")
       .filter((f) => {
@@ -110,7 +132,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       })
       .map((f) => f.field_label);
     onMissingRequiredChange(faltan);
-  }, [fields, formData, onMissingRequiredChange]);
+  }, [visibles, formData, onMissingRequiredChange]);
 
   // Pre-fill form with profile data when user is logged in and fields are loaded
   useEffect(() => {
@@ -530,7 +552,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
 
   return (
     <div className="space-y-4">
-      {fields.map((field) => renderField(field))}
+      {visibles.map((field) => renderField(field))}
     </div>
   );
 };

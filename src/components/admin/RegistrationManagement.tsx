@@ -18,6 +18,7 @@ import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
+import { camposVisibles } from "@/lib/fieldConditions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
@@ -1287,9 +1288,20 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       // Fetch fields for this distance to know which fields go to responses
       const { data: fieldsData } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, profile_field, race_distance_id")
+        .select("id, field_name, field_type, profile_field, race_distance_id, depends_on_field_id, depends_on_value")
         .or(`race_distance_id.eq.${editFormData.race_distance_id},race_distance_id.is.null`)
         .eq("is_visible", true);
+
+      // Campos condicionales: los que han quedado ocultos no se guardan, y si
+      // el controlador está aquí (se ha cambiado su respuesta, p. ej. militar
+      // Sí → No) se borra la respuesta vieja para que no salga en listados
+      const camposCargados = fieldsData || [];
+      const valoresPorNombre: Record<string, unknown> = {};
+      for (const f of camposCargados) {
+        valoresPorNombre[f.field_name] = editFormData[f.profile_field || f.field_name] ?? editFormData[f.field_name];
+      }
+      const idsVisibles = new Set(camposVisibles(camposCargados, valoresPorNombre).map((f) => f.id));
+      const idsCargados = new Set(camposCargados.map((f) => f.id));
 
       const denormalizedFields = [
         'first_name', 'last_name', 'email', 'phone', 'dni_passport', 
@@ -1299,7 +1311,17 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       ];
 
       // Upsert responses for fields that are not denormalized
-      for (const field of (fieldsData || [])) {
+      for (const field of camposCargados) {
+        if (!idsVisibles.has(field.id)) {
+          if (field.depends_on_field_id && idsCargados.has(field.depends_on_field_id)) {
+            await supabase
+              .from("registration_responses")
+              .delete()
+              .eq("registration_id", editingRegistration.id)
+              .eq("field_id", field.id);
+          }
+          continue;
+        }
         const fieldKey = field.profile_field || field.field_name;
         // Skip denormalized fields and system fields
         if (denormalizedFields.includes(fieldKey) || 

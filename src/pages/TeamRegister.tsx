@@ -24,6 +24,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
+import { camposVisibles } from "@/lib/fieldConditions";
 import type { Session } from "@supabase/supabase-js";
 
 interface Team {
@@ -216,13 +217,14 @@ const TeamRegister = () => {
       // Campos obligatorios del recorrido, comprobados antes de enviar
       const { data: fields } = await supabase
         .from("registration_form_fields")
-        .select("field_name, field_label, is_required, is_visible")
+        .select("id, field_name, field_type, field_label, is_required, is_visible, depends_on_field_id, depends_on_value")
         .eq("race_distance_id", distanciaId)
         .eq("is_visible", true);
       for (const id of seleccion) {
         const m = roster.find((r) => r.id === id)!;
         const fd = formularios[id] ?? {};
-        const faltan = (fields ?? [])
+        // Un campo condicional oculto (militar = No → sin unidad) no se exige
+        const faltan = camposVisibles(fields ?? [], fd)
           .filter((f: any) => f.is_required)
           .filter((f: any) => {
             const v = fd[f.field_name];

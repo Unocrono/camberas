@@ -4152,6 +4152,8 @@ export type Database = {
       registration_form_fields: {
         Row: {
           created_at: string
+          depends_on_field_id: string | null
+          depends_on_value: string | null
           field_label: string
           field_name: string
           field_options: Json | null
@@ -4170,6 +4172,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          depends_on_field_id?: string | null
+          depends_on_value?: string | null
           field_label: string
           field_name: string
           field_options?: Json | null
@@ -4188,6 +4192,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          depends_on_field_id?: string | null
+          depends_on_value?: string | null
           field_label?: string
           field_name?: string
           field_options?: Json | null
@@ -4205,6 +4211,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "registration_form_fields_depends_on_field_id_fkey"
+            columns: ["depends_on_field_id"]
+            isOneToOne: false
+            referencedRelation: "registration_form_fields"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "registration_form_fields_race_distance_id_fkey"
             columns: ["race_distance_id"]

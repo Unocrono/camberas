@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { getGenderCode, getGenderIdFromText, fetchGenders, getGenderName } from "@/lib/genderUtils";
+import { camposVisibles } from "@/lib/fieldConditions";
 
 interface FormField {
   id: string;
@@ -23,6 +24,8 @@ interface FormField {
   help_text: string | null;
   placeholder: string | null;
   profile_field: string | null;
+  depends_on_field_id?: string | null;
+  depends_on_value?: string | null;
 }
 
 interface Registration {
@@ -589,6 +592,18 @@ export function DynamicEditRegistrationForm({
     }
   };
 
+  // Campos condicionales: el valor del controlador se lee igual que al pintarlo
+  // (columna de la inscripción si el campo va a una, si no la respuesta)
+  const valoresPorNombre = useMemo(() => {
+    const v: Record<string, unknown> = {};
+    for (const f of fields) {
+      const clave = f.profile_field && PROFILE_TO_REGISTRATION_MAP[f.profile_field] ? f.profile_field : f.field_name;
+      v[f.field_name] = formData[clave] ?? formData[f.field_name];
+    }
+    return v;
+  }, [fields, formData]);
+  const visibles = useMemo(() => camposVisibles(fields, valoresPorNombre), [fields, valoresPorNombre]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -612,7 +627,7 @@ export function DynamicEditRegistrationForm({
       {fields.length > 0 ? (
         <div className="space-y-4">
           <h4 className="text-sm font-medium text-muted-foreground">Datos del Participante</h4>
-          {fields.map(renderFormField)}
+          {visibles.map(renderFormField)}
         </div>
       ) : (
         <div className="text-muted-foreground text-sm py-4">
