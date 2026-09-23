@@ -5534,6 +5534,10 @@ export type Database = {
           tasa: number
         }[]
       }
+      clave_cron_valida: {
+        Args: { p_clave: string; p_nombre: string }
+        Returns: boolean
+      }
       coupon_uses: {
         Args: { p_coupon_id: string; p_email?: string }
         Returns: number
