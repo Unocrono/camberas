@@ -14,9 +14,10 @@
 -- (secreto 'recuperar_pagos_cron_key') y la función la compara con el mismo
 -- secreto. No hay que copiarla a los secretos de Lovable.
 --
--- Corre cada hora en el minuto 17 (el sincronizador de EventBooking usa el 7:
--- así no se pisan). Con esa cadencia, el aviso de las 2 h sale entre las 2 h
--- y las 3 h del abandono, y el de las 24 h entre las 24 h y las 25 h.
+-- Corre cada hora en punto (decisión del usuario, 23-sep-2026; el
+-- sincronizador de EventBooking va en el minuto 7, no se pisan). Con esa
+-- cadencia, el aviso de las 2 h sale entre las 2 h y las 3 h del abandono, y
+-- el de las 24 h entre las 24 h y las 25 h.
 --
 -- El Bearer es la clave anónima pública (la misma que lleva el navegador),
 -- no la de servicio: la función no confía en ella, valida x-cron-key.
@@ -28,7 +29,7 @@ WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'recuperar-pagos-cada-hora'
 
 SELECT cron.schedule(
   'recuperar-pagos-cada-hora',
-  '17 * * * *',
+  '0 * * * *',
   $cmd$
   SELECT net.http_post(
     url := 'https://rsahtxjpisnldxnsmupk.supabase.co/functions/v1/recuperar-pagos',
