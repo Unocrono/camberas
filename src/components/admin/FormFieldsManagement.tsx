@@ -68,6 +68,10 @@ interface FormField {
   depends_on_value?: string | null;
 }
 
+// Tipos en los que el formulario pinta el placeholder (DynamicRegistrationForm).
+// En fecha, radio o casilla no se ve nunca: no tiene sentido pedirlo.
+const TIPOS_CON_PLACEHOLDER = ["text", "email", "tel", "url", "number", "textarea", "select"];
+
 // Campos disponibles en la tabla profiles para vincular
 const PROFILE_FIELDS = [
   { value: 'first_name', label: 'Nombre' },
@@ -735,13 +739,12 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     const isSystemField = editingField?.is_system_field === true;
 
     try {
-      // Campos del sistema: nombre y tipo fijos; etiqueta, textos y opciones sí
+      // Campos del sistema: nombre y tipo fijos; etiqueta, ayuda y opciones sí
       if (isSystemField) {
         if (!formData.field_label.trim()) {
           throw new Error("La etiqueta es requerida");
         }
-        const textos = fieldSchema.pick({ placeholder: true, help_text: true }).parse({
-          placeholder: formData.placeholder.trim() || undefined,
+        const { help_text } = fieldSchema.pick({ help_text: true }).parse({
           help_text: formData.help_text.trim() || undefined,
         });
 
@@ -749,8 +752,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
           .from("registration_form_fields")
           .update({
             field_label: formData.field_label.trim(),
-            placeholder: textos.placeholder || null,
-            help_text: textos.help_text || null,
+            help_text: help_text || null,
             field_options: buildFieldOptions(),
             is_required: formData.is_required,
           })
@@ -791,7 +793,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               field_name: validatedData.field_name,
               field_label: validatedData.field_label,
               field_type: validatedData.field_type,
-              placeholder: validatedData.placeholder || null,
+              placeholder: TIPOS_CON_PLACEHOLDER.includes(validatedData.field_type)
+                ? validatedData.placeholder || null
+                : null,
               help_text: validatedData.help_text || null,
               is_required: validatedData.is_required,
               field_options: fieldOptions,
@@ -820,7 +824,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
               field_label: validatedData.field_label,
               field_type: validatedData.field_type,
               field_order: maxOrder + 1,
-              placeholder: validatedData.placeholder || null,
+              placeholder: TIPOS_CON_PLACEHOLDER.includes(validatedData.field_type)
+                ? validatedData.placeholder || null
+                : null,
               help_text: validatedData.help_text || null,
               is_required: validatedData.is_required,
               field_options: fieldOptions,
@@ -984,7 +990,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                 </DialogTitle>
                 <DialogDescription>
                   {isSystemFieldEditing 
-                    ? "Modifica la etiqueta y opciones del campo. El nombre y tipo no se pueden cambiar."
+                    ? "Modifica la etiqueta, el texto de ayuda y las opciones del campo. El nombre y tipo no se pueden cambiar."
                     : editingField 
                       ? "Modifica el campo del formulario" 
                       : "Añade un nuevo campo al formulario de inscripción"
@@ -1046,19 +1052,25 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                {/* Placeholder y ayuda son solo texto: también en los campos del sistema */}
-                <div className="space-y-2">
-                  <Label htmlFor="placeholder">Placeholder (texto de ayuda)</Label>
-                  <Input
-                    id="placeholder"
-                    value={formData.placeholder}
-                    onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
-                    placeholder="ej: Selecciona tu talla"
-                  />
-                </div>
+                {/* El ejemplo dentro de la casilla: solo campos propios y tipos que lo pintan */}
+                {!isSystemFieldEditing && TIPOS_CON_PLACEHOLDER.includes(formData.field_type) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="placeholder">Ejemplo dentro de la casilla</Label>
+                    <Input
+                      id="placeholder"
+                      value={formData.placeholder}
+                      onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
+                      placeholder="ej: Selecciona tu talla"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Sale en gris dentro de la casilla vacía y desaparece al escribir.
+                    </p>
+                  </div>
+                )}
 
+                {/* La ayuda es solo texto: también en los campos del sistema */}
                 <div className="space-y-2">
-                  <Label htmlFor="help_text">Texto de Ayuda</Label>
+                  <Label htmlFor="help_text">Texto de ayuda</Label>
                   <Textarea
                     id="help_text"
                     value={formData.help_text}
@@ -1066,6 +1078,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                     placeholder="Información adicional para el usuario"
                     rows={2}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Sale debajo del campo, siempre visible.
+                  </p>
                 </div>
 
                 {["select", "radio"].includes(formData.field_type) && (
