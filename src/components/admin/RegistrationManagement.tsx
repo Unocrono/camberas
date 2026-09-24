@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PLANTILLAS_BASE, usaMensaje, type PlantillaEmail } from "@/lib/plantillasEmail";
+import { PLANTILLAS_BASE, usaBotonPagar, usaMensaje, type PlantillaEmail } from "@/lib/plantillasEmail";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -157,7 +157,7 @@ const ORIGEN_LABELS: Record<string, { label: string; variant: "default" | "secon
 interface ResultadoReenvio {
   registrationId: string;
   resultado: "enviado" | "se_enviaria" | "omitido" | "fallido";
-  plantilla?: "pagada" | "gratuita";
+  plantilla?: "pagada" | "gratuita" | "pendiente";
   motivo?: string;
   email?: string;
   error?: string;
@@ -171,6 +171,8 @@ interface ResumenReenvio {
   resultados: ResultadoReenvio[];
   /** Clave de la plantilla que usó la función (las anteriores a las plantillas no la devuelven) */
   plantilla?: string;
+  /** ¿Mandó en modo recordatorio de pago? (las funciones anteriores no lo dicen) */
+  pago?: boolean;
 }
 
 // La función acepta 50 inscripciones por llamada. El ensayo no manda nada y
@@ -181,7 +183,17 @@ const REENVIO_LOTE_ENVIO = 10;
 
 // Por qué no se manda a alguien, en plural para el recuento del diálogo
 const MOTIVOS_OMISION: Record<string, string> = {
-  pendiente_de_pago: "pendientes de pago (todavía no tienen comprobante)",
+  pendiente_de_pago: "pendientes de pago (para ellas está la plantilla «Recordatorio de pago»)",
+  no_pendiente_de_pago: "que no están pendientes de pago (ya pagadas o gratuitas)",
+  pago_fuera_de_pasarela: "pendientes de un alta manual o importada: no se pagan por la web",
+  de_equipo: "de equipo (el lote lo paga el capitán)",
+  inscripciones_cerradas: "de recorridos con las inscripciones ya cerradas",
+  recorrido_completo: "de recorridos sin plazas libres",
+  sin_enlace_de_pago: "sin enlace de pago disponible (plazo cerrado o inscripción cambiada)",
+  ya_pagada: "con el pago ya cobrado (pendiente solo de confirmarse)",
+  ya_inscrita_por_otra_fila: "que ya están inscritas y pagadas con otra inscripción",
+  avisada_hace_poco: "avisadas hace menos de 20 horas (por el robot o a mano)",
+  confirmada_sin_pago: "confirmadas a mano aunque figuran sin pagar: el enlace de pago no les sirve",
   pendiente_de_confirmar: "gratuitas pendientes de confirmar",
   cancelada: "canceladas",
   reembolsada: "reembolsadas",
@@ -797,6 +809,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         suma.fallidos += r.fallidos;
         suma.resultados.push(...r.resultados);
         suma.plantilla = r.plantilla;
+        suma.pago = r.pago;
       } catch (e: any) {
         if (dryRun) throw e;
         const quizaSalio = estadoHttp === undefined || estadoHttp >= 500;
@@ -820,6 +833,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     incluirExternas: boolean,
     plantilla = "comprobante",
     exigirVersion = false,
+    esPago = false,
   ) => {
     // Si se cierra y se reabre (o se marca la casilla) con un ensayo aún en
     // marcha, solo cuenta la respuesta del último
@@ -837,6 +851,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (exigir && ensayo.plantilla !== plantilla) {
         throw new Error(
           "La función de envío está desactualizada y no lee las plantillas: hay que desplegar reenviar-comprobantes.",
+        );
+      }
+      // Un recordatorio de pago con una función que no conoce [[boton_pagar]]
+      // saldría como email normal, con "no tienes plaza", a quien ya pagó.
+      // Se reconoce por el bloque y, por si se lo quitaron, por su clave.
+      if ((esPago || plantilla === "recordatorio_pago") && ensayo.pago !== true) {
+        throw new Error(
+          "La función de envío no conoce el recordatorio de pago: hay que desplegar reenviar-comprobantes.",
         );
       }
       if (peticion !== reenvioPeticion.current) return;
@@ -880,9 +902,19 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       setReenvioFase("sin_plantillas");
       return;
     }
-    const clave = lista.some((p) => p.clave === "comprobante") ? "comprobante" : lista[0].clave;
+    const todasPendientes = ids.every((id) => {
+      const r = registrations.find((x) => x.id === id);
+      return r?.payment_status === "pending" && r?.status === "pending";
+    });
+    const preferida = todasPendientes ? "recordatorio_pago" : "comprobante";
+    const clave = lista.some((p) => p.clave === preferida)
+      ? preferida
+      : lista.some((p) => p.clave === "comprobante")
+        ? "comprobante"
+        : lista[0].clave;
     setReenvioPlantilla(clave);
-    calcularReenvio(ids, false, clave, deTabla);
+    const elegida = lista.find((p) => p.clave === clave);
+    calcularReenvio(ids, false, clave, deTabla, !!elegida && usaBotonPagar(elegida));
   };
 
   const enviarReenvio = async () => {
@@ -2845,7 +2877,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   value={reenvioPlantilla}
                   onValueChange={(clave) => {
                     setReenvioPlantilla(clave);
-                    calcularReenvio(reenvioIds, reenvioExternas, clave, catalogoDeTabla);
+                    const elegida = plantillasEmail.find((p) => p.clave === clave);
+                    calcularReenvio(reenvioIds, reenvioExternas, clave, catalogoDeTabla, !!elegida && usaBotonPagar(elegida));
                   }}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2881,7 +2914,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           {reenvioFase === "listo" && reenvioEnsayo && (() => {
             const aEnviar = reenvioEnsayo.resultados.filter((r) => r.resultado === "se_enviaria");
             const pagadas = aEnviar.filter((r) => r.plantilla === "pagada").length;
-            const gratuitas = aEnviar.length - pagadas;
+            const pendientes = aEnviar.filter((r) => r.plantilla === "pendiente").length;
+            const gratuitas = aEnviar.length - pagadas - pendientes;
             const omitidas = reenvioEnsayo.resultados.filter((r) => r.resultado === "omitido");
             const porMotivo = new Map<string, string[]>();
             for (const o of omitidas) {
@@ -2900,7 +2934,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   </p>
                   {aEnviar.length > 0 && (
                     <p className="text-muted-foreground">
-                      {[pagadas ? `${pagadas} pagadas` : "", gratuitas ? `${gratuitas} gratuitas` : ""]
+                      {[
+                        pagadas ? `${pagadas} pagadas` : "",
+                        gratuitas ? `${gratuitas} gratuitas` : "",
+                        pendientes ? `${pendientes} pendientes de pago` : "",
+                      ]
                         .filter(Boolean)
                         .join(" · ")}
                     </p>
@@ -2934,7 +2972,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       onCheckedChange={(v) => {
                         const incluir = v === true;
                         setReenvioExternas(incluir);
-                        calcularReenvio(reenvioIds, incluir, reenvioPlantilla, catalogoDeTabla);
+                        calcularReenvio(
+                          reenvioIds,
+                          incluir,
+                          reenvioPlantilla,
+                          catalogoDeTabla,
+                          !!plantillaElegida && usaBotonPagar(plantillaElegida),
+                        );
                       }}
                     />
                     <Label htmlFor="reenvio-externas" className="font-normal leading-snug">

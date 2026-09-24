@@ -43,6 +43,15 @@ const corsHeaders = {
 // Paleta Camberas (docs/paleta-camberas.md)
 const VERDE = "#235940";
 const CREMA = "#FAF6EC";
+const NARANJA = "#EC7C2B";
+const ARENA = "#FCEBD6";
+const TINTA = "#0E2419";
+const COLINA_OSCURA = "#1E5B38";
+
+// Cabecera ilustrada (cielo arena, sol y las tres colinas de la casa). Imagen
+// servida desde la web: las formas dibujadas con HTML no se ven igual en todos
+// los correos; si se bloquean las imágenes queda la franja arena con el nombre.
+const CABECERA = `${(globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env.get("SITE_URL") ?? "https://camberas.com"}/email/cabecera-colinas.png`;
 
 // Tope por llamada: con la pausa entre envíos, 50 caben de sobra en el
 // tiempo máximo de una función. El panel trocea selecciones mayores.
@@ -67,7 +76,9 @@ const CAMPOS_DE_LA_INSCRIPCION = new Set([
   "address", "city", "province", "country", "autonomous_community", "club", "team",
 ]);
 
-type Plantilla = "pagada" | "gratuita";
+// Qué variante de datos lleva el email: comprobante de pagada o de gratuita,
+// o recordatorio de una pendiente de pago
+type Plantilla = "pagada" | "gratuita" | "pendiente";
 // Qué email se manda lo decide una PLANTILLA (tabla plantillas_email, la
 // edita el admin): texto con variables y bloques; el diseño lo pone esta
 // función. Ver 20260923220000_plantillas_email.sql.
@@ -89,6 +100,17 @@ type Motivo =
   | "sin_dorsal"
   | "sin_gps_en_recorrido"
   | "sin_dorsal_gps"
+  // Recordatorio de pago ([[boton_pagar]])
+  | "no_pendiente_de_pago"
+  | "pago_fuera_de_pasarela"
+  | "de_equipo"
+  | "inscripciones_cerradas"
+  | "recorrido_completo"
+  | "sin_enlace_de_pago"
+  | "ya_pagada"
+  | "ya_inscrita_por_otra_fila"
+  | "avisada_hace_poco"
+  | "confirmada_sin_pago"
   | "estado_desconocido";
 
 interface Resultado {
@@ -137,6 +159,8 @@ interface Datos {
   etiquetaMensaje: string | null;
   /** Track: enlace de activación del dorsal en la app (gps_tokens) */
   activacionUrl: string | null;
+  /** Recordatorio: enlace de retomar-pago (token de recuperacion_pagos) */
+  pagoUrl: string | null;
   nombre: string | null;
   carrera: string;
   fecha: string | null;
@@ -157,6 +181,14 @@ const PLAY_STORE = "https://play.google.com/store/apps/details?id=com.unocrono.c
 // 20260923220000_plantillas_email.sql. Se usan si la tabla aún no existe o si
 // falta la fila de una de sistema; así el envío nunca depende de la migración.
 const PLANTILLAS_BASE: Record<string, PlantillaEmail> = {
+  recordatorio_pago: {
+    clave: "recordatorio_pago",
+    asunto: "⛰️ ¡Te queda un paso para correr {carrera}!",
+    titulo: "¡Estás a un paso de la salida!",
+    cuerpo: "¡Hola {nombre}!\n\nEmpezaste tu inscripción en **{carrera}** y solo falta el pago. Tus datos siguen guardados: en un minuto lo tienes hecho.\n\n[[boton_pagar]]\n\n> Tu plaza no queda reservada hasta que pagues, ¡que no se te escape! El importe es el vigente al pagar: si la carrera tiene tramos de precio, puede haber cambiado.\n\n> ¿Ya lo hiciste o has cambiado de planes? No pasa nada: ignora este correo.\n\n[[mensaje]]\n\n## ¡Nos vemos en la línea de salida!",
+    etiqueta_mensaje: "De la organización",
+    omitir_uno: false,
+  },
   comprobante: {
     clave: "comprobante",
     asunto: "Comprobante de inscripción: {carrera}",
@@ -200,6 +232,7 @@ function variables(d: Datos): Record<string, string> {
     recorrido: d.recorrido ?? "",
     fecha: d.fecha ? fechaLarga(d.fecha) : "",
     lugar: d.lugar ?? "",
+    importe: d.importe != null ? euros(d.importe) : "",
   };
 }
 
@@ -233,8 +266,8 @@ function enLinea(texto: string, vars: Record<string, string>): string {
 const boton = (href: string, texto: string) =>
   `<div style="text-align: center; margin: 24px 0 12px;">
     <a href="${esc(href)}"
-       style="display: inline-block; background: ${VERDE}; color: ${CREMA}; text-decoration: none;
-              padding: 14px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">${esc(texto)}</a>
+       style="display: inline-block; background: ${NARANJA}; color: #ffffff; text-decoration: none;
+              padding: 16px 34px; border-radius: 30px; font-size: 17px; font-weight: bold;">${esc(texto)}</a>
   </div>`;
 
 const tienda = (href: string, texto: string) =>
@@ -302,6 +335,12 @@ function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
       return `<p style="margin: 4px 0 16px;">${tienda(APP_STORE, "App Store (iPhone)")}${tienda(PLAY_STORE, "Google Play (Android)")}</p>`;
     case "boton_activar":
       return d.activacionUrl ? boton(d.activacionUrl, `Activar mi dorsal ${d.dorsal ?? ""}`.trim()) : "";
+    case "boton_pagar":
+      return d.pagoUrl
+        ? `${d.importe != null
+            ? `<p style="text-align: center; margin: 20px 0 0; color: #4b5563; font-size: 15px;">Te falta pagar <strong style="color: ${VERDE}; font-size: 18px;">${euros(d.importe)}</strong></p>`
+            : ""}${boton(d.pagoUrl, "¡Completar mi inscripción!")}`
+        : "";
     case "mensaje":
       return d.mensaje
         ? `<div style="background: #f9fafb; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 16px 20px; margin: 24px 0;">
@@ -321,12 +360,14 @@ function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
 function envoltorio(titulo: string, interior: string): string {
   return `
   <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: ${VERDE}; padding: 28px 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 0.5px;">Camberas</h1>
-      <p style="color: ${CREMA}; margin: 8px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
+    <div style="background: ${ARENA}; padding: 24px 30px 6px; text-align: center;">
+      <h1 style="color: ${TINTA}; margin: 0; font-size: 28px; letter-spacing: 0.5px;">Camberas</h1>
+      <p style="color: ${COLINA_OSCURA}; margin: 6px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
     </div>
-    <div style="padding: 36px 30px;">
-      <h2 style="color: #1f2937; margin: 0 0 16px; font-size: 21px;">${esc(titulo)}</h2>
+    <img src="${CABECERA}" width="600" alt=""
+         style="display: block; width: 100%; max-width: 600px; height: auto; border: 0; background: ${ARENA};">
+    <div style="padding: 32px 30px 36px;">
+      <h2 style="color: ${TINTA}; margin: 0 0 16px; font-size: 24px;">${esc(titulo)}</h2>
       ${interior}
     </div>
     <div style="background: ${CREMA}; padding: 18px 30px; text-align: center;">
@@ -386,8 +427,10 @@ function requisitos(p: PlantillaEmail) {
       .filter((x): x is string => !!x),
   );
   const track = bloques.has("boton_activar");
+  // Recordatorio de pago: el destinatario es justo el que las demás omiten
+  const pago = bloques.has("boton_pagar");
   const dorsal = track || bloques.has("tarjeta_dorsal") || `${p.asunto}\n${p.titulo}\n${p.cuerpo}`.includes("{dorsal}");
-  return { dorsal, track };
+  return { dorsal, track, pago };
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -450,6 +493,7 @@ serve(async (req: Request): Promise<Response> => {
         mensaje: mensaje || "Aquí aparece el texto que escribas al enviar.",
         etiquetaMensaje: plantillaVp.etiqueta_mensaje,
         activacionUrl: `${SITE_URL}/activar.html?t=${cero}`,
+        pagoUrl: `${SITE_URL}/retomar-pago/${cero}`,
         nombre: "Nombre Apellido",
         carrera: "Carrera de ejemplo",
         fecha: new Date().toISOString().slice(0, 10),
@@ -517,12 +561,21 @@ serve(async (req: Request): Promise<Response> => {
     }
     if (!plantillaEmail) return json({ error: `La plantilla «${clave}» no existe o está desactivada` }, 400);
     const pide = requisitos(plantillaEmail);
+    // El recordatorio sin [[boton_pagar]] no se manda: en modo normal su "no
+    // tienes plaza" llegaría a quien ya pagó, y en modo pago saldría sin
+    // enlace y callaría al robot (el editor también exige el bloque)
+    if (plantillaEmail.clave === "recordatorio_pago" && !pide.pago) {
+      return json(
+        { error: "El recordatorio de pago ha perdido el bloque [[boton_pagar]]: restaura su texto original en Plantillas de email" },
+        400,
+      );
+    }
 
     // ── Las inscripciones y el permiso sobre sus carreras ─────────────────
     const { data: regs, error: regsErr } = await service
       .from("registrations")
       .select(
-        "id, race_id, race_distance_id, user_id, email, first_name, last_name, bib_number, " +
+        "id, race_id, race_distance_id, user_id, team_id, email, first_name, last_name, bib_number, " +
           "status, payment_status, source, importe_manual, token_inscripcion, dni_passport, club, tshirt_size",
       )
       .in("id", ids);
@@ -561,7 +614,7 @@ serve(async (req: Request): Promise<Response> => {
     };
 
     const [distancias, perfiles, respuestasPorLote, intents, items] = await Promise.all([
-      leer<any>("race_distances", service.from("race_distances").select("id, name, gps_tracking_enabled").in("id", distanceIds)),
+      leer<any>("race_distances", service.from("race_distances").select("id, name, gps_tracking_enabled, registration_closes").in("id", distanceIds)),
       userIds.length
         ? leer<any>("profiles", service.from("profiles").select("id, email, first_name, last_name").in("id", userIds))
         : Promise.resolve([] as any[]),
@@ -618,6 +671,64 @@ serve(async (req: Request): Promise<Response> => {
     }
     const perfilPorId = new Map(perfiles.map((p: any) => [p.id, p]));
 
+    // Recordatorio de pago: plazo, plazas e importe pendiente. Mismas reglas
+    // que token_recuperacion_inscripcion (cierre = registration_closes o, si
+    // no hay, el día de la carrera) y que el robot (plazas_libres, último
+    // intento de pago). Solo lectura: el ensayo no escribe nada.
+    const cierreDe = new Map(distancias.map((d: any) => [d.id, (d.registration_closes as string | null) ?? null]));
+    const libresDe = new Map<string, number | null>();
+    const importePendiente = new Map<string, number>();
+    if (pide.pago) {
+      for (const dId of distanceIds) {
+        const { data: libres, error: errLibres } = await service.rpc("plazas_libres", { p_distance_id: dId });
+        if (errLibres) throw new Error(`plazas_libres: ${errLibres.message}`);
+        libresDe.set(dId, libres == null ? null : Number(libres));
+      }
+      const pis = await leer<any>(
+        "payment_intents",
+        service.from("payment_intents").select("registration_id, amount, created_at").in("registration_id", ids)
+          .order("created_at", { ascending: false }),
+      );
+      for (const pi of pis) {
+        if (!importePendiente.has(pi.registration_id) && pi.amount != null) {
+          importePendiente.set(pi.registration_id, Number(pi.amount));
+        }
+      }
+    }
+    // Quien ya está dentro de la carrera por OTRA fila pagada o gratuita (la
+    // misma regla que el robot, en SQL: inscripcion_ya_dentro), y cuándo se
+    // le avisó por última vez (robot o manual)
+    const yaDentro = new Set<string>();
+    const ultimoAviso = new Map<string, number>();
+    if (pide.pago) {
+      const { data: dentro, error: errDentro } = await service.rpc("inscripciones_ya_dentro", { p_ids: ids });
+      if (errDentro) throw new Error(`inscripciones_ya_dentro: ${errDentro.message}`);
+      for (const x of (dentro ?? []) as unknown[]) {
+        yaDentro.add(typeof x === "string" ? x : String((x as Record<string, unknown>).inscripciones_ya_dentro ?? x));
+      }
+      const avisadas = await leer<any>(
+        "recuperacion_pagos",
+        service.from("recuperacion_pagos").select("registration_id, aviso_1_at, aviso_2_at, recordatorio_manual_at")
+          .eq("tipo", "individual").in("registration_id", ids),
+      );
+      for (const a of avisadas) {
+        const t = Math.max(
+          ...[a.aviso_1_at, a.aviso_2_at, a.recordatorio_manual_at].map((x) => (x ? Date.parse(x) : 0)),
+        );
+        if (t) ultimoAviso.set(a.registration_id, t);
+      }
+    }
+    const ahora = Date.now();
+    const VEINTE_HORAS = 20 * 3600 * 1000;
+    const hoyUtc = new Date(ahora).toISOString().slice(0, 10);
+    // Las mismas reglas que recuperacion_pago_info (la página del enlace)
+    const plazoCerrado = (r: any) => {
+      const fechaCarrera = carreraPorId.get(r.race_id)?.date as string | undefined;
+      if (fechaCarrera && fechaCarrera < hoyUtc) return true;
+      const cierre = cierreDe.get(r.race_distance_id) ?? (fechaCarrera ? `${fechaCarrera}T00:00:00Z` : null);
+      return cierre ? new Date(cierre).getTime() <= ahora : false;
+    };
+
     const pagoIndividual = new Map<string, { amount: number; order: string | null }>();
     for (const pi of intents) {
       if (!pagoIndividual.has(pi.registration_id)) {
@@ -673,7 +784,22 @@ serve(async (req: Request): Promise<Response> => {
 
       let motivo: Motivo | null = null;
       let plantilla: Plantilla | null = null;
-      if (r.status === "cancelled") motivo = "cancelada";
+      if (pide.pago) {
+        // El recordatorio va justo a quien las demás plantillas omiten
+        const libres = libresDe.get(r.race_distance_id);
+        if (r.status === "cancelled") motivo = "cancelada";
+        else if (r.payment_status !== "pending") motivo = "no_pendiente_de_pago";
+        // Confirmada a mano sin pagar: el enlace de pago no le sirve
+        else if (r.status !== "pending") motivo = "confirmada_sin_pago";
+        else if (r.source !== "gateway") motivo = "pago_fuera_de_pasarela";
+        else if (r.team_id) motivo = "de_equipo";
+        else if (pagoIndividual.has(id)) motivo = "ya_pagada";
+        else if (yaDentro.has(id)) motivo = "ya_inscrita_por_otra_fila";
+        else if (plazoCerrado(r)) motivo = "inscripciones_cerradas";
+        else if (libres != null && libres < 1) motivo = "recorrido_completo";
+        else if ((ultimoAviso.get(id) ?? 0) > ahora - VEINTE_HORAS) motivo = "avisada_hace_poco";
+        else plantilla = "pendiente";
+      } else if (r.status === "cancelled") motivo = "cancelada";
       else if (r.payment_status === "refunded") motivo = "reembolsada";
       else if (r.payment_status === "pending") motivo = "pendiente_de_pago";
       else if (plantillaEmail.omitir_uno && r.source === "external" && !incluirExternas) motivo = "importada_de_uno_es";
@@ -709,19 +835,69 @@ serve(async (req: Request): Promise<Response> => {
         continue;
       }
 
+      // Recordatorio: el enlace se prepara ANTES de enviar y en una sola
+      // transacción de servidor (preparar_recordatorio_pago): vuelve a mirar
+      // si ya está dentro o si alguien avisó hace poco, y da por hechos los
+      // avisos del robot. Si el email luego no sale, se deshace.
+      let pagoUrl: string | null = null;
+      let preparado: {
+        id: string;
+        sello: string;
+        aviso_1_prev: string | null;
+        aviso_2_prev: string | null;
+        nueva: boolean;
+        caduca_prev: string | null;
+        caduca_nueva: string | null;
+        manual_prev: string | null;
+      } | null = null;
+      if (pide.pago) {
+        const { data: prep, error: errPrep } = await service.rpc("preparar_recordatorio_pago", {
+          p_registration_id: id,
+        });
+        if (errPrep) {
+          resultados.push({ registrationId: id, resultado: "fallido", plantilla, email, error: errPrep.message });
+          continue;
+        }
+        const p = (prep ?? {}) as Record<string, unknown>;
+        if (p.estado !== "ok" || typeof p.token !== "string") {
+          const motivoPrep: Motivo =
+            p.estado === "ya_dentro"
+              ? "ya_inscrita_por_otra_fila"
+              : p.estado === "avisada_hace_poco"
+                ? "avisada_hace_poco"
+                : "sin_enlace_de_pago";
+          resultados.push({ registrationId: id, resultado: "omitido", motivo: motivoPrep });
+          continue;
+        }
+        pagoUrl = `${SITE_URL}/retomar-pago/${p.token}`;
+        preparado = {
+          id: String(p.id),
+          sello: String(p.sello),
+          aviso_1_prev: (p.aviso_1_prev as string | null) ?? null,
+          aviso_2_prev: (p.aviso_2_prev as string | null) ?? null,
+          nueva: p.nueva === true,
+          caduca_prev: (p.caduca_prev as string | null) ?? null,
+          caduca_nueva: (p.caduca_nueva as string | null) ?? null,
+          manual_prev: (p.manual_prev as string | null) ?? null,
+        };
+      }
+
       const carrera = carreraPorId.get(r.race_id);
       const nombre =
         [r.first_name, r.last_name].map((x: string | null) => (x ?? "").trim()).filter(Boolean).join(" ") ||
         [perfil?.first_name, perfil?.last_name].map((x: string | null) => (x ?? "").trim()).filter(Boolean).join(" ") ||
         null;
       const pago = pagoIndividual.get(id) ?? pagoEquipo.get(id) ?? null;
-      const importe = pago?.amount ?? (r.importe_manual != null ? Number(r.importe_manual) : null);
+      const importe = pide.pago
+        ? (importePendiente.get(id) ?? null)
+        : pago?.amount ?? (r.importe_manual != null ? Number(r.importe_manual) : null);
 
       const datos: Datos = {
         plantilla,
         mensaje: mensaje || null,
         etiquetaMensaje: plantillaEmail.etiqueta_mensaje,
         activacionUrl: activacionPorDorsal.get(`${r.race_distance_id}|${String(r.bib_number ?? "").trim()}`) ?? null,
+        pagoUrl,
         nombre,
         carrera: carrera?.name ?? "Carrera",
         fecha: carrera?.date ?? null,
@@ -770,7 +946,26 @@ serve(async (req: Request): Promise<Response> => {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`reenviar-comprobantes: fallo con ${id}: ${msg}`);
-        resultados.push({ registrationId: id, resultado: "fallido", plantilla, email, error: msg });
+        // El email no salió: se deshace lo suyo (lo que haya sellado el robot
+        // se respeta) para que se pueda reintentar y el robot siga con lo suyo
+        let nota = "";
+        if (preparado) {
+          const { error: errDeshacer } = await service.rpc("deshacer_recordatorio_pago", {
+            p_id: preparado.id,
+            p_sello: preparado.sello,
+            p_prev1: preparado.aviso_1_prev,
+            p_prev2: preparado.aviso_2_prev,
+            p_nueva: preparado.nueva,
+            p_caduca_prev: preparado.caduca_prev,
+            p_caduca_nueva: preparado.caduca_nueva,
+            p_manual_prev: preparado.manual_prev,
+          });
+          if (errDeshacer) {
+            console.error(`recordatorio ${id}: no se pudo deshacer el sellado: ${errDeshacer.message}`);
+            nota = " (y quedó marcada como avisada: no se podrá reintentar hasta dentro de 20 horas)";
+          }
+        }
+        resultados.push({ registrationId: id, resultado: "fallido", plantilla, email, error: msg + nota });
       }
     }
 
@@ -780,6 +975,9 @@ serve(async (req: Request): Promise<Response> => {
       // El panel lo comprueba: una función anterior a las plantillas no lo
       // devuelve y mandaría el comprobante en lugar de la plantilla pedida
       plantilla: plantillaEmail.clave,
+      // Y si mandó en modo recordatorio: una función que no conozca
+      // [[boton_pagar]] mandaría "no tienes plaza" a quien ya pagó
+      pago: pide.pago,
       total: resultados.length,
       enviados: cuenta("enviado"),
       se_enviarian: cuenta("se_enviaria"),

@@ -66,102 +66,98 @@ const euros = (n: number) =>
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// Cabecera ilustrada (cielo arena, sol melocotón y las tres colinas: la firma
+// de la casa, docs/paleta-camberas.md). Es una imagen servida desde la web
+// porque las formas dibujadas con HTML no se ven igual en todos los correos;
+// si el cliente bloquea imágenes queda la franja arena con el nombre.
+const CABECERA = `${Deno.env.get("SITE_URL") ?? "https://camberas.com"}/email/cabecera-colinas.png`;
+const ARENA = "#FCEBD6";
+const TINTA = "#0E2419";
+const COLINA_OSCURA = "#1E5B38";
+
 function asunto(a: Aviso): string {
   if (a.tipo === "equipo") {
     return a.ronda === 1
-      ? `Falta el pago del equipo ${a.team_name} en ${a.race_name}`
-      : `Las plazas de ${a.team_name} en ${a.race_name} siguen sin confirmar`;
+      ? `⛰️ ¡A ${a.team_name} le queda un paso para correr ${a.race_name}!`
+      : `⛰️ Las plazas de ${a.team_name} en ${a.race_name} os están esperando`;
   }
   return a.ronda === 1
-    ? `Te queda un paso para correr ${a.race_name}`
-    : `Tu plaza en ${a.race_name} sigue sin confirmar`;
+    ? `⛰️ ¡Te queda un paso para correr ${a.race_name}!`
+    : `⛰️ Tu plaza en ${a.race_name} te está esperando`;
 }
 
 function cuerpo(a: Aviso, enlace: string): string {
-  const saludo = a.nombre ? `Hola ${esc(a.nombre)},` : "Hola,";
+  const equipo = a.tipo === "equipo";
+  const saludo = a.nombre ? `¡Hola ${esc(a.nombre)}!` : "¡Hola!";
+  const carrera = `<strong>${esc(a.race_name)}</strong>`;
 
-  const queEs =
-    a.tipo === "equipo"
+  const titulo = equipo
+    ? a.ronda === 1 ? "¡Tu equipo está a un paso de la salida!" : "¡Las plazas de tu equipo os esperan!"
+    : a.ronda === 1 ? "¡Estás a un paso de la salida!" : "¡Tu plaza te está esperando!";
+
+  const texto = equipo
+    ? a.ronda === 1
       ? `Empezaste la inscripción de <strong>${esc(a.team_name ?? "tu equipo")}</strong>
-         (${a.n_corredores} ${a.n_corredores === 1 ? "corredor" : "corredores"})
-         y el pago se quedó a medias.`
-      : "Empezaste tu inscripción y el pago se quedó a medias.";
+         (${a.n_corredores} ${a.n_corredores === 1 ? "corredor" : "corredores"}) en ${carrera}
+         y solo falta el pago. Los datos del equipo siguen guardados: en un minuto lo tenéis hecho.`
+      : `La inscripción de <strong>${esc(a.team_name ?? "tu equipo")}</strong> en ${carrera} sigue a
+         medias, y las plazas no quedan reservadas hasta que se pague. ¡Que no se os escapen!`
+    : a.ronda === 1
+      ? `Empezaste tu inscripción en ${carrera} y solo falta el pago. Tus datos siguen guardados:
+         en un minuto lo tienes hecho.`
+      : `Tu inscripción en ${carrera} sigue a medias, y la plaza no queda reservada hasta que
+         pagues. ¡Que no se te escape!`;
 
-  const suyos = a.tipo === "equipo" ? "Los datos del equipo siguen" : "Tus datos siguen";
-  const plazas = a.tipo === "equipo" ? "las plazas no quedan reservadas" : "la plaza no queda reservada";
-  const urgencia =
-    a.ronda === 1
-      ? `${suyos} guardados: solo falta completar el pago.`
-      : `${suyos} guardados, pero ${plazas} hasta que el pago se confirme.`;
+  const detalles = [a.distance_name, fechaLarga(a.race_date), a.race_location]
+    .filter((x): x is string => !!x)
+    .map((x) => esc(x))
+    .join(" · ");
 
-  const filaImporte =
+  const importe =
     a.importe != null
-      ? `<tr>
-           <td style="padding: 6px 0; color: #4b5563;">Importe pendiente</td>
-           <td style="padding: 6px 0; color: ${VERDE}; font-weight: bold; text-align: right;">
-             ${euros(Number(a.importe))}
-           </td>
-         </tr>`
+      ? `<p style="margin: 14px 0 0; color: #4b5563; font-size: 15px;">
+           Te falta pagar <strong style="color: ${VERDE}; font-size: 18px;">${euros(Number(a.importe))}</strong>
+         </p>`
       : "";
-
-  const filaLugar = a.race_location
-    ? `<tr>
-         <td style="padding: 6px 0; color: #4b5563;">Lugar</td>
-         <td style="padding: 6px 0; color: #1f2937; text-align: right;">${esc(a.race_location)}</td>
-       </tr>`
-    : "";
 
   return `
   <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: ${VERDE}; padding: 28px 30px; text-align: center;">
-      <h1 style="color: #ffffff; margin: 0; font-size: 26px; letter-spacing: 0.5px;">Camberas</h1>
-      <p style="color: ${CREMA}; margin: 8px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
+    <div style="background: ${ARENA}; padding: 24px 30px 6px; text-align: center;">
+      <h1 style="color: ${TINTA}; margin: 0; font-size: 28px; letter-spacing: 0.5px;">Camberas</h1>
+      <p style="color: ${COLINA_OSCURA}; margin: 6px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
     </div>
+    <img src="${CABECERA}" width="600" alt=""
+         style="display: block; width: 100%; max-width: 600px; height: auto; border: 0; background: ${ARENA};">
 
-    <div style="padding: 36px 30px;">
-      <h2 style="color: #1f2937; margin: 0 0 16px; font-size: 21px;">${
-        a.tipo === "equipo" ? "La inscripción de tu equipo se quedó a medias" : "Tu inscripción se quedó a medias"
-      }</h2>
-
+    <div style="padding: 32px 30px 36px;">
+      <h2 style="color: ${TINTA}; margin: 0 0 16px; font-size: 24px;">${titulo}</h2>
       <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 8px;">${saludo}</p>
-      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
-        ${queEs} ${urgencia}
-      </p>
+      <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">${texto}</p>
 
-      <div style="background: ${CREMA}; border-left: 4px solid ${VERDE}; border-radius: 6px; padding: 18px 20px; margin: 24px 0;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
-          <tr>
-            <td style="padding: 6px 0; color: #4b5563;">Carrera</td>
-            <td style="padding: 6px 0; color: #1f2937; font-weight: bold; text-align: right;">${esc(a.race_name)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 6px 0; color: #4b5563;">Recorrido</td>
-            <td style="padding: 6px 0; color: #1f2937; text-align: right;">${esc(a.distance_name)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 6px 0; color: #4b5563;">Fecha</td>
-            <td style="padding: 6px 0; color: #1f2937; text-align: right;">${fechaLarga(a.race_date)}</td>
-          </tr>
-          ${filaLugar}
-          ${filaImporte}
-        </table>
+      <div style="background: ${CREMA}; border-radius: 10px; padding: 20px; margin: 24px 0; text-align: center;">
+        <p style="margin: 0; color: ${TINTA}; font-size: 19px; font-weight: bold;">${esc(a.race_name)}</p>
+        <p style="margin: 6px 0 0; color: #4b5563; font-size: 14px;">${detalles}</p>
+        ${importe}
       </div>
 
       <div style="text-align: center; margin: 30px 0;">
         <a href="${enlace}"
            style="display: inline-block; background: ${NARANJA}; color: #ffffff; text-decoration: none;
-                  padding: 15px 34px; border-radius: 8px; font-size: 16px; font-weight: bold;">
-          Completar el pago
+                  padding: 16px 36px; border-radius: 30px; font-size: 17px; font-weight: bold;">
+          ${equipo ? "¡Completar la inscripción del equipo!" : "¡Completar mi inscripción!"}
         </a>
       </div>
 
       <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0 0 6px;">
-        El importe definitivo es el vigente en el momento de pagar: si la carrera tiene tramos de
-        precio y el tramo ha cambiado, el que verás al abrir el enlace es el bueno.
+        El importe es el vigente al pagar: si la carrera tiene tramos de precio, puede haber cambiado.
       </p>
-      <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0;">
-        Si ya has pagado o has cambiado de idea, no tienes que hacer nada: este aviso se manda como
-        mucho dos veces y no volverás a recibirlo.
+      <p style="color: #6b7280; font-size: 13px; line-height: 1.6; margin: 0 0 24px;">
+        ¿Ya lo hiciste o has cambiado de planes? No pasa nada: ignora este correo, no te escribiremos
+        más de dos veces.
+      </p>
+
+      <p style="color: ${VERDE}; font-size: 17px; font-weight: bold; text-align: center; margin: 0;">
+        ¡Nos vemos en la línea de salida!
       </p>
     </div>
 

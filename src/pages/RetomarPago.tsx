@@ -39,7 +39,9 @@ type Estado =
   | "caducado"
   | "cerrado"
   | "completo"
-  | "no_existe";
+  | "no_existe"
+  // Ya tiene plaza con otra inscripción de la misma carrera (email o DNI)
+  | "ya_inscrita";
 
 interface Info {
   estado: Estado;
@@ -97,6 +99,12 @@ const DESENLACES: Record<
     texto:
       "Mientras el pago estaba a medias se han agotado las plazas. Sentimos el aviso: no llegamos a tiempo.",
     tono: "aviso",
+  },
+  ya_inscrita: {
+    titulo: "Ya tienes plaza con otra inscripción",
+    texto:
+      "En esta carrera ya hay una inscripción pagada con tus datos, así que no hay nada que pagar aquí. Si no eres tú (por ejemplo, porque compartís DNI), escribe a la organización y lo resuelven.",
+    tono: "bien",
   },
   no_existe: {
     titulo: "Este enlace no es válido",
@@ -208,7 +216,7 @@ const RetomarPago = () => {
 
   // ── Todo lo que no es "puedes pagar" ───────────────────────────────────
   if (info.estado !== "ok") {
-    const d = DESENLACES[info.estado];
+    const d = DESENLACES[info.estado] ?? DESENLACES.no_existe;
     return (
       <Marco>
         <Card>

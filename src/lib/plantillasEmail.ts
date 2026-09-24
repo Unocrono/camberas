@@ -62,6 +62,17 @@ export const PLANTILLAS_BASE: PlantillaEmail[] = [
     omitir_uno: false,
     orden: 30,
   },
+  {
+    clave: "recordatorio_pago",
+    nombre: "Recordatorio de pago",
+    descripcion: "Para quien empezó la inscripción y no terminó de pagar: enlace para completar el pago donde lo dejó. Solo a pendientes de pago por la pasarela; tras enviarlo, el aviso automático ya no se repite.",
+    asunto: "⛰️ ¡Te queda un paso para correr {carrera}!",
+    titulo: "¡Estás a un paso de la salida!",
+    cuerpo: "¡Hola {nombre}!\n\nEmpezaste tu inscripción en **{carrera}** y solo falta el pago. Tus datos siguen guardados: en un minuto lo tienes hecho.\n\n[[boton_pagar]]\n\n> Tu plaza no queda reservada hasta que pagues, ¡que no se te escape! El importe es el vigente al pagar: si la carrera tiene tramos de precio, puede haber cambiado.\n\n> ¿Ya lo hiciste o has cambiado de planes? No pasa nada: ignora este correo.\n\n[[mensaje]]\n\n## ¡Nos vemos en la línea de salida!",
+    etiqueta_mensaje: "De la organización",
+    omitir_uno: false,
+    orden: 40,
+  },
 ].map((p) => ({ ...p, es_sistema: true, activa: true }));
 
 export const VARIABLES_EMAIL: { clave: string; descripcion: string }[] = [
@@ -71,6 +82,7 @@ export const VARIABLES_EMAIL: { clave: string; descripcion: string }[] = [
   { clave: "recorrido", descripcion: "Recorrido en el que está inscrito" },
   { clave: "fecha", descripcion: "Fecha de la carrera, en largo" },
   { clave: "lugar", descripcion: "Localidad de la carrera" },
+  { clave: "importe", descripcion: "Importe (pagado en el comprobante; pendiente en el recordatorio de pago)" },
 ];
 
 export const BLOQUES_EMAIL: { clave: string; descripcion: string; requisito?: string }[] = [
@@ -80,6 +92,7 @@ export const BLOQUES_EMAIL: { clave: string; descripcion: string; requisito?: st
   { clave: "datos_inscripcion", descripcion: "Datos de su inscripción: documento, club, talla y preguntas de la carrera" },
   { clave: "botones_tiendas", descripcion: "Botones de App Store y Google Play de Camberas Track" },
   { clave: "boton_activar", descripcion: "Botón personal «Activar mi dorsal» en Camberas Track", requisito: "Solo recorridos con GPS y dorsal GPS generado" },
+  { clave: "boton_pagar", descripcion: "Botón «Completar el pago», con el importe pendiente", requisito: "Solo a pendientes de pago por la pasarela" },
   { clave: "mensaje", descripcion: "El texto que escribas al enviar; si lo dejas vacío, no aparece" },
 ];
 
@@ -114,6 +127,10 @@ export function bloquesFueraDeLinea(cuerpo: string): string[] {
   }
   return [...vistos];
 }
+
+/** ¿Es un recordatorio de pago? (usa el bloque [[boton_pagar]]) */
+export const usaBotonPagar = (p: Pick<PlantillaEmail, "cuerpo">) =>
+  lineas(p.cuerpo).some((l) => l.match(BLOQUE_EN_LINEA)?.[1].trim() === "boton_pagar");
 
 /** Líneas más largas de lo que la función formatea */
 export const lineasLargas = (cuerpo: string) => lineas(cuerpo).filter((l) => l.length > MAX_LINEA).length;

@@ -44,6 +44,7 @@ import {
   bloquesFueraDeLinea,
   claveDesdeNombre,
   lineasLargas,
+  usaBotonPagar,
   usaMensaje,
   variablesDesconocidas,
   type PlantillaEmail,
@@ -89,7 +90,7 @@ export function PlantillasEmailManagement() {
   const cuerpoRef = useRef<HTMLTextAreaElement>(null);
 
   // Vista previa, pintada por la función (la misma que envía)
-  const [previa, setPrevia] = useState<{ asunto: string; html: string; requisitos?: { dorsal: boolean; track: boolean } } | null>(null);
+  const [previa, setPrevia] = useState<{ asunto: string; html: string; requisitos?: { dorsal: boolean; track: boolean; pago?: boolean } } | null>(null);
   const [previaError, setPreviaError] = useState<string | null>(null);
   const [previaCargando, setPreviaCargando] = useState(false);
   const previaPeticion = useRef(0);
@@ -199,6 +200,9 @@ export function PlantillasEmailManagement() {
     if (sueltos.length) lista.push(`Cada bloque debe ir solo en su línea: ${sueltos.join(", ")}`);
     const largas = lineasLargas(b.cuerpo);
     if (largas) lista.push(`${largas === 1 ? "Hay una línea" : `Hay ${largas} líneas`} de más de ${MAX_LINEA} caracteres: pártela con saltos de línea`);
+    if (b.clave === "recordatorio_pago" && !usaBotonPagar(b)) {
+      lista.push("El recordatorio de pago necesita el bloque [[boton_pagar]]");
+    }
     const vars = variablesDesconocidas(`${b.asunto}\n${b.titulo}\n${b.cuerpo}`);
     if (vars.length) lista.push(`Variables que no existen (van en minúscula y sin espacios): ${vars.join(", ")}`);
     return lista;
@@ -515,11 +519,18 @@ export function PlantillasEmailManagement() {
                       <p className="text-sm">
                         <span className="text-muted-foreground">Asunto:</span> <strong>{previa.asunto}</strong>
                       </p>
-                      {previa.requisitos && (previa.requisitos.dorsal || previa.requisitos.track) && (
+                      {previa.requisitos?.pago ? (
                         <p className="text-xs text-muted-foreground">
-                          Solo se enviará a inscritos con dorsal
-                          {previa.requisitos.track ? ", en recorridos con GPS y con su dorsal GPS generado" : ""}.
+                          Solo se enviará a inscripciones pendientes de pago por la pasarela (no de equipo, con el
+                          plazo abierto y plaza libre). Tras enviarla, el aviso automático de pago ya no se repite.
                         </p>
+                      ) : (
+                        previa.requisitos && (previa.requisitos.dorsal || previa.requisitos.track) && (
+                          <p className="text-xs text-muted-foreground">
+                            Solo se enviará a inscritos con dorsal
+                            {previa.requisitos.track ? ", en recorridos con GPS y con su dorsal GPS generado" : ""}.
+                          </p>
+                        )
                       )}
                       <iframe
                         title="Vista previa del email"
