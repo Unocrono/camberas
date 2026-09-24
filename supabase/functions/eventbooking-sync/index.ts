@@ -317,6 +317,11 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     // numero ya pedido, ese dorsal quedaria quemado y abriria un hueco.
     // Tambien alcanza a los importados en pasadas anteriores que aun no
     // tengan numero, por si el rango se configuro despues.
+    //
+    // Con cfg.numerar_por_carrera la serie es UNA para toda la carrera:
+    // asignar_dorsal_carrera elige el primer numero libre y lo escribe en la
+    // misma transaccion (ADEMCO: una sola numeracion para las tres marchas).
+    const porCarrera = cfg.numerar_por_carrera === true;
     const { data: pendientesDorsal } = await service
       .from("registrations")
       .select("id, race_distance_id")
@@ -329,6 +334,17 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     let dorsales = 0;
     const sinNumeracion = new Set<string>();
     for (const reg of pendientesDorsal ?? []) {
+      if (porCarrera) {
+        const { data: bib, error } = await service.rpc("asignar_dorsal_carrera", {
+          p_registration_id: reg.id,
+        });
+        if (error) {
+          errores.push(`Al asignar dorsal: ${error.message}`);
+          break;
+        }
+        if (bib !== null && bib !== undefined) dorsales++;
+        continue;
+      }
       if (sinNumeracion.has(reg.race_distance_id)) continue;
       const { data: bib, error } = await service.rpc("assign_next_bib", {
         p_distance_id: reg.race_distance_id,
