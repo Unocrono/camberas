@@ -2418,6 +2418,69 @@ export type Database = {
           },
         ]
       }
+      plantillas_email: {
+        Row: {
+          activa: boolean
+          asunto: string
+          asunto_original: string | null
+          clave: string
+          created_at: string
+          cuerpo: string
+          cuerpo_original: string | null
+          descripcion: string | null
+          es_sistema: boolean
+          etiqueta_mensaje: string | null
+          id: string
+          nombre: string
+          omitir_uno: boolean
+          orden: number
+          titulo: string
+          titulo_original: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activa?: boolean
+          asunto: string
+          asunto_original?: string | null
+          clave: string
+          created_at?: string
+          cuerpo: string
+          cuerpo_original?: string | null
+          descripcion?: string | null
+          es_sistema?: boolean
+          etiqueta_mensaje?: string | null
+          id?: string
+          nombre: string
+          omitir_uno?: boolean
+          orden?: number
+          titulo: string
+          titulo_original?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activa?: boolean
+          asunto?: string
+          asunto_original?: string | null
+          clave?: string
+          created_at?: string
+          cuerpo?: string
+          cuerpo_original?: string | null
+          descripcion?: string | null
+          es_sistema?: boolean
+          etiqueta_mensaje?: string | null
+          id?: string
+          nombre?: string
+          omitir_uno?: boolean
+          orden?: number
+          titulo?: string
+          titulo_original?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -4076,6 +4139,7 @@ export type Database = {
           nombre: string | null
           race_distance_id: string
           race_id: string
+          recordatorio_manual_at: string | null
           recuperado_at: string | null
           registration_id: string | null
           team_id: string | null
@@ -4094,6 +4158,7 @@ export type Database = {
           nombre?: string | null
           race_distance_id: string
           race_id: string
+          recordatorio_manual_at?: string | null
           recuperado_at?: string | null
           registration_id?: string | null
           team_id?: string | null
@@ -4112,6 +4177,7 @@ export type Database = {
           nombre?: string | null
           race_distance_id?: string
           race_id?: string
+          recordatorio_manual_at?: string | null
           recuperado_at?: string | null
           registration_id?: string | null
           team_id?: string | null
@@ -5638,11 +5704,25 @@ export type Database = {
           registration_id: string
         }[]
       }
+      deshacer_recordatorio_pago: {
+        Args: {
+          p_caduca_nueva?: string
+          p_caduca_prev?: string
+          p_id: string
+          p_manual_prev?: string
+          p_nueva: boolean
+          p_prev1: string
+          p_prev2: string
+          p_sello: string
+        }
+        Returns: undefined
+      }
       detallar_sos: {
         Args: { p_falsa?: boolean; p_motivo?: string; p_token_id: string }
         Returns: boolean
       }
       dorsal_organizacion: { Args: { p_distance_id: string }; Returns: string }
+      es_documento_valido: { Args: { p_doc: string }; Returns: boolean }
       es_miembro_del_equipo: {
         Args: { p_team_id: string; p_user: string }
         Returns: boolean
@@ -5798,6 +5878,11 @@ export type Database = {
         Args: { p_distance_id: string }
         Returns: string
       }
+      inscripcion_ya_dentro: {
+        Args: { p_registration_id: string }
+        Returns: boolean
+      }
+      inscripciones_ya_dentro: { Args: { p_ids: string[] }; Returns: string[] }
       is_guest_registration: { Args: { reg_id: string }; Returns: boolean }
       is_timer_for_race: {
         Args: { _race_id: string; _user_id: string }
@@ -5899,6 +5984,10 @@ export type Database = {
         }[]
       }
       plazas_libres: { Args: { p_distance_id: string }; Returns: number }
+      preparar_recordatorio_pago: {
+        Args: { p_registration_id: string }
+        Returns: Json
+      }
       process_event_results: {
         Args: { p_race_distance_id: string }
         Returns: {
