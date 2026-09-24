@@ -14,12 +14,14 @@ import { Loader2 } from "lucide-react";
 interface RouteFlightViewerProps {
   gpxUrl: string;
   distanceName?: string;
+  /** Ocupar todo el contenedor (página incrustada en otra web) en vez de 65vh */
+  llenar?: boolean;
 }
 
 const FLIGHT_SECONDS = 75; // duración objetivo del vuelo completo
 const PACE_KMH = 10; // ritmo "real" de referencia (trail)
 
-export function RouteFlightViewer({ gpxUrl }: RouteFlightViewerProps) {
+export function RouteFlightViewer({ gpxUrl, llenar = false }: RouteFlightViewerProps) {
   const [track, setTrack] = useState<TrackCoord[] | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,9 +81,11 @@ export function RouteFlightViewer({ gpxUrl }: RouteFlightViewerProps) {
     };
   }, [gpxUrl]);
 
+  const alto = llenar ? "h-full" : "h-64";
+
   if (error) {
     return (
-      <div className="flex h-64 items-center justify-center text-muted-foreground">
+      <div className={`flex ${alto} items-center justify-center text-muted-foreground`}>
         {error}
       </div>
     );
@@ -89,7 +93,7 @@ export function RouteFlightViewer({ gpxUrl }: RouteFlightViewerProps) {
 
   if (!track || !token) {
     return (
-      <div className="flex h-64 flex-col items-center justify-center gap-3 text-muted-foreground">
+      <div className={`flex ${alto} flex-col items-center justify-center gap-3 text-muted-foreground`}>
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         Preparando el vuelo sobre el recorrido...
       </div>
@@ -101,7 +105,7 @@ export function RouteFlightViewer({ gpxUrl }: RouteFlightViewerProps) {
   const timeScale = Math.max(1, realSeconds / FLIGHT_SECONDS);
 
   return (
-    <div className="h-[65vh] w-full overflow-hidden rounded-xl">
+    <div className={llenar ? "h-full w-full overflow-hidden" : "h-[65vh] w-full overflow-hidden rounded-xl"}>
       <RouteFlight
         track={track}
         accessToken={token}

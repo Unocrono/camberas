@@ -13,6 +13,7 @@ import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
 import { PlantillasEmailManagement } from "@/components/admin/PlantillasEmailManagement";
+import { WidgetInscripcionManagement } from "@/components/admin/WidgetInscripcionManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
@@ -294,6 +295,7 @@ const AdminDashboard = () => {
             {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
             {currentView === "teams" && <TeamsManagement />}
             {currentView === "plantillas-email" && <PlantillasEmailManagement />}
+            {currentView === "widget-inscripcion" && <WidgetInscripcionManagement selectedRaceId={selectedRaceId} />}
             {currentView === "race-documents" && (
               selectedRaceId ? (
                 <RaceDocumentsManagement raceId={selectedRaceId} />
