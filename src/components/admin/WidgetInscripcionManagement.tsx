@@ -209,7 +209,10 @@ export function WidgetInscripcionManagement({ selectedRaceId }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Inscripción · así se verá</CardTitle>
-            <CardDescription>Recorridos, precio vigente, plazas libres y botón para inscribirse</CardDescription>
+            <CardDescription>
+              Recorridos, precio vigente y un botón por recorrido que abre su formulario. Las plazas libres, solo si
+              activas «Mostrar plazas libres» en la carrera.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <RadioGroup value={tema} onValueChange={(v) => setTema(v as "claro" | "oscuro")} className="flex gap-6">

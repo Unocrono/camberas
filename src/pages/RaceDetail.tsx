@@ -229,14 +229,30 @@ const RaceDetail = () => {
 
       if (priceRangesError) throw priceRangesError;
 
+      // Plazas libres con la regla común del servidor (plazas_libres: las
+      // pendientes solo ocupan durante los 30 min de pago). Contarlas aquí con
+      // registrations no valía: sin sesión no se pueden leer, así que salían
+      // siempre todas libres y nunca "Completo". Si la llamada falla, se cae
+      // al recuento de antes.
+      // (objeto y no Map: en este fichero Map es el icono de lucide)
+      const libresServidor: Record<string, number> = {};
+      await Promise.all(
+        distancesData
+          .filter((d: any) => d.max_participants)
+          .map(async (d: any) => {
+            const { data, error } = await supabase.rpc("plazas_libres", { p_distance_id: d.id });
+            if (!error && typeof data === "number") libresServidor[d.id] = data;
+          }),
+      );
+
       const now = new Date();
 
       const distancesWithAvailability = distancesData.map((distance: any) => {
         const registeredCount = registrationsData.filter(
           (reg: any) => reg.race_distance_id === distance.id && occupiesPlace(reg)
         ).length;
-        const availablePlaces = distance.max_participants 
-          ? distance.max_participants - registeredCount 
+        const availablePlaces = distance.max_participants
+          ? libresServidor[distance.id] ?? distance.max_participants - registeredCount
           : null;
         
         // Find the wave for this distance
@@ -247,8 +263,11 @@ const RaceDetail = () => {
         const regCloses = distance.registration_closes ? new Date(distance.registration_closes) : null;
         const isRegistrationOpen = (!regOpens || now >= regOpens) && (!regCloses || now <= regCloses);
         
-        // Get current price from ranges or fallback to base price
-        const distancePriceRanges = priceRangesData?.filter((pr: any) => pr.race_distance_id === distance.id) || [];
+        // Get current price from ranges or fallback to base price. Si dos
+        // tramos se solapan, gana el que EMPEZÓ MÁS TARDE: la misma regla que
+        // el cobro (redsys-init-payment, guest-register) y el widget
+        const distancePriceRanges = (priceRangesData?.filter((pr: any) => pr.race_distance_id === distance.id) || [])
+          .sort((a: any, b: any) => new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime());
         let currentPrice = distance.price;
         
         for (const range of distancePriceRanges) {
@@ -1111,14 +1130,19 @@ const RaceDetail = () => {
                               <span className="text-sm">Límite: {distance.cutoff_time}</span>
                             </div>
                           )}
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Users className="h-4 w-4" />
-                            <span className="text-sm">
-                              {distance.availablePlaces !== null 
-                                ? `${distance.availablePlaces} plazas disponibles`
-                                : "Plazas ilimitadas"}
-                            </span>
-                          </div>
+                          {/* Plazas libres: solo si el organizador lo activa en la
+                              carrera ("Mostrar plazas libres"). Completo se ve
+                              igual en el botón de inscribirse. */}
+                          {race.show_available_places === true && (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              <span className="text-sm">
+                                {distance.availablePlaces !== null
+                                  ? `${distance.availablePlaces} plazas disponibles`
+                                  : "Plazas ilimitadas"}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Start/Finish Locations */}

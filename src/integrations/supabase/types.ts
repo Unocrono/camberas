@@ -3723,6 +3723,7 @@ export type Database = {
           race_type: string
           registration_closes: string | null
           registration_opens: string | null
+          show_available_places: boolean
           slug: string | null
           subtitle: string | null
           updated_at: string
@@ -3756,6 +3757,7 @@ export type Database = {
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          show_available_places?: boolean
           slug?: string | null
           subtitle?: string | null
           updated_at?: string
@@ -3789,6 +3791,7 @@ export type Database = {
           race_type?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          show_available_places?: boolean
           slug?: string | null
           subtitle?: string | null
           updated_at?: string

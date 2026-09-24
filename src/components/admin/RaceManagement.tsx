@@ -70,7 +70,11 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRace, setEditingRace] = useState<Race | null>(null);
   const [organizers, setOrganizers] = useState<Organizer[]>([]);
-  
+  // ¿Existe ya la columna show_available_places? Se ve en las carreras
+  // cargadas (select *). Hasta que se ejecute la migración, el interruptor no
+  // sale y no se envía: así publicar antes no rompe el guardado.
+  const columnaPlazasExiste = races.some((r) => "show_available_places" in r);
+
   const [formData, setFormData] = useState({
     name: "",
     subtitle: "",
@@ -86,6 +90,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     race_type: "trail" as "trail" | "mtb",
     is_visible: true,
     is_featured: false,
+    // Plazas libres en la ficha y en el widget: por defecto no se enseñan
+    show_available_places: false,
     slug: "",
     utc_offset: "+1:00",
     organizer_id: "" as string,
@@ -186,6 +192,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         race_type: (race as any).race_type || "trail",
         is_visible: race.is_visible ?? true,
         is_featured: (race as any).is_featured ?? false,
+        show_available_places: (race as any).show_available_places ?? false,
         slug: race.slug || "",
         utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
         organizer_id: race.organizer_id || "",
@@ -208,6 +215,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         race_type: "trail",
         is_visible: true,
         is_featured: false,
+        show_available_places: false,
         slug: "",
         utc_offset: "+1:00",
         organizer_id: "",
@@ -350,8 +358,11 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           is_featured: formData.is_featured,
           utc_offset: parseUtcOffset(formData.utc_offset),
           organizer_email: formData.organizer_email.trim() || null,
+          // Solo si la columna ya existe (migración 20260924140000): si se
+          // publica antes de ejecutarla, guardar la carrera no debe romperse
+          ...(columnaPlazasExiste ? { show_available_places: formData.show_available_places } : {}),
         };
-        
+
         // Allow admin to change organizer
         if (!isOrganizer && formData.organizer_id) {
           updateData.organizer_id = formData.organizer_id;
@@ -413,6 +424,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             is_featured: formData.is_featured,
             utc_offset: parseUtcOffset(formData.utc_offset),
             organizer_email: formData.organizer_email.trim() || null,
+            ...(columnaPlazasExiste ? { show_available_places: formData.show_available_places } : {}),
           }])
           .select('id')
           .single();
@@ -937,6 +949,25 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
                 />
               </div>
+
+              {columnaPlazasExiste && (
+                <div className="flex items-center justify-between border-t pt-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="show_available_places" className="flex items-center gap-2">
+                      Mostrar plazas libres
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Enseña cuántas plazas quedan en cada recorrido, en la ficha y en el widget de tu web. Aunque
+                      esté desactivado, un recorrido lleno se sigue mostrando como «Completo».
+                    </p>
+                  </div>
+                  <Switch
+                    id="show_available_places"
+                    checked={formData.show_available_places}
+                    onCheckedChange={(checked) => setFormData({ ...formData, show_available_places: checked })}
+                  />
+                </div>
+              )}
 
               {editingRace && (
                 <div className="space-y-2 border-t pt-4">

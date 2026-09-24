@@ -7,7 +7,8 @@
  *   <script src="https://camberas.com/widget.js" async></script>
  *
  * y aquí se pinta la carrera con sus recorridos, el precio vigente, las
- * plazas libres y el botón para inscribirse en Camberas. Los datos se piden
+ * plazas libres (solo si el organizador activa "Mostrar plazas libres") y un
+ * botón por recorrido que abre directamente su formulario. Los datos se piden
  * al cargar la página (función widget_carrera, clave anónima pública), así
  * que precio y plazas están siempre al día.
  *
@@ -149,11 +150,17 @@
       "utm_source=widget&utm_medium=web-carrera&utm_campaign=" + encodeURIComponent(slug);
   }
 
-  /** Texto de plazas de un recorrido y si hay que llamar la atención */
-  function textoPlazas(r) {
+  /**
+   * Texto bajo el precio: el estado (abre, cerrada, completo) siempre; las
+   * plazas libres solo si el organizador las muestra ("Mostrar plazas libres"
+   * en la carrera; sin esa opción la función ni siquiera las devuelve).
+   * null = no se pinta nada.
+   */
+  function textoPlazas(r, mostrarPlazas) {
     if (r.estado === "proxima") return { t: r.abre ? "Abre el " + diaMes(r.abre) : "Próximamente", c: "pl" };
     if (r.estado === "cerrada") return { t: "Inscripción cerrada", c: "pl no" };
     if (r.estado === "completa") return { t: "Completo", c: "pl no" };
+    if (!mostrarPlazas) return null;
     if (r.plazas == null || r.libres == null) return { t: "Plazas disponibles", c: "pl" };
     var libres = Math.max(0, Number(r.libres));
     var umbral = Math.max(10, Math.round(Number(r.plazas) * 0.1));
@@ -202,8 +209,8 @@
 
         var der = el("div", "der");
         if (r.precio != null) der.appendChild(el("div", "pr", euros(r.precio)));
-        var p = textoPlazas(r);
-        der.appendChild(el("div", p.c, p.t));
+        var p = textoPlazas(r, datos.mostrar_plazas === true);
+        if (p) der.appendChild(el("div", p.c, p.t));
         // Abierta: botón directo al formulario de ESTE recorrido
         if (r.estado === "abierta" && r.id) {
           var ir = el("a", "btn mini", "Inscribirme");
