@@ -45,8 +45,10 @@ const VueloEmbebido = () => {
   }, [distanceId]);
 
   const carrera = recorrido?.races;
+  // Directo al formulario de ESTE recorrido (?inscribir=ID, RaceDetail.tsx);
+  // si está cerrado o completo, la ficha lo avisa
   const enlaceCarrera = carrera
-    ? `https://camberas.com/${carrera.slug || carrera.id}?utm_source=widget&utm_medium=vuelo-3d`
+    ? `https://camberas.com/${carrera.slug || carrera.id}?inscribir=${distanceId}&utm_source=widget&utm_medium=vuelo-3d`
     : "https://camberas.com";
 
   return (

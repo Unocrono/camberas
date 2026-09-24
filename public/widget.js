@@ -90,6 +90,9 @@
     ".btn{display:block;text-align:center;text-decoration:none;font-weight:700;font-size:16px;" +
     "padding:13px 16px;border-radius:10px;background:" + NARANJA + ";color:#fff}" +
     ".btn:hover{filter:brightness(1.05)}" +
+    ".btn.mini{display:inline-block;margin-top:8px;padding:8px 14px;font-size:14px;border-radius:8px}" +
+    ".info{display:block;text-align:center;font-size:14px;font-weight:600;color:" + VERDE + ";text-decoration:underline}" +
+    ".oscuro .info{color:" + CREMA + "}" +
     ".btn.sec{background:transparent;color:" + VERDE + ";border:2px solid " + VERDE + "}" +
     ".oscuro .btn.sec{color:" + CREMA + ";border-color:" + CREMA + "}" +
     ".marca{display:block;text-align:center;font-size:11px;margin-top:10px;opacity:.6;color:inherit;text-decoration:none}" +
@@ -135,9 +138,15 @@
     return Number(n).toLocaleString("es-ES", { maximumFractionDigits: 1, useGrouping: true });
   }
 
-  function enlace(slug) {
+  /**
+   * Enlace a la carrera en Camberas. Con recorrido, abre DIRECTAMENTE su
+   * formulario de inscripción (?inscribir=ID, lo atiende RaceDetail.tsx)
+   * en vez de dejar al corredor en la ficha.
+   */
+  function enlace(slug, recorridoId) {
     return WEB + "/" + encodeURIComponent(slug) +
-      "?utm_source=widget&utm_medium=web-carrera&utm_campaign=" + encodeURIComponent(slug);
+      "?" + (recorridoId ? "inscribir=" + encodeURIComponent(recorridoId) + "&" : "") +
+      "utm_source=widget&utm_medium=web-carrera&utm_campaign=" + encodeURIComponent(slug);
   }
 
   /** Texto de plazas de un recorrido y si hay que llamar la atención */
@@ -195,6 +204,15 @@
         if (r.precio != null) der.appendChild(el("div", "pr", euros(r.precio)));
         var p = textoPlazas(r);
         der.appendChild(el("div", p.c, p.t));
+        // Abierta: botón directo al formulario de ESTE recorrido
+        if (r.estado === "abierta" && r.id) {
+          var ir = el("a", "btn mini", "Inscribirme");
+          ir.href = enlace(datos.slug || datos.id, r.id);
+          ir.target = "_blank";
+          ir.rel = "noopener";
+          ir.setAttribute("aria-label", "Inscribirme en " + r.nombre);
+          der.appendChild(ir);
+        }
         li.appendChild(der);
         ul.appendChild(li);
       });
@@ -207,7 +225,9 @@
       var cierres = abiertas.map(function (r) { return r.cierra; }).filter(Boolean).sort();
       if (cierres.length) pie.appendChild(el("p", "plazo", "Inscripciones abiertas hasta el " + diaMes(cierres[cierres.length - 1])));
     }
-    var btn = el("a", abiertas.length ? "btn" : "btn sec", abiertas.length ? "Inscríbete" : "Ver la carrera");
+    // Con recorridos abiertos, la inscripción va en el botón de cada uno; aquí
+    // solo la ficha, discreta. Sin ninguno abierto, la ficha como botón.
+    var btn = el("a", abiertas.length ? "info" : "btn sec", abiertas.length ? "Más información de la carrera" : "Ver la carrera");
     btn.href = enlace(datos.slug || datos.id);
     btn.target = "_blank";
     btn.rel = "noopener";

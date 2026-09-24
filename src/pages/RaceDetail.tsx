@@ -1,5 +1,5 @@
 import { useParams, useNavigate , useSearchParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,11 @@ const RaceDetail = () => {
   // que quien recibe el enlace no tenga que teclear nada.
   const [searchParams] = useSearchParams();
   const cuponDeUrl = (searchParams.get("cupon") ?? searchParams.get("coupon") ?? "").trim();
+  // Recorrido cuyo formulario se abre nada más llegar (?inscribir=ID): lo
+  // usan los botones del widget de la web del organizador (widget.js), para
+  // ir directos al formulario sin pasar por la ficha
+  const inscribirDeUrl = (searchParams.get("inscribir") ?? "").trim();
+  const inscripcionDirectaHecha = useRef(false);
   const [raceId, setRaceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -361,6 +366,27 @@ const RaceDetail = () => {
       setTimeout(() => applyCouponCode(distance, cuponDeUrl), 0);
     }
   };
+
+  // Llegada con ?inscribir=ID: se abre el formulario de ese recorrido una
+  // sola vez, cuando ya se sabe si hay sesión (con cuenta NO es invitado) y
+  // con las mismas condiciones que el botón de la tarjeta: si está completo
+  // o cerrado se avisa y se queda en la ficha
+  useEffect(() => {
+    if (!inscribirDeUrl || inscripcionDirectaHecha.current) return;
+    if (authLoading || !race?.distances) return;
+    inscripcionDirectaHecha.current = true;
+    const distancia = race.distances.find((d: any) => d.id === inscribirDeUrl);
+    if (!distancia) return;
+    if (distancia.availablePlaces === 0 || !distancia.isRegistrationOpen) {
+      toast({
+        title: distancia.availablePlaces === 0 ? "Recorrido completo" : "Inscripción no disponible",
+        description: `${distancia.name}: ahora mismo no admite inscripciones.`,
+      });
+      return;
+    }
+    handleRegisterClick(distancia);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inscribirDeUrl, authLoading, race]);
 
   const applyCoupon = async (distance: any, silent = false) => {
     const code = (silent ? appliedCoupon?.code : couponInput)?.trim();
