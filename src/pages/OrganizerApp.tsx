@@ -42,6 +42,8 @@ import {
   Bike, ShieldCheck, Timer, TicketPercent } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
+import { asegurarManifest } from "@/lib/instalarPwa";
+import { InstalarAppBoton } from "@/components/InstalarAppBoton";
 
 interface DistanceSummary {
   distance_id: string;
@@ -301,6 +303,12 @@ const OrganizerApp = () => {
     if (!authLoading && !user) navigate("/auth?returnTo=/org");
   }, [authLoading, user, navigate]);
 
+  // Manifest de la app aunque se haya llegado navegando (p. ej. /auth → /org):
+  // sin él Chrome solo ofrece un acceso directo, no "Instalar aplicación"
+  useEffect(() => {
+    asegurarManifest("/manifest-organizer.json");
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("org-clinc-mode", clincMode);
     clincModeRef.current = clincMode;
@@ -509,6 +517,9 @@ const OrganizerApp = () => {
             grupo la pantalla queda limpia, solo con sus botones. */}
         {!activeGroup && (
         <>
+        {/* Instalar como app: no sale si ya se abre desde el icono, y se
+            puede cerrar (vuelve a los 14 días) */}
+        <InstalarAppBoton nombreApp="Camberas Org" direccion="camberas.com/org" icono="/org-icon-192.png" />
         {races.length === 0 && (
           <p className="py-12 text-center text-muted-foreground">
             No tienes carreras asignadas todavía.
