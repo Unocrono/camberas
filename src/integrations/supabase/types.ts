@@ -810,6 +810,7 @@ export type Database = {
           event_id: number
           last_result: Json | null
           last_sync_at: string | null
+          numerar_por_carrera: boolean
           race_id: string
         }
         Insert: {
@@ -818,6 +819,7 @@ export type Database = {
           event_id: number
           last_result?: Json | null
           last_sync_at?: string | null
+          numerar_por_carrera?: boolean
           race_id: string
         }
         Update: {
@@ -826,6 +828,7 @@ export type Database = {
           event_id?: number
           last_result?: Json | null
           last_sync_at?: string | null
+          numerar_por_carrera?: boolean
           race_id?: string
         }
         Relationships: [
@@ -5515,6 +5518,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      asignar_dorsal_carrera: {
+        Args: { p_registration_id: string }
+        Returns: number
+      }
       assign_next_bib: { Args: { p_distance_id: string }; Returns: number }
       avisos_pago_pendientes: {
         Args: never
@@ -6214,6 +6221,7 @@ export type Database = {
         Args: { p_post_id: string }
         Returns: number
       }
+      widget_carrera: { Args: { p_carrera: string }; Returns: Json }
     }
     Enums: {
       app_role:
