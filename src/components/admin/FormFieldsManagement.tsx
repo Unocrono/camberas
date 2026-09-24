@@ -735,16 +735,22 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     const isSystemField = editingField?.is_system_field === true;
 
     try {
-      // For system fields, only validate label
+      // Campos del sistema: nombre y tipo fijos; etiqueta, textos y opciones sí
       if (isSystemField) {
         if (!formData.field_label.trim()) {
           throw new Error("La etiqueta es requerida");
         }
+        const textos = fieldSchema.pick({ placeholder: true, help_text: true }).parse({
+          placeholder: formData.placeholder.trim() || undefined,
+          help_text: formData.help_text.trim() || undefined,
+        });
 
         const { error } = await supabase
           .from("registration_form_fields")
           .update({
             field_label: formData.field_label.trim(),
+            placeholder: textos.placeholder || null,
+            help_text: textos.help_text || null,
             field_options: buildFieldOptions(),
             is_required: formData.is_required,
           })
@@ -1040,30 +1046,27 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                {!isSystemFieldEditing && (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="placeholder">Placeholder (texto de ayuda)</Label>
-                      <Input
-                        id="placeholder"
-                        value={formData.placeholder}
-                        onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
-                        placeholder="ej: Selecciona tu talla"
-                      />
-                    </div>
+                {/* Placeholder y ayuda son solo texto: también en los campos del sistema */}
+                <div className="space-y-2">
+                  <Label htmlFor="placeholder">Placeholder (texto de ayuda)</Label>
+                  <Input
+                    id="placeholder"
+                    value={formData.placeholder}
+                    onChange={(e) => setFormData({ ...formData, placeholder: e.target.value })}
+                    placeholder="ej: Selecciona tu talla"
+                  />
+                </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="help_text">Texto de Ayuda</Label>
-                      <Textarea
-                        id="help_text"
-                        value={formData.help_text}
-                        onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
-                        placeholder="Información adicional para el usuario"
-                        rows={2}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="help_text">Texto de Ayuda</Label>
+                  <Textarea
+                    id="help_text"
+                    value={formData.help_text}
+                    onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
+                    placeholder="Información adicional para el usuario"
+                    rows={2}
+                  />
+                </div>
 
                 {["select", "radio"].includes(formData.field_type) && (
                   <div className="space-y-2">
