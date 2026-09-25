@@ -192,10 +192,10 @@ BEGIN
   SELECT id INTO v_g26 FROM public.races WHERE slug = 'san-silvestre-corraliega-la-garita-2026';
   IF v_g26 IS NULL THEN
     SELECT id INTO v_g25 FROM public.races
-     WHERE name ILIKE 'Subida a la Garita%' AND date = '2025-12-31'
+     WHERE name ILIKE '%garita%' AND date = '2025-12-31'
      ORDER BY created_at DESC LIMIT 1;
     IF v_g25 IS NULL THEN
-      RAISE NOTICE 'No se encuentra La Garita 2025 (name ILIKE ''Subida a la Garita%%'' AND date = 2025-12-31): no se crea la edición 2026';
+      RAISE EXCEPTION 'No se encuentra La Garita 2025 (name ILIKE ''%%garita%%'' AND date = 2025-12-31): no se crea la edición 2026';
     ELSE
       v_g26 := public.duplicar_carrera(
         v_g25,
