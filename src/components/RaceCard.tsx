@@ -20,13 +20,28 @@ interface RaceCardProps {
   groupType?: 'carrera' | 'quedada' | 'grupetta';
   priceLabel?: string | null;
   isPast?: boolean;
+  /** Estado real de inscripción (RPC estado_carreras); sin él, solo pasada/no pasada */
+  estado?: EstadoListado;
 }
+
+export type EstadoListado = "celebrada" | "proximamente" | "abierta" | "agotada_parcial" | "agotada" | "cerrada";
+
+const ETIQUETAS: Record<EstadoListado, { texto: string; clase: string }> = {
+  celebrada:       { texto: "Finalizada",           clase: "bg-red-100 text-red-700" },
+  abierta:         { texto: "Abiertas",             clase: "bg-green-100 text-green-700" },
+  proximamente:    { texto: "Próximamente",         clase: "bg-sky-100 text-sky-700" },
+  agotada_parcial: { texto: "Agotado parcialmente", clase: "bg-amber-100 text-amber-800" },
+  agotada:         { texto: "Agotadas",             clase: "bg-orange-100 text-orange-800" },
+  cerrada:         { texto: "Cerradas",             clase: "bg-muted text-muted-foreground" },
+};
 
 const RaceCard = ({
   id, slug, name, subtitle, date, location, distances,
   coverImageUrl, imageUrl, raceType = 'trail', groupType = 'carrera',
-  priceLabel, isPast = false,
+  priceLabel, isPast = false, estado,
 }: RaceCardProps) => {
+  // Con estado de la RPC se usa; si no (migración sin aplicar), lo de siempre
+  const etiqueta = ETIQUETAS[estado ?? (isPast ? "celebrada" : "abierta")];
   const raceUrl = slug ? `/race/${slug}` : `/race/${id}`;
   // Sin imagen subida, cada tipo tiene su ilustración de la casa
   const defaultCover =
@@ -51,11 +66,9 @@ const RaceCard = ({
         />
         {/* Estado */}
         <span
-          className={`absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${
-            isPast ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-          }`}
+          className={`absolute top-3 left-3 text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${etiqueta.clase}`}
         >
-          {isPast ? 'Finalizada' : 'Abiertas'}
+          {etiqueta.texto}
         </span>
         {/* Deporte */}
         <span className="absolute top-3 right-3 flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-primary text-primary-foreground">

@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import RaceCard from "@/components/RaceCard";
+import RaceCard, { type EstadoListado } from "@/components/RaceCard";
+import { rpcSinTipos } from "@/eventos/rpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Mountain, Bike, Calendar, Trophy, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
@@ -185,7 +186,17 @@ const Races = () => {
         })
       );
 
-      setAllRaces(racesWithDistances);
+      // Estado real de inscripción (próximamente, abiertas, cerradas, agotadas…)
+      // en una sola llamada (RPC estado_carreras, 20260925190000). Si la RPC
+      // no está aplicada, la tarjeta cae a lo de siempre: pasada / no pasada.
+      let estados: Record<string, EstadoListado> = {};
+      try {
+        const filas = await rpcSinTipos<{ race_id: string; estado: EstadoListado }[]>("estado_carreras", {});
+        estados = Object.fromEntries((filas ?? []).map((f) => [f.race_id, f.estado]));
+      } catch (e) {
+        console.warn("[races] estado_carreras no disponible:", e);
+      }
+      setAllRaces(racesWithDistances.map((r) => ({ ...r, estado: estados[r.id] })));
     } catch (error) {
       console.error("Error fetching races:", error);
     } finally {
