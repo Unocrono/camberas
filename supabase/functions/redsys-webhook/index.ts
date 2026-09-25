@@ -90,6 +90,9 @@ serve(async (req) => {
     const orderNumber = merchantParams.Ds_Order;
     const responseCode = merchantParams.Ds_Response;
     const authCode = merchantParams.Ds_AuthorisationCode;
+    // Tipo de operación: 0 = cobro. Sin el campo se trata como cobro (lo que
+    // se hacía antes de mirarlo)
+    const transactionType = String(merchantParams.Ds_TransactionType ?? "0").trim() || "0";
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -120,9 +123,37 @@ serve(async (req) => {
       return new Response("OK", { status: 200 });
     }
 
+    // Solo los avisos de COBRO tocan el pago. Una devolución (3) o una
+    // anulación (45, 46) llega con el mismo Ds_Order y un 0900/0400 que, con la
+    // regla 0-99, marcaría como fallido un cobro que existió. Las devoluciones
+    // las apunta redsys-devolucion (o el admin a mano).
+    if (transactionType !== "0") {
+      console.log(`Aviso de operación tipo ${transactionType} (${responseCode}) del pedido ${orderNumber}: no toca el cobro`);
+      return new Response("OK", { status: 200 });
+    }
+
     // Determine if payment was successful (codes 0000-0099 are success)
     const responseNum = parseInt(responseCode);
     const isSuccess = responseNum >= 0 && responseNum <= 99;
+
+    // Un cobro ya completado no vuelve a 'failed' por un aviso tardío o repetido
+    if (!isSuccess && paymentIntent.status === "completed") {
+      console.log(`Pedido ${orderNumber} ya cobrado: se ignora un aviso ${responseCode} posterior`);
+      return new Response("OK", { status: 200 });
+    }
+
+    // Aviso de éxito repetido de un cobro ya apuntado (Redsys lo repite, o
+    // alguien reenvía los parámetros firmados): no se toca nada, ni la fecha
+    // del cobro, ni se reenvían correos. Si la inscripción sigue pendiente se
+    // deja pasar, para terminar una primera pasada que se quedara a medias.
+    if (isSuccess && paymentIntent.status === "completed") {
+      const sigueSinConfirmar =
+        !!paymentIntent.registration_id && paymentIntent.registrations?.payment_status === "pending";
+      if (!sigueSinConfirmar) {
+        console.log(`Pedido ${orderNumber} ya cobrado: aviso de éxito repetido, no se toca nada`);
+        return new Response("OK", { status: 200 });
+      }
+    }
 
     // Update payment intent status
     const { error: intentError } = await supabase
@@ -140,8 +171,13 @@ serve(async (req) => {
       console.error("Error updating payment intent:", intentError.message);
     }
 
-    // If successful, confirm the registration
-    if (isSuccess && paymentIntent.registration_id) {
+    // If successful, confirm the registration — salvo que ya se haya devuelto:
+    // un aviso de éxito repetido no puede volver a darla por pagada
+    const yaDevuelta = paymentIntent.registrations?.payment_status === "refunded";
+    if (yaDevuelta) {
+      console.log(`Pedido ${orderNumber}: la inscripción ya está devuelta, no se vuelve a confirmar`);
+    }
+    if (isSuccess && paymentIntent.registration_id && !yaDevuelta) {
       // Asignar dorsal AHORA que el pago está confirmado (las inscripciones
       // de pago se crean sin dorsal para no quemar números con impagos)
       const regData = paymentIntent.registrations;
@@ -318,10 +354,12 @@ serve(async (req) => {
         for (const it of items) {
           const { data: reg } = await supabase
             .from("registrations")
-            .select("id, race_id, race_distance_id, first_name, last_name, bib_number, team_id, team")
+            .select("id, race_id, race_distance_id, first_name, last_name, bib_number, team_id, team, payment_status")
             .eq("id", it.registration_id)
             .maybeSingle();
           if (!reg) continue;
+          // Devuelta a ese miembro: un aviso repetido no la vuelve a confirmar
+          if (reg.payment_status === "refunded") continue;
           if (!firstReg) firstReg = reg;
 
           let bib: number | null = reg.bib_number ?? null;

@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2 } from "lucide-react";
+import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2, Undo2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 import { DynamicEditRegistrationForm } from "./DynamicEditRegistrationForm";
+import { DevolucionDialog } from "./DevolucionDialog";
 
 interface Registration {
   id: string;
@@ -300,6 +301,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [bulkClubDialog, setBulkClubDialog] = useState(false);
   const [bulkTeamDialog, setBulkTeamDialog] = useState(false);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
+  // Devolución Redsys (solo admin): id de la inscripción con el diálogo abierto
+  const [devolucionId, setDevolucionId] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
@@ -2436,6 +2439,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 <Pencil className="h-4 w-4" />
                               </Button>
 
+                              {/* Devolver por Redsys: solo admin (el dinero sale del TPV de UNO), solo
+                                  lo cobrado por la pasarela de Camberas; también las reembolsadas,
+                                  para ver su historial */}
+                              {!isOrganizer && reg.source === "gateway" && (reg.payment_status === "paid" || reg.payment_status === "refunded") && (
+                                <Button variant="outline" size="sm" onClick={() => setDevolucionId(reg.id)} title="Devolver dinero">
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              )}
+
                               {/* Borrado solo para admin: el organizador cambia estados, no elimina */}
                               {!isOrganizer && (
                               <AlertDialog open={deleteDialogId === reg.id} onOpenChange={(open) => !open && setDeleteDialogId(null)}>
@@ -2684,6 +2696,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {!isOrganizer && (
+        <DevolucionDialog
+          registrationId={devolucionId}
+          onOpenChange={(open) => !open && setDevolucionId(null)}
+          onCambio={() => fetchData()}
+        />
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

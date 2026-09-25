@@ -175,6 +175,16 @@ export function merchantParamsB64(merchantParams: Record<string, string>): strin
   return btoa(binary);
 }
 
+/** Ds_MerchantParameters de una respuesta de Redsys (base64 o base64url) a texto UTF-8. */
+export function decodificarParametros(b64: string): string {
+  let base64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) base64 += "=";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
 /** Nº de pedido Redsys: 12 dígitos, único por intento. */
 export function nuevoOrderNumber(): string {
   const timestamp = Date.now().toString().slice(-8);

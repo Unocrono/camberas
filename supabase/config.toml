@@ -88,5 +88,10 @@ verify_jwt = false
 [functions.reenviar-comprobantes]
 verify_jwt = true
 
+# Devoluciones Redsys desde el panel: solo con sesion. Ademas la funcion
+# comprueba que quien llama es admin (el dinero sale del TPV de UNO).
+[functions.redsys-devolucion]
+verify_jwt = true
+
 [functions.verificar-dominio]
 verify_jwt = true
