@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Races from "./pages/Races";
+import Inicio from "./pages/Inicio";
 import RaceDetail from "./pages/RaceDetail";
 import RaceRegulation from "./pages/RaceRegulation";
 import RaceResults from "./pages/RaceResults";
@@ -83,7 +84,7 @@ const AppCamberas = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/races" replace />} />
+          <Route path="/" element={<Inicio />} />
           
           {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
           <Route path="/races" element={<Races />} />
