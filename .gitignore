@@ -48,3 +48,6 @@ ios/
 backups/
 restauracion/
 *.dump
+
+# Material de trabajo local (mirrors de webs, logos, zips): no se sube
+material-local/

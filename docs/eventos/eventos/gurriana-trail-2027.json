@@ -1,0 +1,123 @@
+{
+  "slug": "gurriana-trail-2027",
+  "tenant": "labaru-trail",
+  "nombre": "V Gurriana Trail 2027",
+  "nombreCorto": "Gurriana Trail",
+  "edicion": 5,
+  "descripcion": "Sierra del Escudo de Cabuérniga. Sendas, bosques y campo a través por Cabezón de la Sal, Ruente, Cabuérniga y Valdáliga.",
+  "deporte": "trail",
+  "competitivo": true,
+  "federacion": "Calendario oficial FCDME 2027",
+  "fecha": "2027-03-14",
+  "fechaTexto": "Domingo 14 de marzo de 2027",
+  "lugar": {
+    "nombre": "Plaza de la Braña", "direccion": "Plaza de la Braña, Carrejo", "municipio": "Cabezón de la Sal", "provincia": "Cantabria",
+    "zona": "Sierra del Escudo de Cabuérniga", "municipios": ["Cabezón de la Sal", "Ruente", "Cabuérniga", "Valdáliga"]
+  },
+  "organizador": { "nombre": "Club Deportivo Elemental Lábaru Trail", "email": "labarutrail@gmail.com" },
+  "estado": "proximamente",
+  "inscripcion": {
+    "apertura": "2026-10-01T20:00:00+02:00",
+    "cierre": "2027-02-15T00:00:00+01:00",
+    "cierreTexto": "15 de febrero de 2027 o al completar los 600 dorsales",
+    "limiteDorsales": 600,
+    "plazasDisponibles": null,
+    "edadMinima": 18,
+    "modalidades": ["individual"],
+    "tarifas": [
+      { "id": "gt20-fed", "nombre": "GT20 federado", "pruebas": ["GT20"], "periodos": [{ "precio": 28 }], "condicion": { "federado": true } },
+      { "id": "gt20-nofed", "nombre": "GT20 no federado", "pruebas": ["GT20"], "periodos": [{ "precio": 32 }], "condicion": { "federado": false } },
+      { "id": "gt40-fed", "nombre": "GT40 federado", "pruebas": ["GT40"], "periodos": [{ "precio": 40 }], "condicion": { "federado": true }, "destacada": true },
+      { "id": "gt40-nofed", "nombre": "GT40 no federado", "pruebas": ["GT40"], "periodos": [{ "precio": 44 }], "condicion": { "federado": false } }
+    ],
+    "extras": [
+      { "id": "seguro-dia", "nombre": "Seguro de accidentes de día (no federados)", "tipo": "opcion", "precio": 4, "obligatorio": true, "condicion": { "federado": false } },
+      { "id": "talla", "nombre": "Talla de camiseta", "tipo": "talla", "precio": 0, "opciones": ["XS", "S", "M", "L", "XL", "XXL"], "obligatorio": true, "condicion": { "inscritoAntesDe": "2027-01-15" } }
+    ],
+    "campos": [
+      { "id": "federado", "etiqueta": "¿Estás federado (FCDME/FEDME) con licencia en vigor?", "tipo": "si_no", "obligatorio": true },
+      { "id": "licencia", "etiqueta": "Número de licencia", "tipo": "texto", "condicion": "federado" },
+      { "id": "club", "etiqueta": "Club", "tipo": "texto" },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": false, "edadMinima": 18 },
+    "devolucion": { "hasta": "2027-02-15", "gastos": 10, "texto": "Inscripciones personales e intransferibles. Cambios de distancia, titularidad y devoluciones por lesión justificada hasta el cierre." },
+    "incluye": ["Dorsal con chip", "Bolsa del corredor", "Avituallamientos", "Comida post carrera", "Duchas", "Seguro de accidentes y RC"],
+    "nota": "No hay inscripciones el día de la carrera.",
+    "pasarela": { "proveedor": "camberas", "url": "https://uno.es", "metodos": ["tarjeta", "bizum"] }
+  },
+  "pruebas": [
+    {
+      "id": "GT20", "nombre": "GT20", "tipo": "carrera", "competitiva": true, "chip": true,
+      "distancia": 20100, "distanciaTexto": "20,1 km", "desnivelPos": 1290, "desnivelNeg": 1290, "altMax": 839, "altMin": 141,
+      "salida": "10:00", "limite": "7 h", "color": "#3F6A12", "marcaje": "Verde", "municipios": "Cabezón de la Sal y Ruente",
+      "terreno": [["Hierba", "5,8 km"], ["Pista forestal no transitable", "5,5 km"], ["Sendero", "4,5 km"], ["Asfalto", "2,0 km"], ["Pista forestal transitable", "1,8 km"], ["Cortafuegos", "0,5 km"]],
+      "avituallamientos": [
+        { "km": 4, "nombre": "El Palo", "tipo": "liquido" }, { "km": 9, "nombre": "La Pedraje", "tipo": "completo" },
+        { "km": 15, "nombre": "Cortafuegos", "tipo": "liquido", "corte": "15:30" }, { "km": 20.1, "nombre": "Meta", "tipo": "completo", "limite": "7 h" }
+      ],
+      "track": { "wikiloc": "https://es.wikiloc.com/rutas-carrera-por-montana/la-gurriana-7910634" }
+    },
+    {
+      "id": "GT40", "nombre": "GT40", "tipo": "carrera", "competitiva": true, "chip": true,
+      "distancia": 37200, "distanciaTexto": "37,2 km", "desnivelPos": 2335, "desnivelNeg": 2335, "altMax": 903, "altMin": 89,
+      "salida": "09:00", "limite": "8 h", "color": "#C62828", "marcaje": "Rojo", "municipios": "Cabezón de la Sal, Valdáliga, Ruente y Cabuérniga",
+      "terreno": [["Sendero", "20 km"], ["Hierba", "7,4 km"], ["Pista forestal no transitable", "5,5 km"], ["Asfalto", "2,0 km"], ["Pista forestal transitable", "1,8 km"], ["Cortafuegos", "0,5 km"]],
+      "avituallamientos": [
+        { "km": 4, "nombre": "El Palo", "tipo": "liquido" }, { "km": 9, "nombre": "La Pedraje", "tipo": "completo" }, { "km": 15, "nombre": "Prao Julio", "tipo": "liquido" },
+        { "km": 21, "nombre": "Bustriguado", "tipo": "completo", "corte": "13:00" }, { "km": 26, "nombre": "La Pedraje", "tipo": "completo" },
+        { "km": 32, "nombre": "Cortafuegos", "tipo": "liquido", "corte": "15:30" }, { "km": 37.2, "nombre": "Meta", "tipo": "completo", "limite": "8 h" }
+      ],
+      "track": { "wikiloc": "https://es.wikiloc.com/rutas-carrera-por-montana/gt40-7993700" }
+    }
+  ],
+  "categorias": [
+    { "id": "abs", "nombre": "Absoluta", "edadMin": 18 },
+    { "id": "vetA", "nombre": "Veteranos A", "edadMin": 40, "edadMax": 49 },
+    { "id": "vetB", "nombre": "Veteranos B", "edadMin": 50, "edadMax": 59 },
+    { "id": "vetC", "nombre": "Veteranos C", "edadMin": 60 }
+  ],
+  "reglamento": {
+    "materialObligatorio": ["Chaqueta cortavientos", "Manta térmica de emergencia", "Teléfono móvil con batería y encendido", "Vaso o softflask", "Zapatillas específicas de trail running"],
+    "normasMaterial": "Bastones solo si se llevan desde la salida y hasta la meta. Auriculares prohibidos. Material adicional posible con 48 h de aviso según meteorología.",
+    "marcaje": ["Marcaje con cinta y banderines naranjas, indicador kilométrico cada 5 km y color propio por prueba.", "Los cruces de carretera no están cortados: cruza solo por los pasos habilitados.", "Equipo escoba: quien sea superado queda retirado de la carrera."],
+    "normas": ["Sin vasos desechables: lleva tu propio vaso o softflask. Opciones sin gluten en todos los puntos."],
+    "reclamaciones": "Por escrito ante el Comité de Carrera en los 30 minutos posteriores a la publicación de clasificaciones. Fianza de 60 €."
+  },
+  "programa": [
+    { "fecha": "2027-03-13", "hora": "10:00", "horaFin": "12:00", "titulo": "Recogida de dorsales", "lugar": "Plaza de la Braña, Carrejo" },
+    { "fecha": "2027-03-13", "hora": "17:00", "horaFin": "20:00", "titulo": "Recogida de dorsales", "lugar": "Plaza de la Braña, Carrejo" },
+    { "fecha": "2027-03-14", "hora": "07:00", "horaFin": "08:30", "titulo": "Recogida de dorsales", "lugar": "Plaza de la Braña, Carrejo" },
+    { "fecha": "2027-03-14", "hora": "09:00", "titulo": "Salida GT40" },
+    { "fecha": "2027-03-14", "hora": "10:00", "titulo": "Salida GT20" },
+    { "fecha": "2027-03-14", "hora": "16:00", "titulo": "Entrega de premios" }
+  ],
+  "dorsales": {
+    "lugar": "Plaza de la Braña, Carrejo",
+    "horarios": [["Sábado 13 de marzo", "10:00–12:00 y 17:00–20:00"], ["Domingo 14 de marzo", "07:00–08:30"]],
+    "nota": "Imprescindible DNI y licencia federativa del año en curso si te inscribiste como federado. Otra persona puede recogerlo con tu DNI. Sin licencia: suplemento de 4 €."
+  },
+  "entregaPremios": "16:00",
+  "camiseta": { "incluida": true, "hasta": "2027-01-15", "texto": "Camiseta conmemorativa solo para inscritos antes del 15 de enero." },
+  "sanitario": {
+    "medios": [["1", "médico de carrera"], ["5", "técnicos de emergencias"], ["2", "ambulancias SVB con DESA"], ["1", "ambulancia 4x4"]],
+    "nota": "Ambulancias en salida/meta y Bustriguado; unidad 4x4 en La Pedraje."
+  },
+  "medioAmbiente": {
+    "espacio": "LIC Sierra del Escudo de Cabuérniga",
+    "habitats": "brezales, bosques aluviales, hayedos y robledales",
+    "especies": "caracol de Quimper, ciervo volante, lagarto verdinegro, murciélago ratonero y soldanela villosa",
+    "normas": "Cubos de basura 100 m antes y después de cada avituallamiento. Tirar un residuo fuera de ellos es descalificación inmediata.",
+    "adhesion": "Documento de Buenas Prácticas Ambientales FEDME y EUROPARC-España"
+  },
+  "patrocinadores": [
+    { "nombre": "Ayuntamiento de Cabezón de la Sal", "nivel": "institucional" }, { "nombre": "Ayuntamiento de Ruente", "nivel": "institucional" },
+    { "nombre": "Ayuntamiento de Cabuérniga", "nivel": "institucional" }, { "nombre": "Ayuntamiento de Valdáliga", "nivel": "institucional" },
+    { "nombre": "Junta Vecinal Carrejo–Santibáñez", "nivel": "institucional" }, { "nombre": "FCDME", "nivel": "institucional" }
+  ],
+  "contacto": { "email": "labarutrail@gmail.com", "emailDatos": "lagurrianatrail@gmail.com", "redes": { "facebook": "https://www.facebook.com/gurrianatrail" } },
+  "imagenes": { "logo": "logo.svg", "montanas": "montanas.svg" },
+  "marca": { "colorMarca": "#3F6A12", "colorAccion": "#8BC34A", "colorSecundario": "#1E6FB5", "heroTexturaLogo": true },
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y centro de carrera" },
+  "fuente": { "origen": "src/data/race.json del proyecto Lovable", "fecha": "2026-09-22" }
+}

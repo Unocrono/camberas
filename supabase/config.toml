@@ -87,3 +87,6 @@ verify_jwt = false
 # quien llama es admin u organizador de todas las carreras afectadas.
 [functions.reenviar-comprobantes]
 verify_jwt = true
+
+[functions.verificar-dominio]
+verify_jwt = true

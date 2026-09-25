@@ -1,0 +1,93 @@
+{
+  "slug": "loiu-500-trail-2026",
+  "tenant": "ayuntamiento-loiu",
+  "nombre": "Loiu 500 Trail 2026",
+  "nombreCorto": "Loiu 500 Trail",
+  "edicion": 3,
+  "descripcion": "Circuito de 12 km por Loiu en las modalidades de correr y andar, con Marcha Txiki de 5 km para niños y acompañantes. Dificultad moderada: altitud máxima 290 m, desnivel de 339 m.",
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-11-01",
+  "fechaTexto": "Domingo 1 de noviembre de 2026",
+  "lugar": { "nombre": "Plaza de los Jubilados (Erretiratuen Plaza)", "municipio": "Loiu", "provincia": "Bizkaia" },
+  "organizador": { "nombre": "Ayuntamiento de Loiu y colaboradores" },
+  "estado": "abierta",
+  "inscripcion": {
+    "cierre": "2026-10-31T23:59:00+01:00",
+    "cierreTexto": "Online hasta el 31 de octubre; talla de camiseta garantizada hasta el 30 de septiembre",
+    "limiteDorsales": 1000,
+    "plazasDisponibles": null,
+    "modalidades": ["individual"],
+    "tarifas": [
+      { "id": "12k", "nombre": "12 km · Correr o Andar", "pruebas": ["KORRIKA", "IBILI"], "destacada": true,
+        "periodos": [
+          { "desde": "2026-06-01", "hasta": "2026-07-31", "precio": 12, "etiqueta": "Junio–julio" },
+          { "desde": "2026-08-01", "hasta": "2026-08-31", "precio": 13, "etiqueta": "Agosto" },
+          { "desde": "2026-09-01", "hasta": "2026-09-30", "precio": 14, "etiqueta": "Septiembre" },
+          { "desde": "2026-10-01", "hasta": "2026-10-31", "precio": 15, "etiqueta": "Octubre" }
+        ] },
+      { "id": "txiki", "nombre": "Marcha Txiki · 5 km", "pruebas": ["TXIKI"],
+        "periodos": [
+          { "desde": "2026-06-01", "hasta": "2026-09-30", "precio": 8, "etiqueta": "Hasta septiembre" },
+          { "desde": "2026-10-01", "hasta": "2026-10-31", "precio": 10, "etiqueta": "Octubre" }
+        ] }
+    ],
+    "extras": [
+      { "id": "talla", "nombre": "Talla de camiseta", "tipo": "talla", "precio": 0, "opciones": ["8 infantil", "16 infantil", "S", "M", "L", "XL", "XXL"], "obligatorio": true }
+    ],
+    "descuentos": [
+      { "tipo": "residente", "porcentaje": 100, "texto": "Cupo de 100 inscripciones gratuitas para empadronados en Loiu, por orden de inscripción y compartido entre 12 km y Marcha Txiki. Se paga la inscripción, se indica municipio Loiu, se acredita el empadronamiento el día de la prueba y se devuelve el importe la semana siguiente." }
+    ],
+    "campos": [
+      { "id": "club", "etiqueta": "Club", "tipo": "texto" },
+      { "id": "empadronado", "etiqueta": "Empadronado en Loiu", "tipo": "si_no", "obligatorio": true },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": true, "tutor": true },
+    "incluye": ["Seguro de responsabilidad civil y de accidentes", "Dorsal numerado con chip RFID", "Camiseta oficial (talla garantizada hasta el 30 de septiembre)", "Avituallamiento en carrera y en meta", "Txoripan de llegada", "Vestuario y guardarropa", "Sorteo de regalos", "Clasificaciones instantáneas", "Fotos y vídeos en la página de Facebook del evento"],
+    "pasarela": { "proveedor": "camberas", "url": "https://camberas.com/race/loiu-500-trail-2026", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    { "id": "KORRIKA", "nombre": "Trail 12 km · Correr / Korrika", "tipo": "carrera", "competitiva": true, "chip": true,
+      "distancia": 12200, "distanciaTexto": "12,2 km", "desnivelPos": 339, "desnivelNeg": 339, "altMax": 290, "salida": "09:30", "limite": "2 h 30 min",
+      "lugarSalida": "Plaza de los Jubilados, Loiu", "lugarMeta": "Plaza de los Jubilados, Loiu", "plazas": 500 },
+    { "id": "IBILI", "nombre": "Martxa 12 km · Andar / Ibili", "tipo": "marcha", "competitiva": false, "chip": true,
+      "distancia": 12200, "distanciaTexto": "12,2 km", "desnivelPos": 339, "desnivelNeg": 339, "altMax": 290, "salida": "09:40", "limite": "3 h 30 min",
+      "descripcion": "No competitiva: quien corra debe estar inscrito en la modalidad Correr. Se genera clasificación con dorsal y chip.", "plazas": 500 },
+    { "id": "TXIKI", "nombre": "Marcha Txiki · 5 km", "tipo": "marcha", "competitiva": false, "chip": false,
+      "distancia": 5000, "distanciaTexto": "5 km", "salida": "09:45", "descripcion": "Niños y acompañantes." }
+  ],
+  "reglamento": {
+    "url": "https://uno.es/media/com_eventbooking/ReglamentoLoiu2026.pdf",
+    "normas": ["La modalidad Andar no es competitiva; si un participante corre, debe estar inscrito en Correr.", "No existe premio en metálico en ninguna categoría ni modalidad."]
+  },
+  "programa": [
+    { "fecha": "2026-10-29", "hora": "10:00", "horaFin": "14:00", "titulo": "Recogida de dorsales", "lugar": "Decathlon Bilbao, C/ Villerías 10" },
+    { "fecha": "2026-10-29", "hora": "16:00", "horaFin": "20:00", "titulo": "Recogida de dorsales", "lugar": "Decathlon Bilbao, C/ Villerías 10" },
+    { "fecha": "2026-10-30", "hora": "10:00", "horaFin": "14:00", "titulo": "Recogida de dorsales", "lugar": "Decathlon Bilbao, C/ Villerías 10" },
+    { "fecha": "2026-10-30", "hora": "16:00", "horaFin": "20:00", "titulo": "Recogida de dorsales", "lugar": "Decathlon Bilbao, C/ Villerías 10" },
+    { "fecha": "2026-11-01", "hora": "09:00", "titulo": "Recogida de dorsales hasta 30 min antes de la salida", "lugar": "Secretaría en Plaza de los Jubilados" },
+    { "fecha": "2026-11-01", "hora": "09:30", "titulo": "Salida Correr 12 km" },
+    { "fecha": "2026-11-01", "hora": "09:40", "titulo": "Salida Andar 12 km" },
+    { "fecha": "2026-11-01", "hora": "09:45", "titulo": "Salida Marcha Txiki 5 km" }
+  ],
+  "dorsales": {
+    "lugar": "Decathlon Bilbao (C/ Villerías 10) y secretaría en Plaza de los Jubilados",
+    "horarios": [["Jueves 29 y viernes 30 de octubre", "10:00–14:00 y 16:00–20:00 en Decathlon Bilbao"], ["Domingo 1 de noviembre", "Hasta las 09:00 en la Plaza de los Jubilados"]],
+    "nota": "El sábado 31 de octubre no hay entrega de dorsales."
+  },
+  "premios": [
+    { "pruebas": ["KORRIKA"], "premio": "Regalos en especie", "texto": "Top 10 masculino y top 10 femenino de la clasificación absoluta. Se entregan al cruzar la meta." },
+    { "pruebas": ["KORRIKA", "IBILI", "TXIKI"], "premio": "Sorteo de regalos", "texto": "Verificable en llegada con el dorsal." }
+  ],
+  "servicios": [
+    { "nombre": "Cronometraje electrónico con chip" }, { "nombre": "Avituallamientos líquidos y sólidos" }, { "nombre": "Servicio médico en carrera y meta" },
+    { "nombre": "Seguro de accidentes incluido" }, { "nombre": "Camiseta técnica para todos los participantes" }, { "nombre": "Txoripan de llegada" }, { "nombre": "Vestuario y guardarropa" }
+  ],
+  "camiseta": { "incluida": true, "hasta": "2026-09-30", "tallas": ["8 infantil", "16 infantil", "S", "M", "L", "XL", "XXL"], "texto": "Talla garantizada para inscritos hasta el 30 de septiembre." },
+  "clasificaciones": { "url": "https://uno.es", "tiempoReal": true },
+  "documentos": [{ "nombre": "Reglamento oficial Loiu 500 Trail 2026", "url": "https://uno.es/media/com_eventbooking/ReglamentoLoiu2026.pdf", "tipo": "reglamento" }],
+  "contacto": { "email": "2026@uno.es" },
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y clasificaciones" },
+  "fuente": { "origen": "Reglamento oficial PDF (uno.es) + ficha camberas.com/race/loiu-500-trail-2026 + formulario uno.es", "fecha": "2026-09-22", "pendiente": ["categorías por edad (el reglamento solo premia absoluta)", "tracks GPX (están en Camberas)", "patrocinadores"] }
+}

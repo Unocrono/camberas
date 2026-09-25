@@ -1,0 +1,74 @@
+{
+  "slug": "entre-vinedos-2026",
+  "tenant": "entre-vinedos",
+  "nombre": "Entre Viñedos 2026",
+  "nombreCorto": "Entre Viñedos",
+  "deporte": "popular",
+  "competitivo": true,
+  "fecha": "2026-10-25",
+  "fechaTexto": "Domingo 25 de octubre de 2026",
+  "lugar": { "nombre": "Cenicero", "municipio": "Cenicero", "provincia": "La Rioja" },
+  "organizador": { "nombre": "Entre Viñedos (Cenicero)" },
+  "estado": "abierta",
+  "inscripcion": {
+    "apertura": "2026-05-25T00:00:00+02:00",
+    "cierre": "2026-10-21T23:59:00+02:00",
+    "cierreTexto": "21 de octubre (online) · 24 de octubre presencial",
+    "plazasDisponibles": null,
+    "modalidades": ["individual", "equipo", "presencial"],
+    "equipo": { "tamano": 10, "unPago": true, "capitan": true },
+    "tarifas": [
+      {
+        "id": "individual", "nombre": "Individual", "pruebas": ["ABS"], "modalidad": "individual", "destacada": true,
+        "periodos": [
+          { "desde": "2026-05-25", "hasta": "2026-05-31", "precio": 15 },
+          { "desde": "2026-06-01", "hasta": "2026-10-01", "precio": 18 },
+          { "desde": "2026-10-02", "hasta": "2026-10-21", "precio": 20 }
+        ]
+      },
+      {
+        "id": "grupo10", "nombre": "Grupo de 10 personas", "pruebas": ["ABS"], "modalidad": "equipo",
+        "periodos": [
+          { "desde": "2026-05-25", "hasta": "2026-05-31", "precio": 130 },
+          { "desde": "2026-06-01", "hasta": "2026-10-01", "precio": 160 }
+        ]
+      },
+      { "id": "presencial", "nombre": "Inscripción presencial", "pruebas": ["ABS"], "modalidad": "presencial", "periodos": [{ "desde": "2026-10-24", "hasta": "2026-10-24", "precio": 25, "etiqueta": "Sábado 24 de octubre" }] },
+      { "id": "infantil-sin", "nombre": "Infantil · dorsal con chip, sin camiseta", "pruebas": ["INF"], "periodos": [{ "hasta": "2026-10-21", "precio": 5 }] }
+    ],
+    "extras": [
+      { "id": "modalidad", "nombre": "Modalidad", "tipo": "opcion", "precio": 0, "opciones": ["Correr", "Marcha"], "obligatorio": true, "pruebas": ["ABS"] },
+      { "id": "talla", "nombre": "Talla de camiseta", "tipo": "talla", "precio": 0, "opciones": ["S", "M", "L", "XL", "XXL", "No quiero camiseta"], "obligatorio": true, "pruebas": ["ABS"] },
+      { "id": "camiseta-bollo", "nombre": "Con camiseta y bollo", "tipo": "opcion", "precio": 7, "opciones": ["Sí (+7 €)", "No"], "obligatorio": true, "pruebas": ["INF"] }
+    ],
+    "campos": [
+      { "id": "residente", "etiqueta": "Empadronado o residente en Cenicero", "tipo": "si_no", "obligatorio": true },
+      { "id": "categoria", "etiqueta": "Categoría", "tipo": "opcion", "obligatorio": true, "opciones": ["Senior - hasta 35", "Máster 35 (35-39)", "Máster 40 (40-44)", "Máster 45 (45-49)", "Máster 50 (50-54)", "Máster 55 (55-59)", "Máster 60 (60-64)", "Máster 65 (65 en adelante)"] },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": true, "tutor": true },
+    "nota": "Está prohibido correr con el dorsal de otra persona.",
+    "pasarela": { "proveedor": "uno", "url": "https://uno.es/carreras/2026-entre-vinedos/individual-registration", "metodos": ["tarjeta", "presencial"] }
+  },
+  "pruebas": [
+    {
+      "id": "ABS", "nombre": "Entre Viñedos", "tipo": "carrera", "competitiva": true, "chip": true, "salida": "10:00",
+      "descripcion": "Modalidades Correr y Marcha sobre el mismo recorrido.",
+      "categorias": [
+        { "id": "sen", "nombre": "Senior", "edadMax": 34 }, { "id": "m35", "nombre": "Máster 35", "edadMin": 35, "edadMax": 39 },
+        { "id": "m40", "nombre": "Máster 40", "edadMin": 40, "edadMax": 44 }, { "id": "m45", "nombre": "Máster 45", "edadMin": 45, "edadMax": 49 },
+        { "id": "m50", "nombre": "Máster 50", "edadMin": 50, "edadMax": 54 }, { "id": "m55", "nombre": "Máster 55", "edadMin": 55, "edadMax": 59 },
+        { "id": "m60", "nombre": "Máster 60", "edadMin": 60, "edadMax": 64 }, { "id": "m65", "nombre": "Máster 65", "edadMin": 65 }
+      ]
+    },
+    {
+      "id": "INF", "nombre": "Entre Viñedos Infantil", "tipo": "infantil", "competitiva": true, "chip": true,
+      "distancia": 1800, "distanciaTexto": "1,8 km", "salida": "09:30",
+      "categorias": [{ "id": "ale", "nombre": "Alevín" }, { "id": "inf", "nombre": "Infantil" }, { "id": "cad", "nombre": "Cadete" }]
+    }
+  ],
+  "contacto": { "email": "2026@uno.es", "direccion": "Guevara, 28-Bajo, Santander" },
+  "imagenes": { "cartel": "cartel.jpg" },
+  "servicios_tecnicos": { "proveedor": "UNO Crono", "texto": "Inscripciones y cronometraje" },
+  "fuente": { "origen": "https://uno.es/carreras/2026-entre-vinedos (+ grupos, + infantil) y sus formularios", "fecha": "2026-09-22", "pendiente": ["hora de salida real (10:00 y 09:30 son provisionales)", "distancia de la prueba absoluta", "años de nacimiento de alevín/infantil/cadete"] }
+}

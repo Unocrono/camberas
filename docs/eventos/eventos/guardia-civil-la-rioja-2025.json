@@ -1,0 +1,577 @@
+{
+  "slug": "carrera-solidaria-guardia-civil-la-rioja-2025",
+  "tenant": "guardia-civil-la-rioja",
+  "nombre": "I Carrera Solidaria Guardia Civil de La Rioja",
+  "nombreCorto": "Carrera Solidaria Guardia Civil",
+  "edicion": 1,
+  "subtitulo": "Corremos a favor de ARPA Autismo Rioja",
+  "descripcion": "Únete a nosotros en esta carrera solidaria para apoyar a ARPA Autismo Rioja",
+  "deporte": "popular",
+  "competitivo": true,
+  "fecha": "2025-11-16",
+  "fechaTexto": "Domingo, 16 de noviembre de 2025",
+  "lugar": {
+    "nombre": "Polideportivo Municipal de Villamediana de Iregua",
+    "direccion": "Calle Portillo",
+    "municipio": "Villamediana de Iregua",
+    "provincia": "La Rioja"
+  },
+  "organizador": {
+    "nombre": "Guardia Civil · Zona de La Rioja",
+    "email": "lo-zon-carrerapopular@guardiacivil.org",
+    "telefono": "+34 941 22 99 00"
+  },
+  "beneficiario": {
+    "nombre": "ARPA Autismo Rioja",
+    "web": "https://autismorioja.com/",
+    "texto": "El evento tiene como finalidad apoyar a ARPA Autismo Rioja, asociación sin ánimo de lucro que trabaja incansablemente en la defensa de los derechos de las personas con Trastorno del Espectro Autista (TEA) y sus familias, gestionando servicios especializados y promoviendo su inclusión social y educativa.",
+    "logo": "sponsors/arpa-todos.png"
+  },
+  "estado": "celebrada",
+  "inscripcion": {
+    "cierre": "2025-11-08T23:59:00+01:00",
+    "cierreTexto": "8 de noviembre de 2025 o hasta agotar dorsales",
+    "plazasDisponibles": null,
+    "modalidades": [
+      "individual",
+      "solidario"
+    ],
+    "tarifas": [
+      {
+        "id": "6k",
+        "nombre": "6 km y Caminata 6 km",
+        "pruebas": [
+          "K6",
+          "CAM6"
+        ],
+        "periodos": [
+          {
+            "hasta": "2025-11-08",
+            "precio": 13
+          }
+        ],
+        "incluye": [
+          "Camiseta",
+          "Dorsal con chip",
+          "Bolsa del corredor"
+        ],
+        "destacada": true
+      },
+      {
+        "id": "menores",
+        "nombre": "Distancias menores",
+        "pruebas": [
+          "K500",
+          "K1",
+          "K2"
+        ],
+        "periodos": [
+          {
+            "hasta": "2025-11-08",
+            "precio": 10
+          }
+        ],
+        "incluye": [
+          "Camiseta",
+          "Dorsal (con chip en la juvenil 2 km)",
+          "Bolsa del corredor"
+        ]
+      },
+      {
+        "id": "solidario",
+        "nombre": "Dorsal solidario",
+        "pruebas": [],
+        "modalidad": "solidario",
+        "periodos": [
+          {
+            "precio": 13
+          }
+        ],
+        "importesLibres": [
+          13,
+          50,
+          100
+        ],
+        "incluye": [
+          "Para quienes no pueden participar pero quieren colaborar"
+        ]
+      }
+    ],
+    "extras": [
+      {
+        "id": "talla",
+        "nombre": "Talla de camiseta",
+        "tipo": "talla",
+        "precio": 0,
+        "opciones": [
+          "4 años",
+          "6 años",
+          "8 años",
+          "10 años",
+          "12 años",
+          "14 años",
+          "XS",
+          "S",
+          "M",
+          "L",
+          "XL",
+          "XXL"
+        ],
+        "obligatorio": true
+      }
+    ],
+    "campos": [
+      {
+        "id": "ffccse",
+        "etiqueta": "Miembro de las FFCCSE",
+        "tipo": "si_no"
+      },
+      {
+        "id": "acepta-reglamento",
+        "etiqueta": "Acepto el reglamento",
+        "tipo": "consentimiento",
+        "obligatorio": true
+      }
+    ],
+    "menores": {
+      "permitido": true,
+      "tutor": true
+    },
+    "nota": "Las inscripciones se cerrarán el día anterior al evento o al agotarse los dorsales",
+    "pasarela": {
+      "proveedor": "rockthesport",
+      "url": "https://www.rockthesport.com/es/evento/gc_carrera_popular_la_rioja",
+      "metodos": [
+        "tarjeta"
+      ]
+    }
+  },
+  "pruebas": [
+    {
+      "id": "K500",
+      "nombre": "500 m niños",
+      "tipo": "infantil",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 500,
+      "distanciaTexto": "500 m",
+      "salida": "11:00",
+      "edad": {
+        "nacidosDesde": 2017,
+        "nacidosHasta": 2021
+      },
+      "descripcion": "Carrera no clasificatoria para los más pequeños. Obsequio para todos los participantes"
+    },
+    {
+      "id": "K1",
+      "nombre": "1 km niños",
+      "tipo": "infantil",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 1000,
+      "distanciaTexto": "1 km",
+      "salida": "11:10",
+      "edad": {
+        "nacidosDesde": 2013,
+        "nacidosHasta": 2016
+      },
+      "descripcion": "Carrera no clasificatoria para niños. Obsequio para todos los participantes"
+    },
+    {
+      "id": "K2",
+      "nombre": "2 km juvenil",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 2000,
+      "distanciaTexto": "2 km",
+      "salida": "11:20",
+      "edad": {
+        "nacidosDesde": 2010,
+        "nacidosHasta": 2012
+      },
+      "descripcion": "Dorsal con chip y trofeo para los 3 primeros clasificados (categorías masculina y femenina)"
+    },
+    {
+      "id": "K6",
+      "nombre": "6 km carrera popular",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 6000,
+      "distanciaTexto": "6 km",
+      "salida": "12:00",
+      "edad": {
+        "nacidosHasta": 2009
+      },
+      "descripcion": "Dorsal con chip y trofeo para los 3 primeros clasificados (categorías masculina y femenina)"
+    },
+    {
+      "id": "CAM6",
+      "nombre": "Caminata 6 km",
+      "tipo": "marcha",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 6000,
+      "distanciaTexto": "6 km",
+      "salida": "12:10",
+      "limite": "1 h 30 min",
+      "descripcion": "Caminata solidaria, todas las edades"
+    }
+  ],
+  "premios": [
+    {
+      "pruebas": [
+        "K500",
+        "K1"
+      ],
+      "premio": "Obsequio",
+      "texto": "Para todos los participantes, carrera no clasificatoria"
+    },
+    {
+      "pruebas": [
+        "K2",
+        "K6"
+      ],
+      "premio": "Trofeos",
+      "texto": "Para los tres primeros clasificados (masculino y femenino)"
+    },
+    {
+      "pruebas": [
+        "K6"
+      ],
+      "categoria": "FFCCSE",
+      "premio": "Reconocimiento",
+      "texto": "Primer ganador masculino y femenino de las FFCCSE"
+    }
+  ],
+  "servicios": [
+    {
+      "nombre": "Vestuarios y Duchas",
+      "texto": "Vestuarios y duchas disponibles",
+      "icono": "shower"
+    },
+    {
+      "nombre": "Bolsa del Corredor",
+      "texto": "Para todos los participantes al recoger el dorsal",
+      "icono": "gift"
+    },
+    {
+      "nombre": "Música",
+      "texto": "Animación musical en salida y meta",
+      "icono": "music"
+    },
+    {
+      "nombre": "Medición de Tiempos",
+      "texto": "Con chip para 2K y 6K",
+      "icono": "stopwatch"
+    },
+    {
+      "nombre": "Degustaciones",
+      "texto": "Degustación solidaria al finalizar la carrera",
+      "icono": "utensils"
+    },
+    {
+      "nombre": "Camiseta Conmemorativa",
+      "texto": "Para todos los participantes inscritos",
+      "icono": "tshirt"
+    },
+    {
+      "nombre": "Exposición de medios",
+      "texto": "Exposición de medios de la Guardia Civil",
+      "icono": "newspaper"
+    },
+    {
+      "nombre": "Animación infantil",
+      "texto": "Hinchables, talleres...",
+      "icono": "child"
+    }
+  ],
+  "camiseta": {
+    "incluida": true,
+    "texto": "Camiseta técnica oficial. Material transpirable, diseño conmemorativo, tallas desde los 4 años hasta XXL.",
+    "imagen": "camiseta.png"
+  },
+  "fotos": {
+    "url": "https://www.fotoadictoslarioja.com/i-carrera-solidaria-guardia-civil-la-rioja-por-el-autismo",
+    "disponible": true,
+    "texto": "¡Revive los mejores momentos de nuestra carrera solidaria! Aquí encontrarás todas las fotografías del evento una vez finalizado."
+  },
+  "patrocinadores": [
+    {
+      "nombre": "Guardia Civil La Rioja",
+      "logo": "sponsors/Coat_of_Arms_of_the_10th_Zone_of_the_Guardia_Civil_-_La_Rioja.svg.png",
+      "web": "https://www.guardiacivil.es",
+      "nivel": "organiza"
+    },
+    {
+      "nombre": "Ayuntamiento de Villamediana",
+      "logo": "sponsors/Ayuntamiento.jpg",
+      "web": "https://www.villamedianadeiregua.org/",
+      "nivel": "institucional"
+    },
+    {
+      "nombre": "ARPA Autismo Rioja",
+      "logo": "sponsors/arpa-todos.png",
+      "web": "https://autismorioja.com/",
+      "nivel": "beneficiario"
+    },
+    {
+      "nombre": "CaixaBank",
+      "logo": "sponsors/CAIXABANK.png",
+      "web": "https://www.caixabank.es",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Alcampo",
+      "logo": "sponsors/Alcampo.png",
+      "web": "https://www.alcampo.es",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Carrefour Express",
+      "logo": "sponsors/carrefour-express-1200x1424.jpg",
+      "web": "https://www.carrefour.es",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Bodegas Marqués de Cáceres",
+      "logo": "sponsors/MArques de Caceres.png",
+      "web": "https://www.marquesdecaceres.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Bodegas Lecea",
+      "logo": "sponsors/Bodegas lecea.jpg",
+      "web": "https://www.bodegaslecea.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Vivanco",
+      "logo": "sponsors/Vivanco.png",
+      "web": "https://vivancoculturadevino.es/es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Mazapanes Soto",
+      "logo": "sponsors/MAzapanes soto.png",
+      "web": "https://www.mazapanesdesotosegura.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Peras Rincón",
+      "logo": "sponsors/Peras rincon.jpg",
+      "web": "https://www.perasderincondesoto.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Coca Cola",
+      "logo": "sponsors/logo-coca-cola-onda-dinamica.jpg",
+      "web": "https://www.cocacola.es",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "VW Rioja Motor",
+      "logo": "sponsors/LOGO VW RIOJA MOTOR.jpg",
+      "web": "https://riojamotor.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Gasolinera Jubera",
+      "logo": "sponsors/Gasolinera jubera.jpg",
+      "web": "https://gasoleosjubera.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Genergy",
+      "logo": "sponsors/genergy.jpg",
+      "web": "https://genergy.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Centro Tecnológico Champiñón",
+      "logo": "sponsors/Centro tecnologico champi.jpeg",
+      "web": "https://ctich.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Signaai",
+      "logo": "sponsors/signaai.jpg",
+      "web": "https://signaai.com",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "RECIRSA",
+      "logo": "sponsors/RECIRSA.jpg",
+      "web": "https://www.recirsa.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Doctor Toledo",
+      "logo": "sponsors/Doctor Toledo.png",
+      "web": "https://doctortoledo.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Rioja Cuida",
+      "logo": "sponsors/Rioja Cuida.png",
+      "web": "https://bi.larioja.org/pentaho/lariojacuida/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Sirona",
+      "logo": "sponsors/Sirona.png",
+      "web": "https://www.instagram.com/sironafisio/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "UNIR - Universidad Internacional de La Rioja",
+      "logo": "sponsors/LARIOJA_H_color_300.png",
+      "web": "https://www.unir.net",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Club Coloma",
+      "logo": "sponsors/Club Coloma.jpeg",
+      "web": "https://colomabikeclub.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Biciván",
+      "logo": "sponsors/LOGO BICIVÁN TRAZADO.jpg",
+      "web": "https://bicivan.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Calle Activa",
+      "logo": "sponsors/calle-activa.png",
+      "web": "https://www.calleactiva.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Zenit",
+      "logo": "sponsors/Zenit.jpg",
+      "web": "https://logrono.zenithoteles.com/es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Ana Patón",
+      "logo": "sponsors/Ana Paton.jpg",
+      "web": "https://anapatonpilates.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "David Moreno",
+      "logo": "sponsors/DAVID MORENO.png",
+      "web": "https://davidmoreno.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Martínez Alesanco",
+      "logo": "sponsors/MARTINEZ ALESANCO.jpg",
+      "web": "https://bodegasmartinezalesanco.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Martínez Solmalo",
+      "logo": "sponsors/Martinez Solmalo.jpg",
+      "web": "https://martinezsomalo.com/es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Gurpegui",
+      "logo": "sponsors/Gurpegui.png",
+      "web": "https://centrodentalgurpegui.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Habecu",
+      "logo": "sponsors/habecu.png",
+      "web": "https://www.facebook.com/people/Habecu-La-Rioja/100089401037722/#",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "AEGC",
+      "logo": "sponsors/AEGC.png",
+      "web": "http://www.aegc.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "BAQUE",
+      "logo": "sponsors/BAQUE.jpg",
+      "web": "https://www.baque.com/es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "El Ángel",
+      "logo": "sponsors/El Angel.png",
+      "web": "https://www.facebook.com/pasteleriayreposteriaangel/?locale=es_ES",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Fotoadictos",
+      "logo": "sponsors/foto adictos.png",
+      "web": "https://www.fotoadictoslarioja.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "KrAFT",
+      "logo": "sponsors/krAFT.jpg",
+      "web": "https://www.kraftheinz.com/es-ES",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "LogoEPC",
+      "logo": "sponsors/LogoEPC-02.png",
+      "web": "https://www.epc-espana.com/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "A Marcos",
+      "logo": "sponsors/LOGO-A-MARCOS-VECTOR-SIN-FONDO.png",
+      "web": "https://www.armeriamarcos.es/es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Peñaclara",
+      "logo": "sponsors/peñaclara.jpg",
+      "web": "https://penaclara.es/",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Taxidermia Arte Decorativo",
+      "logo": "sponsors/Taxidermia arte decorativo.jpg",
+      "web": "https://taxidermiaad.com/",
+      "nivel": "colaborador"
+    }
+  ],
+  "contacto": {
+    "email": "lo-zon-carrerapopular@guardiacivil.org",
+    "telefono": "+34 941 22 99 00",
+    "direccion": "C. Duques de Nájera, 147, 26005 Logroño",
+    "redes": {
+      "instagram": "https://www.instagram.com/gc_carrera_popular_la_rioja"
+    }
+  },
+  "imagenes": {
+    "logo": "logo.png",
+    "escudo": "garras_inicio.png",
+    "hero": "hero-image.jpg",
+    "cartel": "cartel.jpg",
+    "camiseta": "camiseta.png",
+    "objetivo": "objective-image.jpg"
+  },
+  "marca": {
+    "colorMarca": "#1B5E20",
+    "colorAccion": "#F5C518"
+  },
+  "fuente": {
+    "origen": "https://carreraguardiacivillarioja.es/ (config.js)",
+    "fecha": "2026-09-21",
+    "pendiente": [
+      "reglamento",
+      "recorrido",
+      "tallas exactas de camiseta"
+    ]
+  }
+}

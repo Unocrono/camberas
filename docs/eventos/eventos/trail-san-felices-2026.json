@@ -1,0 +1,30 @@
+{
+  "slug": "trail-san-felices-2026",
+  "tenant": "san-felices-de-buelna",
+  "nombre": "Trail Popular San Felices de Buelna 2026",
+  "nombreCorto": "Trail San Felices",
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-12-15",
+  "fechaTexto": "15 de diciembre de 2026",
+  "lugar": { "nombre": "San Felices de Buelna", "municipio": "San Felices de Buelna", "provincia": "Cantabria" },
+  "organizador": { "nombre": "Pendiente" },
+  "estado": "borrador",
+  "inscripcion": {
+    "plazasDisponibles": null,
+    "modalidades": ["individual"],
+    "tarifas": [
+      { "id": "trail", "nombre": "Trail", "pruebas": ["TRAIL"], "periodos": [{ "precio": 0 }], "destacada": true },
+      { "id": "marcha", "nombre": "Marcha", "pruebas": ["MARCHA"], "periodos": [{ "precio": 0 }] }
+    ],
+    "campos": [{ "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }],
+    "pasarela": { "proveedor": "camberas", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    { "id": "TRAIL", "nombre": "Trail", "tipo": "carrera", "competitiva": true, "chip": true, "salida": "10:00" },
+    { "id": "MARCHA", "nombre": "Marcha", "tipo": "marcha", "competitiva": false, "chip": false, "salida": "10:00" }
+  ],
+  "contacto": {},
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones y cronometraje" },
+  "fuente": { "origen": "Solo se conoce fecha, lugar y que tiene trail + marcha (indicado por UNO). No hay web previa.", "fecha": "2026-09-22", "pendiente": ["nombre oficial y edición", "organizador", "distancias, desniveles, horarios", "precios y cierre", "reglamento", "recorridos/GPX", "cartel y logo", "patrocinadores"] }
+}

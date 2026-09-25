@@ -1,0 +1,69 @@
+{
+  "slug": "san-silvestre-corraliega-la-garita-2026",
+  "tenant": "los-corrales-de-buelna",
+  "nombre": "San Silvestre Corraliega · Subida a La Garita 2026",
+  "nombreCorto": "Subida a La Garita",
+  "descripcion": "La carrera discurre por el monte Orza hasta el pico La Garita. El centro neurálgico es la Plaza de la Constitución de Los Corrales de Buelna. Trail de 5,5 km con 691 m de desnivel positivo y meta en el pico; marcha a pie de 15,37 km. Se permite participar con animales de compañía, siempre con correa y bajo responsabilidad del dueño.",
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-12-31",
+  "fechaTexto": "Jueves 31 de diciembre de 2026",
+  "lugar": { "nombre": "Plaza de la Constitución", "municipio": "Los Corrales de Buelna", "provincia": "Cantabria", "zona": "Monte Orza · Pico La Garita (699 m)" },
+  "organizador": { "nombre": "San Silvestre Corraliega" },
+  "estado": "proximamente",
+  "inscripcion": {
+    "cierre": "2026-12-28T23:59:00+01:00",
+    "cierreTexto": "Online hasta el 28 de diciembre; el día de la prueba solo en casos puntuales",
+    "plazasDisponibles": null,
+    "modalidades": ["individual", "presencial"],
+    "tarifas": [
+      { "id": "trail", "nombre": "Trail", "pruebas": ["TRAIL"], "periodos": [{ "hasta": "2026-12-28", "precio": 12 }], "destacada": true },
+      { "id": "marcha", "nombre": "Marcha a pie", "pruebas": ["MARCHA"], "periodos": [{ "hasta": "2026-12-28", "precio": 6 }] }
+    ],
+    "campos": [
+      { "id": "club", "etiqueta": "Club", "tipo": "texto" },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": true, "tutor": true },
+    "pasarela": { "proveedor": "camberas", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    { "id": "TRAIL", "nombre": "Trail · Subida a La Garita", "tipo": "carrera", "competitiva": true, "chip": true,
+      "distancia": 5500, "distanciaTexto": "5,5 km", "desnivelPos": 691, "desnivelNeg": 0, "altMax": 699, "salida": "10:30",
+      "lugarSalida": "Plaza de la Constitución, Los Corrales de Buelna", "lugarMeta": "Pico La Garita (699 m)",
+      "avituallamientos": [{ "km": 3, "nombre": "Km 3", "tipo": "completo" }] },
+    { "id": "MARCHA", "nombre": "Marcha a pie", "tipo": "marcha", "competitiva": false, "chip": false,
+      "distancia": 15370, "distanciaTexto": "15,37 km", "salida": "10:00",
+      "lugarSalida": "Plaza de la Constitución", "lugarMeta": "Plaza de la Constitución",
+      "descripcion": "Plaza de la Constitución – Pico La Garita – La Jerrizuela – San Mateo – Plaza de la Constitución.",
+      "avituallamientos": [{ "km": 3, "nombre": "Km 3", "tipo": "completo" }, { "km": 8, "nombre": "Km 8", "tipo": "completo" }] }
+  ],
+  "reglamento": {
+    "url": "https://uno.es/media/com_eventbooking/Reglamento%20La%20Garita%202025.pdf",
+    "materialObligatorio": [],
+    "normasMaterial": "Material recomendado: móvil con saldo y batería, cortavientos, depósito de agua de al menos 0,5 l, calzado y ropa adecuados, silbato, gorra. Se autoriza el uso de bastones.",
+    "normas": [
+      "Avituallamientos con líquido, fruta, chocolate, panceta y huevos en el km 3 y el km 8. Se espera el turno y los residuos se dejan en la papelera.",
+      "Descalificación por salirse del itinerario balizado, no llevar el dorsal o recortarlo, cambiar balizas, tirar basura, abandonar material propio, no prestar auxilio o no atender a la organización.",
+      "Quien se retire o tenga problemas debe comunicarlo al control más próximo.",
+      "Animales de compañía permitidos, con correa y bajo responsabilidad exclusiva del dueño."
+    ]
+  },
+  "programa": [
+    { "fecha": "2026-12-30", "titulo": "Recogida de dorsales (preferente)", "lugar": "Los Corrales de Buelna" },
+    { "fecha": "2026-12-31", "hora": "09:30", "titulo": "Recogida de dorsales hasta 30 min antes de la salida" },
+    { "fecha": "2026-12-31", "hora": "10:00", "titulo": "Salida de la marcha a pie" },
+    { "fecha": "2026-12-31", "hora": "10:30", "titulo": "Salida del trail" },
+    { "fecha": "2026-12-31", "titulo": "Fiesta popular en meta con avituallamiento para todos" }
+  ],
+  "dorsales": { "lugar": "Los Corrales de Buelna", "horarios": [["30 de diciembre", "Preferente"], ["31 de diciembre", "Hasta 30 min antes de la salida"]], "nota": "Recoge el dorsal el día 30 para no retrasar la salida." },
+  "premios": [
+    { "pruebas": ["TRAIL"], "premio": "Jamón al ganador y premios a los 5 primeros", "texto": "Clasificación del trail." },
+    { "pruebas": ["MARCHA"], "premio": "Premios especiales", "texto": "Al andarín más joven, al más veterano y al último en llegar." }
+  ],
+  "contacto": { "email": "2026@uno.es" },
+  "clasificaciones": { "url": "https://resultados.uno.es", "tiempoReal": true },
+  "documentos": [{ "nombre": "Reglamento La Garita 2025 (referencia)", "url": "https://uno.es/media/com_eventbooking/Reglamento%20La%20Garita%202025.pdf", "tipo": "reglamento" }],
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones y cronometraje" },
+  "fuente": { "origen": "Reglamento 2025 (PDF uno.es) + Valle de Buelna FM + Cantabria Directa; edición 2026 pendiente de confirmar", "fecha": "2026-09-22", "pendiente": ["confirmar precios, horarios y cierre 2026", "lugar exacto de recogida de dorsales", "organizador (¿Ayuntamiento de Los Corrales?)", "premios exactos 2026", "cartel y logo"] }
+}

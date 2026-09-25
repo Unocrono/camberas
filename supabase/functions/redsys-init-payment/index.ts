@@ -1,34 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
+import {
+  generateSignature,
+  merchantParamsB64 as codificarParams,
+  nuevoOrderNumber,
+  resolverRetorno,
+  resolverTpv,
+  urlsParaCliente,
+} from "../_shared/redsys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-// Redsys configuration
-const REDSYS_URL_TEST = "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST";
-const REDSYS_URL_PROD = "https://sis.redsys.es/sis/rest/trataPeticionREST";
-const REDSYS_INSITE_URL_TEST = "https://sis-t.redsys.es:25443/sis/NC/sandbox/redsysV3.js";
-const REDSYS_INSITE_URL_PROD = "https://sis.redsys.es/sis/NC/redsysV3.js";
-
-// Firma Redsys HMAC_SHA256_V1:
-// 1. Derivar clave de operación cifrando el nº de pedido con 3DES-CBC
-//    (clave = secreto del comercio en base64, IV = ceros, padding = ceros)
-// 2. HMAC-SHA256 de Ds_MerchantParameters con la clave derivada
-// 3. Codificar en Base64 estándar
-function generateSignature(merchantParams: string, orderNumber: string, secretKey: string): string {
-  const key = CryptoJS.enc.Base64.parse(secretKey);
-  const iv = CryptoJS.enc.Hex.parse("0000000000000000");
-  const derivedKey = CryptoJS.TripleDES.encrypt(orderNumber, key, {
-    iv,
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.ZeroPadding,
-  }).ciphertext;
-  const hmac = CryptoJS.HmacSHA256(merchantParams, derivedKey);
-  return CryptoJS.enc.Base64.stringify(hmac);
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -36,21 +20,19 @@ serve(async (req) => {
   }
 
   try {
-    const MERCHANT_CODE = Deno.env.get("REDSYS_MERCHANT_CODE");
-    const TERMINAL = Deno.env.get("REDSYS_TERMINAL");
-    const SECRET_KEY = Deno.env.get("REDSYS_SECRET_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
-    if (!MERCHANT_CODE || !TERMINAL || !SECRET_KEY) {
-      throw new Error("Redsys credentials not configured");
-    }
-
-    const { 
-      registrationId, 
-      description, 
+    // retorno: a dónde vuelve el corredor tras pagar.
+    //  - "dashboard" (por defecto): /dashboard?payment=… en camberas.com, como siempre
+    //  - "web": la página de resultado de la web de la carrera
+    //    (/{slug}/inscripcion/ok|ko en camberas.com, o /inscripcion/ok|ko en su dominio)
+    const {
+      registrationId,
+      description,
       userEmail,
-      isTest = true 
+      isTest = true,
+      retorno = "dashboard",
     } = await req.json();
 
     if (!registrationId) {
@@ -64,7 +46,7 @@ serve(async (req) => {
     const supabaseAuth = createClient(SUPABASE_URL!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? SUPABASE_ANON_KEY!);
     const { data: registration, error: regErr } = await supabaseAuth
       .from("registrations")
-      .select("id, race_distance_id, email, coupon_id")
+      .select("id, race_distance_id, race_id, email, coupon_id, races(slug)")
       .eq("id", registrationId)
       .single();
     if (regErr || !registration) {
@@ -73,6 +55,12 @@ serve(async (req) => {
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    const raceId: string | null = registration.race_id ?? null;
+    const raceSlug: string | null = (registration as any).races?.slug ?? null;
+
+    // Comercio con el que se cobra: el del organizador si lo tiene, si no el de UNO
+    const tpv = await resolverTpv(supabaseAuth, raceId);
+    const vuelta = await resolverRetorno(supabaseAuth, req.headers.get("origin"), raceId, raceSlug);
 
     // Prefer active price tier (race_distance_prices covering now), else base price on race_distances
     const nowIso = new Date().toISOString();
@@ -201,39 +189,40 @@ serve(async (req) => {
     const amount = totalPrice;
 
     // Generate unique order number (12 digits max)
-    const timestamp = Date.now().toString().slice(-8);
-    const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-    const orderNumber = timestamp + random;
+    const orderNumber = nuevoOrderNumber();
 
     // Amount in cents (Redsys requires amount * 100)
     const amountCents = Math.round(amount * 100).toString();
+
+    // URL de vuelta: derivada en servidor (nunca una URL libre del cliente)
+    const urlOk = retorno === "web"
+      ? `${vuelta.base}${vuelta.prefijo}/inscripcion/ok?ref=${registrationId}`
+      : `${vuelta.base}/dashboard?payment=success`;
+    const urlKo = retorno === "web"
+      ? `${vuelta.base}${vuelta.prefijo}/inscripcion/ko?ref=${registrationId}`
+      : `${vuelta.base}/dashboard?payment=error`;
 
     // Build merchant parameters
     const merchantParams = {
       DS_MERCHANT_AMOUNT: amountCents,
       DS_MERCHANT_ORDER: orderNumber,
-      DS_MERCHANT_MERCHANTCODE: MERCHANT_CODE,
+      DS_MERCHANT_MERCHANTCODE: tpv.merchantCode,
       DS_MERCHANT_CURRENCY: "978", // EUR
       DS_MERCHANT_TRANSACTIONTYPE: "0", // Authorization
-      DS_MERCHANT_TERMINAL: TERMINAL,
+      DS_MERCHANT_TERMINAL: tpv.terminal,
       DS_MERCHANT_MERCHANTURL: `${SUPABASE_URL}/functions/v1/redsys-webhook`,
-      DS_MERCHANT_URLOK: `${req.headers.get("origin")}/dashboard?payment=success`,
-      DS_MERCHANT_URLKO: `${req.headers.get("origin")}/dashboard?payment=error`,
+      DS_MERCHANT_URLOK: urlOk,
+      DS_MERCHANT_URLKO: urlKo,
       DS_MERCHANT_PRODUCTDESCRIPTION: description || "Inscripción carrera",
       DS_MERCHANT_TITULAR: userEmail || "",
       DS_MERCHANT_PAYMETHODS: "C", // Card only
     };
 
-    // Encode merchant params to base64 en UTF-8 — btoa() a secas es Latin-1
-    // y rompe ñ/acentos en la descripción del producto (se ve "Pe�a" en Redsys)
-    const merchantParamsJson = JSON.stringify(merchantParams);
-    const utf8Bytes = new TextEncoder().encode(merchantParamsJson);
-    let binary = "";
-    for (const b of utf8Bytes) binary += String.fromCharCode(b);
-    const merchantParamsB64 = btoa(binary);
+    // Base64 en UTF-8 (btoa a secas rompe ñ/acentos en la descripción)
+    const merchantParamsB64 = codificarParams(merchantParams);
 
-    // Generate signature
-    const signature = await generateSignature(merchantParamsB64, orderNumber, SECRET_KEY);
+    // Firma con la clave del comercio que cobra
+    const signature = generateSignature(merchantParamsB64, orderNumber, tpv.secretKey);
 
     // Store payment intent — con service role (operación de servidor, no
     // sujeta a RLS). Si no se puede registrar el intent, NO se inicia el
@@ -248,6 +237,9 @@ serve(async (req) => {
         discount_amount: couponDiscount > 0 ? couponDiscount : null,
         status: "pending",
         merchant_params: merchantParams,
+        // Con qué comercio se firmó: el webhook verifica con esta clave
+        merchant_code: tpv.merchantCode,
+        secret_ref: tpv.secretRef,
       });
 
     if (insertError) {
@@ -269,10 +261,9 @@ serve(async (req) => {
         merchantParams: merchantParamsB64,
         signature,
         signatureVersion: "HMAC_SHA256_V1",
-        insiteUrl: isTest ? REDSYS_INSITE_URL_TEST : REDSYS_INSITE_URL_PROD,
-        redsysUrl: isTest ? REDSYS_URL_TEST : REDSYS_URL_PROD,
-        merchantCode: MERCHANT_CODE,
-        terminal: TERMINAL,
+        // Entorno y URLs del comercio que cobra (con TPV propio manda su
+        // entorno; con el de UNO, lo que pidió el cliente)
+        ...urlsParaCliente(tpv, isTest),
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

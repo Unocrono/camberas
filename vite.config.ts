@@ -67,11 +67,28 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        manualChunks: {
-          mapbox: ["mapbox-gl"],
-          charts: ["recharts"],
-          supabase: ["@supabase/supabase-js"],
-          react: ["react", "react-dom", "react-router-dom"],
+        // Forma de función y no de objeto: con el objeto, rollup metía en el
+        // primer trozo listado (mapbox) los módulos compartidos (los
+        // ayudantes commonjs) y en "charts" el propio React, así que cualquier
+        // página, también la web propia de una carrera, arrastraba mapbox
+        // (1,6 MB) y recharts (0,5 MB). Con la función cada librería va a su
+        // trozo y solo a su trozo; lo compartido lo reparte rollup.
+        manualChunks(id: string) {
+          const ruta = id.replace(/\\/g, "/");
+          // Ayudantes commonjs de rollup (módulo virtual): los usan react,
+          // supabase, mapbox…; si no se fijan acaban fundidos en "charts".
+          if (ruta.includes("commonjsHelpers")) return "react";
+          if (!ruta.includes("/node_modules/")) return undefined;
+          // clsx, tailwind-merge y cva son diminutos y los usa todo; si se
+          // dejan sueltos, rollup (experimentalMinChunkSize) los funde con el
+          // trozo que primero los carga, que era "charts", y la portada
+          // volvía a arrastrar recharts. Van con React, que siempre se baja.
+          if (/\/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|clsx|tailwind-merge|class-variance-authority)\//.test(ruta)) return "react";
+          if (ruta.includes("/node_modules/mapbox-gl/")) return "mapbox";
+          if (/\/node_modules\/(recharts|victory-vendor|d3-[a-z-]+)\//.test(ruta)) return "charts";
+          if (ruta.includes("/node_modules/@supabase/")) return "supabase";
+          if (ruta.includes("/node_modules/@tanstack/")) return "query";
+          return undefined;
         },
       },
     },

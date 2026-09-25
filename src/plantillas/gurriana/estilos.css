@@ -1,0 +1,143 @@
+/*
+ * Plantilla Gurriana — estilos con ámbito .wp. Nada de aquí sale del
+ * contenedor de la web de la carrera, y el tema de Camberas no entra.
+ * Los colores y fuentes vienen de las variables --wp-* que pone
+ * src/plantillas/libroDiseno.ts (variablesCss) en el propio contenedor.
+ *
+ * Neutros propios de la plantilla (no cambian con el libro de diseño):
+ * crema, tinta, gris de texto, oscuro. Vienen del libro de diseño de Gurriana.
+ */
+.wp {
+  --wp-cream: #f4f5f0;
+  --wp-ink: #1a2414;
+  --wp-body: #4a5540;
+  --wp-dark: #1a2414;
+  --wp-dark-2: #243219;
+  --wp-muted-dark: #c9d1bc;
+  --wp-border: #dfe3d6;
+  --wp-border-dark: #3a4a2e;
+  --wp-red: #c62828;
+
+  background: var(--wp-cream);
+  color: var(--wp-body);
+  font-family: var(--wp-fuente-texto);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
+.wp h1,
+.wp h2,
+.wp h3,
+.wp .wp-display {
+  font-family: var(--wp-fuente-display);
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: -0.5px;
+  color: var(--wp-ink);
+  margin: 0;
+}
+
+.wp p {
+  margin: 0;
+}
+
+/* Etiqueta de sección */
+.wp .wp-label {
+  font-family: var(--wp-fuente-texto);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--wp-marca);
+}
+
+/* Cifras y datos destacados */
+.wp .wp-num {
+  font-family: var(--wp-fuente-display);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--wp-ink);
+}
+
+/* Botón principal (color de acción) */
+.wp .wp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 52px;
+  padding: 0 1.5rem;
+  border-radius: 10px;
+  background: var(--wp-accion);
+  color: var(--wp-accion-texto);
+  font-family: var(--wp-fuente-display);
+  font-weight: 800;
+  font-size: 1.125rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.wp .wp-btn:hover {
+  filter: brightness(0.94);
+}
+.wp .wp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Botón secundario: borde del color del texto donde esté */
+.wp .wp-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 52px;
+  padding: 0 1.5rem;
+  border-radius: 10px;
+  border: 2px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-family: var(--wp-fuente-display);
+  font-weight: 800;
+  font-size: 1.125rem;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Cinta de meta: el único degradado permitido (13 tonos del rotulado) */
+.wp .wp-cinta {
+  height: 5px;
+  background: linear-gradient(90deg, #d14115, #d99116 9%, #d3c609 18%, #8dcc0b 27%, #68e212 36%, #21ce18 45%, #25dca3 54%, #0fb5c8 63%, #2067ad 72%, #4c6eb6 80%, #cf87d2 88%, #d156c6 94%, #c437bf);
+}
+
+/* Tarjeta clara */
+.wp .wp-card {
+  border-radius: var(--wp-radio);
+  border: 1px solid var(--wp-border);
+  background: #fff;
+}
+
+/* Sección con ancla bajo la cabecera fija */
+.wp [id] {
+  scroll-margin-top: 88px;
+}
+
+.wp a:focus-visible,
+.wp button:focus-visible {
+  outline: 3px solid var(--wp-secundario);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wp {
+    scroll-behavior: auto;
+  }
+}

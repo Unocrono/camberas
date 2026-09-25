@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://camberas.com/schemas/evento.v1.json",
+  "title": "Evento Camberas",
+  "description": "Esquema único de evento deportivo para la plantilla web multi-tenant y la API de Camberas. Generalizado a partir de 5 carreras reales: Gurriana Trail (trail 2 distancias), Carrera Solidaria Guardia Civil La Rioja (popular solidaria, 5 pruebas por edad), Carrera Las Arenas-Bilbao (ruta, tarifas por periodo), Entre Viñedos (individual + equipos de 10 + infantil con tutor) y Marcha Ademco (marcha no competitiva, 3 rutas).",
+  "type": "object",
+  "required": ["slug", "tenant", "nombre", "deporte", "fecha", "lugar", "organizador", "estado", "inscripcion", "pruebas", "contacto"],
+  "additionalProperties": false,
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]+$", "description": "Identificador público único. Es el data-evento del widget y el path de la API." },
+    "tenant": { "type": "string", "description": "Organizador/cliente propietario (multi-tenant)." },
+    "nombre": { "type": "string" },
+    "nombreCorto": { "type": "string" },
+    "edicion": { "type": "integer", "minimum": 1 },
+    "subtitulo": { "type": "string" },
+    "descripcion": { "type": "string" },
+    "deporte": { "type": "string", "enum": ["trail", "ruta", "popular", "marcha", "btt", "ciclismo", "triatlon", "natacion", "otro"] },
+    "competitivo": { "type": "boolean", "default": true },
+    "federacion": { "type": "string", "description": "Calendario/homologación (FCDME, RFEA, FEDME…)" },
+    "fecha": { "type": "string", "format": "date" },
+    "fechaTexto": { "type": "string" },
+    "fechaFin": { "type": "string", "format": "date", "description": "Solo eventos de varios días / por etapas" },
+    "lugar": {
+      "type": "object", "required": ["nombre", "municipio"], "additionalProperties": false,
+      "properties": {
+        "nombre": { "type": "string" }, "direccion": { "type": "string" }, "municipio": { "type": "string" },
+        "provincia": { "type": "string" }, "zona": { "type": "string", "description": "Sierra, parque natural, comarca…" },
+        "municipios": { "type": "array", "items": { "type": "string" } },
+        "coords": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+        "mapaUrl": { "type": "string", "format": "uri" }
+      }
+    },
+    "organizador": {
+      "type": "object", "required": ["nombre"], "additionalProperties": false,
+      "properties": { "nombre": { "type": "string" }, "web": { "type": "string" }, "email": { "type": "string" }, "telefono": { "type": "string" } }
+    },
+    "beneficiario": {
+      "type": "object", "required": ["nombre"], "additionalProperties": false,
+      "description": "Solo carreras solidarias",
+      "properties": { "nombre": { "type": "string" }, "web": { "type": "string" }, "texto": { "type": "string" }, "logo": { "type": "string" } }
+    },
+    "estado": { "type": "string", "enum": ["borrador", "proximamente", "abierta", "cerrada", "agotada", "celebrada", "suspendida"] },
+    "inscripcion": {
+      "type": "object", "required": ["modalidades", "tarifas"], "additionalProperties": false,
+      "properties": {
+        "apertura": { "type": "string", "description": "ISO 8601 con hora" },
+        "cierre": { "type": "string" },
+        "cierreTexto": { "type": "string" },
+        "limiteDorsales": { "type": "integer" },
+        "plazasDisponibles": { "type": ["integer", "null"], "description": "Solo lo devuelve la API en tiempo real; en fixtures null" },
+        "edadMinima": { "type": "integer" },
+        "modalidades": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["individual", "equipo", "solidario", "presencial"] } },
+        "equipo": {
+          "type": "object", "required": ["tamano"], "additionalProperties": false,
+          "properties": { "tamano": { "type": "integer" }, "tamanoMax": { "type": "integer" }, "unPago": { "type": "boolean", "default": true }, "capitan": { "type": "boolean", "default": true } }
+        },
+        "tarifas": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "required": ["id", "nombre", "pruebas", "periodos"], "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" }, "nombre": { "type": "string" },
+              "pruebas": { "type": "array", "items": { "type": "string" }, "description": "ids de pruebas a las que aplica" },
+              "modalidad": { "type": "string", "enum": ["individual", "equipo", "solidario", "presencial"], "default": "individual" },
+              "periodos": {
+                "type": "array", "minItems": 1,
+                "items": { "type": "object", "required": ["precio"], "additionalProperties": false,
+                  "properties": { "desde": { "type": "string" }, "hasta": { "type": "string" }, "precio": { "type": "number" }, "etiqueta": { "type": "string" } } }
+              },
+              "condicion": {
+                "type": "object", "additionalProperties": false,
+                "description": "La tarifa solo aplica si se cumple",
+                "properties": { "federado": { "type": "boolean" }, "residente": { "type": "string" }, "socio": { "type": "string" }, "edadMax": { "type": "integer" }, "edadMin": { "type": "integer" } }
+              },
+              "incluye": { "type": "array", "items": { "type": "string" } },
+              "destacada": { "type": "boolean" },
+              "importesLibres": { "type": "array", "items": { "type": "number" }, "description": "Dorsal solidario: importes a elegir" }
+            }
+          }
+        },
+        "extras": {
+          "type": "array",
+          "description": "Suplementos u opciones con o sin coste: camiseta, seguro de día, bollo, autobús…",
+          "items": {
+            "type": "object", "required": ["id", "nombre", "tipo"], "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" }, "nombre": { "type": "string" },
+              "tipo": { "type": "string", "enum": ["opcion", "talla", "importe"] },
+              "precio": { "type": "number", "default": 0 },
+              "opciones": { "type": "array", "items": { "type": "string" } },
+              "obligatorio": { "type": "boolean", "default": false },
+              "condicion": { "type": "object", "additionalProperties": true },
+              "limite": { "type": "integer", "description": "Unidades disponibles (p. ej. camiseta a los primeros 400)" },
+              "pruebas": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "descuentos": {
+          "type": "array",
+          "items": { "type": "object", "required": ["tipo"], "additionalProperties": false,
+            "properties": { "tipo": { "type": "string", "enum": ["online", "residente", "federado", "socio", "cupon", "grupo"] }, "porcentaje": { "type": "number" }, "importe": { "type": "number" }, "texto": { "type": "string" } } }
+        },
+        "campos": {
+          "type": "array",
+          "description": "Campos adicionales del formulario, además de los básicos (nombre, apellidos, DNI, sexo, fecha de nacimiento, email, móvil, localidad, CCAA)",
+          "items": {
+            "type": "object", "required": ["id", "etiqueta", "tipo"], "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" }, "etiqueta": { "type": "string" },
+              "tipo": { "type": "string", "enum": ["texto", "opcion", "si_no", "numero", "fecha", "email", "telefono", "consentimiento"] },
+              "obligatorio": { "type": "boolean", "default": false },
+              "opciones": { "type": "array", "items": { "type": "string" } },
+              "condicion": { "type": "string", "enum": ["menor", "federado", "equipo"] },
+              "porInscrito": { "type": "boolean", "default": true, "description": "En equipos: se pide a cada miembro (true) o solo una vez (false)" }
+            }
+          }
+        },
+        "menores": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "permitido": { "type": "boolean" }, "edadMinima": { "type": "integer" }, "tutor": { "type": "boolean", "description": "Pide nombre, DNI, email y teléfono del tutor y autorización" } }
+        },
+        "devolucion": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "hasta": { "type": "string" }, "gastos": { "type": "number" }, "texto": { "type": "string" } }
+        },
+        "incluye": { "type": "array", "items": { "type": "string" } },
+        "nota": { "type": "string" },
+        "pasarela": {
+          "type": "object", "additionalProperties": false,
+          "properties": { "proveedor": { "type": "string", "enum": ["camberas", "uno", "rockthesport", "otro"] }, "url": { "type": "string" }, "metodos": { "type": "array", "items": { "type": "string", "enum": ["tarjeta", "bizum", "transferencia", "presencial"] } } }
+        }
+      }
+    },
+    "pruebas": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "nombre", "tipo", "salida"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "nombre": { "type": "string" },
+          "tipo": { "type": "string", "enum": ["carrera", "marcha", "infantil", "relevos", "km_vertical"] },
+          "competitiva": { "type": "boolean", "default": true },
+          "chip": { "type": "boolean", "default": true },
+          "distancia": { "type": "number", "description": "metros" },
+          "distanciaTexto": { "type": "string" },
+          "desnivelPos": { "type": "integer" }, "desnivelNeg": { "type": "integer" },
+          "altMax": { "type": "integer" }, "altMin": { "type": "integer" },
+          "salida": { "type": "string", "pattern": "^[0-9]{2}:[0-9]{2}$" },
+          "lugarSalida": { "type": "string" }, "lugarMeta": { "type": "string" },
+          "limite": { "type": "string", "description": "Tiempo límite, texto" },
+          "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "marcaje": { "type": "string" },
+          "superficie": { "type": "string" },
+          "terreno": { "type": "array", "items": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 } },
+          "municipios": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "edad": {
+            "type": "object", "additionalProperties": false,
+            "properties": { "minima": { "type": "integer" }, "maxima": { "type": "integer" }, "nacidosDesde": { "type": "integer" }, "nacidosHasta": { "type": "integer" } }
+          },
+          "categorias": { "type": "array", "items": { "$ref": "#/$defs/categoria" } },
+          "avituallamientos": {
+            "type": "array",
+            "items": { "type": "object", "required": ["km", "nombre", "tipo"], "additionalProperties": false,
+              "properties": { "km": { "type": "number" }, "nombre": { "type": "string" }, "tipo": { "type": "string", "enum": ["liquido", "completo"] }, "corte": { "type": "string" }, "limite": { "type": "string" } } }
+          },
+          "track": { "type": "object", "additionalProperties": false, "properties": { "gpx": { "type": "string" }, "wikiloc": { "type": "string" }, "mapa": { "type": "string" } } },
+          "plazas": { "type": "integer" }
+        }
+      }
+    },
+    "categorias": { "type": "array", "items": { "$ref": "#/$defs/categoria" }, "description": "Categorías comunes a todas las pruebas (si no se definen por prueba)" },
+    "reglamento": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string" },
+        "materialObligatorio": { "type": "array", "items": { "type": "string" } },
+        "normasMaterial": { "type": "string" },
+        "marcaje": { "type": "array", "items": { "type": "string" } },
+        "normas": { "type": "array", "items": { "type": "string" } },
+        "reclamaciones": { "type": "string" }
+      }
+    },
+    "programa": {
+      "type": "array",
+      "items": { "type": "object", "required": ["titulo"], "additionalProperties": false,
+        "properties": { "fecha": { "type": "string" }, "hora": { "type": "string" }, "horaFin": { "type": "string" }, "titulo": { "type": "string" }, "lugar": { "type": "string" } } }
+    },
+    "dorsales": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "lugar": { "type": "string" }, "horarios": { "type": "array", "items": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 } }, "nota": { "type": "string" } }
+    },
+    "premios": {
+      "type": "array",
+      "items": { "type": "object", "required": ["premio"], "additionalProperties": false,
+        "properties": { "pruebas": { "type": "array", "items": { "type": "string" } }, "categoria": { "type": "string" }, "premio": { "type": "string" }, "texto": { "type": "string" } } }
+    },
+    "entregaPremios": { "type": "string" },
+    "servicios": {
+      "type": "array",
+      "items": { "type": "object", "required": ["nombre"], "additionalProperties": false,
+        "properties": { "nombre": { "type": "string" }, "texto": { "type": "string" }, "icono": { "type": "string" } } }
+    },
+    "camiseta": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "incluida": { "type": "boolean" }, "precio": { "type": "number" }, "hasta": { "type": "string" }, "limite": { "type": "integer" }, "tallas": { "type": "array", "items": { "type": "string" } }, "texto": { "type": "string" }, "imagen": { "type": "string" } }
+    },
+    "sanitario": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "medios": { "type": "array", "items": { "type": "array", "items": { "type": "string" }, "minItems": 2, "maxItems": 2 } }, "nota": { "type": "string" } }
+    },
+    "medioAmbiente": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "espacio": { "type": "string" }, "habitats": { "type": "string" }, "especies": { "type": "string" }, "normas": { "type": "string" }, "adhesion": { "type": "string" } }
+    },
+    "infoPractica": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "comoLlegar": { "type": "string" }, "parking": { "type": "string" }, "alojamiento": { "type": "string" }, "espectadores": { "type": "string" },
+        "transporte": { "type": "string" },
+        "faq": { "type": "array", "items": { "type": "object", "required": ["p", "r"], "properties": { "p": { "type": "string" }, "r": { "type": "string" } } } }
+      }
+    },
+    "clasificaciones": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "url": { "type": "string" }, "tiempoReal": { "type": "boolean" }, "anteriores": { "type": "array", "items": { "type": "object", "required": ["anio", "url"], "properties": { "anio": { "type": "integer" }, "url": { "type": "string" } } } } }
+    },
+    "fotos": { "type": "object", "additionalProperties": false, "properties": { "url": { "type": "string" }, "disponible": { "type": "boolean" }, "texto": { "type": "string" } } },
+    "patrocinadores": {
+      "type": "array",
+      "items": { "type": "object", "required": ["nombre"], "additionalProperties": false,
+        "properties": { "nombre": { "type": "string" }, "logo": { "type": "string" }, "web": { "type": "string" }, "nivel": { "type": "string", "enum": ["organiza", "principal", "institucional", "beneficiario", "colaborador"] } } }
+    },
+    "contacto": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "email": { "type": "string" }, "emailDatos": { "type": "string" }, "telefono": { "type": "string" }, "direccion": { "type": "string" },
+        "redes": { "type": "object", "additionalProperties": false, "properties": { "instagram": { "type": "string" }, "facebook": { "type": "string" }, "web": { "type": "string" }, "x": { "type": "string" }, "youtube": { "type": "string" } } } }
+    },
+    "imagenes": { "type": "object", "additionalProperties": { "type": "string" }, "description": "logo, hero, cartel, camiseta, objetivo… rutas relativas al tenant" },
+    "documentos": {
+      "type": "array",
+      "items": { "type": "object", "required": ["nombre", "url"], "additionalProperties": false,
+        "properties": { "nombre": { "type": "string" }, "url": { "type": "string" }, "tipo": { "type": "string", "enum": ["reglamento", "mapa", "gpx", "cartel", "autorizacion", "otro"] } } }
+    },
+    "marca": {
+      "type": "object", "additionalProperties": false,
+      "description": "Tema por tenant. Si falta, la plantilla usa el libro de diseño Camberas por defecto",
+      "properties": { "colorMarca": { "type": "string" }, "colorAccion": { "type": "string" }, "colorSecundario": { "type": "string" }, "fuenteDisplay": { "type": "string" }, "heroTexturaLogo": { "type": "boolean" } }
+    },
+    "seo": { "type": "object", "additionalProperties": false, "properties": { "titulo": { "type": "string" }, "descripcion": { "type": "string" } } },
+    "servicios_tecnicos": { "type": "object", "additionalProperties": false, "properties": { "proveedor": { "type": "string" }, "texto": { "type": "string" } } },
+    "fuente": { "type": "object", "additionalProperties": true, "description": "Trazabilidad: de dónde salió el dato (web original, fecha)" }
+  },
+  "$defs": {
+    "categoria": {
+      "type": "object", "required": ["id", "nombre"], "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" }, "nombre": { "type": "string" },
+        "sexo": { "type": "string", "enum": ["M", "F", "mixto"] },
+        "edadMin": { "type": "integer" }, "edadMax": { "type": "integer" },
+        "nacidosDesde": { "type": "integer" }, "nacidosHasta": { "type": "integer" },
+        "criterio": { "type": "string", "enum": ["edad_dia_prueba", "edad_31_dic", "anio_nacimiento"], "default": "edad_dia_prueba" }
+      }
+    }
+  }
+}

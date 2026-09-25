@@ -37,6 +37,7 @@ import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboar
 import { CategoriesManagement } from "@/components/admin/CategoriesManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
+import { WebPropiaManagement } from "@/components/admin/WebPropiaManagement";
 import { Loader2, Filter, ChevronDown, ChevronUp, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -241,6 +242,16 @@ const OrganizerDashboard = () => {
               )
             )}
             {currentView === "registrations" && <RegistrationManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
+            {/* Web propia de la carrera: plantilla, contenido, patrocinadores, dominio, TPV */}
+            {currentView === "web-propia" && (
+              selectedRaceId ? (
+                <WebPropiaManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para configurar su web</p>
+                </div>
+              )
+            )}
             {/* Puestos del día de carrera con entrada propia en el menú, como en admin */}
             {currentView === "mesas-recogida" && (
               selectedRaceId ? (

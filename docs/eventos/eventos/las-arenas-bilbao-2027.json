@@ -1,0 +1,70 @@
+{
+  "slug": "carrera-las-arenas-bilbao-2027",
+  "tenant": "uno-crono",
+  "nombre": "XXXI Carrera Las Arenas - Bilbao 2027",
+  "nombreCorto": "Las Arenas - Bilbao",
+  "edicion": 31,
+  "subtitulo": "La más antigua de Euskadi sobre asfalto",
+  "descripcion": "12.335 metros de asfalto que unen Las Arenas con el centro de Bilbao, bordeando la ría y pasando por Leioa y Erandio.",
+  "deporte": "ruta",
+  "competitivo": true,
+  "fecha": "2027-01-31",
+  "fechaTexto": "Domingo 31 de enero de 2027",
+  "lugar": { "nombre": "Eduardo Coste, junto a la plaza del Puente Colgante", "municipio": "Getxo (Las Arenas)", "provincia": "Bizkaia" },
+  "organizador": { "nombre": "Uno Crono", "email": "carreralasarenasbilbao2027@gmail.com" },
+  "estado": "abierta",
+  "inscripcion": {
+    "apertura": "2026-09-01T00:00:00+02:00",
+    "cierre": "2027-01-31T09:00:00+01:00",
+    "cierreTexto": "Hasta el mismo día si quedan plazas",
+    "plazasDisponibles": null,
+    "modalidades": ["individual"],
+    "tarifas": [
+      {
+        "id": "general", "nombre": "Inscripción", "pruebas": ["K12"], "destacada": true,
+        "periodos": [
+          { "desde": "2026-09-01", "hasta": "2026-09-30", "precio": 20, "etiqueta": "Septiembre 2026" },
+          { "desde": "2026-10-01", "hasta": "2026-10-31", "precio": 22, "etiqueta": "Octubre 2026" },
+          { "desde": "2026-11-01", "hasta": "2026-11-30", "precio": 24, "etiqueta": "Noviembre 2026" },
+          { "desde": "2026-12-01", "hasta": "2026-12-31", "precio": 26, "etiqueta": "Diciembre 2026" },
+          { "desde": "2027-01-01", "hasta": "2027-01-23", "precio": 28, "etiqueta": "1 al 23 de enero" },
+          { "desde": "2027-01-24", "hasta": "2027-01-29", "precio": 30, "etiqueta": "24 al 29 de enero" },
+          { "desde": "2027-01-30", "hasta": "2027-01-31", "precio": 40, "etiqueta": "30 y 31 de enero (si quedan plazas)" }
+        ]
+      }
+    ],
+    "extras": [
+      { "id": "talla", "nombre": "Talla de camiseta técnica", "tipo": "talla", "precio": 0, "opciones": ["S", "M", "L", "XL", "XXL"], "obligatorio": true }
+    ],
+    "campos": [
+      { "id": "club", "etiqueta": "Club", "tipo": "texto" },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "incluye": ["Camiseta oficial técnica", "Dorsal-chip homologado", "Productos de patrocinadores", "Guardarropa en autobuses", "Autobús de retorno a Las Arenas", "Avituallamiento intermedio y final"],
+    "pasarela": { "proveedor": "uno", "url": "https://uno.es/carreras/carrera-las-arenas-bilbao-2027/individual-registration", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    {
+      "id": "K12", "nombre": "Las Arenas - Bilbao", "tipo": "carrera", "competitiva": true, "chip": true,
+      "distancia": 12335, "distanciaTexto": "12,335 km", "salida": "10:30",
+      "lugarSalida": "Eduardo Coste (Las Arenas, junto a la plaza del Puente Colgante)", "lugarMeta": "Paseo de Uribitarte (junto al Puente del Ayuntamiento de Bilbao)",
+      "limite": "1 h 45 min", "superficie": "100 % asfalto, lineal y muy favorable",
+      "avituallamientos": [{ "km": 6.5, "nombre": "Elorrieta", "tipo": "liquido" }, { "km": 12.335, "nombre": "Meta", "tipo": "completo" }]
+    }
+  ],
+  "servicios": [
+    { "nombre": "Baños en la zona de salida" },
+    { "nombre": "Guardarropa en autobuses", "texto": "Entrega tus pertenencias en la salida y recógelas en meta" },
+    { "nombre": "Autobuses de retorno", "texto": "Traslados gratuitos de vuelta a Las Arenas al finalizar" },
+    { "nombre": "Avituallamiento", "texto": "Intermedio en el km 6,5 (Elorrieta) y final completo en meta con repostería y lácteos Kaiku" },
+    { "nombre": "Sorteo de regalos", "texto": "En la zona de llegada" },
+    { "nombre": "Fotografías y vídeos gratuitos", "texto": "Descarga directa desde la página de Facebook de la carrera" },
+    { "nombre": "Clasificaciones en tiempo real", "texto": "En www.uno.es" }
+  ],
+  "camiseta": { "incluida": true, "tallas": ["S", "M", "L", "XL", "XXL"] },
+  "clasificaciones": { "url": "https://uno.es", "tiempoReal": true },
+  "documentos": [{ "nombre": "Reglamento XXXI Carrera Las Arenas - Bilbao 2027", "url": "Reglamento XXXI Carrera Las Arenas - Bilbao 2027 1.pdf", "tipo": "reglamento" }],
+  "contacto": { "email": "carreralasarenasbilbao2027@gmail.com", "redes": { "facebook": "Carrera Las Arenas - Bilbao 2027" } },
+  "servicios_tecnicos": { "proveedor": "UNO Crono", "texto": "Inscripciones, cronometraje y clasificaciones" },
+  "fuente": { "origen": "https://uno.es/carreras/carrera-las-arenas-bilbao-2027", "fecha": "2026-09-22" }
+}

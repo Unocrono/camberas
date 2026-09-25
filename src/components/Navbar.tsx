@@ -6,10 +6,17 @@ import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsFunctionEnabled } from "@/hooks/useEdgeFunctionFlags";
 import { CamberasLogo } from "@/components/CamberasLogo";
+import { useTenant } from "@/tenant/TenantContext";
+import { CabeceraPropia } from "@/plantillas/gurriana/MarcoPropio";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer, isCapo } = useAuth();
   const isSupportChatEnabled = useIsFunctionEnabled("support-chat");
+  const { modo } = useTenant();
+
+  // Bajo el dominio propio de una carrera, la cabecera es la de la carrera
+  // (así clasificaciones, GPS, etc. salen con su marca sin tocar cada página)
+  if (modo === "propia") return <CabeceraPropia />;
 
   return (
     <nav className="fixed top-0 w-full bg-background/95 backdrop-blur-sm border-b border-border z-50">

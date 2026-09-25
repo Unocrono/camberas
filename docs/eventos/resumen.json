@@ -1,0 +1,220 @@
+[
+ {
+  "slug": "entre-vinedos-2026",
+  "nombre": "Entre Viñedos",
+  "deporte": "popular",
+  "pruebas": 2,
+  "tarifas": 4,
+  "mecanicas": [
+   "periodos",
+   "equipo",
+   "presencial",
+   "tutor",
+   "extra€",
+   "infantil"
+  ],
+  "secciones": [],
+  "estado": "abierta",
+  "pendiente": [
+   "hora de salida real (10:00 y 09:30 son provisionales)",
+   "distancia de la prueba absoluta",
+   "años de nacimiento de alevín/infantil/cadete"
+  ]
+ },
+ {
+  "slug": "carrera-solidaria-guardia-civil-la-rioja-2025",
+  "nombre": "Carrera Solidaria Guardia Civil",
+  "deporte": "popular",
+  "pruebas": 5,
+  "tarifas": 3,
+  "mecanicas": [
+   "solidario",
+   "tutor",
+   "marcha",
+   "infantil"
+  ],
+  "secciones": [
+   "beneficiario",
+   "premios",
+   "servicios",
+   "camiseta",
+   "fotos",
+   "patrocinadores",
+   "marca"
+  ],
+  "estado": "celebrada",
+  "pendiente": [
+   "reglamento",
+   "recorrido",
+   "tallas exactas de camiseta"
+  ]
+ },
+ {
+  "slug": "gurriana-trail-2027",
+  "nombre": "Gurriana Trail",
+  "deporte": "trail",
+  "pruebas": 2,
+  "tarifas": 4,
+  "mecanicas": [
+   "condicion",
+   "extra€",
+   "avit",
+   "cortes"
+  ],
+  "secciones": [
+   "categorias",
+   "reglamento",
+   "programa",
+   "dorsales",
+   "camiseta",
+   "sanitario",
+   "medioAmbiente",
+   "patrocinadores",
+   "marca"
+  ],
+  "estado": "proximamente",
+  "pendiente": []
+ },
+ {
+  "slug": "carrera-las-arenas-bilbao-2027",
+  "nombre": "Las Arenas - Bilbao",
+  "deporte": "ruta",
+  "pruebas": 1,
+  "tarifas": 1,
+  "mecanicas": [
+   "periodos",
+   "avit"
+  ],
+  "secciones": [
+   "servicios",
+   "camiseta",
+   "clasificaciones",
+   "documentos"
+  ],
+  "estado": "abierta",
+  "pendiente": []
+ },
+ {
+  "slug": "loiu-500-trail-2026",
+  "nombre": "Loiu 500 Trail",
+  "deporte": "trail",
+  "pruebas": 3,
+  "tarifas": 2,
+  "mecanicas": [
+   "periodos",
+   "tutor",
+   "descuento",
+   "marcha"
+  ],
+  "secciones": [
+   "reglamento",
+   "programa",
+   "dorsales",
+   "premios",
+   "servicios",
+   "camiseta",
+   "clasificaciones",
+   "documentos"
+  ],
+  "estado": "abierta",
+  "pendiente": [
+   "categorías por edad (el reglamento solo premia absoluta)",
+   "tracks GPX (están en Camberas)",
+   "patrocinadores"
+  ]
+ },
+ {
+  "slug": "marcha-popular-ademco-2026",
+  "nombre": "Marcha Ademco",
+  "deporte": "marcha",
+  "pruebas": 3,
+  "tarifas": 4,
+  "mecanicas": [
+   "condicion",
+   "presencial",
+   "extra-limite",
+   "descuento",
+   "marcha"
+  ],
+  "secciones": [
+   "camiseta"
+  ],
+  "estado": "abierta",
+  "pendiente": [
+   "punto de encuentro exacto en Colindres",
+   "precio online de menores (uno.es no lo desglosa: 6,80 € es el 15 % sobre 8 €)"
+  ]
+ },
+ {
+  "slug": "ii-pena-prieta-skyrace",
+  "nombre": "Peña Prieta Skyrace",
+  "deporte": "trail",
+  "pruebas": 3,
+  "tarifas": 3,
+  "mecanicas": [
+   "marcha"
+  ],
+  "secciones": [
+   "servicios",
+   "camiseta"
+  ],
+  "estado": "abierta",
+  "pendiente": [
+   "categorías",
+   "material obligatorio",
+   "cortes intermedios",
+   "reglamento (enlace en Camberas)"
+  ]
+ },
+ {
+  "slug": "san-silvestre-corraliega-la-garita-2026",
+  "nombre": "Subida a La Garita",
+  "deporte": "trail",
+  "pruebas": 2,
+  "tarifas": 2,
+  "mecanicas": [
+   "presencial",
+   "tutor",
+   "marcha",
+   "avit"
+  ],
+  "secciones": [
+   "reglamento",
+   "programa",
+   "dorsales",
+   "premios",
+   "clasificaciones",
+   "documentos"
+  ],
+  "estado": "proximamente",
+  "pendiente": [
+   "confirmar precios, horarios y cierre 2026",
+   "lugar exacto de recogida de dorsales",
+   "organizador (¿Ayuntamiento de Los Corrales?)",
+   "premios exactos 2026",
+   "cartel y logo"
+  ]
+ },
+ {
+  "slug": "trail-san-felices-2026",
+  "nombre": "Trail San Felices",
+  "deporte": "trail",
+  "pruebas": 2,
+  "tarifas": 2,
+  "mecanicas": [
+   "marcha"
+  ],
+  "secciones": [],
+  "estado": "borrador",
+  "pendiente": [
+   "nombre oficial y edición",
+   "organizador",
+   "distancias, desniveles, horarios",
+   "precios y cierre",
+   "reglamento",
+   "recorridos/GPX",
+   "cartel y logo",
+   "patrocinadores"
+  ]
+ }
+]

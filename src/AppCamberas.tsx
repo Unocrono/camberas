@@ -1,0 +1,185 @@
+// Camberas App - Race Management Platform
+// Árbol de rutas de camberas.com (y previas, localhost). Bajo el dominio propio
+// de una carrera se monta AppWebPropia en su lugar; App.tsx elige entre los dos.
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import Index from "./pages/Index";
+import Races from "./pages/Races";
+import RaceDetail from "./pages/RaceDetail";
+import RaceRegulation from "./pages/RaceRegulation";
+import RaceResults from "./pages/RaceResults";
+import LiveResults from "./pages/LiveResults";
+import SplitClassification from "./pages/SplitClassification";
+import LiveGPSTracking from "./pages/LiveGPSTracking";
+import Grupetta from "./pages/Grupetta";
+import Descargas from "./pages/Descargas";
+import GrupettaCapo from "./pages/GrupettaCapo";
+import MyTeam from "./pages/MyTeam";
+import TeamRegister from "./pages/TeamRegister";
+import TeamsLanding from "./pages/TeamsLanding";
+import CamberasTrackLive from "./pages/CamberasTrackLive";
+import TrackLanding from "./pages/TrackLanding";
+import Planes from "./pages/Planes";
+import Auth from "./pages/Auth";
+import OrganizerAuth from "./pages/OrganizerAuth";
+import OrganizersLanding from "./pages/OrganizersLanding";
+import Profile from "./pages/Profile";
+import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import OrganizerDashboard from "./pages/OrganizerDashboard";
+import OrganizerApp from "./pages/OrganizerApp";
+import AiSupportChat from "./pages/AiSupportChat";
+import SupportChat from "./pages/SupportChat";
+import Faqs from "./pages/Faqs";
+import OrganizerProfile from "./pages/OrganizerProfile";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import NotFound from "./pages/NotFound";
+import RetomarPago from "./pages/RetomarPago";
+import CederDorsal from "./pages/CederDorsal";
+import CederSolicitar from "./pages/CederSolicitar";
+import PantallaSeguimiento from "./pages/PantallaSeguimiento";
+import RecogidaDorsales from "./pages/RecogidaDorsales";
+import MiDorsal from "./pages/MiDorsal";
+import VueloEmbebido from "./pages/VueloEmbebido";
+import Roadbook from "./pages/Roadbook";
+import BibDesignerPage from "./pages/BibDesignerPage";
+import Contact from "./pages/Contact";
+import Support from "./pages/Support";
+import TimingApp from "./pages/TimingApp";
+import StartControl from "./pages/StartControl";
+import Help from "./pages/Help";
+import OrganizerGuide from "./pages/OrganizerGuide";
+import Legal from "./pages/Legal";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+import Cookies from "./pages/Cookies";
+import OverlayManager from "./pages/OverlayManager";
+import MotoOverlay from "./pages/overlays/MotoOverlay";
+import RouteMapOverlay from "./pages/overlays/RouteMapOverlay";
+import ElevationOverlay from "./pages/overlays/ElevationOverlay";
+import LoteriaNavidad from "./pages/LoteriaNavidad";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import SimpleOverlayConfig from "./pages/SimpleOverlayConfig";
+import LiveTracking from "./pages/LiveTracking";
+// Web de la carrera con plantilla (src/plantillas): FichaCarrera elige entre
+// la plantilla y RaceDetail; el resto son sus páginas interiores
+import FichaCarrera from "./pages/web/FichaCarrera";
+import PaginaReglamento from "./pages/web/PaginaReglamento";
+import PaginaRecorrido from "./pages/web/PaginaRecorrido";
+import PaginaInscripcionResultado from "./pages/web/PaginaInscripcionResultado";
+import PaginaLegal from "./pages/web/PaginaLegal";
+
+const queryClient = new QueryClient();
+
+const AppCamberas = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Navigate to="/races" replace />} />
+          
+          {/* Rutas específicas primero - deben ir antes de las rutas con parámetros dinámicos */}
+          <Route path="/races" element={<Races />} />
+          <Route path="/descargas" element={<Descargas />} />
+          <Route path="/grupetta" element={<Grupetta />} />
+          <Route path="/grupetta/capo" element={<GrupettaCapo />} />
+          <Route path="/equipos" element={<TeamsLanding />} />
+          <Route path="/equipo" element={<MyTeam />} />
+          <Route path="/equipo/inscribir/:teamId" element={<TeamRegister />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth/organizer" element={<OrganizerAuth />} />
+          <Route path="/organizers" element={<OrganizersLanding />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/:view" element={<AdminDashboard />} />
+          <Route path="/admin/support" element={<SupportChat />} />
+          <Route path="/organizer" element={<OrganizerDashboard />} />
+          <Route path="/org" element={<OrganizerApp />} />
+          <Route path="/organizer/bib-designer" element={<BibDesignerPage />} />
+          <Route path="/support-chat" element={<AiSupportChat />} />
+          <Route path="/faqs" element={<Faqs />} />
+          <Route path="/organizer-profile" element={<OrganizerProfile />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/support" element={<Support />} />
+          <Route path="/timing" element={<TimingApp />} />
+          <Route path="/track" element={<TrackLanding />} />
+          <Route path="/ayuda" element={<Help />} />
+          <Route path="/guia-organizador" element={<OrganizerGuide />} />
+          <Route path="/legal" element={<Legal />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/cookies" element={<Cookies />} />
+          <Route path="/planes" element={<Planes />} />
+          <Route path="/start" element={<StartControl />} />
+          <Route path="/live" element={<LiveTracking />} />
+          <Route path="/loteria" element={<LoteriaNavidad />} />
+          <Route path="/noticias" element={<Blog />} />
+          <Route path="/noticias/:slug" element={<BlogPost />} />
+          
+          {/* Overlay Manager y Overlays PRO */}
+          <Route path="/overlays" element={<OverlayManager />} />
+          <Route path="/overlay-config" element={<SimpleOverlayConfig />} />
+          <Route path="/overlay/moto/:raceId" element={<MotoOverlay />} />
+          <Route path="/overlay/route-map/:raceId" element={<RouteMapOverlay />} />
+          <Route path="/overlay/elevation/:raceId" element={<ElevationOverlay />} />
+          
+
+          {/* Rutas con /race/:id */}
+          <Route path="/race/:id" element={<RaceDetail />} />
+          <Route path="/race/:id/regulation" element={<RaceRegulation />} />
+          <Route path="/race/:id/results" element={<RaceResults />} />
+          <Route path="/race/:id/live" element={<LiveResults />} />
+          <Route path="/race/:id/gps" element={<LiveGPSTracking />} />
+          <Route path="/race/:id/live" element={<CamberasTrackLive />} />
+
+        
+          {/* Otras rutas con parámetros */}
+          <Route path="/roadbook/:roadbookId" element={<Roadbook />} />
+          {/* Enlace del email de inscripcion a medias: la identidad es el token */}
+          <Route path="/retomar-pago/:token" element={<RetomarPago />} />
+          {/* Cesion de dorsal: el token es la credencial, se abre desde WhatsApp */}
+          {/* Pantalla de la carpa: el token es la credencial, sin login */}
+          <Route path="/pantalla/:token" element={<PantallaSeguimiento />} />
+          <Route path="/recogida/:token" element={<RecogidaDorsales />} />
+          <Route path="/mi-dorsal/:token" element={<MiDorsal />} />
+          {/* Vuelo 3D de un recorrido para incrustar en la web del organizador (widget.js) */}
+          <Route path="/vuelo/:distanceId" element={<VueloEmbebido />} />
+          <Route path="/ceder" element={<CederSolicitar />} />
+          <Route path="/ceder/:token" element={<CederDorsal />} />
+          
+          {/* URL amigable con slug de carrera - DEBE estar al final antes del catch-all.
+              FichaCarrera decide: web con plantilla (race_web.activa) o la ficha clásica */}
+          <Route path="/:slug" element={<FichaCarrera />} />
+          <Route path="/:slug/live" element={<LiveResults />} />
+          <Route path="/:slug/gps" element={<LiveGPSTracking />} />
+          <Route path="/:slug/live" element={<CamberasTrackLive />} />
+          <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
+          {/* Páginas interiores de la web de la carrera (plantilla). Cuelgan del
+              slug, detrás de las rutas de arriba y antes del 404 */}
+          <Route path="/:slug/reglamento" element={<PaginaReglamento />} />
+          <Route path="/:slug/recorrido/:pruebaId" element={<PaginaRecorrido />} />
+          <Route path="/:slug/inscripcion/ok" element={<PaginaInscripcionResultado resultado="ok" />} />
+          <Route path="/:slug/inscripcion/ko" element={<PaginaInscripcionResultado resultado="ko" />} />
+          <Route path="/:slug/aviso-legal" element={<PaginaLegal />} />
+          <Route path="/:slug/privacidad" element={<PaginaLegal />} />
+          <Route path="/:slug/cookies" element={<PaginaLegal />} />
+
+          {/* Catch-all para 404 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default AppCamberas;

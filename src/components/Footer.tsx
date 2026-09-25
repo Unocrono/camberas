@@ -1,8 +1,14 @@
 import { Mountain } from "lucide-react";
 import { Link } from "react-router-dom";
 import NewsletterForm from "./NewsletterForm";
+import { useTenant } from "@/tenant/TenantContext";
+import { PiePropio } from "@/plantillas/gurriana/MarcoPropio";
 
 const Footer = () => {
+  const { modo } = useTenant();
+  // Bajo el dominio propio de una carrera, el pie es el de la carrera
+  if (modo === "propia") return <PiePropio />;
+
   return (
     <footer className="bg-muted mt-20 border-t border-border">
       <div className="container mx-auto px-4 py-12">

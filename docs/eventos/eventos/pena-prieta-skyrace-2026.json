@@ -1,0 +1,46 @@
+{
+  "slug": "ii-pena-prieta-skyrace",
+  "tenant": "pena-prieta",
+  "nombre": "II Peña Prieta Skyrace",
+  "nombreCorto": "Peña Prieta Skyrace",
+  "edicion": 2,
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-10-03",
+  "fechaTexto": "Sábado 3 de octubre de 2026",
+  "lugar": { "nombre": "Vega de Liébana", "municipio": "Vega de Liébana", "provincia": "Cantabria" },
+  "organizador": { "nombre": "Peña Prieta Skyrace" },
+  "estado": "abierta",
+  "inscripcion": {
+    "cierre": "2026-10-02T23:59:00+02:00",
+    "limiteDorsales": 500,
+    "plazasDisponibles": null,
+    "modalidades": ["individual"],
+    "tarifas": [
+      { "id": "sky", "nombre": "Skyrace 36 km", "pruebas": ["SKY"], "periodos": [{ "hasta": "2026-10-02", "precio": 40 }], "destacada": true },
+      { "id": "trail", "nombre": "Trail 8 km", "pruebas": ["TRAIL"], "periodos": [{ "hasta": "2026-10-02", "precio": 15 }] },
+      { "id": "marcha", "nombre": "Marcha 8 km", "pruebas": ["MARCHA"], "periodos": [{ "hasta": "2026-10-02", "precio": 10 }] }
+    ],
+    "campos": [{ "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }],
+    "incluye": ["Cronometraje electrónico con chip", "Avituallamientos líquidos y sólidos en carrera", "Servicio médico en carrera y meta", "Seguro de accidentes", "Camiseta técnica", "Trofeos para los 3 primeros de cada categoría"],
+    "pasarela": { "proveedor": "camberas", "url": "https://camberas.com/race/ii-pena-prieta-skyrace", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    { "id": "SKY", "nombre": "Skyrace", "tipo": "carrera", "competitiva": true, "chip": true, "distancia": 36000, "distanciaTexto": "36 km", "desnivelPos": 2600, "salida": "09:00", "limite": "8 h", "lugarSalida": "Vega de Liébana", "lugarMeta": "Vega de Liébana", "plazas": 200,
+      "track": { "gpx": "camberas:race-gpx", "mapa": "https://camberas.com/roadbook/f8fe6845-e6d1-436b-9af5-b5b2ec4cdf0e" } },
+    { "id": "TRAIL", "nombre": "Trail", "tipo": "carrera", "competitiva": true, "chip": true, "distancia": 8000, "distanciaTexto": "8 km", "desnivelPos": 560, "salida": "09:30", "limite": "4 h", "lugarSalida": "Vega de Liébana", "lugarMeta": "Vega de Liébana", "plazas": 100,
+      "track": { "mapa": "https://camberas.com/roadbook/521fdd4f-e89b-4f74-a628-0c9db06c9108" } },
+    { "id": "MARCHA", "nombre": "Marcha", "tipo": "marcha", "competitiva": false, "chip": true, "distancia": 8000, "distanciaTexto": "8 km", "desnivelPos": 560, "salida": "09:30", "limite": "5 h", "lugarSalida": "Vega de Liébana", "lugarMeta": "Vega de Liébana", "plazas": 100,
+      "track": { "mapa": "https://camberas.com/roadbook/74036ff2-076c-4a7a-9f4a-30ab61fbb75c" } }
+  ],
+  "servicios": [
+    { "nombre": "Cronometraje electrónico con chip" }, { "nombre": "Avituallamientos líquidos y sólidos en carrera" }, { "nombre": "Servicio médico en carrera y meta" },
+    { "nombre": "Seguro de accidentes incluido" }, { "nombre": "Camiseta técnica para todos los participantes" }, { "nombre": "Trofeos para los 3 primeros de cada categoría" },
+    { "nombre": "Rutómetro, vuelo 3D y GPS en vivo", "texto": "En la ficha de Camberas" }
+  ],
+  "camiseta": { "incluida": true },
+  "contacto": { "email": "info@camberas.com" },
+  "imagenes": { "cartel": "cartel.jpg", "logo": "logo.png" },
+  "servicios_tecnicos": { "proveedor": "Camberas", "texto": "Inscripciones, cronometraje, GPS en vivo y clasificaciones" },
+  "fuente": { "origen": "https://camberas.com/race/ii-pena-prieta-skyrace (ficha pública) + uno.es", "fecha": "2026-09-22", "pendiente": ["categorías", "material obligatorio", "cortes intermedios", "reglamento (enlace en Camberas)"] }
+}

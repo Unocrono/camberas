@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
+import {
+  generateSignature,
+  merchantParamsB64 as codificarParams,
+  resolverRetorno,
+  resolverTpv,
+  urlsParaCliente,
+} from "../_shared/redsys.ts";
 
 // Pago de EQUIPO en lote — un solo cargo Redsys del capitán que cubre N
 // inscripciones (creadas antes por team-register). El importe se
@@ -9,29 +15,14 @@ import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
 // cobra, nunca el del cliente. Un payment_intent con registration_id
 // NULL + payment_intent_items enlaza el lote; redsys-webhook confirma
 // todas las inscripciones al llegar el cobro.
+//
+// El comercio (TPV del organizador o de UNO), la firma y las URLs de
+// Redsys salen de _shared/redsys.ts, igual que en redsys-init-payment.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-
-const REDSYS_URL_TEST = "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST";
-const REDSYS_URL_PROD = "https://sis.redsys.es/sis/rest/trataPeticionREST";
-const REDSYS_INSITE_URL_TEST = "https://sis-t.redsys.es:25443/sis/NC/sandbox/redsysV3.js";
-const REDSYS_INSITE_URL_PROD = "https://sis.redsys.es/sis/NC/redsysV3.js";
-
-// Misma firma HMAC_SHA256_V1 que redsys-init-payment
-function generateSignature(merchantParams: string, orderNumber: string, secretKey: string): string {
-  const key = CryptoJS.enc.Base64.parse(secretKey);
-  const iv = CryptoJS.enc.Hex.parse("0000000000000000");
-  const derivedKey = CryptoJS.TripleDES.encrypt(orderNumber, key, {
-    iv,
-    mode: CryptoJS.mode.CBC,
-    padding: CryptoJS.pad.ZeroPadding,
-  }).ciphertext;
-  const hmac = CryptoJS.HmacSHA256(merchantParams, derivedKey);
-  return CryptoJS.enc.Base64.stringify(hmac);
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,16 +36,9 @@ serve(async (req) => {
     });
 
   try {
-    const MERCHANT_CODE = Deno.env.get("REDSYS_MERCHANT_CODE");
-    const TERMINAL = Deno.env.get("REDSYS_TERMINAL");
-    const SECRET_KEY = Deno.env.get("REDSYS_SECRET_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    if (!MERCHANT_CODE || !TERMINAL || !SECRET_KEY) {
-      throw new Error("Redsys credentials not configured");
-    }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -257,29 +241,31 @@ serve(async (req) => {
     const orderNumber = timestamp + random;
     const amountCents = Math.round(total * 100).toString();
 
+    // Comercio con el que se cobra: el del organizador si lo tiene, si no el
+    // de UNO. Los equipos viven en camberas.com: la vuelta es /equipo, pero el
+    // origen se valida igual (nunca una URL libre del cliente).
+    const tpv = await resolverTpv(supabase, raceId);
+    const vuelta = await resolverRetorno(supabase, req.headers.get("origin"), raceId, null);
+
     const merchantParams = {
       DS_MERCHANT_AMOUNT: amountCents,
       DS_MERCHANT_ORDER: orderNumber,
-      DS_MERCHANT_MERCHANTCODE: MERCHANT_CODE,
+      DS_MERCHANT_MERCHANTCODE: tpv.merchantCode,
       DS_MERCHANT_CURRENCY: "978",
       DS_MERCHANT_TRANSACTIONTYPE: "0",
-      DS_MERCHANT_TERMINAL: TERMINAL,
+      DS_MERCHANT_TERMINAL: tpv.terminal,
       DS_MERCHANT_MERCHANTURL: `${SUPABASE_URL}/functions/v1/redsys-webhook`,
-      DS_MERCHANT_URLOK: `${req.headers.get("origin")}/equipo?payment=success`,
-      DS_MERCHANT_URLKO: `${req.headers.get("origin")}/equipo?payment=error`,
+      DS_MERCHANT_URLOK: `${vuelta.base}/equipo?payment=success`,
+      DS_MERCHANT_URLKO: `${vuelta.base}/equipo?payment=error`,
       DS_MERCHANT_PRODUCTDESCRIPTION: `Inscripción equipo ${team.name} (${N})`,
       DS_MERCHANT_TITULAR: user.email || "",
       DS_MERCHANT_PAYMETHODS: "C",
     };
 
     // Base64 en UTF-8 (btoa a secas rompe ñ/acentos)
-    const merchantParamsJson = JSON.stringify(merchantParams);
-    const utf8Bytes = new TextEncoder().encode(merchantParamsJson);
-    let binary = "";
-    for (const b of utf8Bytes) binary += String.fromCharCode(b);
-    const merchantParamsB64 = btoa(binary);
+    const merchantParamsB64 = codificarParams(merchantParams);
 
-    const signature = generateSignature(merchantParamsB64, orderNumber, SECRET_KEY);
+    const signature = generateSignature(merchantParamsB64, orderNumber, tpv.secretKey);
 
     // Intent del lote: registration_id NULL, el detalle va en los items.
     // Si no se puede registrar, NO se inicia el pago (cobro huérfano).
@@ -292,6 +278,9 @@ serve(async (req) => {
         discount_amount: totalDiscount > 0 ? totalDiscount : null,
         status: "pending",
         merchant_params: merchantParams,
+        // Con qué comercio se firmó: el webhook verifica con esta clave
+        merchant_code: tpv.merchantCode,
+        secret_ref: tpv.secretRef,
       })
       .select("id")
       .single();
@@ -318,10 +307,8 @@ serve(async (req) => {
       merchantParams: merchantParamsB64,
       signature,
       signatureVersion: "HMAC_SHA256_V1",
-      insiteUrl: isTest ? REDSYS_INSITE_URL_TEST : REDSYS_INSITE_URL_PROD,
-      redsysUrl: isTest ? REDSYS_URL_TEST : REDSYS_URL_PROD,
-      merchantCode: MERCHANT_CODE,
-      terminal: TERMINAL,
+      // Entorno y URLs del comercio que cobra
+      ...urlsParaCliente(tpv, isTest),
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : "Unknown error";

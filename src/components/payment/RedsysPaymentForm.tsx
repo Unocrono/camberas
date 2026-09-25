@@ -19,6 +19,12 @@ interface RedsysPaymentFormProps {
   onError?: (error: string) => void;
   onCancel?: () => void;
   isTest?: boolean;
+  /**
+   * A dónde vuelve el corredor tras pagar: "dashboard" (camberas.com, por
+   * defecto) o "web" (página de resultado de la web de la carrera). Lo decide
+   * el servidor a partir de esto y del origen; el cliente no manda URLs.
+   */
+  retorno?: "web" | "dashboard";
 }
 
 export const RedsysPaymentForm = ({
@@ -30,6 +36,7 @@ export const RedsysPaymentForm = ({
   onError,
   onCancel,
   isTest = true,
+  retorno = "dashboard",
 }: RedsysPaymentFormProps) => {
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
@@ -41,6 +48,10 @@ export const RedsysPaymentForm = ({
     signatureVersion: string;
     /** Importe que el servidor acaba de firmar: manda sobre el de la prop */
     amount?: number;
+    /** Página de pago del entorno del comercio que cobra (TPV propio o de UNO) */
+    redirectUrl?: string;
+    entorno?: "test" | "prod";
+    tpvPropio?: boolean;
   } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -48,6 +59,10 @@ export const RedsysPaymentForm = ({
   // el precio se recalcula en servidor y el del cliente puede venir de un
   // tramo de precio ya caducado (pasa al retomar un pago de hace horas).
   const importe = paymentData?.amount ?? amount;
+  // Entorno real: el del comercio que cobra si el servidor lo dice; si no, lo
+  // que pidió el cliente (TPV de UNO)
+  const enPruebas = paymentData?.entorno ? paymentData.entorno === "test" : isTest;
+  const urlPago = paymentData?.redirectUrl ?? (isTest ? REDSYS_REDIRECT_URL_TEST : REDSYS_REDIRECT_URL_PROD);
 
   useEffect(() => {
     initializePayment();
@@ -66,7 +81,7 @@ export const RedsysPaymentForm = ({
         {
           body: esLote
             ? { registrationIds, isTest }
-            : { amount, registrationId, description, userEmail, isTest },
+            : { amount, registrationId, description, userEmail, isTest, retorno },
         },
       );
 
@@ -74,10 +89,11 @@ export const RedsysPaymentForm = ({
       if (!data.success) throw new Error(data.error || "Error inicializando pago");
 
       setPaymentData(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error initializing payment:", err);
-      setError(err.message || "Error al inicializar el pago");
-      onError?.(err.message);
+      const mensaje = err instanceof Error && err.message ? err.message : "Error al inicializar el pago";
+      setError(mensaje);
+      onError?.(mensaje);
     } finally {
       setLoading(false);
     }
@@ -151,7 +167,7 @@ export const RedsysPaymentForm = ({
         {paymentData && (
           <form
             ref={formRef}
-            action={isTest ? REDSYS_REDIRECT_URL_TEST : REDSYS_REDIRECT_URL_PROD}
+            action={urlPago}
             method="POST"
           >
             <input type="hidden" name="Ds_SignatureVersion" value={paymentData.signatureVersion} />
@@ -192,7 +208,7 @@ export const RedsysPaymentForm = ({
           </Button>
         </div>
 
-        {isTest && (
+        {enPruebas && (
           <p className="text-xs text-center text-amber-600 bg-amber-50 p-2 rounded">
             ⚠️ Modo de pruebas - No se realizarán cargos reales
           </p>

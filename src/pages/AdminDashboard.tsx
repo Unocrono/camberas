@@ -14,6 +14,7 @@ import { RegistrationManagement } from "@/components/admin/RegistrationManagemen
 import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
 import { PlantillasEmailManagement } from "@/components/admin/PlantillasEmailManagement";
 import { WidgetInscripcionManagement } from "@/components/admin/WidgetInscripcionManagement";
+import { WebPropiaManagement } from "@/components/admin/WebPropiaManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
 import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
@@ -296,6 +297,15 @@ const AdminDashboard = () => {
             {currentView === "teams" && <TeamsManagement />}
             {currentView === "plantillas-email" && <PlantillasEmailManagement />}
             {currentView === "widget-inscripcion" && <WidgetInscripcionManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "web-propia" && (
+              selectedRaceId ? (
+                <WebPropiaManagement selectedRaceId={selectedRaceId} />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-muted-foreground">Selecciona una carrera para configurar su web</p>
+                </div>
+              )
+            )}
             {currentView === "race-documents" && (
               selectedRaceId ? (
                 <RaceDocumentsManagement raceId={selectedRaceId} />

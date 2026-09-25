@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useTenant } from "@/tenant/TenantContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -143,7 +144,11 @@ interface TimingReading {
 const ITEMS_PER_PAGE = 50;
 
 export default function LiveResults() {
-  const { id, slug } = useParams();
+  // Bajo dominio propio no hay slug en la URL: es el del tenant
+  const params = useParams();
+  const { tenant } = useTenant();
+  const id = params.id;
+  const slug = params.slug ?? tenant?.slug;
   const navigate = useNavigate();
   const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);

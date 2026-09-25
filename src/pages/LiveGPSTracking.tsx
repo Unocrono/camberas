@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useTenant } from '@/tenant/TenantContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveGPSMap } from '@/components/LiveGPSMap';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +35,11 @@ const isValidUUID = (str: string) => {
 };
 
 const LiveGPSTracking = () => {
-  const { id, slug } = useParams();
+  // Bajo dominio propio no hay slug en la URL: es el del tenant
+  const params = useParams();
+  const { tenant } = useTenant();
+  const id = params.id;
+  const slug = params.slug ?? tenant?.slug;
   const navigate = useNavigate();
   const { toast } = useToast();
   const [raceId, setRaceId] = useState<string | null>(null);

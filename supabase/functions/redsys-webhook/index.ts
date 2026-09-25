@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
+import { claveDeIntent } from "../_shared/redsys.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,9 +68,8 @@ serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const SECRET_KEY = Deno.env.get("REDSYS_SECRET_KEY");
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !SECRET_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Credentials not configured");
     }
 
@@ -91,20 +91,11 @@ serve(async (req) => {
     const responseCode = merchantParams.Ds_Response;
     const authCode = merchantParams.Ds_AuthorisationCode;
 
-    // Verificar la firma — rechazar notificaciones no autenticadas
-    const expected = computeSignature(merchantParamsB64, orderNumber, SECRET_KEY);
-    if (normalizeB64(expected) !== normalizeB64(signature)) {
-      console.error(`Invalid signature for order ${orderNumber} — notification rejected`);
-      return new Response("OK", { status: 200 });
-    }
-
-    // Determine if payment was successful (codes 0000-0099 are success)
-    const responseNum = parseInt(responseCode);
-    const isSuccess = responseNum >= 0 && responseNum <= 99;
-
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // Find payment intent
+    // Find payment intent — ANTES de verificar la firma, porque la clave con
+    // la que se firmó es la del comercio de ese intent (TPV del organizador o
+    // de UNO). Un pedido desconocido no se verifica: se ignora.
     const { data: paymentIntent, error: fetchError } = await supabase
       .from("payment_intents")
       .select("*, registrations(*)")
@@ -115,6 +106,23 @@ serve(async (req) => {
       console.error("Payment intent not found:", orderNumber, fetchError?.message);
       return new Response("OK", { status: 200 });
     }
+
+    // Verificar la firma con la clave del comercio que firmó el pago —
+    // rechazar notificaciones no autenticadas
+    const secretKey = await claveDeIntent(supabase, paymentIntent.secret_ref);
+    if (!secretKey) {
+      console.error(`No secret key for order ${orderNumber} (secret_ref=${paymentIntent.secret_ref}) — notification rejected`);
+      return new Response("OK", { status: 200 });
+    }
+    const expected = computeSignature(merchantParamsB64, orderNumber, secretKey);
+    if (normalizeB64(expected) !== normalizeB64(signature)) {
+      console.error(`Invalid signature for order ${orderNumber} — notification rejected`);
+      return new Response("OK", { status: 200 });
+    }
+
+    // Determine if payment was successful (codes 0000-0099 are success)
+    const responseNum = parseInt(responseCode);
+    const isSuccess = responseNum >= 0 && responseNum <= 99;
 
     // Update payment intent status
     const { error: intentError } = await supabase
