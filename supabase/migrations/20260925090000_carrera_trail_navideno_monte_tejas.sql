@@ -69,11 +69,12 @@ BEGIN
     VALUES (v_dist, 13, v_apertura, v_cierre);
   END IF;
 
-  -- Salida única a las 10:30
-  IF NOT EXISTS (SELECT 1 FROM public.race_waves WHERE race_distance_id = v_dist) THEN
-    INSERT INTO public.race_waves (race_id, race_distance_id, wave_name, start_time)
-    VALUES (v_race, v_dist, 'Salida', '10:30');
-  END IF;
+  -- Salida única a las 10:30. El trigger de race_distances ya creó la oleada
+  -- (sin hora): se le pone. start_time guarda la hora de pared como si fuera
+  -- UTC, que es la convención del panel.
+  INSERT INTO public.race_waves (race_id, race_distance_id, wave_name, start_time)
+  VALUES (v_race, v_dist, 'Salida', '2026-12-13 10:30:00+00')
+  ON CONFLICT (race_distance_id) DO UPDATE SET wave_name = EXCLUDED.wave_name, start_time = EXCLUDED.start_time;
 
   -- Categorías: absoluta masculina y femenina (edad mínima 16)
   IF NOT EXISTS (SELECT 1 FROM public.race_categories WHERE race_id = v_race) THEN

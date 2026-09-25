@@ -116,8 +116,13 @@ BEGIN
     SELECT v_id, price, start_datetime + make_interval(days => v_delta), end_datetime + make_interval(days => v_delta)
     FROM public.race_distance_prices WHERE race_distance_id = v_dist.id;
 
+    -- El trigger auto_create_wave_after_distance ya creó la oleada de la
+    -- distancia nueva (race_distance_id es UNIQUE): se le copian nombre y
+    -- hora de la original, desplazada los mismos días que la carrera
     INSERT INTO public.race_waves (race_id, race_distance_id, wave_name, start_time)
-    SELECT v_nuevo, v_id, wave_name, start_time FROM public.race_waves WHERE race_distance_id = v_dist.id;
+    SELECT v_nuevo, v_id, wave_name, start_time + make_interval(days => v_delta)
+    FROM public.race_waves WHERE race_distance_id = v_dist.id
+    ON CONFLICT (race_distance_id) DO UPDATE SET wave_name = EXCLUDED.wave_name, start_time = EXCLUDED.start_time;
   END LOOP;
 
   -- Categorías (con o sin distancia)

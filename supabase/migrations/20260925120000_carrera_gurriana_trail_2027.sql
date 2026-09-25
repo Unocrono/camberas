@@ -81,12 +81,13 @@ BEGIN
       (v_gt40, 40, v_apertura, v_cierre);
   END IF;
 
-  -- Salidas
-  IF NOT EXISTS (SELECT 1 FROM public.race_waves WHERE race_id = v_race) THEN
-    INSERT INTO public.race_waves (race_id, race_distance_id, wave_name, start_time) VALUES
-      (v_race, v_gt40, 'Salida GT40', '09:00'),
-      (v_race, v_gt20, 'Salida GT20', '10:00');
-  END IF;
+  -- Salidas. El trigger de race_distances ya creó una oleada por distancia
+  -- (sin hora): se les pone. start_time guarda la hora de pared como si
+  -- fuera UTC, que es la convención del panel.
+  INSERT INTO public.race_waves (race_id, race_distance_id, wave_name, start_time) VALUES
+    (v_race, v_gt40, 'Salida GT40', '2027-03-14 09:00:00+00'),
+    (v_race, v_gt20, 'Salida GT20', '2027-03-14 10:00:00+00')
+  ON CONFLICT (race_distance_id) DO UPDATE SET wave_name = EXCLUDED.wave_name, start_time = EXCLUDED.start_time;
 
   -- Categorías (ambas distancias, masculino y femenino)
   IF NOT EXISTS (SELECT 1 FROM public.race_categories WHERE race_id = v_race) THEN
