@@ -88,10 +88,11 @@ BEGIN
     INSERT INTO public.race_cancellation_tiers (race_id, days_before, refund_percent) VALUES (v_race, 11, 100);
   END IF;
 
-  -- Formulario de inscripción por defecto (campos de sistema)
-  IF NOT EXISTS (SELECT 1 FROM public.registration_form_fields WHERE race_id = v_race OR race_distance_id = v_dist) THEN
-    PERFORM public.seed_default_registration_fields(v_race);
-  END IF;
+  -- Formulario de inscripción por defecto (campos de sistema). Los siembra el
+  -- trigger al insertar la distancia; la llamada es idempotente y cubre el
+  -- caso de que el trigger no exista. (seed_default_registration_fields(race)
+  -- está obsoleta y no hace nada.)
+  PERFORM public.seed_default_registration_fields_for_distance(v_dist);
 
   -- ---------------------------------------------------------- reglamento
   SELECT id INTO v_reg FROM public.race_regulations WHERE race_id = v_race LIMIT 1;
