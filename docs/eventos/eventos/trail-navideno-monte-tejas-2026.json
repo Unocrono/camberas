@@ -4,7 +4,7 @@
   "nombre": "II Trailvideño Monte Tejas",
   "nombreCorto": "Trailvideño Monte Tejas",
   "edicion": 2,
-  "descripcion": "Trail navideño de 15 km en semi-autosuficiencia por las sendas y caminos mitológicos del Monte Tejas, en San Felices de Buelna. Con doce duendes escondidos en el recorrido y premio a los mejores disfraces.",
+  "descripcion": "Carrera navideña, pequeña y de fiesta: 15 km por las sendas y caminos mitológicos del Monte Tejas, en San Felices de Buelna. Doce gnomos escondidos en el monte con premio, premios a los mejores disfraces (también en grupo) y música y ambiente en salida y meta.",
   "deporte": "trail",
   "competitivo": true,
   "fecha": "2026-12-13",
@@ -35,7 +35,7 @@
         "nombre": "Trailvideño 15 km",
         "pruebas": ["TRAIL15"],
         "destacada": true,
-        "periodos": [{ "precio": 10, "etiqueta": "Precio único" }]
+        "periodos": [{ "precio": 13, "etiqueta": "Precio único" }]
       }
     ],
     "campos": [
@@ -49,6 +49,7 @@
       "texto": "Devolución íntegra hasta el 2 de diciembre incluido. Después solo se admiten cambios de titular. Las inscripciones son personales e intransferibles."
     },
     "incluye": [
+      "Taza y calcetines conmemorativos",
       "Dorsal con chip y bolsa del corredor",
       "Seguro de accidentes del día de la prueba y responsabilidad civil",
       "Avituallamientos en carrera y en meta",
@@ -134,8 +135,9 @@
     "nota": "Imprescindible documento de identidad y, si la tienes, tarjeta federativa. Puede recogerlo otra persona con foto de tu DNI o una autorización con nombre y DNI."
   },
   "premios": [
-    { "categoria": "Duendes", "premio": "12 premios", "texto": "Doce duendes escondidos semi-visibles por el recorrido. Quien encuentre uno lo lleva hasta meta (solo uno por persona). El premio de cada duende se desvela al darse la salida. Coger dos o más, o cambiarlos de sitio, es eliminación." },
+    { "categoria": "Gnomos", "premio": "12 premios", "texto": "Doce gnomos escondidos semi-visibles por el recorrido. Quien encuentre uno lo lleva hasta meta (solo uno por persona). El premio de cada gnomo se desvela al darse la salida. Coger dos o más, o cambiarlos de sitio, es eliminación." },
     { "categoria": "Disfraces", "premio": "3 premios", "texto": "A los tres mejores disfraces de la prueba; el jurado es la organización." },
+    { "categoria": "Disfraz grupal", "premio": "Novedad", "texto": "Al mejor disfraz de grupo: venid varios con una temática común." },
     { "categoria": "Absoluta masculina y femenina", "premio": "Trofeos", "texto": "Única categoría en la distancia de 15 km." }
   ],
   "entregaPremios": "En la zona de meta, al terminar la carrera",
@@ -143,7 +145,8 @@
     { "nombre": "Comida de llegada", "texto": "Para todos los participantes al terminar la prueba.", "icono": "comida" },
     { "nombre": "Avituallamiento de meta", "texto": "Fuera de la zona de meta, con comida y bebida.", "icono": "avituallamiento" },
     { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida.", "icono": "sanitario" },
-    { "nombre": "Sorteos", "texto": "Todos los inscritos optan a los sorteos.", "icono": "regalo" }
+    { "nombre": "Sorteos", "texto": "Todos los inscritos optan a los sorteos.", "icono": "regalo" },
+    { "nombre": "Ambiente de fiesta", "texto": "Música y animación en salida y meta. Ven disfrazado: hay premio individual y de grupo.", "icono": "fiesta" }
   ],
   "sanitario": {
     "medios": [["1", "ambulancia SVB con médico"], ["2", "técnicos en emergencias sanitarias"]],
