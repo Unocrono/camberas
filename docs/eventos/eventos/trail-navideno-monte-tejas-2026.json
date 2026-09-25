@@ -7,8 +7,8 @@
   "descripcion": "Trail navideño de 15 km en semi-autosuficiencia por las sendas y caminos mitológicos del Monte Tejas, en San Felices de Buelna. Con doce duendes escondidos en el recorrido y premio a los mejores disfraces.",
   "deporte": "trail",
   "competitivo": true,
-  "fecha": "2026-12-20",
-  "fechaTexto": "Domingo 20 de diciembre de 2026",
+  "fecha": "2026-12-13",
+  "fechaTexto": "Domingo 13 de diciembre de 2026",
   "lugar": {
     "nombre": "Plaza del Ayuntamiento",
     "direccion": "Plaza del Ayuntamiento, San Felices de Buelna",
@@ -23,8 +23,8 @@
   "estado": "proximamente",
   "inscripcion": {
     "apertura": "2026-11-01T20:00:00+01:00",
-    "cierre": "2026-12-15T23:59:00+01:00",
-    "cierreTexto": "Del 1 de noviembre a las 20:00 al 15 de diciembre, o hasta agotar los 200 dorsales",
+    "cierre": "2026-12-07T23:59:00+01:00",
+    "cierreTexto": "Del 1 de noviembre a las 20:00 al 7 de diciembre, o hasta agotar los 200 dorsales",
     "limiteDorsales": 200,
     "plazasDisponibles": null,
     "edadMinima": 16,
@@ -45,8 +45,8 @@
     ],
     "menores": { "permitido": true, "edadMinima": 16, "tutor": true },
     "devolucion": {
-      "hasta": "2026-12-10",
-      "texto": "Devolución íntegra hasta el 10 de diciembre incluido. Después solo se admiten cambios de titular. Las inscripciones son personales e intransferibles."
+      "hasta": "2026-12-02",
+      "texto": "Devolución íntegra hasta el 2 de diciembre incluido. Después solo se admiten cambios de titular. Las inscripciones son personales e intransferibles."
     },
     "incluye": [
       "Dorsal con chip y bolsa del corredor",
@@ -123,14 +123,14 @@
     "reclamaciones": "Por escrito al Comité de Carrera, como máximo 30 minutos después de publicarse los resultados oficiales."
   },
   "programa": [
-    { "fecha": "2026-12-20", "hora": "08:30", "horaFin": "10:00", "titulo": "Recogida de dorsales", "lugar": "Plaza del Ayuntamiento, San Felices de Buelna" },
-    { "fecha": "2026-12-20", "hora": "10:30", "titulo": "Salida Trailvideño 15 km", "lugar": "Plaza del Ayuntamiento" },
-    { "fecha": "2026-12-20", "hora": "14:00", "titulo": "Cierre de control" },
-    { "fecha": "2026-12-20", "hora": "14:15", "titulo": "Entrega de premios y sorteos", "lugar": "Zona de meta" }
+    { "fecha": "2026-12-13", "hora": "08:30", "horaFin": "10:00", "titulo": "Recogida de dorsales", "lugar": "Plaza del Ayuntamiento, San Felices de Buelna" },
+    { "fecha": "2026-12-13", "hora": "10:30", "titulo": "Salida Trailvideño 15 km", "lugar": "Plaza del Ayuntamiento" },
+    { "fecha": "2026-12-13", "hora": "14:00", "titulo": "Cierre de control" },
+    { "fecha": "2026-12-13", "hora": "14:15", "titulo": "Entrega de premios y sorteos", "lugar": "Zona de meta" }
   ],
   "dorsales": {
     "lugar": "Plaza del Ayuntamiento de San Felices de Buelna (zona de salida)",
-    "horarios": [["Domingo 20 de diciembre", "08:30–10:00"]],
+    "horarios": [["Domingo 13 de diciembre", "08:30–10:00"]],
     "nota": "Imprescindible documento de identidad y, si la tienes, tarjeta federativa. Puede recogerlo otra persona con foto de tu DNI o una autorización con nombre y DNI."
   },
   "premios": [
@@ -172,7 +172,7 @@
   },
   "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y centro de carrera" },
   "fuente": {
-    "origen": "Reglamento I Trailvideño Monte Tejas (PDF, edición 21-12-2025). Fecha 2026 y edición II son supuestos pendientes de confirmar con la organización.",
+    "origen": "Reglamento I Trailvideño Monte Tejas (PDF, edición 21-12-2025). Fecha 13-12-2026 confirmada; edición II, plazo (1 nov – 7 dic) y devolución (hasta 2 dic) trasladados de la I edición, pendientes de confirmar.",
     "fecha": "2026-09-25"
   }
 }
