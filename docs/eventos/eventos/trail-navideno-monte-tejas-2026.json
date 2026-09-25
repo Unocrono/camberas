@@ -1,0 +1,178 @@
+{
+  "slug": "trail-navideno-monte-tejas-2026",
+  "tenant": "kilometro-vertical-torrelavega",
+  "nombre": "II Trailvideño Monte Tejas",
+  "nombreCorto": "Trailvideño Monte Tejas",
+  "edicion": 2,
+  "descripcion": "Trail navideño de 15 km en semi-autosuficiencia por las sendas y caminos mitológicos del Monte Tejas, en San Felices de Buelna. Con doce duendes escondidos en el recorrido y premio a los mejores disfraces.",
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-12-20",
+  "fechaTexto": "Domingo 20 de diciembre de 2026",
+  "lugar": {
+    "nombre": "Plaza del Ayuntamiento",
+    "direccion": "Plaza del Ayuntamiento, San Felices de Buelna",
+    "municipio": "San Felices de Buelna",
+    "provincia": "Cantabria",
+    "zona": "Monte Tejas"
+  },
+  "organizador": {
+    "nombre": "C.D.E. Kilómetro Vertical de Torrelavega y Grupo de Montaña Tejas4run",
+    "telefono": "679 602 812"
+  },
+  "estado": "proximamente",
+  "inscripcion": {
+    "apertura": "2026-11-01T20:00:00+01:00",
+    "cierre": "2026-12-15T23:59:00+01:00",
+    "cierreTexto": "Del 1 de noviembre a las 20:00 al 15 de diciembre, o hasta agotar los 200 dorsales",
+    "limiteDorsales": 200,
+    "plazasDisponibles": null,
+    "edadMinima": 16,
+    "modalidades": ["individual"],
+    "tarifas": [
+      {
+        "id": "15k",
+        "nombre": "Trailvideño 15 km",
+        "pruebas": ["TRAIL15"],
+        "destacada": true,
+        "periodos": [{ "precio": 10, "etiqueta": "Precio único" }]
+      }
+    ],
+    "campos": [
+      { "id": "club", "etiqueta": "Club", "tipo": "texto" },
+      { "id": "federado", "etiqueta": "¿Tienes licencia federativa en vigor?", "tipo": "si_no", "obligatorio": true },
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto el reglamento", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": true, "edadMinima": 16, "tutor": true },
+    "devolucion": {
+      "hasta": "2026-12-10",
+      "texto": "Devolución íntegra hasta el 10 de diciembre incluido. Después solo se admiten cambios de titular. Las inscripciones son personales e intransferibles."
+    },
+    "incluye": [
+      "Dorsal con chip y bolsa del corredor",
+      "Seguro de accidentes del día de la prueba y responsabilidad civil",
+      "Avituallamientos en carrera y en meta",
+      "Comida al finalizar la prueba",
+      "Asistencia sanitaria en carrera y en meta",
+      "Participación en los sorteos",
+      "Opción a trofeos y premios"
+    ],
+    "nota": "Edad mínima: 16 años cumplidos el día anterior a la prueba.",
+    "pasarela": { "proveedor": "camberas", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    {
+      "id": "TRAIL15",
+      "nombre": "Trailvideño 15 km",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 15000,
+      "distanciaTexto": "15 km",
+      "desnivelPos": 730,
+      "desnivelNeg": 724,
+      "salida": "10:30",
+      "limite": "3 h 30 min",
+      "cierre": "14:00",
+      "lugarSalida": "Plaza del Ayuntamiento, San Felices de Buelna",
+      "lugarMeta": "Plaza del Ayuntamiento, San Felices de Buelna",
+      "plazas": 200,
+      "marcaje": "Cintas y banderines naranjas",
+      "descripcion": "Recorrido de ida y vuelta por sendas y caminos mitológicos del Monte Tejas. Solo 1,6 km de ida y otros 1,6 de vuelta van por asfalto o zona de pueblo, más 500 m por el parque de la Lama.",
+      "terreno": [
+        ["Sendas y caminos de monte", "≈ 11 km"],
+        ["Asfalto y zona de pueblo", "3,2 km"],
+        ["Parque de la Lama", "0,5 km"]
+      ],
+      "avituallamientos": [
+        { "km": 5.5, "nombre": "Zona de concurrencia (ida)", "tipo": "liquido" },
+        { "km": 10, "nombre": "Zona de concurrencia (vuelta)", "tipo": "liquido" },
+        { "km": 15, "nombre": "Meta", "tipo": "completo", "limite": "3 h 30 min" }
+      ]
+    }
+  ],
+  "categorias": [
+    { "id": "abs-m", "nombre": "Absoluta masculina", "edadMin": 16 },
+    { "id": "abs-f", "nombre": "Absoluta femenina", "edadMin": 16 }
+  ],
+  "reglamento": {
+    "materialObligatorio": [
+      "Teléfono móvil operativo con el número de la organización guardado (679 602 812)",
+      "Vaso o softflask para los avituallamientos (no habrá vasos)",
+      "Zapatillas de trail"
+    ],
+    "normasMaterial": "Recomendado: mochila de hidratación, chaqueta membrana (cortavientos o chubasquero) y manta térmica. Con previsión de mal tiempo la organización puede hacerlos obligatorios.",
+    "marcaje": [
+      "Recorrido marcado con cintas y banderines de color naranja a intervalos regulares; localizar y seguir la señalización es responsabilidad de cada participante.",
+      "Los tramos por calles no están cortados al tráfico: se cumplen las normas generales de circulación y las indicaciones de la organización.",
+      "Es obligatorio seguir el itinerario marcado y pasar por todos los controles. Atajar es descalificación.",
+      "Corredores escoba cierran la carrera: quien quede detrás sigue bajo su responsabilidad y fuera de clasificación."
+    ],
+    "normas": [
+      "Carrera en semi-autosuficiencia: solo se admite avituallamiento o asistencia en las zonas acotadas por la organización.",
+      "Cada participante lleva sus residuos hasta la meta o los puntos habilitados. Tirar basura fuera de ellos es descalificación inmediata.",
+      "Prohibido atajar fuera de los caminos y senderos marcados para evitar la erosión del suelo.",
+      "El dorsal va en la parte delantera del torso, siempre visible y por encima de la ropa; no se puede modificar, esconder ni doblar.",
+      "Salvo lesión grave, nunca se abandona fuera de un punto de control: hay que avisar al responsable del puesto.",
+      "Los corredores están obligados a socorrer a cualquier participante que lo necesite.",
+      "El criterio del médico de carrera prevalece: puede retirar, evacuar u hospitalizar a cualquier corredor.",
+      "Objetos perdidos: la organización los guarda 15 días.",
+      "Todos los participantes ceden sus derechos de imagen durante la prueba a la organización.",
+      "La organización puede modificar el recorrido o aplazar la prueba por meteorología o causa mayor."
+    ],
+    "reclamaciones": "Por escrito al Comité de Carrera, como máximo 30 minutos después de publicarse los resultados oficiales."
+  },
+  "programa": [
+    { "fecha": "2026-12-20", "hora": "08:30", "horaFin": "10:00", "titulo": "Recogida de dorsales", "lugar": "Plaza del Ayuntamiento, San Felices de Buelna" },
+    { "fecha": "2026-12-20", "hora": "10:30", "titulo": "Salida Trailvideño 15 km", "lugar": "Plaza del Ayuntamiento" },
+    { "fecha": "2026-12-20", "hora": "14:00", "titulo": "Cierre de control" },
+    { "fecha": "2026-12-20", "hora": "14:15", "titulo": "Entrega de premios y sorteos", "lugar": "Zona de meta" }
+  ],
+  "dorsales": {
+    "lugar": "Plaza del Ayuntamiento de San Felices de Buelna (zona de salida)",
+    "horarios": [["Domingo 20 de diciembre", "08:30–10:00"]],
+    "nota": "Imprescindible documento de identidad y, si la tienes, tarjeta federativa. Puede recogerlo otra persona con foto de tu DNI o una autorización con nombre y DNI."
+  },
+  "premios": [
+    { "categoria": "Duendes", "premio": "12 premios", "texto": "Doce duendes escondidos semi-visibles por el recorrido. Quien encuentre uno lo lleva hasta meta (solo uno por persona). El premio de cada duende se desvela al darse la salida. Coger dos o más, o cambiarlos de sitio, es eliminación." },
+    { "categoria": "Disfraces", "premio": "3 premios", "texto": "A los tres mejores disfraces de la prueba; el jurado es la organización." },
+    { "categoria": "Absoluta masculina y femenina", "premio": "Trofeos", "texto": "Única categoría en la distancia de 15 km." }
+  ],
+  "entregaPremios": "En la zona de meta, al terminar la carrera",
+  "servicios": [
+    { "nombre": "Comida de llegada", "texto": "Para todos los participantes al terminar la prueba.", "icono": "comida" },
+    { "nombre": "Avituallamiento de meta", "texto": "Fuera de la zona de meta, con comida y bebida.", "icono": "avituallamiento" },
+    { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida.", "icono": "sanitario" },
+    { "nombre": "Sorteos", "texto": "Todos los inscritos optan a los sorteos.", "icono": "regalo" }
+  ],
+  "sanitario": {
+    "medios": [["1", "ambulancia SVB con médico"], ["2", "técnicos en emergencias sanitarias"]],
+    "nota": "Operativos desde media hora antes de la salida hasta quince minutos después del cierre. Línea directa con Protección Civil y Policía Local."
+  },
+  "medioAmbiente": {
+    "espacio": "Monte Tejas, San Felices de Buelna",
+    "normas": "Prueba eco-sostenible: sin vasos de plástico en los avituallamientos, cubos de basura a la salida de cada uno, prohibido atajar fuera de los caminos. Al terminar se retira todo el marcaje y cualquier residuo.",
+    "adhesion": "Organizada con el Ayuntamiento de San Felices de Buelna para dar a conocer la zona y fomentar el deporte con respeto al medio natural."
+  },
+  "patrocinadores": [
+    { "nombre": "C.D.E. Kilómetro Vertical de Torrelavega", "nivel": "organiza" },
+    { "nombre": "Grupo de Montaña Tejas4run", "nivel": "organiza" },
+    { "nombre": "Ayuntamiento de San Felices de Buelna", "nivel": "institucional" }
+  ],
+  "contacto": {
+    "telefono": "679 602 812"
+  },
+  "imagenes": {},
+  "marca": {
+    "colorMarca": "#1B4D2E",
+    "colorAccion": "#C8102E",
+    "colorSecundario": "#C99A2E",
+    "hero": "textura",
+    "cinta": true
+  },
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y centro de carrera" },
+  "fuente": {
+    "origen": "Reglamento I Trailvideño Monte Tejas (PDF, edición 21-12-2025). Fecha 2026 y edición II son supuestos pendientes de confirmar con la organización.",
+    "fecha": "2026-09-25"
+  }
+}
