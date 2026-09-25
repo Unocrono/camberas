@@ -1,0 +1,156 @@
+{
+  "slug": "desafio-sarrio",
+  "tenant": "club-sarrio",
+  "nombre": "Desafío Sarrio 2026",
+  "nombreCorto": "Desafío Sarrio",
+  "descripcion": "Vive la experiencia de un evento deportivo en un campo de maniobras militar. Marcha, 10K y Desafío de 22 km entre los viñedos de Marqués de Vargas y Marqués de Murrieta y La Rad de Varea, a unos minutos de Logroño, con Sierra Cantabria de telón de fondo.",
+  "deporte": "trail",
+  "competitivo": true,
+  "fecha": "2026-11-29",
+  "fechaTexto": "Domingo 29 de noviembre de 2026",
+  "lugar": {
+    "nombre": "Campo de Maniobras de La Rad",
+    "municipio": "Logroño",
+    "provincia": "La Rioja",
+    "zona": "La Rad de Varea · viñedos de Logroño"
+  },
+  "organizador": {
+    "nombre": "Club Sarrio · Batallón de Helicópteros de Maniobra nº III",
+    "email": "info@desafiosarrio.com",
+    "web": "https://desafiosarrio.com"
+  },
+  "estado": "abierta",
+  "inscripcion": {
+    "cierre": "2026-11-25T23:59:00+01:00",
+    "cierreTexto": "Hasta el 25 de noviembre; precio reducido hasta el 18 de octubre",
+    "limiteDorsales": 1000,
+    "plazasDisponibles": null,
+    "modalidades": ["individual"],
+    "tarifas": [
+      { "id": "desafio", "nombre": "Desafío 22 km", "pruebas": ["DESAFIO"], "destacada": true, "periodos": [{ "hasta": "2026-10-18", "precio": 22, "etiqueta": "Hasta el 18 de octubre" }, { "desde": "2026-10-19", "hasta": "2026-11-25", "precio": 25, "etiqueta": "Desde el 19 de octubre" }] },
+      { "id": "10k", "nombre": "10K", "pruebas": ["10K"], "periodos": [{ "hasta": "2026-10-18", "precio": 17, "etiqueta": "Hasta el 18 de octubre" }, { "desde": "2026-10-19", "hasta": "2026-11-25", "precio": 20, "etiqueta": "Desde el 19 de octubre" }] },
+      { "id": "marcha", "nombre": "Marcha 8,5 km", "pruebas": ["MARCHA"], "periodos": [{ "hasta": "2026-10-18", "precio": 12, "etiqueta": "Hasta el 18 de octubre" }, { "desde": "2026-10-19", "hasta": "2026-11-25", "precio": 15, "etiqueta": "Desde el 19 de octubre" }] }
+    ],
+    "campos": [
+      { "id": "acepta-reglamento", "etiqueta": "He leído y acepto las condiciones de participación", "tipo": "consentimiento", "obligatorio": true }
+    ],
+    "menores": { "permitido": true, "tutor": true, "texto": "Los menores necesitan la autorización firmada por su tutor (descarga en documentos)." },
+    "incluye": ["Dorsal con chip", "Avituallamientos en recorrido y en meta", "Seguro de accidentes y responsabilidad civil"],
+    "pasarela": { "proveedor": "camberas", "url": "https://camberas.com/race/desafio-sarrio", "metodos": ["tarjeta"] }
+  },
+  "pruebas": [
+    {
+      "id": "DESAFIO",
+      "nombre": "Desafío 22 km",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 22000,
+      "distanciaTexto": "22 km",
+      "desnivelPos": 525,
+      "salida": "10:30",
+      "limite": "2 h 30 min",
+      "lugarSalida": "Campo de Maniobras de La Rad",
+      "lugarMeta": "Campo de Maniobras de La Rad",
+      "descripcion": "Un trail ideal para conocer los viñedos de Logroño y La Rad de Varea, con tres avituallamientos durante el recorrido y otro en meta.",
+      "relato": "El inicio en el Campo de Maniobras de La Rad nos llevará rápidamente hacia abajo, buscando los caminos vitícolas de Logroño. Avanzaremos entre las hileras de vides de Marqués de Vargas y Marqués de Murrieta, disfrutando de un firme cómodo para ir cogiendo ritmo. Comenzará entonces una subida tendida atravesando el campo de maniobras hasta desviarnos a un sube y baja divertido con vistas a Sierra Cantabria al norte y, en día despejado, al San Lorenzo, las peñas de Viguera y la entrada del cañón del Leza; allí está el primer avituallamiento (km 6). Recorrido perimetral por el sur del campo de maniobras, con una bajada trepidante y una subida progresiva hasta el segundo avituallamiento en el antiguo Campo de Tiro (km 11,5). Seguiremos con el sube y baja hasta las cercanías del ecoparque, circundando un pinar hasta el tercer avituallamiento (km 17). Una preciosa bajada por una vaguada con vistas al valle del Ebro, la última subida para enganchar con el 10K y la marcha, y el kilómetro final juntos. Recta de meta, sonrisa para la foto y avituallamiento final. Una prueba pensada para disfrutar cada kilómetro, gestionar tus fuerzas y vivir la montaña con una sonrisa.",
+      "avituallamientos": [
+        { "km": 6, "nombre": "Mirador de Sierra Cantabria", "tipo": "liquido" },
+        { "km": 11.5, "nombre": "Antiguo Campo de Tiro", "tipo": "completo" },
+        { "km": 17, "nombre": "Pinar del ecoparque", "tipo": "liquido" },
+        { "km": 22, "nombre": "Meta", "tipo": "completo" }
+      ]
+    },
+    {
+      "id": "10K",
+      "nombre": "10K",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 10000,
+      "distanciaTexto": "10 km",
+      "desnivelPos": 225,
+      "salida": "11:30",
+      "limite": "1 h 30 min",
+      "lugarSalida": "Campo de Maniobras de La Rad",
+      "lugarMeta": "Campo de Maniobras de La Rad",
+      "descripcion": "Un pequeño trail con poca dificultad para descubrir la modalidad, ideal para conocer los viñedos de Logroño y La Rad de Varea, con un avituallamiento durante el recorrido y otro en meta.",
+      "relato": "La aventura arranca con fuerza en el Campo de Maniobras de La Rad: una bajada trepidante nos lleva al corazón de la tradición vitivinícola, flanqueados por los viñedos de Marqués de Vargas, rozando casi la bodega, para enlazar con las tierras de Marqués de Murrieta. Tras los viñedos, una subida tendida y muy llevadera nos adentra de nuevo en el campo de maniobras, donde empieza la zona más juguetona de la prueba: un sube y baja divertido con Sierra Cantabria a la izquierda y, si el cielo lo permite, el San Lorenzo, las Peñas de Viguera y la entrada al Cañón del Leza a la derecha. Avituallamiento en el antiguo Campo de Tiro (km 6,5) para recargar y coger impulso. Continuamos con ese sube y baja técnico pero amable circundando La Rad, y un último esfuerzo hasta la recta de meta, la foto y el avituallamiento final.",
+      "avituallamientos": [
+        { "km": 6.5, "nombre": "Antiguo Campo de Tiro", "tipo": "completo" },
+        { "km": 10, "nombre": "Meta", "tipo": "completo" }
+      ]
+    },
+    {
+      "id": "MARCHA",
+      "nombre": "Marcha 8,5 km",
+      "tipo": "marcha",
+      "competitiva": false,
+      "chip": true,
+      "distancia": 8500,
+      "distanciaTexto": "8,5 km",
+      "desnivelPos": 150,
+      "salida": "10:31",
+      "limite": "2 h 30 min",
+      "lugarSalida": "Campo de Maniobras de La Rad",
+      "lugarMeta": "Campo de Maniobras de La Rad",
+      "descripcion": "Una marcha senderista para caminar entre viñedos, descubrir rincones escondidos en La Rad de Varea y disfrutar de las vistas de algunas de las bodegas más emblemáticas de Rioja. Avituallamiento a mitad de camino y en meta.",
+      "relato": "No hace falta ir muy lejos para encontrar un paisaje distinto. A solo unos minutos de Logroño nos espera un recorrido que combina caminos cómodos, viñedos y unas vistas que sorprenden incluso a quienes conocen bien la zona. Saldremos desde el Campo de Maniobras de La Rad y descenderemos hacia los viñedos de Marqués de Vargas; desde allí enlazaremos caminos entre cepas, cerca de bodegas que forman parte de la historia del vino de Rioja como Marqués de Vargas y Marqués de Murrieta. El camino nos llevará de nuevo hacia la parte alta con una subida suave y constante. En el antiguo Campo de Tiro nos espera el avituallamiento (km 5,5). Seguiremos atravesando el campo de maniobras con Sierra Cantabria de telón de fondo, bajando el ritmo y compartiendo la experiencia, hasta la meta y el avituallamiento final.",
+      "avituallamientos": [
+        { "km": 5.5, "nombre": "Antiguo Campo de Tiro", "tipo": "completo" },
+        { "km": 8.5, "nombre": "Meta", "tipo": "completo" }
+      ]
+    }
+  ],
+  "reglamento": {
+    "url": "https://desafiosarrio7925.live-website.com/wp-content/uploads/2025/01/CONDICIONES-DESAFIO-SARRIO-DEFINITIVAS.docx-3-2.pdf"
+  },
+  "programa": [
+    { "fecha": "2026-11-29", "hora": "10:30", "titulo": "Salida Desafío 22 km", "lugar": "Campo de Maniobras de La Rad" },
+    { "fecha": "2026-11-29", "hora": "10:31", "titulo": "Salida Marcha 8,5 km" },
+    { "fecha": "2026-11-29", "hora": "11:30", "titulo": "Salida 10K" }
+  ],
+  "presentacion": {
+    "titulo": "¡Acepta el Desafío!",
+    "texto": "El helicóptero militar NH-90 «Sarrio» es un moderno helicóptero polivalente diseñado para cumplir con los estándares más altos de la OTAN. Da nombre al club y a la carrera: un evento deportivo dentro de un campo de maniobras militar, abierto a todos."
+  },
+  "club": {
+    "nombre": "Club Sarrio",
+    "lema": "Fuertes, compañeros, justos",
+    "texto": "El club nace en 2017 y está formado por personas que han estado o están destinadas en el Batallón de Helicópteros de Maniobra nº III con inquietudes por el deporte en cualquiera de sus formas, con el objetivo de acercarse a la sociedad que les rodea para que conozca de primera mano el trabajo de los militares destinados en su región y los valores de las personas que integran el Ejército de Tierra.",
+    "valores": ["Honor", "Disciplina", "Valor", "Espíritu de sacrificio", "Compañerismo", "Espíritu de servicio"]
+  },
+  "patrocinadores": [
+    { "nombre": "Club Sarrio", "nivel": "organiza" },
+    { "nombre": "Batallón de Helicópteros de Maniobra nº III", "nivel": "institucional", "logo": "https://desafiosarrio.com/wp-content/uploads/2024/04/helicopteros-1-e1712906010251.png" },
+    { "nombre": "Circuito de Carreras", "nivel": "colaborador", "logo": "https://desafiosarrio.com/wp-content/uploads/2026/09/LOGO-Circuito-de-Carrera-horizontal-generico.jpg" },
+    { "nombre": "Ardem", "nivel": "colaborador", "logo": "https://desafiosarrio.com/wp-content/uploads/2026/09/ardem-alargado-1.jpg" }
+  ],
+  "documentos": [
+    { "nombre": "Autorización de menores", "url": "https://desafiosarrio.com/wp-content/uploads/2026/09/Autorizacion-de-menores.pdf", "tipo": "autorizacion" },
+    { "nombre": "Condiciones de participación", "url": "https://desafiosarrio7925.live-website.com/wp-content/uploads/2025/01/CONDICIONES-DESAFIO-SARRIO-DEFINITIVAS.docx-3-2.pdf", "tipo": "reglamento" }
+  ],
+  "contacto": {
+    "email": "info@desafiosarrio.com",
+    "emailClub": "clubsarrioiii@gmail.com",
+    "redes": { "instagram": "https://www.instagram.com/clubsarrio/" }
+  },
+  "imagenes": {
+    "logo": "https://rsahtxjpisnldxnsmupk.supabase.co/storage/v1/object/public/race-images/2026/desafio-sarrio-2026/desafio-sarrio-2026_logo.png",
+    "cartel": "https://rsahtxjpisnldxnsmupk.supabase.co/storage/v1/object/public/race-images/2026/desafio-sarrio-2026/desafio-sarrio-2026_poster.jpg",
+    "hero": "https://rsahtxjpisnldxnsmupk.supabase.co/storage/v1/object/public/race-images/2026/desafio-sarrio-2026/desafio-sarrio-2026_cover.jpg"
+  },
+  "marca": {
+    "colorMarca": "#3A4A2B",
+    "colorAccion": "#B5121B",
+    "colorSecundario": "#8C7B4F",
+    "hero": "foto",
+    "cinta": true
+  },
+  "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y clasificaciones" },
+  "fuente": {
+    "origen": "desafiosarrio.com (portada, Marcha, Trail 10, Trail 24, El club) + ficha de Camberas (precios, salidas, límites, imágenes)",
+    "fecha": "2026-09-25",
+    "pendiente": ["condiciones de participación (PDF, no leído)", "categorías y premios", "recogida de dorsales", "confirmar horas de salida: la ficha dice 10:30/11:30/10:31 y evento_publico devuelve una hora más"]
+  }
+}
