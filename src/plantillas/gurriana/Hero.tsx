@@ -118,8 +118,11 @@ export function Cifras({ evento }: { evento: EventoPublico }) {
   if (altMax > 0) cifras.push({ valor: `${altMax} m`, etiqueta: "altitud máxima", movil: true });
   else if (desnivelMax > 0) cifras.push({ valor: `+${desnivelMax} m`, etiqueta: "desnivel positivo", movil: true });
   if (evento.lugar?.zona) cifras.push({ valor: evento.lugar.zona.split(" ")[0], etiqueta: evento.lugar.zona, movil: false });
-  const cierre = evento.inscripcion.cierreTexto ?? evento.inscripcion.cierre;
-  if (cierre) cifras.push({ valor: diaMesAbreviado(cierre), etiqueta: "cierre de inscripciones", movil: true });
+  // Fechas ISO, no el cierreTexto: de "Del 1 de noviembre al 7 de diciembre"
+  // salía "1 NOV" como cierre. Antes de abrir, lo que interesa es la apertura.
+  const { apertura, cierre } = evento.inscripcion;
+  if (evento.estado === "proximamente" && apertura) cifras.push({ valor: diaMesAbreviado(apertura), etiqueta: "apertura de inscripciones", movil: true });
+  else if (cierre) cifras.push({ valor: diaMesAbreviado(cierre), etiqueta: "cierre de inscripciones", movil: true });
   if (cifras.length < 2) return null;
 
   return (
