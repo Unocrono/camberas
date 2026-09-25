@@ -34,7 +34,13 @@ const raceSchema = z.object({
   location: z.string().trim().min(1, "La ubicación es requerida").max(200, "Máximo 200 caracteres"),
   date: z.string().min(1, "La fecha es requerida"),
   max_participants: z.number().positive().optional(),
-  image_url: z.string().url("URL inválida").optional().or(z.literal("")),
+  // URL absoluta o ruta de la propia web ("/demo-principal.svg", como usan las
+  // carreras demo): z.string().url() rechazaba las rutas y la demo no se podía editar
+  image_url: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || v.startsWith("/") || /^https?:\/\/\S+$/i.test(v), "URL inválida")
+    .optional(),
 });
 
 interface Race {
