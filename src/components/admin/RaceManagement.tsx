@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User, Wand2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User, Wand2, Copy } from "lucide-react";
+import { DuplicarCarreraDialog } from "./DuplicarCarreraDialog";
 import { calculateUtcOffsetFromDateString, formatUtcOffset, parseUtcOffset } from "@/lib/timezoneUtils";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
@@ -103,6 +104,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
   // confirmar. El de verdad lo protege un trigger en la BD
   // (20260828100000_borrado_carrera_protegido): esto es la parte amable.
   const [deletingRace, setDeletingRace] = useState<Race | null>(null);
+  // Duplicar carrera (nueva edición): RPC duplicar_carrera
+  const [duplicandoCarrera, setDuplicandoCarrera] = useState<Race | null>(null);
   const [deleteCounts, setDeleteCounts] = useState<{ inscripciones: number; recorridos: number } | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
 
@@ -1015,6 +1018,17 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         }}
       />
 
+      <DuplicarCarreraDialog
+        carrera={duplicandoCarrera}
+        onOpenChange={(abierto) => {
+          if (!abierto) setDuplicandoCarrera(null);
+        }}
+        onDuplicada={() => {
+          fetchRaces();
+          triggerRefresh("races");
+        }}
+      />
+
       {/* Borrar carrera: un solo diálogo, con lo que contiene a la vista y el
           nombre tecleado como confirmación. La protección de verdad es el
           trigger de la BD; esto evita llegar a él sin querer. */}
@@ -1115,6 +1129,9 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   <div className="flex gap-2">
                     <Button variant="outline" size="icon" onClick={() => handleOpenDialog(race)}>
                       <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" size="icon" title="Duplicar carrera (nueva edición)" onClick={() => setDuplicandoCarrera(race)}>
+                      <Copy className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="destructive"

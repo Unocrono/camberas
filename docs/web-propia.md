@@ -27,6 +27,12 @@ Plan y decisiones: `~/.claude/plans/algo-asi-hace-lovable-crystalline-jellyfish.
 
 Todo lo que no se rellena se toma de la carrera (nombre, fecha, recorridos, precios, plazas, reglamento, FAQ, GPX, horarios de salida en `race_waves`) a través de la RPC `evento_publico(slug)`, que es la única fuente de datos de la plantilla.
 
+## Duplicar una carrera (nueva edición)
+
+Botón «Duplicar» (icono de copiar) en la lista de carreras del panel, o la RPC `duplicar_carrera(race_id, nombre, fecha, slug, copiar_web)` (`20260925150000_duplicar_carrera.sql`). Copia recorridos (dorsales reiniciados), tramos de precio, salidas, categorías, formulario completo (con sus dependencias y extras con importe), puntos de control, reglamento (sin publicar), FAQ, devoluciones, descuentos de equipo, cesiones, requisitos de documentación, diseños de dorsal, patrocinadores y `race_web` (desactivada). Todas las fechas se desplazan los mismos días que la fecha de la carrera. La copia nace oculta.
+
+No copia inscripciones, pagos, cupones, resultados, lecturas, tokens (cronometraje, GPS, mesas, pantallas), voluntariado, overlays ni documentos subidos. Los ficheros (GPX, cartel, logos) se comparten por URL. Desde el editor SQL del panel se puede llamar sin sesión (así se creó La Garita 2026 a partir de la 2025).
+
 ## Dominio propio
 
 En el panel se escribe el dominio sin `www` (`desafio-sarrio.com`). Camberas pide dos registros DNS al club:
