@@ -217,7 +217,7 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
           <h2 className="px-[22px] pt-[22px] text-[24px] lg:px-8 lg:pt-8 lg:text-[28px]" style={{ color }}>Mapa</h2>
           <div className="mt-4 overflow-hidden">
             <Suspense fallback={null}>
-              <RoutePreviewMap gpxUrl={gpx} distanceName={prueba.nombre} />
+              <RoutePreviewMap gpxUrl={gpx} distanceName={prueba.nombre} puntos={prueba.rutometro?.puntos?.length ? prueba.rutometro.puntos : prueba.avituallamientos} />
             </Suspense>
           </div>
         </section>

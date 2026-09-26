@@ -3,14 +3,33 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile } from '@/lib/gpxParser';
+import { createRoot } from 'react-dom/client';
+import { createElement } from 'react';
+import { iconoRutometro } from '@/lib/iconosRutometro';
+
+/** Punto a marcar en el mapa (rutómetro o avituallamiento de la web propia) */
+export interface PuntoMapa {
+  lat?: number;
+  lon?: number;
+  km?: number;
+  nombre?: string;
+  descripcion?: string;
+  tipo?: string;
+  icono?: string;
+  etiqueta?: string;
+}
 
 interface RoutePreviewMapProps {
   gpxUrl: string;
   distanceName: string;
+  /** Puntos con icono (rutómetro, avituallamientos). Sin ellos, solo salida, meta y waypoints del GPX */
+  puntos?: PuntoMapa[];
 }
 
-export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) {
+export function RoutePreviewMap({ gpxUrl, distanceName, puntos }: RoutePreviewMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const puntosRef = useRef<PuntoMapa[] | undefined>(puntos);
+  puntosRef.current = puntos;
   const map = useRef<mapboxgl.Map | null>(null);
   const [mapboxToken, setMapboxToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -193,6 +212,25 @@ export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) 
         new mapboxgl.Marker(waypointEl)
           .setLngLat([waypoint.lon, waypoint.lat])
           .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${waypoint.name}</strong>${waypoint.desc ? `<br/>${waypoint.desc}` : ''}`))
+          .addTo(map.current!);
+      });
+
+      // Puntos del rutómetro o avituallamientos, con el icono de su tipo
+      (puntosRef.current ?? []).forEach((punto) => {
+        if (punto.lat == null || punto.lon == null) return;
+        const el = document.createElement('div');
+        el.className = 'route-marker';
+        const burbuja = document.createElement('div');
+        burbuja.className = 'flex items-center justify-center w-7 h-7 rounded-full shadow-lg text-white';
+        burbuja.style.background = '#235940';
+        burbuja.style.border = '2px solid #fff';
+        el.appendChild(burbuja);
+        createRoot(burbuja).render(createElement(iconoRutometro(punto.icono, punto.tipo), { size: 15, strokeWidth: 2.5, color: '#fff' }));
+        const titulo = punto.nombre ?? punto.descripcion ?? punto.etiqueta ?? '';
+        const km = punto.km != null ? `<br/>km ${String(Math.round(punto.km * 10) / 10).replace('.', ',')}` : '';
+        new mapboxgl.Marker(el)
+          .setLngLat([punto.lon, punto.lat])
+          .setPopup(new mapboxgl.Popup({ offset: 25 }).setHTML(`<strong>${titulo}</strong>${punto.etiqueta && punto.etiqueta !== titulo ? `<br/>${punto.etiqueta}` : ''}${km}`))
           .addTo(map.current!);
       });
 

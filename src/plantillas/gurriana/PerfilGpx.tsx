@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Prueba } from "@/eventos/tipos";
+import { iconoRutometro } from "@/lib/iconosRutometro";
 
 /**
  * Perfil de altimetría real a partir del GPX del recorrido, dibujado en SVG
@@ -137,12 +138,15 @@ export function PerfilGpxSvg({ perfil, prueba }: { perfil: PerfilGpx; prueba: Pr
       {marcadores.map((p) => {
         const liquido = p.tipo === "liquido" || p.tipo === "standard";
         const meta = p.tipo === "finish" || p.km >= km - 0.05;
+        // Icono del tipo de ítem del rutómetro (o por tipo de punto)
+        const Icono = iconoRutometro(p.icono, meta ? "finish" : p.tipo);
         const px = x(Math.min(p.km, perfil.km));
         const py = y(altitudEn(perfil, Math.min(p.km, perfil.km)));
         return (
           <g key={`${p.nombre}-${p.km}`}>
             <line x1={px} x2={px} y1={py} y2={H - abajo} stroke={color} strokeOpacity={0.35} />
-            <circle cx={px} cy={py} r={meta ? 6 : 4.5} fill={meta ? "var(--wp-ink)" : liquido ? "var(--wp-secundario)" : "var(--wp-accion)"} stroke="#fff" strokeWidth={2} />
+            <circle cx={px} cy={py} r={9} fill={meta ? "var(--wp-ink)" : liquido ? "var(--wp-secundario)" : "var(--wp-accion)"} stroke="#fff" strokeWidth={2} />
+            <Icono x={px - 5.5} y={py - 5.5} width={11} height={11} color="#fff" strokeWidth={2.5} aria-hidden="true" />
             <text x={px} y={H - abajo + 16} textAnchor={p.km <= 0.05 ? "start" : meta ? "end" : "middle"} fontSize={11} fill="var(--wp-body)">
               {fmtKm(p.km)}
             </text>

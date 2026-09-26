@@ -200,15 +200,14 @@ AS $fn$
                                       'id', r.id, 'nombre', r.name, 'descripcion', r.description,
                                       'puntos', (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                                                    'km', i.km_total, 'kmParcial', i.km_partial, 'tipo', i.item_type,
+                                                   'lat', i.latitude, 'lon', i.longitude,
                                                    'etiqueta', t.label, 'icono', t.icon, 'descripcion', i.description,
                                                    'notas', i.notes, 'via', i.via, 'altitud', i.altitude,
                                                    'control', i.is_checkpoint, 'destacado', i.is_highlighted,
                                                    'foto', COALESCE(i.photo_16_9_url, i.photo_9_16_url)))
                                                  ORDER BY i.item_order, i.km_total)
                                          FROM roadbook_items i LEFT JOIN roadbook_item_types t ON t.id = i.item_type_id
-                                         -- Solo los destacados (avituallamientos, controles, cruces…): el
-                                         -- track entero son miles de «Punto N» que no se enseñan en ningún sitio
-                                         WHERE i.roadbook_id = r.id AND i.is_highlighted)))
+                                         WHERE i.roadbook_id = r.id)))
                                     FROM roadbooks r WHERE r.race_distance_id = d.id ORDER BY r.created_at LIMIT 1),
                  'track',          CASE WHEN d.gpx_file_url IS NULL THEN NULL
                                         ELSE jsonb_build_object('gpx', d.gpx_file_url) END,
@@ -221,12 +220,15 @@ AS $fn$
                  'avituallamientos', COALESCE(
                                       (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                                                'km', k.distance_km, 'nombre', k.name, 'lugar', k.lugar,
+                                               'lat', k.latitude, 'lon', k.longitude,
                                                'tipo', lower(k.checkpoint_type), 'corte', k.max_time))
                                              ORDER BY k.checkpoint_order)
                                       FROM race_checkpoints k
                                       WHERE k.race_distance_id = d.id),
                                       (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                                                'km', i.km_total, 'nombre', i.description, 'lugar', i.via,
+                                               'lat', i.latitude, 'lon', i.longitude,
+                                               'icono', (SELECT t.icon FROM roadbook_item_types t WHERE t.id = i.item_type_id),
                                                'tipo', CASE i.item_type WHEN 'aid_station' THEN 'completo'
                                                                         WHEN 'refreshment' THEN 'liquido'
                                                                         WHEN 'finish' THEN 'finish'

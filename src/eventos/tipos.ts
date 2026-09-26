@@ -64,6 +64,8 @@ export interface PuntoRutometro {
   kmParcial?: number;
   /** aid_station, refreshment, checkpoint, start, finish, medical, poi, technical, uphill, downhill, bike_wash */
   tipo: string;
+  lat?: number;
+  lon?: number;
   etiqueta?: string;
   icono?: string;
   descripcion: string;
@@ -89,6 +91,10 @@ export interface Avituallamiento {
   /** liquido | completo | start | finish | standard (checkpoints de Camberas) */
   tipo: string;
   corte?: string;
+  lat?: number;
+  lon?: number;
+  /** Icono del tipo de ítem del rutómetro (roadbook_item_types.icon), si viene de ahí */
+  icono?: string;
   limite?: string;
 }
 
