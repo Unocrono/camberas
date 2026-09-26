@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Search, Ticket, X } from "lucide-react";
 import * as XLSX from "xlsx";
+import { mesaAtendiendo, numerarMesas, textoMesa as textoMesaComun } from "@/lib/mesasRecogida";
 
 /**
  * Mesas de recogida de dorsales.
@@ -36,9 +37,8 @@ interface Props {
   raceId: string;
 }
 
-/** ¿La vimos hace poco? Con el latido de un minuto, dos minutos es holgado */
-const enMarcha = (last: string | null) =>
-  !!last && Date.now() - new Date(last).getTime() < 2 * 60 * 1000;
+/** ¿La vimos hace poco? (regla común en src/lib/mesasRecogida.ts) */
+const enMarcha = mesaAtendiendo;
 
 export function MesasRecogidaManagement({ raceId }: Props) {
   const { toast } = useToast();
@@ -267,26 +267,12 @@ function EntregasDorsal({ raceId, mesas }: { raceId: string; mesas: Mesa[] }) {
     return () => clearInterval(t);
   }, [cargar]);
 
-  // Número de cada mesa: orden de alta en la carrera, contando las revocadas
-  // (la misma regla que la pantalla de la mesa, recogida_contexto)
-  const mesaPorId = useMemo(() => {
-    const ordenadas = [...mesas].sort(
-      (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
-    );
-    const mapa: Record<string, { numero: number; nombre: string }> = {};
-    ordenadas.forEach((m, i) => {
-      mapa[m.id] = { numero: i + 1, nombre: m.nombre };
-    });
-    return mapa;
-  }, [mesas]);
+  // Número de cada mesa: la regla común (src/lib/mesasRecogida.ts), la misma
+  // que ve la mesa en su pantalla y la app del organizador
+  const mesaPorId = useMemo(() => numerarMesas(mesas), [mesas]);
 
-  const textoMesa = (id: string | null) => {
-    if (!id || !mesaPorId[id]) return "—";
-    const { numero, nombre } = mesaPorId[id];
-    // "Mesa #1" y el nombre solo si dice algo más ("Mesa 1" no se repite)
-    const soloNumero = nombre.trim().toLowerCase().replace(/[#º°.\s]/g, "") === `mesa${numero}`;
-    return soloNumero ? `Mesa #${numero}` : `Mesa #${numero} · ${nombre}`;
-  };
+  const textoMesa = (id: string | null) =>
+    id && mesaPorId[id] ? textoMesaComun(mesaPorId[id].numero, mesaPorId[id].nombre) : "—";
 
   const corredor = (e: Entrega) =>
     [e.registrations?.first_name, e.registrations?.last_name].filter(Boolean).join(" ") || "—";

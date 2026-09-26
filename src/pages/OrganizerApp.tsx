@@ -28,6 +28,7 @@ import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import { OrgCupones } from "@/components/org/OrgCupones";
+import { OrgDorsalesRecogidos } from "@/components/org/OrgDorsalesRecogidos";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
 import { OrgResults } from "@/components/org/OrgResults";
@@ -39,7 +40,7 @@ import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
-  Bike, ShieldCheck, Timer, TicketPercent } from "lucide-react";
+  Bike, ShieldCheck, Timer, TicketPercent, Ticket } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 import { asegurarManifest } from "@/lib/instalarPwa";
@@ -182,7 +183,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "recogidos";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -215,6 +216,9 @@ const ORG_MENU: OrgMenuGroup[] = [
       { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
       { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
       { id: "cupones-app", title: "Cupones", icon: TicketPercent, screen: "cupones" },
+      // El día de la recogida: cuántos van, qué mesas atienden y quién ha
+      // pasado ya (las mesas se crean en el panel, Mesas de recogida)
+      { id: "dorsales-recogidos", title: "Dorsales recogidos", icon: Ticket, screen: "recogidos" },
     ],
   },
   {
@@ -476,9 +480,20 @@ const OrganizerApp = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-10">
+    <div
+      className="min-h-screen bg-background"
+      // Abajo, lo mismo con la barra de inicio del iPhone
+      style={{ paddingBottom: "calc(2.5rem + env(safe-area-inset-bottom, 0px))" }}
+    >
       {/* Cabecera */}
-      <header className="sticky top-0 z-10 border-b border-border bg-background/95 px-4 py-3 backdrop-blur-sm">
+      {/* Instalada en iPhone la página ocupa también la barra de estado
+          (index.html: black-translucent + viewport-fit=cover): la cabecera
+          deja ese hueco o la hora y la batería se montan sobre el título.
+          En el navegador normal el hueco vale 0. */}
+      <header
+        className="sticky top-0 z-10 border-b border-border bg-background/95 px-4 pb-3 backdrop-blur-sm"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+      >
         <div className="mx-auto flex max-w-lg items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <img src="/org-icon-192.png" alt="" className="h-9 w-9 rounded-full" />
@@ -689,6 +704,8 @@ const OrganizerApp = () => {
                 <OrgRegistrations raceId={raceId} />
               ) : openScreen?.screen === "cupones" ? (
                 <OrgCupones raceId={raceId} />
+              ) : openScreen?.screen === "recogidos" ? (
+                <OrgDorsalesRecogidos raceId={raceId} byDistance={summary?.by_distance ?? []} />
               ) : openScreen?.screen === "estadisticas" ? (
                 <OrgStats
                   raceId={raceId}
