@@ -294,7 +294,7 @@ const Dashboard = () => {
       <div className="container mx-auto px-4 py-24">
         <div className="mb-8">
           <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Mi espacio</p>
-          <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Mi Dashboard</h1>
+          <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Mi Panel</h1>
           <p className="text-muted-foreground">Gestiona tus inscripciones y carreras</p>
         </div>
 
@@ -392,14 +392,17 @@ const Dashboard = () => {
                             Ver Detalles
                           </Button>
 
+                          {/* Seguimiento GPS del corredor: desde jul-2026 lo hace la
+                              app Camberas Track (la página web /race/:id/tracker
+                              se retiró y este botón daba error): aquí se instala */}
                           {registration.distance.gps_tracking_enabled && registration.status === "confirmed" && (
                             <Button
                               variant="outline"
-                              onClick={() => navigate(`/race/${registration.race.id}/tracker`)}
+                              onClick={() => navigate("/descargas")}
                               className="gap-2"
                             >
                               <Radio className="h-4 w-4" />
-                              GPS Tracker
+                              Camberas Track
                             </Button>
                           )}
 

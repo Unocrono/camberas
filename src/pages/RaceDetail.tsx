@@ -839,7 +839,7 @@ const RaceDetail = () => {
     setRegistrationStep('form');
     toast({
       title: "Pago cancelado",
-      description: "Puedes completar el pago más tarde desde tu dashboard.",
+      description: "Puedes completar el pago más tarde desde tu panel.",
     });
     setIsDialogOpen(false);
     fetchRaceDetails();
