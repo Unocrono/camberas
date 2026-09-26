@@ -36,7 +36,9 @@ export function construirMenu(evento: EventoPublico, rutas: RutasWeb): GrupoMenu
   grupos.push({
     id: "recorridos",
     texto: evento.pruebas.length > 1 ? "Recorridos" : "Recorrido",
-    items: evento.pruebas.map((p) => ({ href: rutas.ancla(`prueba-${p.id}`), texto: p.nombre })),
+    // Cada recorrido a su propia página (mapa, perfil, vuelo 3D, GPX), no al
+    // ancla de la portada, donde se ven todos a la vez
+    items: evento.pruebas.map((p) => ({ href: rutas.a(`/recorrido/${p.id}`), texto: p.nombre })),
   });
 
   const inscripcion: EnlaceMenu[] = [{ href: rutas.ancla("inscripcion"), texto: "Precios y plazos" }];

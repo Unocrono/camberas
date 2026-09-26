@@ -91,6 +91,8 @@ export interface Prueba {
   marcaje?: string;
   municipios?: string;
   descripcion?: string;
+  /** Texto largo del recorrido (race_web.contenido.pruebas[].relato); solo en la página del recorrido */
+  relato?: string;
   plazas?: number;
   plazasLibres?: number;
   estado?: EstadoEvento;

@@ -2,6 +2,7 @@ import { lazy } from "react";
 import { useParams } from "react-router-dom";
 import { Download } from "lucide-react";
 import { PerfilAltimetria } from "@/plantillas/gurriana/Recorridos";
+import { formatoPrecio } from "@/eventos/useEventoPublico";
 import { PaginaSecundaria, TituloInterior } from "./PaginaSecundaria";
 import NoEncontradoWeb from "./NoEncontradoWeb";
 
@@ -9,7 +10,14 @@ import NoEncontradoWeb from "./NoEncontradoWeb";
 const RouteFlightViewer = lazy(() => import("@/components/RouteFlightViewer").then((m) => ({ default: m.RouteFlightViewer })));
 const RoutePreviewMap = lazy(() => import("@/components/RoutePreviewMap").then((m) => ({ default: m.RoutePreviewMap })));
 
-/** Un recorrido: mapa, vuelo 3D, GPX, avituallamientos, cortes */
+const TIPO_TEXTO: Record<string, string> = { carrera: "Carrera", marcha: "Marcha", infantil: "Infantil", relevos: "Relevos", km_vertical: "Kilómetro vertical" };
+
+/**
+ * Un solo recorrido, con todo lo suyo: cifras, descripción y relato, perfil
+ * real (GPX), mapa, vuelo 3D, descarga, terreno, avituallamientos y cortes,
+ * y el botón de inscribirse a ESE recorrido. Es la página a la que lleva el
+ * menú «Recorridos»; en la portada están todos juntos.
+ */
 export default function PaginaRecorrido() {
   const { pruebaId } = useParams();
   return (
@@ -18,18 +26,107 @@ export default function PaginaRecorrido() {
         const prueba = evento.pruebas.find((p) => p.id === pruebaId);
         if (!prueba) return <NoEncontradoWeb />;
         const gpx = prueba.track?.gpx;
+        const estado = prueba.estado ?? evento.estado;
+        const abierta = estado === "abierta";
+        const color = prueba.color ?? "var(--wp-marca)";
+        const otras = evento.pruebas.filter((p) => p.id !== prueba.id);
         return (
           <>
-            <TituloInterior etiqueta="Recorrido" titulo={prueba.nombre} rutas={rutas} />
-            <div className="mx-auto max-w-[1296px] px-5 pb-16 pt-10 lg:px-[72px] lg:pb-24">
-              <div className="grid grid-cols-2 gap-5 lg:grid-cols-5">
+            <TituloInterior etiqueta={`${TIPO_TEXTO[prueba.tipo] ?? "Recorrido"}${prueba.competitiva === false ? " · no competitiva" : ""}`} titulo={prueba.nombre} rutas={rutas} />
+            <div className="mx-auto max-w-[1296px] px-5 pb-16 pt-8 lg:px-[72px] lg:pb-24">
+              {/* Otros recorridos, para cambiar sin volver a la portada */}
+              {otras.length > 0 && (
+                <p className="mb-8 flex flex-wrap items-center gap-2 text-[14px]">
+                  <span className="wp-label">Ver también</span>
+                  {otras.map((p) => (
+                    <a key={p.id} href={rutas.a(`/recorrido/${p.id}`)} className="rounded-full border px-3 py-1 font-semibold no-underline hover:underline" style={{ borderColor: "var(--wp-border)", color: "var(--wp-ink)" }}>
+                      {p.nombre}
+                    </a>
+                  ))}
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-5 lg:grid-cols-6">
                 {prueba.distanciaTexto && <Dato valor={prueba.distanciaTexto} etiqueta="distancia" />}
                 {prueba.desnivelPos != null && <Dato valor={`+${prueba.desnivelPos} m`} etiqueta="desnivel positivo" />}
                 {prueba.desnivelNeg != null && <Dato valor={`−${prueba.desnivelNeg} m`} etiqueta="desnivel negativo" />}
                 {prueba.altMax != null && <Dato valor={`${prueba.altMax} m`} etiqueta="altitud máxima" />}
                 {prueba.salida && <Dato valor={`${prueba.salida} h`} etiqueta="salida" />}
                 {prueba.limite && <Dato valor={prueba.limite} etiqueta="tiempo límite" />}
+                {prueba.precio != null && <Dato valor={formatoPrecio(prueba.precio)} etiqueta="inscripción" />}
               </div>
+
+              {(prueba.lugarSalida || prueba.lugarMeta || prueba.municipios || prueba.marcaje) && (
+                <p className="mt-6 text-[15px]">
+                  {[
+                    prueba.lugarSalida ? `Salida desde ${prueba.lugarSalida}` : null,
+                    prueba.lugarMeta && prueba.lugarMeta !== prueba.lugarSalida ? `meta en ${prueba.lugarMeta}` : null,
+                    prueba.municipios,
+                    prueba.marcaje ? `marcaje ${prueba.marcaje}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              )}
+              {prueba.descripcion && <p className="mt-4 max-w-[820px] text-[17px] leading-relaxed" style={{ color: "var(--wp-ink)" }}>{prueba.descripcion}</p>}
+              {prueba.relato && (
+                <div className="mt-4 max-w-[820px] text-[15px] leading-relaxed">
+                  {prueba.relato.split(/\n+/).map((parrafo, i) => (
+                    <p key={i} className={i > 0 ? "mt-3" : ""}>{parrafo}</p>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                {abierta ? (
+                  <a href={`${rutas.a("/") || "/"}?inscribir=${prueba.id}`} className="wp-btn" style={{ background: "var(--wp-accion)", color: "var(--wp-accion-texto)" }}>
+                    Inscribirme en {prueba.nombre}
+                  </a>
+                ) : (
+                  <span className="wp-btn" style={{ background: "var(--wp-cream)", color: "var(--wp-body)", cursor: "default" }}>
+                    {estado === "proximamente" ? "Inscripciones próximamente" : estado === "agotada" ? "Completo" : estado === "celebrada" ? "Celebrada" : "Inscripciones cerradas"}
+                  </span>
+                )}
+                {gpx && (
+                  <a href={gpx} download className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                    <Download size={18} strokeWidth={2} aria-hidden="true" />
+                    Descargar GPX
+                  </a>
+                )}
+                {prueba.track?.wikiloc && (
+                  <a href={prueba.track.wikiloc} target="_blank" rel="noopener noreferrer" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                    Ver en Wikiloc
+                  </a>
+                )}
+                {prueba.track?.mapa && (
+                  <a href={prueba.track.mapa} target="_blank" rel="noopener noreferrer" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                    Rutómetro
+                  </a>
+                )}
+              </div>
+
+              {/* Perfil: real si hay GPX; si no, el esquema de avituallamientos */}
+              {(gpx || (prueba.avituallamientos && prueba.avituallamientos.length > 0)) && (
+                <div className="wp-card mt-10 p-[22px] lg:p-8">
+                  <h2 className="text-[24px] lg:text-[28px]" style={{ color }}>Perfil</h2>
+                  <div className="mt-6">
+                    <PerfilAltimetria prueba={prueba} />
+                  </div>
+                </div>
+              )}
+
+              {prueba.terreno && prueba.terreno.length > 0 && (
+                <div className="mt-8">
+                  <p className="wp-label">Terreno</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                    {prueba.terreno.map(([tipo, dist]) => (
+                      <p key={tipo} className="rounded-md px-3 py-2 text-[13px]" style={{ background: "var(--wp-cream)" }}>
+                        {tipo} · <span className="font-semibold" style={{ color: "var(--wp-ink)" }}>{dist}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {gpx ? (
                 <div className="mt-10 flex flex-col gap-6">
@@ -39,22 +136,6 @@ export default function PaginaRecorrido() {
                   <div className="wp-card overflow-hidden" style={{ minHeight: 420 }}>
                     <RouteFlightViewer gpxUrl={gpx} distanceName={prueba.nombre} />
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    <a href={gpx} download className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
-                      <Download size={18} strokeWidth={2} aria-hidden="true" />
-                      Descargar GPX
-                    </a>
-                    {prueba.track?.wikiloc && (
-                      <a href={prueba.track.wikiloc} target="_blank" rel="noopener noreferrer" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
-                        Ver en Wikiloc
-                      </a>
-                    )}
-                    {prueba.track?.mapa && (
-                      <a href={prueba.track.mapa} target="_blank" rel="noopener noreferrer" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
-                        Rutómetro
-                      </a>
-                    )}
-                  </div>
                 </div>
               ) : (
                 <p className="mt-10 text-[15px]">El track de este recorrido se publicará próximamente.</p>
@@ -63,9 +144,6 @@ export default function PaginaRecorrido() {
               {prueba.avituallamientos && prueba.avituallamientos.length > 0 && (
                 <div className="wp-card mt-10 p-[22px] lg:p-8">
                   <h2 className="text-[24px] lg:text-[28px]">Avituallamientos y controles</h2>
-                  <div className="mt-6">
-                    <PerfilAltimetria prueba={prueba} />
-                  </div>
                   <ul className="mt-6 flex flex-col gap-2 list-none p-0 m-0">
                     {prueba.avituallamientos.map((a) => (
                       <li key={`${a.nombre}-${a.km}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 text-[15px]" style={{ background: "var(--wp-cream)" }}>
