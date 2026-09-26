@@ -2,6 +2,7 @@ import { Download, MapPin } from "lucide-react";
 import type { EventoPublico, Prueba } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
+import { PerfilGpxSvg, usePerfilGpx } from "./PerfilGpx";
 
 interface Props {
   evento: EventoPublico;
@@ -41,6 +42,13 @@ function Cifra({ valor, etiqueta }: { valor: string; etiqueta: string }) {
  * recorrido, con el visor 3D de Camberas.)
  */
 export function PerfilAltimetria({ prueba }: { prueba: Prueba }) {
+  // Con GPX, perfil real (PerfilGpx.tsx); mientras carga o sin GPX, el esquema
+  const perfil = usePerfilGpx(prueba.track?.gpx);
+  if (perfil) return <PerfilGpxSvg perfil={perfil} prueba={prueba} />;
+  return <PerfilEsquematico prueba={prueba} />;
+}
+
+function PerfilEsquematico({ prueba }: { prueba: Prueba }) {
   const km = prueba.distancia ? prueba.distancia / 1000 : undefined;
   const puntos = (prueba.avituallamientos ?? []).filter((a) => km == null || a.km <= km + 0.01);
   if (!km || puntos.length === 0) return null;
