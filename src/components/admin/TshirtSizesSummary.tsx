@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Shirt, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface TshirtSizesSummaryProps {
   selectedRaceId?: string;
@@ -213,7 +214,7 @@ export function TshirtSizesSummary({ selectedRaceId }: TshirtSizesSummaryProps) 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `resumen_tallas_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `resumen_tallas_${hoyLocal()}.csv`);
     link.click();
     URL.revokeObjectURL(url);
   };

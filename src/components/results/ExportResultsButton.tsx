@@ -9,6 +9,7 @@ import {
 import { Download, FileText, Table } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface RaceResult {
   id: string;
@@ -141,7 +142,7 @@ export function ExportResultsButton({
       doc.text(`Generado el ${new Date().toLocaleString('es-ES')} - Camberas.com`, pageWidth / 2, 290, { align: "center" });
 
       // Save
-      const fileName = `resultados_${raceName.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`;
+      const fileName = `resultados_${raceName.replace(/\s+/g, '_').toLowerCase()}_${hoyLocal()}.pdf`;
       doc.save(fileName);
       toast.success("PDF generado correctamente");
     } catch (error) {
@@ -179,7 +180,7 @@ export function ExportResultsButton({
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `resultados_${raceName.replace(/\s+/g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = `resultados_${raceName.replace(/\s+/g, '_').toLowerCase()}_${hoyLocal()}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

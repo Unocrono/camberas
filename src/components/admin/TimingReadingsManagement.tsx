@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toLocalISOString, formatLocalTimestamp, formatLocalTime } from "@/lib/timezoneUtils";
+import { toLocalISOString, formatLocalTimestamp, formatLocalTime, hoyLocal } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -113,7 +113,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   
   // Reimport GPS state
   const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
-  const [reimportDate, setReimportDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reimportDate, setReimportDate] = useState(hoyLocal());
   const [reimportStartTime, setReimportStartTime] = useState("00:00");
   const [reimportEndTime, setReimportEndTime] = useState("23:59");
   const [reimporting, setReimporting] = useState(false);
@@ -721,7 +721,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
           setReimportEndTime("23:59:59");
           setWaveInfo({ date: datePart, time: timePart });
         } else {
-          const today = new Date().toISOString().split('T')[0];
+          const today = hoyLocal();
           setReimportDate(today);
           setReimportStartTime("00:00:00");
           setReimportEndTime("23:59:59");
@@ -729,14 +729,14 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
         }
       } catch (err) {
         console.error("Error fetching wave:", err);
-        const today = new Date().toISOString().split('T')[0];
+        const today = hoyLocal();
         setReimportDate(today);
         setReimportStartTime("00:00:00");
         setReimportEndTime("23:59:59");
         setWaveInfo(null);
       }
     } else {
-      const today = new Date().toISOString().split('T')[0];
+      const today = hoyLocal();
       setReimportDate(today);
       setReimportStartTime("00:00:00");
       setReimportEndTime("23:59:59");
@@ -875,7 +875,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `lecturas_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `lecturas_${hoyLocal()}.csv`;
     link.click();
   };
 

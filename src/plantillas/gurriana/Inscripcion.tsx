@@ -10,7 +10,8 @@ interface Props {
 
 function fechaCorta(iso?: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  // Solo el día, tal cual: los plazos son hora local y no se convierten
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString("es-ES", { day: "numeric", month: "short" }).replace(".", "");
 }
 

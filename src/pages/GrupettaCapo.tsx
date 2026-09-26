@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Crown, Copy, MapPin, Check, Upload, Image as ImageIcon, Bike, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { lazy, Suspense } from "react";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 // El cartel (SVG grande + exportación a PNG) solo se carga si el capo abre
 // el diálogo: fuera del paquete principal, que ya va muy justo.
@@ -84,7 +85,7 @@ const GrupettaCapo = () => {
 
   // Crear
   const [nombreGrupo, setNombreGrupo] = useState("");
-  const [fechaSalida, setFechaSalida] = useState(new Date().toISOString().slice(0, 10));
+  const [fechaSalida, setFechaSalida] = useState(hoyLocal());
   const [horaSalida, setHoraSalida] = useState("");
   const [lugarSalida, setLugarSalida] = useState("");
   const [gpxNuevo, setGpxNuevo] = useState<File | null>(null);
@@ -380,7 +381,7 @@ const GrupettaCapo = () => {
                         <Input
                           type="date"
                           value={fechaSalida}
-                          min={new Date().toISOString().slice(0, 10)}
+                          min={hoyLocal()}
                           onChange={(e) => setFechaSalida(e.target.value)}
                         />
                       </div>
@@ -514,7 +515,7 @@ const GrupettaCapo = () => {
                                   name="fecha"
                                   type="date"
                                   defaultValue={g.fecha}
-                                  min={new Date().toISOString().slice(0, 10)}
+                                  min={hoyLocal()}
                                 />
                               </div>
                               <div>

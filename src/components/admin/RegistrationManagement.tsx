@@ -26,6 +26,7 @@ import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 import { DynamicEditRegistrationForm } from "./DynamicEditRegistrationForm";
 import { DevolucionDialog } from "./DevolucionDialog";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface Registration {
   id: string;
@@ -998,7 +999,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       .eq("id", raceId)
       .single();
 
-    const raceDate = raceData?.date || new Date().toISOString().split('T')[0];
+    const raceDate = raceData?.date || hoyLocal();
 
     setBulkActionLoading(true);
     try {
@@ -1799,7 +1800,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `inscripciones_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("download", `inscripciones_${hoyLocal()}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -1825,7 +1826,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inscripciones");
-    XLSX.writeFile(wb, `inscripciones_${new Date().toISOString().split("T")[0]}.xlsx`);
+    XLSX.writeFile(wb, `inscripciones_${hoyLocal()}.xlsx`);
 
     toast({
       title: "Exportación exitosa",

@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Clock, MapPin, Users } from "lucide-react";
+import { formatLocalTimestamp } from "@/lib/timezoneUtils";
 
 interface DistanceRow {
   id: string;
@@ -30,11 +31,11 @@ interface Props {
   byDistance: { distance_id: string; count: number }[];
 }
 
-/** "HH:MM:SS" o timestamp → "HH:MM" */
+/** "HH:MM:SS" o timestamp → "HH:MM", tal cual: la salida es hora local y no se convierte */
 const formatTime = (t: string | null): string | null => {
   if (!t) return null;
-  if (t.includes("T")) {
-    return new Date(t).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+  if (t.includes("T") || t.includes(" ")) {
+    return formatLocalTimestamp(t, { showDate: false, showSeconds: false });
   }
   return t.slice(0, 5);
 };

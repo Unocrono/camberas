@@ -6,6 +6,7 @@
  */
 
 import type { OverlayConfig, OverlayConfigDB, DisplayMode } from './types';
+import { paredAMs, ahoraParedMs } from '@/lib/timezoneUtils';
 
 // ============================================================================
 // COLOR UTILITIES
@@ -143,13 +144,16 @@ export function parseNumericValue(value: string): number {
 // ============================================================================
 
 /**
- * Calcula tiempo transcurrido desde el inicio
+ * Calcula tiempo transcurrido desde la salida. La salida es hora LOCAL tal
+ * como viene de race_waves.start_time: con new Date() se tomaba como UTC y el
+ * reloj iba 1-2 h por detrás
  */
-export function getElapsedTime(startTime: Date | null): string {
+export function getElapsedTime(startTime: string | null): string {
   if (!startTime) return '--:--:--';
-  
-  const now = new Date();
-  const diff = now.getTime() - startTime.getTime();
+
+  const inicio = paredAMs(startTime);
+  if (inicio === null) return '--:--:--';
+  const diff = ahoraParedMs() - inicio;
   
   if (diff < 0) return '--:--:--'; // Race hasn't started
   

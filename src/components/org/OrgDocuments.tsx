@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileCheck2, AlertTriangle, Clock, CheckCircle2, ExternalLink } from "lucide-react";
+import { hoyLocal, diasHasta } from "@/lib/timezoneUtils";
 
 // Tablas nuevas aún sin tipos generados
 const db = supabase as any;
@@ -54,7 +55,7 @@ const STATUS_LABELS: Record<string, string> = {
 /** caducado se deriva en cliente (igual que en el panel) */
 const effectiveStatus = (doc: RaceDocument | undefined): string => {
   if (!doc) return "pendiente";
-  if (doc.expiry_date && doc.expiry_date < new Date().toISOString().slice(0, 10)) return "caducado";
+  if (doc.expiry_date && doc.expiry_date < hoyLocal()) return "caducado";
   return doc.status;
 };
 
@@ -119,9 +120,8 @@ export const OrgDocuments = ({ raceId, raceDate }: Props) => {
   /** Días que faltan para la fecha límite del requisito */
   const diasParaLimite = (req: Requirement): number | null => {
     if (!raceDate) return null;
-    const limite = new Date(raceDate);
-    limite.setDate(limite.getDate() - req.days_before_race);
-    return Math.ceil((limite.getTime() - Date.now()) / 86400000);
+    // Días de calendario en hora local (con new Date(fecha) el día cambiaba a las 02:00)
+    return diasHasta(raceDate) - req.days_before_race;
   };
 
   if (!raceId) {

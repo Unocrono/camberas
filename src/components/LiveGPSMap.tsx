@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatLocalTime } from '@/lib/timezoneUtils';
+import { formatLocalTime, formatHoraGps } from '@/lib/timezoneUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapControls } from '@/components/MapControls';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -1014,7 +1014,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
               `<div class="p-2">
                 <strong>🆘 SOS — ${alert.runner_name}</strong><br/>
                 ${alert.bib_number ? `Dorsal: ${alert.bib_number}<br/>` : ''}
-                ${formatLocalTime(alert.triggered_at)}
+                ${formatHoraGps(alert.triggered_at)}
               </div>`
             )
           )
@@ -1356,8 +1356,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     }
   }, [selectedRunner, isFollowing]);
 
+  // Horas de posiciones GPS: son instantes UTC reales (la única excepción a la
+  // hora local), así que aquí sí se pasan a la hora de la carrera
   const formatTime = (timestamp: string) => {
-    return formatLocalTime(timestamp);
+    return formatHoraGps(timestamp);
   };
 
   // ── Progreso sobre el recorrido + clasificación virtual ──────────────────

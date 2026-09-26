@@ -56,7 +56,9 @@ export function diaMes(iso: string | undefined): { dia: string; mes: string } {
 /** "15 FEB" desde una fecha ISO o un texto "15 de febrero de 2027" */
 export function diaMesAbreviado(valor: string | undefined): string {
   if (!valor) return "";
-  const d = new Date(valor);
+  // Del valor ISO solo cuenta el día, tal cual (es hora local): con new Date()
+  // un cierre desde las 22:00 se anunciaba al día siguiente
+  const d = new Date(`${valor.slice(0, 10)}T12:00:00`);
   if (!isNaN(d.getTime()) && /^\d{4}-\d{2}-\d{2}/.test(valor)) {
     return `${d.getDate()} ${d.toLocaleDateString("es-ES", { month: "short" }).replace(".", "").toUpperCase()}`;
   }

@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
 import { parseGpxFile, calculateDistanceToFinish, getAllTrackPoints, GpxTrackPoint } from '@/lib/gpxParser';
-import { formatLocalTime } from '@/lib/timezoneUtils';
+import { formatHoraGps } from '@/lib/timezoneUtils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -574,7 +574,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
             ${pos.speed !== null ? `<div>🚀 Velocidad: ${pos.speed.toFixed(1)} km/h</div>` : ''}
             ${pos.distance_from_start !== null ? `<div>📏 Km recorrido: ${pos.distance_from_start.toFixed(2)} km</div>` : ''}
             ${pos.distance_remaining !== null ? `<div>🏁 Km hasta meta: ${pos.distance_remaining.toFixed(2)} km</div>` : ''}
-            <div>🕐 Última actualización: ${formatLocalTime(pos.timestamp)}</div>
+            <div>🕐 Última actualización: ${formatHoraGps(pos.timestamp)}</div>
           </div>
         </div>
       `);

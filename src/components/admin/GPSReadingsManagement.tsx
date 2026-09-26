@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { formatLocalTimestamp } from "@/lib/timezoneUtils";
+import { formatLocalTimestamp, hoyLocal } from "@/lib/timezoneUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -412,7 +412,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
           setWaveInfo({ date: datePart, time: timePart });
         } else {
           // Fallback to today if no wave configured
-          const today = new Date().toISOString().split('T')[0];
+          const today = hoyLocal();
           setReimportDate(today);
           setReimportStartTime("00:00:00");
           setReimportEndTime("23:59:59");
@@ -420,14 +420,14 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
         }
       } catch (err) {
         console.error("Error fetching wave:", err);
-        const today = new Date().toISOString().split('T')[0];
+        const today = hoyLocal();
         setReimportDate(today);
         setReimportStartTime("00:00:00");
         setReimportEndTime("23:59:59");
         setWaveInfo(null);
       }
     } else {
-      const today = new Date().toISOString().split('T')[0];
+      const today = hoyLocal();
       setReimportDate(today);
       setReimportStartTime("00:00:00");
       setReimportEndTime("23:59:59");
@@ -526,7 +526,7 @@ export function GPSReadingsManagement({ isOrganizer = false, selectedRaceId }: G
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `lecturas_gps_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `lecturas_gps_${hoyLocal()}.csv`;
     link.click();
   };
 

@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { paredAMs, msAPared, ahoraLocal } from "@/lib/timezoneUtils";
 import { Plus, Trash2, Clock, Search, Edit, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 
 interface SplitTimeWithDetails {
@@ -452,7 +453,23 @@ export function SplitTimesManagement({
     }
 
     const interval = `${formData.hours.toString().padStart(2, "0")}:${formData.minutes.toString().padStart(2, "0")}:${formData.seconds.toString().padStart(2, "0")}`;
-    const now = new Date().toISOString();
+    const now = new Date().toISOString(); // sello de auditoría (instante real)
+
+    // La lectura lleva la hora LOCAL del paso: salida del evento + el tiempo
+    // tecleado. Antes llevaba la hora del clic en UTC, y el recálculo de
+    // resultados la tomaba como hora del paso
+    const { data: ola } = await supabase
+      .from("race_waves")
+      .select("start_time")
+      .eq("race_distance_id", registration.race_distance_id)
+      .not("start_time", "is", null)
+      .order("start_time", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const salidaMs = ola?.start_time ? paredAMs(ola.start_time) : null;
+    const segundosPaso =
+      (Number(formData.hours) || 0) * 3600 + (Number(formData.minutes) || 0) * 60 + (Number(formData.seconds) || 0);
+    const horaPaso = salidaMs !== null ? msAPared(salidaMs + segundosPaso * 1000) : ahoraLocal();
 
     // Get or create race_result
     let raceResultId = registration.race_result_id;
@@ -486,7 +503,7 @@ export function SplitTimesManagement({
         registration_id: registration.id,
         checkpoint_id: checkpoint.id,
         bib_number: registration.bib_number || 0,
-        timing_timestamp: now,
+        timing_timestamp: horaPaso,
         reading_timestamp: now,
         reading_type: "manual",
         is_processed: true,

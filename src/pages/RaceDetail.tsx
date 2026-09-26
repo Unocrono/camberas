@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane } from "lucide-react";
-import { formatLocalTime } from "@/lib/timezoneUtils";
+import { formatLocalTime, paredAMs, ahoraParedMs, hoyLocal } from "@/lib/timezoneUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -158,8 +158,10 @@ const RaceDetail = () => {
     if (!race?.date) return;
 
     const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const raceDate = new Date(race.date).getTime();
+      // Hasta las 00:00 del día de la carrera en hora local (new Date(fecha)
+      // apuntaba a las 00:00 UTC, las 02:00 aquí)
+      const now = ahoraParedMs();
+      const raceDate = paredAMs(race.date) ?? 0;
       const distance = raceDate - now;
 
       if (distance > 0) {
@@ -900,11 +902,10 @@ const RaceDetail = () => {
   // salida, que puede diferir entre recorridos en carreras de varios
   // días); sin salida configurada, se usa la fecha de la carrera.
   const resultadosVisibles = (distance: any) => {
-    const base = distance.start_time
-      ? new Date(distance.start_time)
-      : new Date(`${race.date}T00:00:00`);
-    base.setHours(0, 0, 0, 0);
-    return new Date() >= base;
+    // Solo cuenta el día, tal cual (hora local): con new Date() una salida
+    // desde las 22:00 dejaba los resultados ocultos hasta el día siguiente
+    const dia = String(distance.start_time || race.date).slice(0, 10);
+    return hoyLocal() >= dia;
   };
 
   return (

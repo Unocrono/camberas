@@ -229,7 +229,7 @@ export default function StartControl() {
     if (success) {
       toast({
         title: '¡Salida registrada!',
-        description: `${selectedDistanceIds.length} evento(s) a las ${formatLocalTime(correctedTimestamp.toString())}`
+        description: `${selectedDistanceIds.length} evento(s) a las ${formatLocalTime(pendingStart.startTimeISO)}`
       });
     }
 

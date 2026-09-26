@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { toLocalISOString, formatLocalTime, parseLocalTimestamp } from '@/lib/timezoneUtils';
+import { formatLocalTime } from '@/lib/timezoneUtils';
 import type { PendingStart } from '@/hooks/useStartControlSync';
 
 interface RaceDistance {
@@ -101,14 +101,14 @@ export function EventSelector({
   const handleConfirmEdit = () => {
     if (!editingEvent) return;
     
-    const [time, ms] = editTimeValue.split('.');
-    const [hours, minutes, seconds] = time.split(':').map(Number);
-    
-    const originalDate = new Date(editingEvent.currentTime);
-    originalDate.setHours(hours, minutes, seconds, parseInt(ms) || 0);
-    
-    // Use local ISO string to avoid UTC conversion
-    onEditStart(editingEvent.distanceId, editingEvent.waveId, toLocalISOString(originalDate));
+    const [time] = editTimeValue.split('.');
+    const [hours, minutes, seconds] = time.split(':').map((n) => Number(n) || 0);
+    const hora = [hours, minutes, seconds].map((n) => String(n).padStart(2, '0')).join(':');
+
+    // El mismo día de la salida guardada con la hora tecleada, como texto: con
+    // new Date() + setHours una salida desde las 22:00 pasaba al día siguiente
+    const fecha = editingEvent.currentTime.slice(0, 10);
+    onEditStart(editingEvent.distanceId, editingEvent.waveId, `${fecha}T${hora}`);
     setEditDialogOpen(false);
     setEditingEvent(null);
   };
@@ -120,7 +120,8 @@ export function EventSelector({
     if (pendingStatus) {
       return {
         type: pendingStatus.status,
-        time: formatLocalTime(new Date(pendingStatus.startTimestamp).toISOString()),
+        // startTimeISO ya es la hora local de la salida; toISOString la daba en UTC
+        time: formatLocalTime(pendingStatus.startTimeISO),
         wave: null
       };
     }

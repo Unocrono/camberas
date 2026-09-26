@@ -11,7 +11,7 @@ import {
   Gauge,
   Mountain
 } from 'lucide-react';
-import { formatLocalTime } from '@/lib/timezoneUtils';
+import { formatHoraGps } from '@/lib/timezoneUtils';
 import {
   Select,
   SelectContent,
@@ -122,8 +122,9 @@ export function TrackPlaybackControls({
     setPlaybackSpeed(parseFloat(speed));
   };
 
+  // Los puntos del track son GPS: instantes UTC que se enseñan en hora local
   const formatTime = (timestamp: string) => {
-    return formatLocalTime(timestamp);
+    return formatHoraGps(timestamp);
   };
 
   const formatSpeed = (speed: number | null) => {

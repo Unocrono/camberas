@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Search, Ticket, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { mesaAtendiendo, numerarMesas, textoMesa as textoMesaComun } from "@/lib/mesasRecogida";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 /**
  * Mesas de recogida de dorsales.
@@ -305,7 +306,7 @@ function EntregasDorsal({ raceId, mesas }: { raceId: string; mesas: Mesa[] }) {
     const hoja = XLSX.utils.json_to_sheet(filas);
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, hoja, "Entregados");
-    XLSX.writeFile(libro, `dorsales-entregados-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(libro, `dorsales-entregados-${hoyLocal()}.xlsx`);
     toast({ title: "Excel descargado", description: `${filas.length} entregas` });
   };
 

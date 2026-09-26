@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import jsPDF from "jspdf";
 import { getGenderCode } from "@/lib/genderUtils";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface RaceResult {
   id: string;
@@ -957,7 +958,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     doc.text(`Generado el ${new Date().toLocaleString('es-ES')} - Camberas`, pageWidth / 2, 285, { align: "center" });
 
     // Save PDF
-    const fileName = `resultados_${distance?.name?.replace(/\s+/g, '_') || 'evento'}_${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `resultados_${distance?.name?.replace(/\s+/g, '_') || 'evento'}_${hoyLocal()}.pdf`;
     doc.save(fileName);
     
     toast({ title: "PDF exportado", description: `Archivo ${fileName} descargado` });

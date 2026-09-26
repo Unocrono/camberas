@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Download, RefreshCw, Trash2, MapPin, Satellite } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface GPSTracking {
   id: string;
@@ -496,7 +497,7 @@ export function GPSTrackingViewer({ selectedRaceId }: GPSTrackingViewerProps) {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `gps_tracking_${filterRaceId}_${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `gps_tracking_${filterRaceId}_${hoyLocal()}.csv`;
     link.click();
     
     toast({

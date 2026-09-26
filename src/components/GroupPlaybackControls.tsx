@@ -11,7 +11,7 @@ import {
   Repeat,
   Users,
 } from 'lucide-react';
-import { formatLocalTime } from '@/lib/timezoneUtils';
+import { formatHoraGps } from '@/lib/timezoneUtils';
 import {
   Select,
   SelectContent,
@@ -108,7 +108,7 @@ export function GroupPlaybackControls({
       <div className="flex items-center justify-center gap-2 bg-gray-50 rounded-lg p-2">
         <Clock className="h-4 w-4 text-blue-500" />
         <span className="text-lg font-bold tabular-nums text-gray-800">
-          {formatLocalTime(new Date(timeMs).toISOString())}
+          {formatHoraGps(timeMs)}
         </span>
       </div>
 
@@ -123,9 +123,9 @@ export function GroupPlaybackControls({
           className="w-full"
         />
         <div className="flex justify-between text-xs text-gray-500">
-          <span>{formatLocalTime(new Date(t0).toISOString())}</span>
+          <span>{formatHoraGps(t0)}</span>
           <span>{Math.round(progress)}%</span>
-          <span>{formatLocalTime(new Date(t1).toISOString())}</span>
+          <span>{formatHoraGps(t1)}</span>
         </div>
       </div>
 

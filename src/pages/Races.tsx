@@ -17,6 +17,7 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { supabase } from "@/integrations/supabase/client";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 type RaceTypeFilter = 'all' | 'trail' | 'mtb';
 type TimeFilter = 'all' | 'upcoming' | 'past';
@@ -172,7 +173,7 @@ const Races = () => {
             groupType: ((race as any).group_type ?? 'carrera') as 'carrera' | 'quedada' | 'grupetta',
             priceLabel,
             isFeatured: (race as any).is_featured === true,
-            isPast: race.date < new Date().toISOString().split("T")[0],
+            isPast: race.date < hoyLocal(),
             maxDistanceKm: Math.max(0, ...dists.map((d) => Number(d.distance_km) || 0)),
             maxElevation: Math.max(0, ...dists.map((d) => Number(d.elevation_gain) || 0)),
             plazas: race.max_participants || null,
@@ -207,7 +208,7 @@ const Races = () => {
   // Carreras del hero: las próximas marcadas como destacadas (carrusel);
   // si no hay ninguna destacada, la próxima del calendario
   const heroRaces = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = hoyLocal();
     const upcoming = allRaces.filter((r) => r.rawDate >= today);
     const destacadas = upcoming.filter((r) => r.isFeatured);
     return destacadas.length > 0 ? destacadas : upcoming.slice(0, 1);
@@ -241,7 +242,7 @@ const Races = () => {
   const raceUrl = (r: any) => (r.slug ? `/race/${r.slug}` : `/race/${r.id}`);
 
   const filteredRaces = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = hoyLocal();
     return allRaces.filter((race) => {
       const matchesSearch = race.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         race.location.toLowerCase().includes(searchTerm.toLowerCase());

@@ -26,6 +26,7 @@ import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { camposVisibles } from "@/lib/fieldConditions";
 import type { Session } from "@supabase/supabase-js";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface Team {
   id: string;
@@ -141,7 +142,7 @@ const TeamRegister = () => {
   // Carreras visibles con fecha por delante
   useEffect(() => {
     (async () => {
-      const hoy = new Date().toISOString().slice(0, 10);
+      const hoy = hoyLocal();
       const { data } = await supabase
         .from("races")
         .select("id, name, date")

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcSinTipos } from "@/eventos/rpc";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 /**
  * Pantalla de inicio (camberas.com/): las 3 próximas carreras y las 3 últimas
@@ -44,11 +45,12 @@ interface CarreraInicio {
   cierre: string | null;
 }
 
-const hoy = () => new Date().toISOString().slice(0, 10);
+// Fechas y cierres son hora local: se leen tal cual, sin pasar por UTC
+const hoy = () => hoyLocal();
 
 const formatearFecha = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
 
-const formatearCierre = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" }).replace(".", "");
+const formatearCierre = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" }).replace(".", "");
 
 const rangoPrecio = (precios: number[]): string | null => {
   const pagados = precios.filter((p) => p > 0);

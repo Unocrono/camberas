@@ -44,6 +44,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 // El bucket race-documents es PRIVADO (pólizas, permisos, posibles datos
 // personales): descarga SIEMPRE por createSignedUrl, nunca getPublicUrl.
@@ -114,7 +115,7 @@ const emptyForm = {
 
 /** caducado se deriva en cliente: la BD lo persiste en la fase de cron */
 const effectiveStatus = (doc: RaceDocument): string => {
-  if (doc.expiry_date && doc.expiry_date < new Date().toISOString().slice(0, 10)) {
+  if (doc.expiry_date && doc.expiry_date < hoyLocal()) {
     return "caducado";
   }
   return doc.status;

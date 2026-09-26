@@ -54,7 +54,7 @@ const MotoOverlay = () => {
     isManualDistance: false,
     isManualGap: false,
   });
-  const [waveStartTime, setWaveStartTime] = useState<Date | null>(null);
+  const [waveStartTime, setWaveStartTime] = useState<string | null>(null);
   const [dataBuffer] = useState(() => new DataBuffer<DisplayData>(60000));
 
   // Fetch GPS data
@@ -226,7 +226,7 @@ const MotoOverlay = () => {
         .maybeSingle();
 
       if (data?.start_time) {
-        setWaveStartTime(new Date(data.start_time));
+        setWaveStartTime(data.start_time);
       }
     };
 

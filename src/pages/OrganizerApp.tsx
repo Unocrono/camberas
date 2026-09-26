@@ -45,6 +45,7 @@ import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 import { asegurarManifest } from "@/lib/instalarPwa";
 import { InstalarAppBoton } from "@/components/InstalarAppBoton";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface DistanceSummary {
   distance_id: string;
@@ -332,8 +333,11 @@ const OrganizerApp = () => {
       const { data } = await query;
       setRaces(data || []);
       if (data?.length && !raceId) {
-        // Por defecto: la próxima carrera futura, o la más reciente
-        const upcoming = [...data].reverse().find((r) => new Date(r.date) >= new Date());
+        // Por defecto: la de hoy o la próxima, o si no la más reciente. Se comparan
+        // fechas como texto: con new Date() la carrera de hoy contaba como pasada
+        // desde las 02:00 y el día de la prueba se abría la siguiente
+        const hoy = hoyLocal();
+        const upcoming = [...data].reverse().find((r) => r.date >= hoy);
         setRaceId((upcoming || data[0]).id);
       }
       setLoading(false);

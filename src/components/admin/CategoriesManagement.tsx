@@ -44,6 +44,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2, Users, Download, ArrowUpDown, FileDown, RefreshCw } from "lucide-react";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { format } from "date-fns";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface EventCategory {
   id: string;
@@ -473,7 +474,7 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
           continue;
         }
 
-        const referenceDate = raceDate || new Date().toISOString().split('T')[0];
+        const referenceDate = raceDate || hoyLocal();
         const matchedCategory = calculateCategoryByAge(
           reg.birth_date,
           raceCategoriesForCalc,

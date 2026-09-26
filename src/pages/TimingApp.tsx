@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toLocalISOString, formatLocalTime } from "@/lib/timezoneUtils";
+import { toLocalISOString, formatLocalTime, paredAMs, hoyLocal } from "@/lib/timezoneUtils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,7 +171,9 @@ const TimingApp = () => {
   const [submittingStatus, setSubmittingStatus] = useState(false);
 
   // Race start time for calculating race time
-  const [raceStartTime, setRaceStartTime] = useState<Date | null>(null);
+  // Hora de salida tal cual viene de la BD (hora local; no se pasa por Date,
+  // que la convertiría y la enseñaría 1-2 h corrida)
+  const [raceStartTime, setRaceStartTime] = useState<string | null>(null);
 
   // Edit reading state
   const [editingReading, setEditingReading] = useState<TimingReading | null>(null);
@@ -382,7 +384,7 @@ const TimingApp = () => {
       notes: ctx.punto.notes,
       point_order: ctx.punto.point_order,
     });
-    setRaceStartTime(ctx.start_time ? new Date(ctx.start_time) : null);
+    setRaceStartTime(ctx.start_time || null);
     setCurrentView("timing");
   };
 
@@ -653,24 +655,18 @@ const TimingApp = () => {
       if (error) throw error;
 
       if (waves && waves.length > 0 && waves[0].start_time) {
-        // race_waves.start_time is already a full timestamp with timezone
-        const startDate = new Date(waves[0].start_time);
-        setRaceStartTime(startDate);
-        // Store as local ISO to avoid UTC conversion on retrieval
-        const year = startDate.getFullYear();
-        const month = String(startDate.getMonth() + 1).padStart(2, '0');
-        const day = String(startDate.getDate()).padStart(2, '0');
-        const hours = String(startDate.getHours()).padStart(2, '0');
-        const minutes = String(startDate.getMinutes()).padStart(2, '0');
-        const seconds = String(startDate.getSeconds()).padStart(2, '0');
-        localStorage.setItem(`start_time_${raceId}`, `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`);
+        // race_waves.start_time es hora local (llega con +00, pero no es UTC):
+        // se guarda y se usa tal cual, sin convertir
+        const salida = waves[0].start_time.slice(0, 19).replace(" ", "T");
+        setRaceStartTime(salida);
+        localStorage.setItem(`start_time_${raceId}`, salida);
       }
     } catch (error) {
       console.error("Error fetching race start time:", error);
       // Try from localStorage
       const stored = localStorage.getItem(`start_time_${raceId}`);
       if (stored) {
-        setRaceStartTime(new Date(stored));
+        setRaceStartTime(stored);
       }
     }
   };
@@ -678,10 +674,15 @@ const TimingApp = () => {
   // Calculate race time (reading time - start time)
   const calculateRaceTime = (readingTimestamp: string): string | null => {
     if (!raceStartTime) return null;
-    
-    const readingTime = new Date(readingTimestamp);
-    const diffMs = readingTime.getTime() - raceStartTime.getTime();
-    
+
+    // Las dos son hora local: se restan tal cual. Con new Date() la lectura
+    // recién fichada (sin zona) y la de la BD (+00) se leían distinto y el
+    // tiempo salía con 1-2 h de más o de menos
+    const inicio = paredAMs(raceStartTime);
+    const lectura = paredAMs(readingTimestamp);
+    if (inicio === null || lectura === null) return null;
+    const diffMs = lectura - inicio;
+
     if (diffMs < 0) return null;
     
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -1249,15 +1250,9 @@ const TimingApp = () => {
   const handleOpenEditDialog = (reading: TimingReading) => {
     setEditingReading(reading);
     setEditBibInput(reading.bib_number.toString());
-    // Format time for input (HH:MM:SS)
-    const date = new Date(reading.timestamp);
-    const timeStr = date.toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    setEditTimeInput(timeStr);
+    // La hora del campo, tal cual está guardada (HH:MM:SS, hora local)
+    const timeStr = formatLocalTime(reading.timestamp);
+    setEditTimeInput(timeStr === "-" ? "" : timeStr);
     setIsEditDialogOpen(true);
   };
 
@@ -1285,11 +1280,20 @@ const TimingApp = () => {
       return;
     }
 
-    const originalDate = new Date(editingReading.timestamp);
-    const newDate = new Date(originalDate);
-    newDate.setHours(parseInt(timeParts[0]) || 0);
-    newDate.setMinutes(parseInt(timeParts[1]) || 0);
-    newDate.setSeconds(parseInt(timeParts[2]) || 0);
+    const [hh, mi, ss] = [0, 1, 2].map((i) => parseInt(timeParts[i] ?? "0") || 0);
+    if (hh > 23 || mi > 59 || ss > 59) {
+      toast({
+        title: "Hora inválida",
+        description: "Formato de hora inválido (HH:MM:SS)",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Mismo día de la lectura, con la hora tecleada. Todo como texto: pasar por
+    // new Date() + setHours guardaba la corrección 1-2 h corrida
+    const fecha = editingReading.timestamp.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? hoyLocal();
+    const horaNueva = [hh, mi, ss].map((n) => String(n).padStart(2, "0")).join(":");
+    const nuevoTimestamp = `${fecha}T${horaNueva}`;
 
     const runner = runners.find((r) => r.bib_number === newBib);
 
@@ -1301,7 +1305,7 @@ const TimingApp = () => {
           token,
           editingReading.id,
           newBib,
-          toLocalISOString(newDate)
+          nuevoTimestamp
         );
         persistido = true;
       } catch (error: any) {
@@ -1321,7 +1325,7 @@ const TimingApp = () => {
           ? {
               ...r,
               bib_number: newBib,
-              timestamp: toLocalISOString(newDate),
+              timestamp: nuevoTimestamp,
               runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
               synced: persistido, // Mark as not synced since it was edited
             }
@@ -1336,7 +1340,7 @@ const TimingApp = () => {
           ? {
               ...r,
               bib_number: newBib,
-              timestamp: toLocalISOString(newDate),
+              timestamp: nuevoTimestamp,
               runner_name: runner ? `${runner.first_name} ${runner.last_name}`.trim() : undefined,
             }
           : r
@@ -1345,7 +1349,7 @@ const TimingApp = () => {
 
     toast({
       title: "Lectura actualizada",
-      description: `Dorsal #${newBib} - ${newDate.toLocaleTimeString("es-ES")}`,
+      description: `Dorsal #${newBib} - ${horaNueva}`,
     });
 
     setIsEditDialogOpen(false);
@@ -1714,7 +1718,7 @@ const TimingApp = () => {
               ÚLTIMOS REGISTROS
               {raceStartTime && (
                 <span className="ml-2 font-normal text-xs">
-                  (Salida: {raceStartTime.toLocaleTimeString("es-ES")})
+                  (Salida: {formatLocalTime(raceStartTime)})
                 </span>
               )}
             </h3>

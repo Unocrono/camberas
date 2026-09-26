@@ -10,6 +10,7 @@ import { Calendar, MapPin, Trophy, CreditCard, X, Radio, Share2, Copy, Loader2 }
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { diasHasta } from "@/lib/timezoneUtils";
 
 interface Registration {
   id: string;
@@ -178,9 +179,9 @@ const Dashboard = () => {
    * organización a mano (no hay devolución automática en Redsys).
    */
   const cancellationInfo = (raceId: string, raceDate: string) => {
-    const daysUntilRace = Math.ceil(
-      (new Date(raceDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    );
+    // Días de calendario hasta la carrera, contados en hora local (con new
+    // Date(fecha) el día cambiaba a las 02:00 y no a medianoche)
+    const daysUntilRace = diasHasta(raceDate);
     const tiers = policies[raceId];
     if (!tiers || tiers.length === 0) {
       return { canCancel: daysUntilRace >= 7, refundPercent: null as number | null, minDays: 7 };
