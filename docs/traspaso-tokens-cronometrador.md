@@ -26,11 +26,11 @@ contraseñas, sin asignar personas.
 | Escáner en la app | `camberas-track/src/hooks/useQRScanner.ts` (la app de motos se retiró el 20-ago-2026; su repo queda archivado) |
 | Migración de referencia | `supabase/migrations/20260803120000_motos_tokens.sql` |
 
-## ESTADO: implementado el 4-ago (falta aplicar el blindaje)
+## ESTADO: implementado el 4-ago; blindaje aplicado el 26-sep
 
 | Pieza | Dónde |
 |---|---|
-| Migración | `supabase/migrations/20260804120000_cronometrador_tokens.sql` — aplicada el 4-ago. `20260804140000_cronometrador_blindaje.sql` — **sin aplicar** (revisada el 26-sep): mientras no se aplique, /timing no funciona, porque la web ya manda `p_device_id` |
+| Migración | `supabase/migrations/20260804120000_cronometrador_tokens.sql` — aplicada el 4-ago. `20260804140000_cronometrador_blindaje.sql` — aplicada el 26-sep (entre el 4-ago y el 26-sep /timing no funcionó: la web ya mandaba `p_device_id`) |
 | Generar (puesto) | RPC `generar_token_cronometrador(p_timing_point_id, p_distance_id)` — dorsal `CP1`, `CP2`… y revoca el anterior |
 | Listar (panel) | RPC `tokens_cronometraje_carrera(p_race_id)` |
 | QR en el panel | `src/components/admin/TimingPointsManagement.tsx` (columna "Puesto (QR)" + diálogo) |
