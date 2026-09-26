@@ -24,8 +24,10 @@ interface Registration {
     date: string;
     location: string;
     image_url: string | null;
+    slug: string | null;
   } | null;
   distance: {
+    id: string;
     name: string;
     distance_km: number;
     price: number;
@@ -71,9 +73,11 @@ const Dashboard = () => {
             name,
             date,
             location,
-            image_url
+            image_url,
+            slug
           ),
           distance:race_distances (
+            id,
             name,
             distance_km,
             price,
@@ -392,17 +396,25 @@ const Dashboard = () => {
                             Ver Detalles
                           </Button>
 
-                          {/* Seguimiento GPS del corredor: desde jul-2026 lo hace la
-                              app Camberas Track (la página web /race/:id/tracker
-                              se retiró y este botón daba error): aquí se instala */}
+                          {/* GPS Tracker: el mapa en directo de la carrera siguiendo
+                              al corredor, el MISMO enlace que el correo de Camberas
+                              Track ("Ver mi posición en directo"). Antes apuntaba a
+                              /race/:id/tracker, página retirada en jul-2026: error */}
                           {registration.distance.gps_tracking_enabled && registration.status === "confirmed" && (
                             <Button
                               variant="outline"
-                              onClick={() => navigate("/descargas")}
+                              onClick={() => {
+                                const carrera = registration.race!.slug || registration.race!.id;
+                                const seguir =
+                                  registration.bib_number != null
+                                    ? `?dorsal=${registration.bib_number}&recorrido=${registration.distance!.id}`
+                                    : "";
+                                navigate(`/${carrera}/gps${seguir}`);
+                              }}
                               className="gap-2"
                             >
                               <Radio className="h-4 w-4" />
-                              Camberas Track
+                              GPS Tracker
                             </Button>
                           )}
 

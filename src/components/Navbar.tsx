@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Newspaper, Users } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Newspaper, Smartphone } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -44,15 +44,15 @@ const Navbar = () => {
                     <Calendar className="h-4 w-4" />
                     Inscripciones
                   </NavLink>
-                  {/* Equipo: visible siempre. Sin sesión lleva a la landing
-                      comercial; con sesión, directo a la herramienta */}
-                  <NavLink to={user ? "/equipo" : "/equipos"} className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Equipo
-                  </NavLink>
                   <NavLink to="/races?filter=past" className="flex items-center gap-2">
                     <Trophy className="h-4 w-4" />
                     Clasificaciones
+                  </NavLink>
+                  {/* La app de seguimiento GPS (Camberas Track): /descargas
+                      enseña la tienda que toca según el móvil */}
+                  <NavLink to="/descargas" className="flex items-center gap-2">
+                    <Smartphone className="h-4 w-4" />
+                    App Camberas GPS
                   </NavLink>
                   <NavLink to="/noticias" className="flex items-center gap-2">
                     <Newspaper className="h-4 w-4" />
@@ -103,8 +103,8 @@ const Navbar = () => {
           <nav className="hidden md:flex items-center gap-6">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races?filter=upcoming">Inscripciones</NavLink>
-            <NavLink to={user ? "/equipo" : "/equipos"}>Equipo</NavLink>
             <NavLink to="/races?filter=past">Clasificaciones</NavLink>
+            <NavLink to="/descargas">App Camberas GPS</NavLink>
             <NavLink to="/noticias">Noticias</NavLink>
             <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
