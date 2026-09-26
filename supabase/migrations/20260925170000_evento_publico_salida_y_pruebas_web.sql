@@ -196,7 +196,18 @@ AS $fn$
                  'apertura',       d.registration_opens,
                  'cierre',         d.registration_closes,
                  'imagen',         d.image_url,
-                 'rutometro',      (SELECT r.id FROM roadbooks r WHERE r.race_distance_id = d.id ORDER BY r.created_at LIMIT 1),
+                 'rutometro',      (SELECT jsonb_strip_nulls(jsonb_build_object(
+                                      'id', r.id, 'nombre', r.name, 'descripcion', r.description,
+                                      'puntos', (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                                                   'km', i.km_total, 'kmParcial', i.km_partial, 'tipo', i.item_type,
+                                                   'etiqueta', t.label, 'icono', t.icon, 'descripcion', i.description,
+                                                   'notas', i.notes, 'via', i.via, 'altitud', i.altitude,
+                                                   'control', i.is_checkpoint, 'destacado', i.is_highlighted,
+                                                   'foto', COALESCE(i.photo_16_9_url, i.photo_9_16_url)))
+                                                 ORDER BY i.item_order, i.km_total)
+                                         FROM roadbook_items i LEFT JOIN roadbook_item_types t ON t.id = i.item_type_id
+                                         WHERE i.roadbook_id = r.id)))
+                                    FROM roadbooks r WHERE r.race_distance_id = d.id ORDER BY r.created_at LIMIT 1),
                  'track',          CASE WHEN d.gpx_file_url IS NULL THEN NULL
                                         ELSE jsonb_build_object('gpx', d.gpx_file_url) END,
                  'categorias',     (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
@@ -205,12 +216,25 @@ AS $fn$
                                            ORDER BY c.display_order)
                                     FROM race_categories c
                                     WHERE c.race_distance_id = d.id),
-                 'avituallamientos', (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                 'avituallamientos', COALESCE(
+                                      (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
                                                'km', k.distance_km, 'nombre', k.name, 'lugar', k.lugar,
                                                'tipo', lower(k.checkpoint_type), 'corte', k.max_time))
                                              ORDER BY k.checkpoint_order)
                                       FROM race_checkpoints k
-                                      WHERE k.race_distance_id = d.id)
+                                      WHERE k.race_distance_id = d.id),
+                                      (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                                               'km', i.km_total, 'nombre', i.description, 'lugar', i.via,
+                                               'tipo', CASE i.item_type WHEN 'aid_station' THEN 'completo'
+                                                                        WHEN 'refreshment' THEN 'liquido'
+                                                                        WHEN 'finish' THEN 'finish'
+                                                                        WHEN 'start' THEN 'salida'
+                                                                        WHEN 'medical' THEN 'sanitario'
+                                                                        ELSE 'control' END))
+                                             ORDER BY i.item_order, i.km_total)
+                                      FROM roadbook_items i JOIN roadbooks r ON r.id = i.roadbook_id
+                                      WHERE r.race_distance_id = d.id
+                                        AND (i.item_type IN ('aid_station', 'refreshment', 'checkpoint', 'start', 'finish', 'medical') OR i.is_checkpoint)))
                )) ORDER BY d.display_order NULLS LAST, d.distance_km)
         FROM dist d, ra, web
       ), '[]'::jsonb),

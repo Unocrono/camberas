@@ -59,6 +59,29 @@ export interface Categoria {
   criterio?: string;
 }
 
+export interface PuntoRutometro {
+  km: number;
+  kmParcial?: number;
+  /** aid_station, refreshment, checkpoint, start, finish, medical, poi, technical, uphill, downhill, bike_wash */
+  tipo: string;
+  etiqueta?: string;
+  icono?: string;
+  descripcion: string;
+  notas?: string;
+  via?: string;
+  altitud?: number;
+  control?: boolean;
+  destacado?: boolean;
+  foto?: string;
+}
+
+export interface Rutometro {
+  id: string;
+  nombre?: string;
+  descripcion?: string;
+  puntos?: PuntoRutometro[];
+}
+
 export interface Avituallamiento {
   km: number;
   nombre: string;
@@ -93,8 +116,8 @@ export interface Prueba {
   descripcion?: string;
   /** Texto largo del recorrido (race_web.contenido.pruebas[].relato); solo en la página del recorrido */
   relato?: string;
-  /** Id del rutómetro (roadbooks) del recorrido, si lo tiene: camberas.com/roadbook/{id} */
-  rutometro?: string;
+  /** Rutómetro de Camberas del recorrido (roadbooks + roadbook_items), si lo tiene */
+  rutometro?: Rutometro;
   plazas?: number;
   plazasLibres?: number;
   estado?: EstadoEvento;

@@ -237,11 +237,28 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
 
     rutometro: () =>
       prueba.rutometro ? (
-        <Tarjeta id="rutometro" titulo="Rutómetro" color={color}>
-          <p className="text-[15px]">Puntos de paso, distancias parciales y referencias del recorrido, para llevar en el móvil o imprimir.</p>
-          <a href={urlCamberas(`/roadbook/${prueba.rutometro}`)} target="_blank" rel="noopener noreferrer" className="wp-btn-outline mt-4" style={{ color: "var(--wp-ink)" }}>
+        <Tarjeta id="rutometro" titulo={prueba.rutometro.nombre ?? "Rutómetro"} color={color}>
+          {prueba.rutometro.descripcion && <p className="text-[15px]">{prueba.rutometro.descripcion}</p>}
+          {prueba.rutometro.puntos && prueba.rutometro.puntos.length > 0 && (
+            <ol className="mt-4 flex flex-col gap-2 list-none p-0 m-0">
+              {prueba.rutometro.puntos.map((p, i) => (
+                <li key={`${p.km}-${i}`} className="flex flex-wrap items-start gap-3 rounded-lg px-4 py-3 text-[15px]" style={{ background: p.destacado ? "var(--wp-claro, var(--wp-cream))" : "var(--wp-cream)" }}>
+                  <span className="wp-num shrink-0 text-[18px]" style={{ color: "var(--wp-ink)", minWidth: 72 }}>km {String(Math.round(p.km * 10) / 10).replace(".", ",")}</span>
+                  <span className="min-w-0 flex-1">
+                    <strong style={{ color: "var(--wp-ink)" }}>{p.descripcion}</strong>
+                    {p.etiqueta && <span className="ml-2 text-[12px] font-semibold uppercase tracking-[1px]" style={{ color: "var(--wp-body)" }}>{p.etiqueta}</span>}
+                    {(p.via || p.notas || p.altitud != null) && (
+                      <span className="block text-sm">{[p.via, p.altitud != null ? `${p.altitud} m` : null, p.notas].filter(Boolean).join(" · ")}</span>
+                    )}
+                  </span>
+                  {p.kmParcial != null && <span className="text-sm">+{String(Math.round(p.kmParcial * 10) / 10).replace(".", ",")} km</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+          <a href={urlCamberas(`/roadbook/${prueba.rutometro.id}`)} target="_blank" rel="noopener noreferrer" className="wp-btn-outline mt-5" style={{ color: "var(--wp-ink)" }}>
             <MapaIcono size={18} strokeWidth={2} aria-hidden="true" />
-            Abrir el rutómetro
+            Abrir el rutómetro completo
           </a>
         </Tarjeta>
       ) : null,
