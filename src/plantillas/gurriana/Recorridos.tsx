@@ -10,7 +10,7 @@ interface Props {
   onInscribirse: (pruebaId: string) => void;
 }
 
-const ESTADO_BOTON: Record<string, string> = {
+export const ESTADO_BOTON: Record<string, string> = {
   abierta: "Inscribirme",
   proximamente: "Próximamente",
   cerrada: "Inscripción cerrada",

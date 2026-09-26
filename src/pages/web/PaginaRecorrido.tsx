@@ -1,7 +1,7 @@
 import { lazy } from "react";
 import { useParams } from "react-router-dom";
-import { Download } from "lucide-react";
-import { PerfilAltimetria } from "@/plantillas/gurriana/Recorridos";
+import { Download, MapPin, Plane } from "lucide-react";
+import { ESTADO_BOTON, PerfilAltimetria } from "@/plantillas/gurriana/Recorridos";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
 import { PaginaSecundaria, TituloInterior } from "./PaginaSecundaria";
 import NoEncontradoWeb from "./NoEncontradoWeb";
@@ -77,21 +77,42 @@ export default function PaginaRecorrido() {
                 </div>
               )}
 
-              <div className="mt-8 flex flex-wrap gap-3">
-                {abierta ? (
-                  <a href={`${rutas.a("/") || "/"}?inscribir=${prueba.id}`} className="wp-btn" style={{ background: "var(--wp-accion)", color: "var(--wp-accion-texto)" }}>
-                    Inscribirme en {prueba.nombre}
-                  </a>
+              {/* Perfil: real si hay GPX; si no, el esquema de avituallamientos */}
+              {(gpx || (prueba.avituallamientos && prueba.avituallamientos.length > 0)) && (
+                <div className="wp-card mt-10 p-[22px] lg:p-8">
+                  <h2 className="text-[24px] lg:text-[28px]" style={{ color }}>Perfil</h2>
+                  <div className="mt-6">
+                    <PerfilAltimetria prueba={prueba} />
+                  </div>
+                </div>
+              )}
+
+              {/* Botones debajo del perfil: inscribirse y saltar al mapa, al vuelo 3D y al GPX */}
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                {estado === "celebrada" && evento.clasificaciones?.url ? (
+                  <a href={evento.clasificaciones.url} className="wp-btn">Ver resultados</a>
+                ) : abierta ? (
+                  <a href={`${rutas.a("/") || "/"}?inscribir=${prueba.id}`} className="wp-btn">Inscribirme en {prueba.nombre}</a>
                 ) : (
-                  <span className="wp-btn" style={{ background: "var(--wp-cream)", color: "var(--wp-body)", cursor: "default" }}>
-                    {estado === "proximamente" ? "Inscripciones próximamente" : estado === "agotada" ? "Completo" : estado === "celebrada" ? "Celebrada" : "Inscripciones cerradas"}
-                  </span>
+                  <button type="button" className="wp-btn" disabled>
+                    {ESTADO_BOTON[estado] ?? "Inscribirme"}
+                  </button>
                 )}
                 {gpx && (
-                  <a href={gpx} download className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
-                    <Download size={18} strokeWidth={2} aria-hidden="true" />
-                    Descargar GPX
-                  </a>
+                  <>
+                    <a href="#mapa" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                      <MapPin size={18} strokeWidth={2} aria-hidden="true" />
+                      Mapa
+                    </a>
+                    <a href="#vuelo-3d" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                      <Plane size={18} strokeWidth={2} aria-hidden="true" />
+                      Vuelo 3D
+                    </a>
+                    <a href={gpx} download className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+                      <Download size={18} strokeWidth={2} aria-hidden="true" />
+                      Descargar GPX
+                    </a>
+                  </>
                 )}
                 {prueba.track?.wikiloc && (
                   <a href={prueba.track.wikiloc} target="_blank" rel="noopener noreferrer" className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
@@ -104,16 +125,6 @@ export default function PaginaRecorrido() {
                   </a>
                 )}
               </div>
-
-              {/* Perfil: real si hay GPX; si no, el esquema de avituallamientos */}
-              {(gpx || (prueba.avituallamientos && prueba.avituallamientos.length > 0)) && (
-                <div className="wp-card mt-10 p-[22px] lg:p-8">
-                  <h2 className="text-[24px] lg:text-[28px]" style={{ color }}>Perfil</h2>
-                  <div className="mt-6">
-                    <PerfilAltimetria prueba={prueba} />
-                  </div>
-                </div>
-              )}
 
               {prueba.terreno && prueba.terreno.length > 0 && (
                 <div className="mt-8">
@@ -130,12 +141,18 @@ export default function PaginaRecorrido() {
 
               {gpx ? (
                 <div className="mt-10 flex flex-col gap-6">
-                  <div className="wp-card overflow-hidden">
-                    <RoutePreviewMap gpxUrl={gpx} distanceName={prueba.nombre} />
-                  </div>
-                  <div className="wp-card overflow-hidden" style={{ minHeight: 420 }}>
-                    <RouteFlightViewer gpxUrl={gpx} distanceName={prueba.nombre} />
-                  </div>
+                  <section id="mapa" className="wp-card overflow-hidden" style={{ scrollMarginTop: 90 }}>
+                    <h2 className="px-[22px] pt-[22px] text-[24px] lg:px-8 lg:pt-8 lg:text-[28px]" style={{ color }}>Mapa</h2>
+                    <div className="mt-4 overflow-hidden">
+                      <RoutePreviewMap gpxUrl={gpx} distanceName={prueba.nombre} />
+                    </div>
+                  </section>
+                  <section id="vuelo-3d" className="wp-card overflow-hidden" style={{ scrollMarginTop: 90 }}>
+                    <h2 className="px-[22px] pt-[22px] text-[24px] lg:px-8 lg:pt-8 lg:text-[28px]" style={{ color }}>Vuelo 3D</h2>
+                    <div className="mt-4 overflow-hidden" style={{ minHeight: 420 }}>
+                      <RouteFlightViewer gpxUrl={gpx} distanceName={prueba.nombre} />
+                    </div>
+                  </section>
                 </div>
               ) : (
                 <p className="mt-10 text-[15px]">El track de este recorrido se publicará próximamente.</p>
