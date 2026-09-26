@@ -16,11 +16,22 @@
 // v1: cobros individuales con el TPV de UNO. Ver la migración
 // 20260925213000_devoluciones_redsys.sql.
 //
-// DESPLIEGUE: esta función se despliega SIEMPRE junto con redsys-webhook (la
-// de main desde 87db6a9 o posterior), o después de ella, nunca sola. El
-// webhook anterior trata un aviso de devolución (tipo 3, Ds_Response 0900)
-// como un cobro fallido y pasa el cobro original a 'failed'. Tras la primera
-// devolución real, comprobar que el payment_intent sigue 'completed'/0000.
+// DESPLIEGUE, en este orden:
+//  1. Aplicar 20260926200000_devoluciones_ajustes.sql. Sus secciones 5 y 6
+//     frenan en la BD al redsys-webhook anterior a 87db6a9: ese webhook trata
+//     el aviso de una devolución (tipo 3, Ds_Response 0900) como un cobro
+//     fallido y pasaba el cobro original a 'failed'; y con un aviso de éxito
+//     repetido volvía a dar por pagada una inscripción devuelta.
+//  2. Desplegar redsys-webhook de main (87db6a9 o posterior), antes que esta
+//     función o a la vez. La BD evita el daño en los datos, pero el webhook
+//     viejo aún mandaría el correo de pago confirmado de una devuelta.
+//  3. Desplegar esta función.
+//  4. En la prueba de 1 €: en los logs de redsys-webhook tiene que salir
+//     «Aviso de operación tipo 3 (0900) del pedido …: no toca el cobro», y el
+//     payment_intent seguir 'completed'/0000 con el mismo completed_at y
+//     auth_code (consulta al final de la migración de ajustes). Si sale
+//     «Error updating payment intent: El cobro … ya está completado», el
+//     webhook desplegado es el viejo.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";

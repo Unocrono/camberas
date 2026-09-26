@@ -23,6 +23,18 @@
 --  4. registrations: no se puede borrar una inscripción con una devolución
 --     sin confirmar ('pendiente' o 'dudosa'). Se quedaba invisible y sin forma
 --     de resolverla desde el panel.
+--  5. payment_intents: un cobro 'completed' ya no puede pasar a otro estado.
+--     El redsys-webhook anterior a 87db6a9 trata el aviso de una devolución
+--     (Ds_TransactionType 3, Ds_Response 0900) como un cobro fallido y pasa
+--     el cobro a 'failed': desaparecía del diálogo de devoluciones y de la
+--     recaudación. Así no depende del orden de despliegue.
+--  6. registrations: un proceso sin sesión (webhook, cron, service_role) no
+--     puede volver a dar por pagada una inscripción 'refunded' de la que ya
+--     se devolvió dinero. El webhook antiguo lo hacía con un aviso de éxito
+--     repetido. El admin y el organizador, desde el panel, sí pueden.
+--
+-- APLICAR ANTES DE DESPLEGAR redsys-devolucion (las secciones 5 y 6 son la
+-- red por si redsys-webhook de main no está desplegado todavía).
 --
 -- Editor SQL de Lovable: sentencias sueltas y cuerpos con $fn$.
 
@@ -341,11 +353,107 @@ CREATE TRIGGER trg_registrations_no_borrar_con_devolucion
   FOR EACH ROW EXECUTE FUNCTION public.registrations_no_borrar_con_devolucion();
 
 -- ─────────────────────────────────────────────────────────────────────────
+-- 5. Un cobro completado no deja de estarlo
+-- ─────────────────────────────────────────────────────────────────────────
+-- Una devolución no cambia el cobro: se apunta en devoluciones y el cobro
+-- sigue 'completed' con su Ds_Response 0000 (devolucion_resolver no toca
+-- payment_intents). Hoy (26-sep) ninguna función SQL actualiza
+-- payment_intents, y el único que cambia su estado es redsys-webhook, que
+-- desde 87db6a9 ya no saca un cobro de 'completed'. Esto frena al webhook
+-- anterior, que con el aviso de la devolución (tipo 3, 0900) lo pasaba a
+-- 'failed': el UPDATE entero falla (tampoco cambia completed_at ni
+-- auth_code), el webhook lo apunta en su log y sigue; con un aviso no-0000
+-- no hace nada más.
+--
+-- Corregir a mano un cobro mal apuntado (desde el editor SQL), en UNA sola
+-- sentencia para que el permiso no salga de ella:
+--   DO $x$ BEGIN
+--     PERFORM set_config('camberas.permitir_descompletar_cobro', 'on', true);
+--     UPDATE payment_intents SET status = '...' WHERE id = '...';
+--   END $x$;
+CREATE OR REPLACE FUNCTION public.payment_intents_no_descompletar()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $fn$
+BEGIN
+  IF COALESCE(current_setting('camberas.permitir_descompletar_cobro', true), '') = 'on' THEN
+    RETURN NEW;
+  END IF;
+  RAISE EXCEPTION 'El cobro % ya está completado y no puede pasar a «%». Una devolución se apunta en devoluciones, no en el cobro',
+    OLD.order_number, NEW.status
+    USING ERRCODE = '23514';
+END;
+$fn$;
+
+-- No es una RPC: nadie la llama directamente
+REVOKE EXECUTE ON FUNCTION public.payment_intents_no_descompletar() FROM anon, authenticated, PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_payment_intents_no_descompletar ON public.payment_intents;
+CREATE TRIGGER trg_payment_intents_no_descompletar
+  BEFORE UPDATE OF status ON public.payment_intents
+  FOR EACH ROW
+  WHEN (OLD.status = 'completed' AND NEW.status IS DISTINCT FROM 'completed')
+  EXECUTE FUNCTION public.payment_intents_no_descompletar();
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 6. Una inscripción devuelta no vuelve a 'paid' sola
+-- ─────────────────────────────────────────────────────────────────────────
+-- Solo frena a quien no tiene sesión (auth.uid() nulo: Edge Functions con
+-- service_role, cron, editor SQL) y solo si de esa inscripción ya se
+-- devolvió dinero ('hecha'). No alcanza:
+--   · al admin o al organizador desde el panel (tienen sesión), que pueden
+--     volver a marcarla pagada si hace falta;
+--   · a eventbooking-sync (source 'external'): esas inscripciones no tienen
+--     cobro en Camberas, así que tampoco devoluciones.
+-- redsys-webhook de main ya se salta las 'refunded' (87db6a9): esto es para
+-- el webhook anterior, que con un aviso de éxito repetido la confirmaba otra
+-- vez. OJO: ese webhook viejo manda igualmente el correo de pago confirmado
+-- y el push al organizador; eso solo lo quita desplegar el de main.
+--
+-- Corregir a mano desde el editor SQL: mismo DO con
+-- set_config('camberas.permitir_repagar_devuelta', 'on', true).
+--
+-- SECURITY DEFINER: tiene que leer devoluciones (RLS solo de lectura para
+-- el admin). auth.uid() lee la petición, no el rol, así que sigue sirviendo.
+CREATE OR REPLACE FUNCTION public.registrations_no_repagar_devuelta()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF auth.uid() IS NULL
+     AND COALESCE(current_setting('camberas.permitir_repagar_devuelta', true), '') <> 'on'
+     AND EXISTS (SELECT 1 FROM devoluciones d
+                 WHERE d.registration_id = OLD.id AND d.estado = 'hecha') THEN
+    RAISE EXCEPTION 'La inscripción % está devuelta: un proceso automático no puede volver a darla por pagada',
+      OLD.id
+      USING ERRCODE = '23514';
+  END IF;
+  RETURN NEW;
+END;
+$fn$;
+
+-- No es una RPC: nadie la llama directamente
+REVOKE EXECUTE ON FUNCTION public.registrations_no_repagar_devuelta() FROM anon, authenticated, PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_registrations_no_repagar_devuelta ON public.registrations;
+CREATE TRIGGER trg_registrations_no_repagar_devuelta
+  BEFORE UPDATE OF payment_status ON public.registrations
+  FOR EACH ROW
+  WHEN (OLD.payment_status = 'refunded' AND NEW.payment_status = 'paid')
+  EXECUTE FUNCTION public.registrations_no_repagar_devuelta();
+
+-- ─────────────────────────────────────────────────────────────────────────
 -- Comprobación. Esperado:
 --   devolucion_info                         anon f · authenticated t · service_role t
 --   get_organizer_race_summary              anon f · authenticated t · service_role t
+--   payment_intents_no_descompletar         anon f · authenticated f
 --   recogida_contexto                       anon t · authenticated t · service_role t (la usa la mesa sin login)
 --   registrations_no_borrar_con_devolucion  anon f · authenticated f
+--   registrations_no_repagar_devuelta       anon f · authenticated f
+-- Y los tres triggers, con tgenabled = 'O'.
 -- ─────────────────────────────────────────────────────────────────────────
 SELECT p.proname,
        has_function_privilege('anon', p.oid, 'EXECUTE')          AS anon,
@@ -354,9 +462,26 @@ SELECT p.proname,
 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public'
   AND p.proname IN ('devolucion_info', 'get_organizer_race_summary', 'recogida_contexto',
-                    'registrations_no_borrar_con_devolucion')
+                    'registrations_no_borrar_con_devolucion', 'payment_intents_no_descompletar',
+                    'registrations_no_repagar_devuelta')
 ORDER BY p.proname;
 
-SELECT tgname FROM pg_trigger
-WHERE tgrelid = 'public.registrations'::regclass
-  AND tgname = 'trg_registrations_no_borrar_con_devolucion';
+SELECT tgrelid::regclass AS tabla, tgname, tgenabled FROM pg_trigger
+WHERE tgname IN ('trg_registrations_no_borrar_con_devolucion',
+                 'trg_payment_intents_no_descompletar',
+                 'trg_registrations_no_repagar_devuelta')
+ORDER BY tgname;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Tras la PRIMERA devolución real (la prueba de 1 €): el cobro sigue igual.
+-- En los logs de redsys-webhook debe salir «Aviso de operación tipo 3 (0900)
+-- del pedido …: no toca el cobro». Si sale «Error updating payment intent: El
+-- cobro … ya está completado», el webhook desplegado es el ANTIGUO: la BD lo
+-- ha frenado, pero hay que desplegar el de main. Cambiar el pedido:
+--   SELECT pi.order_number, pi.status, pi.response_code, pi.auth_code,
+--          pi.completed_at, pi.updated_at, d.estado, d.ds_response, d.created_at
+--   FROM payment_intents pi JOIN devoluciones d ON d.payment_intent_id = pi.id
+--   WHERE pi.order_number = '<pedido>';
+-- Esperado: status 'completed', response_code '0000', y el mismo auth_code
+-- y completed_at que antes de devolver (updated_at anterior a la devolución).
+-- ─────────────────────────────────────────────────────────────────────────
