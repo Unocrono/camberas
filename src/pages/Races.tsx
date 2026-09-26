@@ -4,7 +4,7 @@ import RaceCard, { type EstadoListado } from "@/components/RaceCard";
 import { rpcSinTipos } from "@/eventos/rpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Mountain, Bike, Calendar, Trophy, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Mountain, Bike, Calendar, Trophy, MapPin, ChevronLeft, ChevronRight, Users } from "lucide-react";
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel";
 import { useState, useEffect, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
@@ -458,7 +458,29 @@ const Races = () => {
               </div>
             </div>
           </div>
-          
+
+          {/* Equipos: salió del menú principal (26-sep-2026); el sitio donde
+              lo ve quien busca inscribirse. En Clasificaciones no pinta nada */}
+          {timeFilter !== 'past' && (
+            <Link
+              to="/equipos"
+              className="mx-auto mb-10 flex max-w-3xl items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 transition-colors hover:border-secondary"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-foreground">¿Corréis en grupo?</span>
+                <span className="block text-sm text-muted-foreground">
+                  Inscribe a todo tu equipo de una vez, con un solo pago.
+                </span>
+              </span>
+              <span className="hidden shrink-0 text-sm font-bold uppercase tracking-wide text-secondary sm:inline">
+                Equipos →
+              </span>
+            </Link>
+          )}
+
           {loading ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Cargando carreras...</p>

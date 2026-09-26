@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Calendar, MapPin, Trophy, CreditCard, X, Radio, Share2, Copy, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Trophy, CreditCard, X, Radio, Share2, Copy, Loader2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -296,10 +296,18 @@ const Dashboard = () => {
       <Navbar />
       
       <div className="container mx-auto px-4 py-24">
-        <div className="mb-8">
-          <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Mi espacio</p>
-          <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Mi Panel</h1>
-          <p className="text-muted-foreground">Gestiona tus inscripciones y carreras</p>
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Mi espacio</p>
+            <h1 className="font-archivo mt-2 text-4xl uppercase leading-[0.98] mb-2">Mi Panel</h1>
+            <p className="text-muted-foreground">Gestiona tus inscripciones y carreras</p>
+          </div>
+          {/* Mi equipo: salió del menú principal; aquí, junto a las
+              inscripciones, que es desde donde se inscribe al equipo */}
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/equipo")}>
+            <Users className="h-4 w-4" />
+            Mi equipo
+          </Button>
         </div>
 
         {registrations.length === 0 ? (
