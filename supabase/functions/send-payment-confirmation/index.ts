@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { correoCorredor, correoOrganizador } from "./plantilla.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -28,17 +29,6 @@ const requestSchema = z.object({
   organizerEmail: z.string().email().max(255).nullish(),
 });
 
-// Escapar HTML en valores introducidos por el usuario
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function formDataRows(formData: { label: string; value: string }[]): string {
-  return formData
-    .map(f => `<p style="margin: 8px 0; color: #4b5563;"><strong>${esc(f.label)}:</strong> ${esc(f.value)}</p>`)
-    .join("\n              ");
-}
-
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -64,80 +54,16 @@ const handler = async (req: Request): Promise<Response> => {
     const rawInput = await req.json();
     const input = requestSchema.parse(rawInput);
 
-    const { email, firstName, lastName, raceName, distanceName, amount, orderNumber, bibNumber, formData, organizerEmail, miDorsalUrl } = input;
-    const userName = [firstName, lastName].filter(Boolean).join(" ") || "corredor/a";
-
-    // Bloque con todas las respuestas del formulario de inscripción
-    const formDataBlock = formData && formData.length > 0 ? `
-            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #9ca3af;">
-              <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">Datos de tu Inscripción</h3>
-              ${formDataRows(formData)}
-            </div>` : '';
+    const { email, organizerEmail } = input;
 
     console.log("Sending payment confirmation to:", email);
 
+    const correo = correoCorredor(input);
     const emailResponse = await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: [email],
-      subject: `Pago Confirmado: ${raceName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 30px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Camberas</h1>
-            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail y Montaña</p>
-          </div>
-
-          <div style="padding: 40px 30px;">
-            <h2 style="color: #16a34a; margin-top: 0;">¡Pago Confirmado!</h2>
-            <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
-              Hola ${userName}, hemos recibido tu pago para <strong>${raceName}</strong>. ¡Tu inscripción está completa!
-            </p>
-
-            <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #16a34a;">
-              <h3 style="margin-top: 0; color: #1f2937; font-size: 16px;">Detalles de la Inscripción</h3>
-              <p style="margin: 8px 0; color: #4b5563;"><strong>Corredor/a:</strong> ${userName}</p>
-              ${bibNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Dorsal:</strong> ${bibNumber}</p>` : ''}
-              <p style="margin: 8px 0; color: #4b5563;"><strong>Carrera:</strong> ${raceName}</p>
-              ${distanceName ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Distancia:</strong> ${distanceName}</p>` : ''}
-              <p style="margin: 8px 0; color: #4b5563;"><strong>Importe Pagado:</strong> ${amount.toFixed(2)}€</p>
-              ${orderNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Referencia de pago:</strong> ${orderNumber}</p>` : ''}
-            </div>
-
-            ${miDorsalUrl ? `
-            <div style="text-align: center; margin: 25px 0;">
-              <a href="${miDorsalUrl}"
-                 style="display: inline-block; background-color: #235940; color: #FAF6EC; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: bold;">
-                Ver mi dorsal
-              </a>
-              <p style="margin: 12px 0 0 0; color: #6b7280; font-size: 13px;">
-                Guarda este enlace: es tu código para la <strong>recogida de dorsales</strong>.
-                Enséñalo en el móvil y te atienden en segundos.
-              </p>
-            </div>
-            ` : ''}
-            ${formDataBlock}
-            <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #2563eb;">
-              <h3 style="margin-top: 0; color: #1e40af; font-size: 16px;">¿Qué viene ahora?</h3>
-              <ul style="margin: 10px 0 0 0; padding-left: 20px; color: #4b5563; font-size: 14px; line-height: 1.8;">
-                <li>Te enviaremos un recordatorio 7 días antes del evento</li>
-                <li>Consulta la web de la carrera para información sobre la recogida de dorsales</li>
-                <li>¡Empieza a entrenar y prepárate para el día de la carrera!</li>
-              </ul>
-            </div>
-
-            <p style="color: #16a34a; font-size: 16px; font-weight: bold; text-align: center; margin-top: 30px;">
-              ¡Nos vemos en la línea de salida!
-            </p>
-          </div>
-
-          <div style="background-color: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              Un saludo,<br>
-              El equipo de <strong style="color: #2563eb;">camberas.com</strong>
-            </p>
-          </div>
-        </div>
-      `,
+      subject: correo.asunto,
+      html: correo.html,
     });
 
     console.log("Payment confirmation email sent successfully:", emailResponse);
@@ -145,34 +71,12 @@ const handler = async (req: Request): Promise<Response> => {
     // Copia al organizador con todos los datos de la inscripción
     if (organizerEmail) {
       try {
+        const copia = correoOrganizador(input);
         await resend.emails.send({
           from: "Camberas <noreply@camberas.com>",
           to: [organizerEmail],
-          subject: `Nueva inscripción pagada: ${raceName} — ${userName}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-              <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 20px 30px; text-align: center;">
-                <h1 style="color: #ffffff; margin: 0; font-size: 22px;">Camberas — Nueva Inscripción</h1>
-              </div>
-              <div style="padding: 30px;">
-                <p style="color: #4b5563; font-size: 15px;">
-                  Inscripción confirmada y pagada en <strong>${raceName}</strong>${distanceName ? ` (${distanceName})` : ''}.
-                </p>
-                <div style="background-color: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #16a34a;">
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Corredor/a:</strong> ${esc(userName)}</p>
-                  ${bibNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Dorsal:</strong> ${bibNumber}</p>` : ''}
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Email:</strong> ${esc(email)}</p>
-                  <p style="margin: 8px 0; color: #4b5563;"><strong>Importe:</strong> ${amount.toFixed(2)}€</p>
-                  ${orderNumber ? `<p style="margin: 8px 0; color: #4b5563;"><strong>Referencia de pago:</strong> ${orderNumber}</p>` : ''}
-                </div>
-                ${formData && formData.length > 0 ? `
-                <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #9ca3af;">
-                  <h3 style="margin-top: 0; color: #1f2937; font-size: 15px;">Datos del formulario</h3>
-                  ${formDataRows(formData)}
-                </div>` : ''}
-              </div>
-            </div>
-          `,
+          subject: copia.asunto,
+          html: copia.html,
         });
         console.log("Organizer copy sent to:", organizerEmail);
       } catch (organizerError) {
