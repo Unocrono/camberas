@@ -321,6 +321,9 @@ export default function RouteFlight({
   const posEleRef = useRef<HTMLSpanElement | null>(null);
 
   const [ready, setReady] = useState(false);
+  // Arranca solo al abrir, también con «reducir el movimiento» del sistema (en
+  // Windows, «Efectos de animación» desactivados): antes, con esa opción,
+  // saltaba directamente al final y parecía que el vuelo no funcionaba.
   const [playing, setPlaying] = useState(autoPlay);
   const [hud, setHud] = useState({ km: 0, ele: 0, gradient: 0 });
 
@@ -354,6 +357,9 @@ export default function RouteFlight({
         units: 'kilometers',
       });
       done.setData(slice as GeoJSON.Feature);
+    } else if (done) {
+      // En la salida (o al volver a empezar) no queda tramo recorrido
+      done.setData(turf.lineString([[s.lng, s.lat], [s.lng, s.lat]]));
     }
 
     setHud({ km: s.km, ele: s.ele, gradient: g });
@@ -481,10 +487,6 @@ export default function RouteFlight({
     const idx = idxRef.current;
     if (!idx) return;
 
-    const reduced =
-      typeof window !== 'undefined' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
     const step = (ts: number) => {
       let dtSec: number;
 
@@ -493,7 +495,9 @@ export default function RouteFlight({
         frameRef.current += 1;
       } else {
         if (lastTsRef.current === null) lastTsRef.current = ts;
-        dtSec = (ts - lastTsRef.current) / 1000;
+        // Con la pestaña oculta el navegador no pinta fotogramas; al volver, el
+        // salto de tiempo acabaría el vuelo de golpe: se sigue por donde iba
+        dtSec = Math.min((ts - lastTsRef.current) / 1000, 0.25);
         lastTsRef.current = ts;
       }
 
@@ -513,13 +517,6 @@ export default function RouteFlight({
       onProgressChange?.(kmRef.current);
       rafRef.current = requestAnimationFrame(step);
     };
-
-    if (reduced && !deterministic) {
-      kmRef.current = idx.totalKm;
-      renderAt(idx.totalKm);
-      setPlaying(false);
-      return;
-    }
 
     rafRef.current = requestAnimationFrame(step);
     return () => {
@@ -569,11 +566,6 @@ export default function RouteFlight({
               {hud.gradient.toFixed(1)} %
             </span>
           </div>
-          {!controlled && (
-            <button className="rbf-btn" onClick={() => setPlaying((p) => !p)}>
-              {playing ? 'Pausar' : 'Sobrevolar el recorrido'}
-            </button>
-          )}
         </div>
       )}
     </div>
