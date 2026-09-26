@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { correoRecordatorio } from "./plantilla.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -161,45 +162,21 @@ const handler = async (req: Request): Promise<Response> => {
           const distanceKm = registration.race_distances?.distance_km || 'N/A';
           const cutoffTime = registration.race_distances?.cutoff_time || 'N/A';
 
+          const correo = correoRecordatorio({
+            nombre: userName,
+            carrera: race.name,
+            fecha: race.date,
+            lugar: race.location,
+            recorrido: distanceName,
+            km: distanceKm,
+            dorsal: registration.bib_number ?? null,
+            corte: cutoffTime !== 'N/A' ? cutoffTime : null,
+          });
           await resend.emails.send({
             from: "Camberas <noreply@camberas.com>",
             to: [user.email!],
-            subject: `Recordatorio: ${race.name} - ¡Faltan 7 días!`,
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h1 style="color: #2563eb;">¡Tu carrera está cerca!</h1>
-                <p>Hola ${userName},</p>
-                <p>Este es un recordatorio amistoso de que <strong>${race.name}</strong> es en solo <strong>7 días</strong>.</p>
-                
-                <div style="background-color: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #2563eb;">
-                  <h2 style="margin-top: 0; color: #1f2937;">Información de la Carrera</h2>
-                  <p><strong>Carrera:</strong> ${race.name}</p>
-                  <p><strong>Tu Distancia:</strong> ${distanceName} (${distanceKm} km)</p>
-                  <p><strong>Fecha:</strong> ${new Date(race.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p><strong>Ubicación:</strong> ${race.location}</p>
-                  ${registration.bib_number ? `<p><strong>Tu Número de Dorsal:</strong> ${registration.bib_number}</p>` : ''}
-                  ${cutoffTime !== 'N/A' ? `<p><strong>Tiempo de Corte:</strong> ${cutoffTime}</p>` : ''}
-                </div>
-                
-                <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #92400e;">Lista de Comprobación para el Día de la Carrera</h3>
-                  <ul style="margin: 0; padding-left: 20px;">
-                    <li>Recoge tu dorsal (consulta los detalles de la carrera para los horarios de recogida)</li>
-                    <li>Prepara tu equipamiento y nutrición</li>
-                    <li>Descansa bien la noche anterior</li>
-                    <li>Llega temprano para calentar y encontrar tu posición de salida</li>
-                    <li>Consulta la previsión del tiempo y vístete apropiadamente</li>
-                  </ul>
-                </div>
-                
-                <p style="margin-top: 30px;">¡Estamos deseando verte en la línea de salida!</p>
-                
-                <p style="margin-top: 30px;">
-                  Un saludo,<br>
-                  El equipo de <strong>camberas.com</strong>
-                </p>
-              </div>
-            `,
+            subject: correo.asunto,
+            html: correo.html,
           });
 
           console.log(`Reminder email sent to ${user.email}`);

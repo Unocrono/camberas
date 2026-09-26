@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { correoNewsletter } from "./plantilla.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -125,26 +126,12 @@ serve(async (req) => {
 
         const unsubscribeUrl = `${supabaseUrl}/functions/v1/newsletter-unsubscribe?email=${encodeURIComponent(subscriber.email)}`;
 
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          </head>
-          <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5;">
-            <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-              <div style="padding: 30px;">
-                ${personalizedContent}
-              </div>
-              <div style="padding: 20px 30px; background: #f9f9f9; border-top: 1px solid #eee; text-align: center; font-size: 12px; color: #666;">
-                <p>Has recibido este email porque estás suscrito a nuestra newsletter.</p>
-                <p><a href="${unsubscribeUrl}" style="color: #666;">Darse de baja</a></p>
-              </div>
-            </div>
-          </body>
-          </html>
-        `;
+        // Contenido del admin (HTML de confianza) dentro del diseño de la casa
+        const htmlContent = correoNewsletter({
+          titulo: campaign.subject,
+          contenidoHtml: personalizedContent,
+          unsubscribeUrl,
+        }).html;
 
         const emailResponse = await fetch("https://api.resend.com/emails", {
           method: "POST",
