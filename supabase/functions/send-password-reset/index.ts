@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { correoAcceso } from "../email-hook/plantilla.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -69,61 +70,14 @@ serve(async (req: Request): Promise<Response> => {
                      data.user?.user_metadata?.name || 
                      email.split("@")[0];
 
-    // Send email via Resend in Spanish
+    // El mismo correo "Recuperación de contraseña" que el de email-hook
+    // (plantilla común, diseño de la casa)
+    const correo = correoAcceso("recovery", { nombre: userName, actionUrl: resetLink });
     const emailResponse = await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: [email],
-      subject: "Recupera tu contraseña - Camberas",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
-          <div style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); padding: 30px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">Camberas</h1>
-            <p style="color: #e0e7ff; margin: 10px 0 0 0; font-size: 14px;">Carreras de Trail y Montaña</p>
-          </div>
-          
-          <div style="padding: 40px 30px;">
-            <h2 style="color: #1f2937; margin-top: 0;">Recuperación de contraseña</h2>
-            <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
-              Hola ${userName}, hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>Camberas</strong>.
-            </p>
-            
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="${resetLink}" 
-                 style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); 
-                        color: #ffffff; 
-                        padding: 16px 40px; 
-                        text-decoration: none; 
-                        border-radius: 8px; 
-                        font-weight: bold; 
-                        font-size: 16px;
-                        display: inline-block;
-                        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);">
-                Restablecer contraseña
-              </a>
-            </div>
-            
-            <p style="color: #6b7280; font-size: 14px; line-height: 1.6;">
-              Si el botón no funciona, copia y pega este enlace en tu navegador:
-            </p>
-            <p style="background-color: #f3f4f6; padding: 12px; border-radius: 6px; word-break: break-all; font-size: 12px; color: #4b5563;">
-              ${resetLink}
-            </p>
-            
-            <div style="background-color: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 25px; border-left: 4px solid #f59e0b;">
-              <p style="color: #92400e; font-size: 13px; margin: 0;">
-                <strong>Nota de seguridad:</strong> Este enlace expirará en 24 horas. Si no solicitaste restablecer tu contraseña, ignora este email.
-              </p>
-            </div>
-          </div>
-          
-          <div style="background-color: #f9fafb; padding: 25px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              Un saludo,<br>
-              El equipo de <strong style="color: #2563eb;">camberas.com</strong>
-            </p>
-          </div>
-        </div>
-      `,
+      subject: correo.asunto,
+      html: correo.html,
     });
 
     console.log("Password reset email sent successfully:", emailResponse);
