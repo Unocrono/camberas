@@ -46,6 +46,13 @@ interface Distance {
   name: string;
   distance_km: number;
   elevation_gain: number | null;
+  // Columnas de 20260924170000 (web propia): desnivel negativo, altitudes, tipo, competitiva, chip
+  elevation_loss?: number | null;
+  alt_max?: number | null;
+  alt_min?: number | null;
+  kind?: string | null;
+  competitive?: boolean | null;
+  chip?: boolean | null;
   price: number;
   max_participants: number | null;
   cutoff_time: string | null;
@@ -94,6 +101,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     name: "",
     distance_km: "",
     elevation_gain: "",
+    elevation_loss: "",
+    alt_max: "",
+    alt_min: "",
+    kind: "carrera",
+    competitive: true,
+    chip: true,
     price: "",
     max_participants: "",
     start_date: "",
@@ -267,6 +280,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         name: distance.name,
         distance_km: distance.distance_km.toString(),
         elevation_gain: distance.elevation_gain?.toString() || "",
+        elevation_loss: distance.elevation_loss?.toString() || "",
+        alt_max: distance.alt_max?.toString() || "",
+        alt_min: distance.alt_min?.toString() || "",
+        kind: distance.kind || "carrera",
+        competitive: distance.competitive ?? true,
+        chip: distance.chip ?? true,
         price: distance.price.toString(),
         max_participants: distance.max_participants?.toString() || "",
         start_date: waveStart.date,
@@ -300,6 +319,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         name: "",
         distance_km: "",
         elevation_gain: "",
+        elevation_loss: "",
+        alt_max: "",
+        alt_min: "",
+        kind: "carrera",
+        competitive: true,
+        chip: true,
         price: "",
         max_participants: "",
         start_date: defaultDate,
@@ -477,6 +502,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         name: validatedData.name,
         distance_km: validatedData.distance_km,
         elevation_gain: validatedData.elevation_gain || null,
+        elevation_loss: formData.elevation_loss ? parseInt(formData.elevation_loss) : null,
+        alt_max: formData.alt_max ? parseInt(formData.alt_max) : null,
+        alt_min: formData.alt_min ? parseInt(formData.alt_min) : null,
+        kind: formData.kind || "carrera",
+        competitive: formData.competitive,
+        chip: formData.chip,
         price: validatedData.price,
         max_participants: validatedData.max_participants || null,
         cutoff_time: validatedData.cutoff_time || null,
@@ -1020,6 +1051,46 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                         value={formData.elevation_gain}
                         onChange={(e) => setFormData({ ...formData, elevation_gain: e.target.value })}
                       />
+                    </div>
+                  </div>
+
+                  {/* Cifras que enseña la web propia del evento */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="elevation_loss">Desnivel Negativo (m)</Label>
+                      <Input id="elevation_loss" type="number" min="0" placeholder="2500" value={formData.elevation_loss} onChange={(e) => setFormData({ ...formData, elevation_loss: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alt_max">Altitud Máxima (m)</Label>
+                      <Input id="alt_max" type="number" placeholder="903" value={formData.alt_max} onChange={(e) => setFormData({ ...formData, alt_max: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alt_min">Altitud Mínima (m)</Label>
+                      <Input id="alt_min" type="number" placeholder="89" value={formData.alt_min} onChange={(e) => setFormData({ ...formData, alt_min: e.target.value })} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="kind">Tipo de evento</Label>
+                      <Select value={formData.kind} onValueChange={(v) => setFormData({ ...formData, kind: v })}>
+                        <SelectTrigger id="kind"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="carrera">Carrera</SelectItem>
+                          <SelectItem value="marcha">Marcha</SelectItem>
+                          <SelectItem value="infantil">Infantil</SelectItem>
+                          <SelectItem value="relevos">Relevos</SelectItem>
+                          <SelectItem value="km_vertical">Kilómetro vertical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                      <Label htmlFor="competitive" className="text-sm">Competitiva (con clasificación)</Label>
+                      <Switch id="competitive" checked={formData.competitive} onCheckedChange={(v) => setFormData({ ...formData, competitive: v })} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                      <Label htmlFor="chip" className="text-sm">Dorsal con chip</Label>
+                      <Switch id="chip" checked={formData.chip} onCheckedChange={(v) => setFormData({ ...formData, chip: v })} />
                     </div>
                   </div>
 
