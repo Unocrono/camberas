@@ -649,7 +649,7 @@ export function MotoMapViewer({ selectedRaceId }: MotoMapViewerProps) {
         <CardContent className="p-0">
           <div className="relative" style={{ height: isMobile ? '60vh' : '70vh', minHeight: '400px' }}>
             {/* Map container - z-0 ensures it's below controls but still visible */}
-            <div ref={mapContainer} className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }} />
+            <div ref={mapContainer} className="absolute inset-0 z-0" style={{ position: 'absolute', inset: 0 }} />
             
             {/* Map controls */}
             {mapReady && (

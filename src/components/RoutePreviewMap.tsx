@@ -226,7 +226,11 @@ export function RoutePreviewMap({ gpxUrl, distanceName }: RoutePreviewMapProps) 
   return (
     <div className="space-y-2">
       <div className="relative w-full h-[400px] rounded-lg overflow-hidden">
-        <div ref={mapContainer} className="absolute inset-0" />
+        {/* Posición en línea, no solo con Tailwind: mapbox-gl.css va en su propio
+            trozo y se carga DESPUÉS de index.css, y su .mapboxgl-map { position:
+            relative } pisaba el absolute inset-0 (misma especificidad, gana la
+            última). El contenedor se quedaba sin altura y el mapa en blanco. */}
+        <div ref={mapContainer} className="absolute inset-0" style={{ position: "absolute", inset: 0 }} />
       </div>
       <p className="text-xs text-muted-foreground text-center">
         <span className="inline-flex items-center gap-1">

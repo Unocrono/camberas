@@ -1574,7 +1574,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
 
       {/* Map Container - Full height on mobile */}
       <div className="flex-1 relative min-h-0">
-        <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" />
+        {/* Posición en línea, no solo con Tailwind: mapbox-gl.css va en su propio
+            trozo y se carga DESPUÉS de index.css, y su .mapboxgl-map { position:
+            relative } pisaba el absolute inset-0 (misma especificidad, gana la
+            última). El contenedor se quedaba sin altura y el mapa en blanco. */}
+        <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" style={{ position: "absolute", inset: 0 }} />
 
         {seguirDorsal && posicionesCargadas && !runnerPositions.some((r) => r.bib_number === seguirDorsal) && (
           <div
