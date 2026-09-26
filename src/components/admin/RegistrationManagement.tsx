@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2, Undo2 } from "lucide-react";
+import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2, Undo2, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
@@ -207,6 +207,17 @@ const MOTIVOS_OMISION: Record<string, string> = {
   estado_desconocido: "con un estado de pago desconocido",
 };
 
+/** 12,50 € a partir de céntimos */
+const eurosDeCentimos = (cent: number) =>
+  (cent / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+// Devoluciones de una inscripción (solo admin): las que siguen sin confirmar
+// (quizá movieron dinero) y lo ya devuelto
+interface ResumenDevoluciones {
+  sinConfirmar: number;
+  devueltoCent: number;
+}
+
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   // QR del dorsal GPS: reutiliza (o crea) el token del corredor y abre el QR
   const abrirQrDorsal = async (reg: any) => {
@@ -304,6 +315,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
   // Devolución Redsys (solo admin): id de la inscripción con el diálogo abierto
   const [devolucionId, setDevolucionId] = useState<string | null>(null);
+  // Resumen por inscripción y lista global de las devoluciones sin confirmar
+  // (de todas las carreras, también las de inscripciones ya borradas)
+  const [devolucionesPorInscripcion, setDevolucionesPorInscripcion] = useState<Map<string, ResumenDevoluciones>>(
+    () => new Map(),
+  );
+  const [devolucionesSinConfirmar, setDevolucionesSinConfirmar] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
@@ -1077,11 +1094,40 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   useEffect(() => {
     fetchData();
+    cargarDevoluciones();
     if (selectedRaceId) {
       fetchFormFieldsAndResponses(selectedRaceId);
       fetchCategories(selectedRaceId);
     }
   }, [selectedRaceId]);
+
+  // Una devolución 'dudosa' (o 'pendiente' de más de 10 minutos, que ya no va a
+  // contestar) pudo mover dinero sin tocar la inscripción ni avisar al
+  // corredor: se señala en la lista para que nadie la olvide. La tabla solo
+  // la lee el admin (RLS); created_at es un instante real, se compara con Date.now()
+  const cargarDevoluciones = async () => {
+    if (isOrganizer) return;
+    const { data, error } = await supabase
+      .from("devoluciones")
+      .select("registration_id, order_number, estado, importe_cent, created_at")
+      .in("estado", ["pendiente", "dudosa", "hecha"]);
+    if (error || !data) return;
+    const hace10Minutos = Date.now() - 10 * 60_000;
+    const porInscripcion = new Map<string, ResumenDevoluciones>();
+    const sinConfirmar: string[] = [];
+    for (const d of data) {
+      const esSinConfirmar =
+        d.estado === "dudosa" || (d.estado === "pendiente" && new Date(d.created_at).getTime() < hace10Minutos);
+      if (esSinConfirmar) sinConfirmar.push(d.order_number);
+      if (!d.registration_id) continue;
+      const resumen = porInscripcion.get(d.registration_id) ?? { sinConfirmar: 0, devueltoCent: 0 };
+      if (esSinConfirmar) resumen.sinConfirmar += 1;
+      if (d.estado === "hecha") resumen.devueltoCent += d.importe_cent;
+      porInscripcion.set(d.registration_id, resumen);
+    }
+    setDevolucionesPorInscripcion(porInscripcion);
+    setDevolucionesSinConfirmar(sinConfirmar);
+  };
 
   const fetchFormFieldsAndResponses = async (raceId: string) => {
     try {
@@ -1173,7 +1219,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   useEffect(() => {
     applyFilters();
     setSelectedRows(new Set()); // Clear selection when filters change
-  }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm, filterGender, filterCategory, filterClub, filterTeam, filterPayment, registrationResponses]);
+  }, [registrations, selectedRace, selectedDistance, selectedStatus, searchTerm, filterGender, filterCategory, filterClub, filterTeam, filterPayment, registrationResponses, devolucionesPorInscripcion]);
 
   useEffect(() => {
     if (selectedRace && selectedRace !== "all") {
@@ -1424,7 +1470,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       });
     }
 
-    if (filterPayment !== "all") {
+    if (filterPayment === "devolucion_sin_confirmar") {
+      filtered = filtered.filter((reg) => (devolucionesPorInscripcion.get(reg.id)?.sinConfirmar ?? 0) > 0);
+    } else if (filterPayment !== "all") {
       filtered = filtered.filter((reg) => reg.payment_status === filterPayment);
     }
 
@@ -1894,6 +1942,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         </div>
       </div>
 
+      {/* Devoluciones sin confirmar (solo admin, de todas las carreras): pudieron mover dinero */}
+      {!isOrganizer && devolucionesSinConfirmar.length > 0 && (
+        <div className="flex flex-wrap items-start gap-3 rounded-md border border-amber-500 p-3 text-sm" role="status">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />
+          <span className="flex-1 min-w-0">
+            {devolucionesSinConfirmar.length === 1
+              ? "Hay 1 devolución sin confirmar"
+              : `Hay ${devolucionesSinConfirmar.length} devoluciones sin confirmar`}{" "}
+            (referencia de pago {devolucionesSinConfirmar.join(", ")}). Puede haber salido dinero sin anular la
+            inscripción ni avisar al corredor: compruébalo en el portal de Redsys (Canales) y márcalo desde el botón
+            Devolver de la inscripción.
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setFilterPayment("devolucion_sin_confirmar")}>
+            Ver en la lista
+          </Button>
+        </div>
+      )}
+
       {/* Import Dialog */}
       <RegistrationImportDialog
         open={isImportOpen}
@@ -2254,6 +2320,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                           <DropdownMenuItem onClick={() => setFilterPayment("pending")}>Pendiente</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setFilterPayment("paid")}>Pagado</DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setFilterPayment("refunded")}>Reembolsado</DropdownMenuItem>
+                          {!isOrganizer && (
+                            <DropdownMenuItem onClick={() => setFilterPayment("devolucion_sin_confirmar")}>
+                              Devolución sin confirmar
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableHead>
@@ -2380,6 +2451,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             <Badge variant={reg.payment_status === "paid" ? "default" : reg.payment_status === "refunded" ? "outline" : "secondary"}>
                               {reg.payment_status === "paid" ? "Pagado" : reg.payment_status === "refunded" ? "Reembolsado" : "Pendiente"}
                             </Badge>
+                            {(devolucionesPorInscripcion.get(reg.id)?.sinConfirmar ?? 0) > 0 ? (
+                              <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700">
+                                Devolución sin confirmar
+                              </Badge>
+                            ) : (devolucionesPorInscripcion.get(reg.id)?.devueltoCent ?? 0) > 0 ? (
+                              <Badge variant="outline" className="ml-1">
+                                Devuelto {eurosDeCentimos(devolucionesPorInscripcion.get(reg.id)?.devueltoCent ?? 0)}
+                              </Badge>
+                            ) : null}
                           </TableCell>
                         )}
                         {visibleColumns.has("actions") && (
@@ -2442,9 +2522,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
                               {/* Devolver por Redsys: solo admin (el dinero sale del TPV de UNO), solo
                                   lo cobrado por la pasarela de Camberas; también las reembolsadas,
-                                  para ver su historial */}
-                              {!isOrganizer && reg.source === "gateway" && (reg.payment_status === "paid" || reg.payment_status === "refunded") && (
-                                <Button variant="outline" size="sm" onClick={() => setDevolucionId(reg.id)} title="Devolver dinero">
+                                  para ver su historial, y cualquiera con una devolución sin confirmar */}
+                              {!isOrganizer &&
+                                ((reg.source === "gateway" && (reg.payment_status === "paid" || reg.payment_status === "refunded")) ||
+                                  (devolucionesPorInscripcion.get(reg.id)?.sinConfirmar ?? 0) > 0) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setDevolucionId(reg.id)}
+                                  title={
+                                    (devolucionesPorInscripcion.get(reg.id)?.sinConfirmar ?? 0) > 0
+                                      ? "Devolución sin confirmar: revísala"
+                                      : "Devolver dinero"
+                                  }
+                                  className={
+                                    (devolucionesPorInscripcion.get(reg.id)?.sinConfirmar ?? 0) > 0 ? "border-amber-500" : undefined
+                                  }
+                                >
                                   <Undo2 className="h-4 w-4" />
                                 </Button>
                               )}
@@ -2702,7 +2796,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         <DevolucionDialog
           registrationId={devolucionId}
           onOpenChange={(open) => !open && setDevolucionId(null)}
-          onCambio={() => fetchData()}
+          onCambio={() => {
+            fetchData();
+            cargarDevoluciones();
+          }}
         />
       )}
 

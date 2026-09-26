@@ -5,9 +5,12 @@
 //
 // La regla de oro: solo es 'hecha' con una respuesta firmada, del mismo
 // pedido, importe, comercio y terminal, y Ds_Response 0900. Solo es
-// 'rechazada' si Redsys dice claramente que no la hizo (error SIS0xxx de
-// validación o una denegación firmada). Todo lo demás es 'dudosa': no se sabe
-// si el dinero salió y un humano lo mira en el portal de Redsys (Canales).
+// 'rechazada' si Redsys dice claramente que no la hizo: un SIS de la lista de
+// validación previa (SIS_RECHAZO_SEGURO) o una denegación firmada de la lista
+// (esDenegacionClara). Todo lo demás es 'dudosa', también cualquier código que
+// no esté en esas listas: no se sabe si el dinero salió y un humano lo mira en
+// el portal de Redsys (Canales). Una 'rechazada' libera el tope y deja pedir
+// otra devolución; una 'dudosa' de más solo cuesta mirar Canales.
 
 export type EstadoDevolucion = "hecha" | "rechazada" | "dudosa";
 
@@ -26,9 +29,38 @@ export interface Esperado {
   terminal: string;
 }
 
-// Respuestas firmadas que no dicen si la devolución salió: el emisor o el
-// sistema no contestaron a tiempo
-const SIN_CONFIRMAR = new Set([909, 912, 9912]);
+// Errores SIS que Redsys da AL VALIDAR la petición, antes de procesarla:
+// faltan campos o tienen mal formato, comercio/terminal/firma no válidos, o
+// la devolución no se admite (no existe el cobro, supera lo cobrado, fuera de
+// plazo...). Con ellos es seguro decir que no se ha movido dinero. Los de
+// sistema o genéricos (SIS0034 acceso a BD, SIS0264 procesando la respuesta,
+// "consulte con soporte"...) NO están: no dicen si la devolución llegó a
+// hacerse y quedan 'dudosa'.
+const SIS_RECHAZO_SEGURO = new Set([
+  // Campos que faltan o con formato erróneo
+  "SIS0008", "SIS0009", "SIS0010", "SIS0011", "SIS0014", "SIS0015", "SIS0016",
+  "SIS0018", "SIS0019", "SIS0020", "SIS0021", "SIS0022", "SIS0023",
+  "SIS0074", "SIS0075", "SIS0076",
+  "SIS0429", "SIS0430", "SIS0431", "SIS0432", "SIS0433", "SIS0434",
+  // Comercio o terminal inexistente, de baja o con otra moneda
+  "SIS0026", "SIS0027", "SIS0028",
+  // Firma que no cuadra
+  "SIS0041", "SIS0042", "SIS0412", "SIS0444",
+  // Tipo de operación no permitido
+  "SIS0112", "SIS0274",
+  // La devolución no se admite (los que explica el panel)
+  "SIS0054", "SIS0056", "SIS0057", "SIS0214", "SIS0268", "SIS0417", "SIS0626",
+  // Duplicidad: Redsys pide repetir pasado un minuto, esta petición no se hizo
+  "SIS0295",
+]);
+
+// Ds_Response firmados que son una denegación clara: el emisor o Redsys dicen
+// que no. 0101-0299 son las denegaciones del emisor; 0904 comercio no
+// registrado, 0913 pedido repetido, 0944 sesión incorrecta, 0950 devolución no
+// permitida. Cualquier otro (0400, 0481, 0909, 0912, 9912, 99xx, 82xx o uno
+// desconocido) queda 'dudosa'.
+const DENEGACION_CLARA = new Set([904, 913, 944, 950]);
+const esDenegacionClara = (n: number) => (n >= 101 && n <= 299) || DENEGACION_CLARA.has(n);
 
 const normalizar = (s: string) => s.replace(/-/g, "+").replace(/_/g, "/").replace(/=/g, "");
 
@@ -65,13 +97,15 @@ export function interpretarRespuesta(
     return dudosa("CAMBERAS_NO_JSON", { texto: recorte });
   }
 
-  // Error de validación: Redsys no llegó a procesar la devolución. Llega sin
-  // firma, como texto o como lista ({"errorCode":["SIS0042"]})
+  // Error SIS: llega sin firma, como texto o como lista ({"errorCode":["SIS0042"]}).
+  // Solo los de validación previa dicen que Redsys no la procesó; el resto
+  // (de sistema, genéricos, desconocidos) queda 'dudosa' con su código
   if (cuerpo.errorCode !== undefined && cuerpo.errorCode !== null && cuerpo.errorCode !== "") {
     const codigo = Array.isArray(cuerpo.errorCode) ? String(cuerpo.errorCode[0] ?? "") : String(cuerpo.errorCode);
-    if (/^SIS\d{4}$/.test(codigo)) {
+    if (SIS_RECHAZO_SEGURO.has(codigo)) {
       return { estado: "rechazada", dsResponse: null, auth: null, errorCode: codigo, respuesta: cuerpo };
     }
+    if (/^SIS\d{4}$/.test(codigo)) return dudosa(codigo, cuerpo);
     return dudosa("CAMBERAS_ERROR_DESCONOCIDO", cuerpo);
   }
 
@@ -120,10 +154,11 @@ export function interpretarRespuesta(
     const auth = String(params.Ds_AuthorisationCode ?? params.DS_AUTHORISATIONCODE ?? "").trim();
     return { estado: "hecha", dsResponse, auth: auth || null, errorCode: null, respuesta: params };
   }
-  // Un código de cobro autorizado (0000-0099) o de anulación (0400) no es lo
-  // que contesta Redsys a una devolución: no se da por no hecha, se mira
-  if (Number.isNaN(n) || SIN_CONFIRMAR.has(n) || n <= 99 || n === 400) {
-    return dudosa(dsResponse || "CAMBERAS_SIN_CODIGO", { params }, dsResponse || null);
+  if (!Number.isNaN(n) && esDenegacionClara(n)) {
+    return { estado: "rechazada", dsResponse, auth: null, errorCode: dsResponse, respuesta: params };
   }
-  return { estado: "rechazada", dsResponse, auth: null, errorCode: dsResponse, respuesta: params };
+  // Todo lo demás no dice si la devolución salió: un código de cobro
+  // autorizado (0000-0099) o de anulación (0400, 0481), el emisor o el sistema
+  // sin contestar (0909, 0912, 9912), uno en proceso o uno desconocido
+  return dudosa(dsResponse || "CAMBERAS_SIN_CODIGO", { params }, dsResponse || null);
 }

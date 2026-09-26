@@ -15,6 +15,12 @@
 //
 // v1: cobros individuales con el TPV de UNO. Ver la migración
 // 20260925213000_devoluciones_redsys.sql.
+//
+// DESPLIEGUE: esta función se despliega SIEMPRE junto con redsys-webhook (la
+// de main desde 87db6a9 o posterior), o después de ella, nunca sola. El
+// webhook anterior trata un aviso de devolución (tipo 3, Ds_Response 0900)
+// como un cobro fallido y pasa el cobro original a 'failed'. Tras la primera
+// devolución real, comprobar que el payment_intent sigue 'completed'/0000.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -99,10 +105,15 @@ serve(async (req) => {
       // llamada: no se resuelve a mano hasta que pase a dudosa (10 minutos)
       const { data: actual } = await service
         .from("devoluciones")
-        .select("estado, created_at")
+        .select("estado, created_at, ds_response")
         .eq("id", body.id)
         .maybeSingle();
       if (!actual) return json({ error: "No existe esa devolución" }, 404);
+      // Redsys ya contestó 0900 firmado (devolución aceptada) aunque algo no
+      // cuadrara: darla por no hecha liberaría el tope y permitiría devolver dos veces
+      if (body.estado === "rechazada" && actual.ds_response === "0900") {
+        return json({ error: "Redsys contestó que la devolución estaba aceptada (0900)", motivo: "redsys_dijo_0900" }, 409);
+      }
       const minutos = (Date.now() - new Date(actual.created_at).getTime()) / 60_000;
       if (actual.estado === "pendiente" && minutos < 10) {
         return json({ error: "Esa devolución aún está esperando respuesta de Redsys", motivo: "en_curso" }, 409);
@@ -266,25 +277,50 @@ serve(async (req) => {
   }
 });
 
-/** Apunta el resultado; false si no se pudo (la fila se queda 'pendiente') */
+/**
+ * Apunta el resultado; false si no se pudo (la fila se queda 'pendiente').
+ * Con Redsys ya contestado, perder el apunte por un corte de la BD deja la
+ * devolución sin confirmar: se reintenta un par de veces. Si un intento
+ * anterior sí se guardó (y se perdió su respuesta), devolucion_resolver
+ * contesta 'ya_resuelta' con el mismo estado, y eso cuenta como apuntada.
+ */
 // deno-lint-ignore no-explicit-any
 async function resolver(service: any, id: string, r: Resultado, usuario: string): Promise<boolean> {
-  const { data, error } = await service.rpc("devolucion_resolver", {
-    p_id: id,
-    p_estado: r.estado,
-    p_ds_response: r.dsResponse,
-    p_auth: r.auth,
-    p_error_code: r.errorCode,
-    p_respuesta: r.respuesta,
-    p_usuario: usuario,
-  });
-  if (error || !data?.ok) {
-    // La fila se queda 'pendiente' y a los 10 minutos pasa a 'dudosa': nadie
-    // puede pedir otra devolución de ese cobro sin mirarlo antes
-    console.error(`redsys-devolucion: no se pudo apuntar ${id} como ${r.estado}:`, error?.message ?? data?.motivo);
-    return false;
+  const esperas = [0, 500, 2000];
+  let ultimo = "";
+  for (const espera of esperas) {
+    if (espera) await new Promise((ok) => setTimeout(ok, espera));
+    try {
+      const { data, error } = await service.rpc("devolucion_resolver", {
+        p_id: id,
+        p_estado: r.estado,
+        p_ds_response: r.dsResponse,
+        p_auth: r.auth,
+        p_error_code: r.errorCode,
+        p_respuesta: r.respuesta,
+        p_usuario: usuario,
+      });
+      if (!error && data?.ok) return true;
+      if (!error && data?.motivo === "ya_resuelta" && data?.estado === r.estado) return true;
+      // Una respuesta clara de la BD (no_existe, ya resuelta con otro estado) no
+      // cambia por reintentar
+      if (!error) {
+        ultimo = String(data?.motivo ?? "sin motivo");
+        break;
+      }
+      ultimo = error.message;
+    } catch (e) {
+      ultimo = e instanceof Error ? e.message : String(e);
+    }
   }
-  return true;
+  // La fila se queda 'pendiente' y a los 10 minutos pasa a 'dudosa': nadie
+  // puede pedir otra devolución de ese cobro sin mirarlo antes
+  console.error(
+    `redsys-devolucion: no se pudo apuntar ${id} como ${r.estado} ` +
+      `(Redsys: ${r.dsResponse ?? r.errorCode ?? "-"}):`,
+    ultimo,
+  );
+  return false;
 }
 
 // Aviso al corredor si la devolución lo pide y aún no se ha mandado

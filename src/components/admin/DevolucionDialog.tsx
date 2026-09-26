@@ -152,11 +152,19 @@ const MOTIVO_RESERVA: Record<string, string> = {
   id_reutilizado: "Petición repetida con otros datos. Cierra y vuelve a abrir el diálogo.",
   ya_resuelta: "Esa devolución ya estaba resuelta.",
   demasiado_pronto: "Espera 15 minutos desde la petición antes de darla por no hecha: Redsys puede tardar en reflejarla.",
+  redsys_dijo_0900:
+    "Redsys contestó 0900 (devolución aceptada): no se puede dar por no hecha. Compruébala en Canales y márcala como hecha.",
 };
 
 function explicar(r: { error_code?: string | null; ds_response?: string | null }) {
   const codigo = r.error_code ?? r.ds_response ?? "";
-  return EXPLICACION[codigo] ?? (codigo ? `Código ${codigo}.` : "");
+  const texto = EXPLICACION[codigo] ?? (codigo ? `Código ${codigo}.` : "");
+  // Con un error de Camberas (firma, no cuadra, no apuntada), lo que contestó
+  // Redsys también cuenta: un 0900 es que la devolución salió
+  if (r.error_code && r.ds_response && r.error_code !== r.ds_response) {
+    return `${texto} Redsys contestó ${r.ds_response}${r.ds_response === "0900" ? " (devolución aceptada)" : ""}.`;
+  }
+  return texto;
 }
 
 const sinConfirmar = (d: Devolucion) => d.estado === "dudosa" || d.atascada;
@@ -244,7 +252,12 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     if (miCarga !== cargaActual.current) return null;
     setCargando(false);
     if (error) {
-      setErrorCarga(error.message);
+      // Sin código es un fallo de red ("TypeError: Failed to fetch"), no de la BD
+      setErrorCarga(
+        error.code
+          ? error.message
+          : "Sin conexión con el servidor. Si no se recupera sola, cierra y vuelve a abrir el diálogo.",
+      );
       return null;
     }
     const i = data as unknown as Info;
@@ -303,27 +316,50 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     return cent > 0 ? { pct: info.politica.porcentaje, cent } : null;
   }, [cobro, info]);
 
-  // Mientras alguna devolución espera a Redsys, se vuelve a mirar cada pocos
-  // segundos (Redsys contesta en menos de un minuto)
+  // Mientras alguna devolución espera a Redsys, se vuelve a mirar: cada 4 s
+  // durante el primer minuto y pico (Redsys contesta en menos de un minuto) y
+  // después cada 30 s, hasta que se resuelva o pase a "sin confirmar" a los 10
+  // minutos (entonces aparecen los botones para marcarla)
   const esperando = info?.devoluciones.some((d) => d.estado === "pendiente" && !d.atascada) ?? false;
+  const [esperaLarga, setEsperaLarga] = useState(false);
   useEffect(() => {
-    if (!registrationId || !esperando) return;
+    if (!registrationId || !esperando) {
+      setEsperaLarga(false);
+      return;
+    }
     let vueltas = 0;
-    const t = setInterval(() => {
-      if (++vueltas > 20) clearInterval(t);
-      cargar();
-    }, 4000);
-    return () => clearInterval(t);
+    let t: ReturnType<typeof setTimeout>;
+    const siguiente = () => {
+      t = setTimeout(
+        () => {
+          if (++vueltas === 20) setEsperaLarga(true);
+          cargar();
+          siguiente();
+        },
+        vueltas < 20 ? 4000 : 30000,
+      );
+    };
+    siguiente();
+    return () => clearTimeout(t);
   }, [registrationId, esperando, cargar]);
 
-  // Si el resultado que se enseña era "esperando" y la fila ya se resolvió, se actualiza
+  // El resultado que se enseña se actualiza cuando la fila AVANZA (a hecha,
+  // rechazada o dudosa). Nunca vuelve a "esperando": si la función contestó
+  // 'dudosa' pero no pudo apuntarla (la fila sigue 'pendiente'), se mantiene
+  // el aviso y lo que contestó Redsys
   useEffect(() => {
-    if (paso !== "resultado" || !peticionId || !info) return;
+    if (paso !== "resultado" || !peticionId || !info || !resultado) return;
+    if (resultado.estado !== "pendiente" && resultado.estado !== "dudosa") return;
     const fila = info.devoluciones.find((d) => d.id === peticionId);
-    if (fila && fila.estado !== resultado?.estado && (resultado?.estado === "pendiente" || resultado?.estado === "dudosa")) {
-      setResultado({ estado: fila.estado, error_code: fila.error_code, ds_response: fila.ds_response });
-    }
-  }, [info, paso, peticionId, resultado?.estado]);
+    if (!fila || fila.estado === "pendiente" || fila.estado === resultado.estado) return;
+    setResultado({
+      estado: fila.estado,
+      error_code: fila.error_code ?? resultado.error_code ?? null,
+      ds_response: fila.ds_response ?? resultado.ds_response ?? null,
+    });
+  }, [info, paso, peticionId, resultado]);
+
+  const filaPeticion = info?.devoluciones.find((d) => d.id === peticionId) ?? null;
 
   const cerrar = () => {
     if (enviando) return;
@@ -377,16 +413,29 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
 
   const resolver = async () => {
     if (!resolviendo) return;
+    const objetivo = resolviendo;
     setEnviando(true);
     setErrorResolver(null);
     huboEnvio.current = true;
     try {
-      const r = await llamarFuncion({ accion: "resolver", id: resolviendo.id, estado: resolviendo.estado });
+      const r = await llamarFuncion({ accion: "resolver", id: objetivo.id, estado: objetivo.estado });
       await cargar();
-      if (!r.ok) setErrorResolver(MOTIVO_RESERVA[r.motivo ?? ""] ?? r.error ?? "No se ha podido resolver.");
+      // Un reintento de una marca que sí se guardó contesta "ya resuelta" con
+      // el mismo estado: eso es un éxito, no un error
+      const yaEstaba = r.motivo === "ya_resuelta" && r.estado === objetivo.estado;
+      if (!r.ok && !yaEstaba) setErrorResolver(MOTIVO_RESERVA[r.motivo ?? ""] ?? r.error ?? "No se ha podido resolver.");
       setResolviendo(null);
-    } catch (e) {
-      setErrorResolver(e instanceof Error ? e.message : String(e));
+    } catch {
+      // No sabemos si la marca se guardó: el historial lo dice
+      const i = await cargar();
+      const fila = i?.devoluciones.find((d) => d.id === objetivo.id);
+      if (fila && (fila.estado === "hecha" || fila.estado === "rechazada")) {
+        setResolviendo(null);
+      } else {
+        setErrorResolver(
+          "No ha llegado respuesta y no sabemos si se ha guardado. Vuelve a pulsar Confirmar: si ya se había guardado no pasa nada, no se anula ni se avisa dos veces.",
+        );
+      }
     } finally {
       setEnviando(false);
     }
@@ -506,8 +555,10 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
 
             {hayDudosas && (
               <Aviso>
-                Hay una devolución sin confirmar. Busca la referencia de pago en el portal de Redsys (Canales), mira si
-                aparece la devolución y márcala abajo. Hasta entonces no se puede pedir otra de ese cobro.
+                Hay una devolución sin confirmar. En el portal de Redsys (Canales) busca su referencia de pago con fechas
+                desde el día en que se pidió (lo pone el historial de abajo) hasta hoy, no con la fecha del cobro: la
+                devolución sale como una operación aparte, con su propia fecha. Mira si aparece y márcala abajo. Hasta
+                entonces no se puede pedir otra de ese cobro.
               </Aviso>
             )}
 
@@ -540,6 +591,12 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                       <span className="text-destructive">Pon un importe entre 0,01 € y {euros(cobro.disponible_cent)}.</span>
                     ) : sugerenciaPolitica ? (
                       `Si cancelara hoy (faltan ${info.politica.dias_hasta_carrera} días), su política de cancelación daría el ${sugerenciaPolitica.pct} %: quedan ${euros(sugerenciaPolitica.cent)} por devolver hasta ese porcentaje.`
+                    ) : info.politica.tiene_tramos && !info.politica.porcentaje ? (
+                      `Su política de cancelación no da devolución ${
+                        info.politica.dias_hasta_carrera >= 0
+                          ? `a ${info.politica.dias_hasta_carrera} días de la carrera`
+                          : "con la carrera ya pasada"
+                      }. Como mucho ${euros(cobro.disponible_cent)}.`
                     ) : (
                       `Como mucho ${euros(cobro.disponible_cent)}.`
                     )}
@@ -622,12 +679,28 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                         ? "La inscripción quedará anulada y la plaza libre."
                         : "La inscripción seguirá activa y pagada."}
                   </li>
-                  <li>{notificar ? "El corredor recibirá un email." : "No se avisará al corredor."}</li>
+                  <li>
+                    {!notificar
+                      ? "No se avisará al corredor."
+                      : info.cedida
+                        ? "No se enviará email: el dorsal está cedido y la inscripción ya es de otra persona."
+                        : "El corredor recibirá un email."}
+                  </li>
                 </ul>
+                {!yaAnulada && cancelar && !sinRespuesta && importe < cobro.disponible_cent && (
+                  <Aviso>
+                    Devuelves {euros(importe)} de los {euros(cobro.disponible_cent)} que quedan de este cobro y ADEMÁS
+                    anulas la inscripción: el corredor se queda sin plaza
+                    {notificar && !info.cedida ? " y el email le dirá que su inscripción queda anulada" : ""}. Si solo
+                    querías devolver una parte, vuelve y desmarca «Anular la inscripción».
+                  </Aviso>
+                )}
                 {sinRespuesta && (
                   <Aviso rol="status">
-                    No ha llegado respuesta y no sabemos si la petición salió. Pulsa Reintentar: es la misma petición y no
-                    se devolverá dos veces. Si cierras, al volver a abrir verás en el historial cómo quedó.
+                    No ha llegado respuesta y todavía no consta ninguna devolución con esta petición. Pulsa Reintentar:
+                    es la misma petición y no se devolverá dos veces. Si sigue fallando, puede que la función de
+                    devoluciones no esté disponible: no la devuelvas a mano en Canales sin apuntarla después aquí. Si
+                    cierras, al volver a abrir verás en el historial cómo quedó.
                   </Aviso>
                 )}
                 <div className="flex justify-end gap-2">
@@ -661,17 +734,34 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                     Redsys no la ha hecho. {explicar(resultado)} No se ha movido dinero ni se ha tocado la inscripción.
                   </Linea>
                 )}
-                {resultado.estado === "pendiente" && (
-                  <Linea icono={<Loader2 className="h-5 w-5 animate-spin shrink-0" />}>
-                    Redsys todavía está contestando. Espera unos segundos: esta pantalla se actualiza sola.
-                  </Linea>
-                )}
-                {resultado.estado === "dudosa" && (
-                  <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
-                    No sabemos si Redsys la ha hecho. {explicar(resultado)} Mírala en el portal de Redsys (Canales) y
-                    márcala en el historial de abajo.
-                  </Linea>
-                )}
+                {resultado.estado === "pendiente" &&
+                  (filaPeticion?.atascada ? (
+                    <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
+                      No ha llegado la respuesta de Redsys y no sabemos si la ha hecho. Mírala en el portal de Redsys
+                      (Canales) y márcala en el historial de abajo.
+                    </Linea>
+                  ) : (
+                    <Linea icono={<Loader2 className="h-5 w-5 animate-spin shrink-0" />}>
+                      {esperaLarga
+                        ? "Redsys no ha contestado todavía. Esta pantalla sigue mirando: si a los 10 minutos de pedirla no hay respuesta, podrás marcarla en el historial después de mirarla en Canales."
+                        : "Redsys todavía está contestando. Espera unos segundos: esta pantalla se actualiza sola."}
+                    </Linea>
+                  ))}
+                {resultado.estado === "dudosa" &&
+                  (resultado.error_code === "CAMBERAS_NO_APUNTADA" && resultado.ds_response === "0900" ? (
+                    <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
+                      Redsys SÍ la ha hecho (contestó 0900), pero Camberas no pudo apuntarlo. Pasados 10 minutos desde
+                      la petición, márcala en el historial de abajo con «Sí se hizo»
+                      {(filaPeticion?.cancelar ?? cancelar) ? ": entonces se anulará la inscripción" : ""}
+                      {(filaPeticion?.notificar ?? notificar) && !info.cedida ? " y se avisará al corredor" : ""}. No pidas
+                      otra devolución.
+                    </Linea>
+                  ) : (
+                    <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
+                      No sabemos si Redsys la ha hecho. {explicar(resultado)} Mírala en el portal de Redsys (Canales) y
+                      márcala en el historial de abajo.
+                    </Linea>
+                  ))}
                 {!resultado.estado && (
                   <Linea icono={<XCircle className="h-5 w-5 text-destructive shrink-0" />}>
                     {MOTIVO_RESERVA[resultado.motivo ?? ""] ?? resultado.error ?? "No se ha podido hacer."}
@@ -714,6 +804,17 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                     {(d.error_code || (d.estado === "rechazada" && d.ds_response)) && (
                       <div className="text-muted-foreground">{explicar(d)}</div>
                     )}
+                    {d.estado === "hecha" &&
+                      d.notificar &&
+                      (d.aviso_enviado_at ? (
+                        <div className="text-muted-foreground">Email al corredor enviado el {fecha(d.aviso_enviado_at, true)}</div>
+                      ) : (
+                        <div className="text-amber-700">
+                          {info.cedida
+                            ? "No se envió email: el dorsal está cedido."
+                            : "Email al corredor NO enviado: avísale por otra vía."}
+                        </div>
+                      ))}
                     {sinConfirmar(d) &&
                       (resolviendo?.id === d.id ? (
                         <div className="space-y-2 pt-1">
@@ -721,8 +822,8 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                             {resolviendo.estado === "hecha"
                               ? `¿Confirmas que en Canales aparece esta devolución de ${euros(d.importe_cent)}? ${
                                   d.cancelar ? "Anulará la inscripción" : "No anulará la inscripción"
-                                }${d.notificar ? " y avisará al corredor por email" : ""}.`
-                              : `¿Confirmas que en Canales NO aparece esta devolución de ${euros(d.importe_cent)}? Quedará como no hecha y se podrá pedir otra.`}
+                                }${d.notificar && !info.cedida ? " y avisará al corredor por email" : ""}.`
+                              : `¿Confirmas que en Canales NO aparece esta devolución de ${euros(d.importe_cent)} de la referencia de pago ${d.order_number}, pedida el ${fecha(d.created_at, true)}? Búscala con fechas desde ese día hasta hoy, no con la fecha del cobro. Quedará como no hecha y se podrá pedir otra.`}
                           </p>
                           <div className="flex gap-2">
                             <Button size="sm" onClick={resolver} disabled={enviando}>
@@ -739,9 +840,12 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                           <Button size="sm" variant="outline" onClick={() => setResolviendo({ id: d.id, estado: "hecha" })}>
                             Sí se hizo
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => setResolviendo({ id: d.id, estado: "rechazada" })}>
-                            No se hizo
-                          </Button>
+                          {/* Con un 0900 firmado de Redsys no se ofrece: la devolución salió */}
+                          {d.ds_response !== "0900" && (
+                            <Button size="sm" variant="outline" onClick={() => setResolviendo({ id: d.id, estado: "rechazada" })}>
+                              No se hizo
+                            </Button>
+                          )}
                         </div>
                       ))}
                   </div>
