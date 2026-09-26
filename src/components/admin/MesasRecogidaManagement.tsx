@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Loader2, Plus, Ticket, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Search, Ticket, X } from "lucide-react";
+import * as XLSX from "xlsx";
 
 /**
  * Mesas de recogida de dorsales.
@@ -96,6 +99,7 @@ export function MesasRecogidaManagement({ raceId }: Props) {
   const vivas = mesas.filter((m) => m.activa);
 
   return (
+    <div className="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -186,6 +190,229 @@ export function MesasRecogidaManagement({ raceId }: Props) {
           "Sin señal" significa que esa mesa lleva más de dos minutos sin dar noticias.
           Solo se entrega a inscripciones pagadas; si recoge otra persona, la mesa anota quién.
         </p>
+      </CardContent>
+    </Card>
+
+    <EntregasDorsal raceId={raceId} mesas={mesas} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dorsales entregados con la app de la mesa: quién, cuándo, en qué mesa y si
+// recogió otra persona. Se refresca solo cada minuto, como las mesas.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Entrega {
+  id: string;
+  entregado_at: string;
+  recogido_por: string | null;
+  mesa_id: string | null;
+  registrations: {
+    bib_number: number | null;
+    first_name: string | null;
+    last_name: string | null;
+    race_distances: { name: string } | null;
+  } | null;
+}
+
+// PostgREST devuelve como mucho 1.000 filas por consulta: se pide por páginas
+const PAGINA = 1000;
+
+const fechaHora = (iso: string) =>
+  new Date(iso).toLocaleString("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+function EntregasDorsal({ raceId, mesas }: { raceId: string; mesas: Mesa[] }) {
+  const { toast } = useToast();
+  const [entregas, setEntregas] = useState<Entrega[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [texto, setTexto] = useState("");
+  const [mesaFiltro, setMesaFiltro] = useState("todas");
+
+  const cargar = useCallback(async () => {
+    const todas: Entrega[] = [];
+    for (let desde = 0; ; desde += PAGINA) {
+      const { data, error: err } = await supabase
+        .from("entregas_dorsal")
+        .select(
+          "id, entregado_at, recogido_por, mesa_id, " +
+            "registrations(bib_number, first_name, last_name, race_distances(name))",
+        )
+        .eq("race_id", raceId)
+        .order("entregado_at", { ascending: false })
+        .range(desde, desde + PAGINA - 1);
+      if (err) {
+        setError(err.message);
+        setCargando(false);
+        return;
+      }
+      todas.push(...((data ?? []) as unknown as Entrega[]));
+      if (!data || data.length < PAGINA) break;
+    }
+    setError(null);
+    setEntregas(todas);
+    setCargando(false);
+  }, [raceId]);
+
+  useEffect(() => {
+    setCargando(true);
+    cargar();
+    const t = setInterval(cargar, 60_000);
+    return () => clearInterval(t);
+  }, [cargar]);
+
+  // Número de cada mesa: orden de alta en la carrera, contando las revocadas
+  // (la misma regla que la pantalla de la mesa, recogida_contexto)
+  const mesaPorId = useMemo(() => {
+    const ordenadas = [...mesas].sort(
+      (a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+    );
+    const mapa: Record<string, { numero: number; nombre: string }> = {};
+    ordenadas.forEach((m, i) => {
+      mapa[m.id] = { numero: i + 1, nombre: m.nombre };
+    });
+    return mapa;
+  }, [mesas]);
+
+  const textoMesa = (id: string | null) => {
+    if (!id || !mesaPorId[id]) return "—";
+    const { numero, nombre } = mesaPorId[id];
+    // "Mesa #1" y el nombre solo si dice algo más ("Mesa 1" no se repite)
+    const soloNumero = nombre.trim().toLowerCase().replace(/[#º°.\s]/g, "") === `mesa${numero}`;
+    return soloNumero ? `Mesa #${numero}` : `Mesa #${numero} · ${nombre}`;
+  };
+
+  const corredor = (e: Entrega) =>
+    [e.registrations?.first_name, e.registrations?.last_name].filter(Boolean).join(" ") || "—";
+
+  const filtradas = useMemo(() => {
+    const t = texto.trim().toLowerCase();
+    return entregas.filter((e) => {
+      if (mesaFiltro !== "todas" && e.mesa_id !== mesaFiltro) return false;
+      if (!t) return true;
+      const dorsal = e.registrations?.bib_number != null ? String(e.registrations.bib_number) : "";
+      return (
+        dorsal === t ||
+        dorsal.startsWith(t) ||
+        corredor(e).toLowerCase().includes(t) ||
+        (e.recogido_por ?? "").toLowerCase().includes(t)
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entregas, texto, mesaFiltro]);
+
+  const descargarExcel = () => {
+    const filas = filtradas.map((e) => ({
+      Dorsal: e.registrations?.bib_number ?? "",
+      Corredor: corredor(e),
+      Recorrido: e.registrations?.race_distances?.name ?? "",
+      "Entregado": fechaHora(e.entregado_at),
+      Mesa: textoMesa(e.mesa_id),
+      "Recogió otra persona": e.recogido_por ?? "",
+    }));
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Entregados");
+    XLSX.writeFile(libro, `dorsales-entregados-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast({ title: "Excel descargado", description: `${filas.length} entregas` });
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5" />
+          Dorsales entregados
+          {!cargando && <Badge variant="secondary">{entregas.length}</Badge>}
+        </CardTitle>
+        <CardDescription>
+          Los que se han entregado con la app de las mesas: a quién, cuándo, en qué mesa y si recogió otra persona.
+          Se actualiza solo cada minuto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {cargando ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Cargando entregas…
+          </div>
+        ) : error ? (
+          <p className="text-sm text-destructive">No se pudieron cargar las entregas: {error}</p>
+        ) : entregas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Todavía no se ha entregado ningún dorsal desde las mesas.
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Dorsal o nombre…"
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                />
+              </div>
+              {mesas.length > 1 && (
+                <Select value={mesaFiltro} onValueChange={setMesaFiltro}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todas">Todas las mesas</SelectItem>
+                    {mesas.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{textoMesa(m.id)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Button variant="outline" className="gap-2" onClick={descargarExcel} disabled={filtradas.length === 0}>
+                <FileSpreadsheet className="h-4 w-4" />
+                Excel
+              </Button>
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-20">Dorsal</TableHead>
+                    <TableHead>Corredor</TableHead>
+                    <TableHead>Recorrido</TableHead>
+                    <TableHead>Entregado</TableHead>
+                    <TableHead>Mesa</TableHead>
+                    <TableHead>Recogió otra persona</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtradas.map((e) => (
+                    <TableRow key={e.id}>
+                      <TableCell className="font-mono font-bold">{e.registrations?.bib_number ?? "—"}</TableCell>
+                      <TableCell>{corredor(e)}</TableCell>
+                      <TableCell className="text-muted-foreground">{e.registrations?.race_distances?.name ?? "—"}</TableCell>
+                      <TableCell className="whitespace-nowrap">{fechaHora(e.entregado_at)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{textoMesa(e.mesa_id)}</TableCell>
+                      <TableCell className="text-muted-foreground">{e.recogido_por ?? ""}</TableCell>
+                    </TableRow>
+                  ))}
+                  {filtradas.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                        Ninguna entrega coincide con la búsqueda.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
