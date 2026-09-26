@@ -5,6 +5,10 @@
 --    escribe DistanceManagement y así la pinta RaceDetail con formatLocalTime).
 --    La RPC la convertía a Europe/Madrid y daba una hora de más (Sarrio salía
 --    a las 11:30 en vez de a las 10:30). Ahora se lee sin convertir.
+-- 3. reglamento e infoPractica de race_web se fusionan con los calculados en vez
+--    de pisarlos: antes, si la web traía material o marcaje, desaparecían las
+--    secciones de race_regulations (y con ellas la página «Reglamento»), y si
+--    traía «cómo llegar», desaparecían las FAQ de race_faqs.
 -- 2. race_web.contenido.pruebas[] (por id de race_distance o por nombre)
 --    aporta a cada prueba lo que Camberas no modela: descripcion, relato,
 --    avituallamientos (si no hay race_checkpoints), terreno, marcaje, color…
@@ -39,6 +43,8 @@ AS $fn$
            CASE WHEN jsonb_typeof(c->'organizador') = 'object' THEN c->'organizador' ELSE '{}'::jsonb END AS org,
            CASE WHEN jsonb_typeof(c->'contacto')    = 'object' THEN c->'contacto'    ELSE '{}'::jsonb END AS con,
            CASE WHEN jsonb_typeof(c->'imagenes')    = 'object' THEN c->'imagenes'    ELSE '{}'::jsonb END AS img,
+           CASE WHEN jsonb_typeof(c->'reglamento')  = 'object' THEN c->'reglamento'  ELSE '{}'::jsonb END AS reg,
+           CASE WHEN jsonb_typeof(c->'infoPractica') = 'object' THEN c->'infoPractica' ELSE '{}'::jsonb END AS inf,
            CASE WHEN jsonb_typeof(c->'pruebas')     = 'array'  THEN c->'pruebas'     ELSE '[]'::jsonb END AS pru
     FROM (
       SELECT COALESCE(w.contenido, '{}'::jsonb) AS c,
@@ -246,11 +252,12 @@ AS $fn$
     FROM ra, web
   )
   -- race_web pisa lo calculado clave a clave; inscripcion, lugar, organizador,
-  -- contacto e imagenes se fusionan un nivel más adentro para no perder lo
+  -- contacto, imagenes, reglamento e infoPractica se fusionan un nivel más adentro para no perder lo
   -- calculado; pruebas/tarifas/campos/web siempre son los de las tablas.
   SELECT jsonb_strip_nulls(
            calculado.j
-           || (web.c - 'pruebas' - 'inscripcion' - 'lugar' - 'organizador' - 'contacto' - 'imagenes' - 'web' - 'marca')
+           || (web.c - 'pruebas' - 'inscripcion' - 'lugar' - 'organizador' - 'contacto' - 'imagenes' - 'web' - 'marca'
+                     - 'reglamento' - 'infoPractica')
            || jsonb_build_object(
                 'inscripcion', (calculado.j->'inscripcion') || web.ins
                                  || jsonb_build_object('tarifas', calculado.j->'inscripcion'->'tarifas',
@@ -258,7 +265,10 @@ AS $fn$
                 'lugar',       (calculado.j->'lugar')       || web.lug,
                 'organizador', (calculado.j->'organizador') || web.org,
                 'contacto',    (calculado.j->'contacto')    || web.con,
-                'imagenes',    (calculado.j->'imagenes')    || web.img
+                'imagenes',    (calculado.j->'imagenes')    || web.img,
+                -- NULLIF: sin reglamento ni info en ningún lado, la clave no sale
+                'reglamento',  NULLIF(COALESCE(calculado.j->'reglamento', '{}'::jsonb) || web.reg, '{}'::jsonb),
+                'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || web.inf, '{}'::jsonb)
               )
          )
   FROM calculado, web;
