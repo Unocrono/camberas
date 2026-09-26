@@ -22,7 +22,11 @@ AS $fn$
   WITH ra AS (
     SELECT r.*
     FROM races r
-    WHERE r.is_visible = true
+    -- Públicas para todos; las ocultas solo para quien las gestiona o un admin
+    -- (así el panel puede previsualizar la web antes de publicar la carrera)
+    WHERE (r.is_visible = true
+           OR (auth.uid() IS NOT NULL
+               AND (public.puede_gestionar_carrera(r.id) OR public.has_role(auth.uid(), 'admin'::app_role))))
       AND (r.slug = p_slug OR r.id::text = lower(p_slug))
     LIMIT 1
   ),
