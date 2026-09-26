@@ -9,6 +9,7 @@ import {
   Droplet, AlertTriangle, Camera, CircleDot, GlassWater, Timer
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatLocalTime } from "@/lib/timezoneUtils";
 
 interface RoadbookItemType {
   id: string;
@@ -80,6 +81,8 @@ export default function Roadbook() {
   const [race, setRace] = useState<Race | null>(null);
   const [items, setItems] = useState<RoadbookItem[]>([]);
   const [itemTypes, setItemTypes] = useState<RoadbookItemType[]>([]);
+  // Hora de salida de la oleada del recorrido (hora local, tal cual)
+  const [salida, setSalida] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -112,6 +115,16 @@ export default function Roadbook() {
 
       if (distanceError) throw distanceError;
       setDistance(distanceData);
+
+      const { data: oleada } = await supabase
+        .from("race_waves")
+        .select("start_time")
+        .eq("race_distance_id", roadbookData.race_distance_id)
+        .not("start_time", "is", null)
+        .order("start_time", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      setSalida(oleada?.start_time ? formatLocalTime(oleada.start_time).slice(0, 5) : null);
 
       const { data: raceData, error: raceError } = await supabase
         .from("races")
@@ -231,10 +244,10 @@ export default function Roadbook() {
                 {race.name} - {distance.name} ({distance.distance_km}km)
               </p>
             </div>
-            {roadbook.start_time && (
+            {(salida || roadbook.start_time) && (
               <div className="flex items-center gap-2 text-lg">
                 <Clock className="h-5 w-5" />
-                <span className="font-semibold">Salida: {roadbook.start_time}</span>
+                <span className="font-semibold">Salida: {salida ?? roadbook.start_time?.slice(0, 5)}</span>
               </div>
             )}
           </div>

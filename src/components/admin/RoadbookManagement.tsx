@@ -10,9 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Edit, Trash2, Map as MapIcon, Eye, ChevronLeft, ChevronRight, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet, Trophy, Camera, GlassWater, Utensils, Home, Star, CircleDot, Upload, FileUp } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Map as MapIcon, Eye, ChevronLeft, ChevronRight, MapPin, Flag, Coffee, AlertTriangle, Mountain, Droplet, Trophy, Camera, GlassWater, Utensils, Home, Star, CircleDot, Upload, FileUp, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { parseGpxFile } from "@/lib/gpxParser";
+import { construirPuntosRutometro, type ResultadoRutometro } from "@/lib/rutometro";
+import { formatLocalTime } from "@/lib/timezoneUtils";
 
 interface Roadbook {
   id: string;
@@ -57,6 +58,7 @@ interface DistanceInfo {
   race_id: string;
   distance_km: number;
   gpx_file_url: string | null;
+  race_name: string | null;
 }
 
 interface RoadbookManagementProps {
@@ -72,62 +74,6 @@ const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPi
 
 const ITEMS_PER_PAGE = 50;
 
-// Format time from database (HH:MM:SS) to input format (HH:MM)
-const formatTimeForInput = (time: string | null): string => {
-  if (!time) return "";
-  // time comes as "HH:MM:SS" from database, input needs "HH:MM"
-  const parts = time.split(":");
-  if (parts.length >= 2) {
-    return `${parts[0]}:${parts[1]}`;
-  }
-  return time;
-};
-
-// Format time for display (show only HH:MM)
-const formatTimeForDisplay = (time: string | null): string => {
-  if (!time) return "";
-  const parts = time.split(":");
-  if (parts.length >= 2) {
-    return `${parts[0]}:${parts[1]}`;
-  }
-  return time;
-};
-// Calculate distance between two points using Haversine formula
-const calculateHaversineDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-// Determine item type based on waypoint name
-const determineItemType = (name: string): string => {
-  const lowerName = name.toLowerCase();
-  if (lowerName.includes('salida') || lowerName.includes('start') || lowerName.includes('inicio')) {
-    return 'start';
-  }
-  if (lowerName.includes('meta') || lowerName.includes('finish') || lowerName.includes('llegada') || lowerName.includes('fin')) {
-    return 'finish';
-  }
-  if (lowerName.includes('avituallamiento') || lowerName.includes('avit') || lowerName.includes('aid')) {
-    return 'aid_station';
-  }
-  if (lowerName.includes('agua') || lowerName.includes('water') || lowerName.includes('refresco')) {
-    return 'refreshment';
-  }
-  if (lowerName.includes('peligro') || lowerName.includes('danger') || lowerName.includes('técnic')) {
-    return 'technical';
-  }
-  if (lowerName.includes('foto') || lowerName.includes('mirador') || lowerName.includes('vista') || lowerName.includes('poi')) {
-    return 'poi';
-  }
-  return 'checkpoint';
-};
 
 export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookManagementProps) {
   const [distanceInfo, setDistanceInfo] = useState<DistanceInfo | null>(null);
@@ -155,8 +101,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const [roadbookFormData, setRoadbookFormData] = useState({
     name: "",
     description: "",
-    start_time: "",
   });
+  // Hora de salida de la oleada del recorrido (hora local, tal cual): el
+  // rutómetro no tiene hora propia
+  const [salidaOleada, setSalidaOleada] = useState<string | null>(null);
+  const [regenerarDialogOpen, setRegenerarDialogOpen] = useState(false);
   
   const [itemFormData, setItemFormData] = useState({
     item_type: "checkpoint",
@@ -198,13 +147,31 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const fetchDistanceInfo = async () => {
     const { data, error } = await supabase
       .from("race_distances")
-      .select("id, name, race_id, distance_km, gpx_file_url")
+      .select("id, name, race_id, distance_km, gpx_file_url, races(name)")
       .eq("id", distanceId)
       .single();
-    
+
     if (!error && data) {
-      setDistanceInfo(data);
+      const fila = data as unknown as Omit<DistanceInfo, "race_name"> & { races?: { name: string } | null };
+      setDistanceInfo({
+        id: fila.id,
+        name: fila.name,
+        race_id: fila.race_id,
+        distance_km: fila.distance_km,
+        gpx_file_url: fila.gpx_file_url,
+        race_name: fila.races?.name ?? null,
+      });
     }
+
+    const { data: oleada } = await supabase
+      .from("race_waves")
+      .select("start_time")
+      .eq("race_distance_id", distanceId)
+      .not("start_time", "is", null)
+      .order("start_time", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    setSalidaOleada(oleada?.start_time ? formatLocalTime(oleada.start_time).slice(0, 5) : null);
   };
 
   const fetchItemTypes = async () => {
@@ -237,7 +204,6 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         setRoadbookFormData({
           name: data.name,
           description: data.description || "",
-          start_time: formatTimeForInput(data.start_time),
         });
       }
     } catch (error: any) {
@@ -318,234 +284,114 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           .update({
             name: roadbookFormData.name,
             description: roadbookFormData.description || null,
-            start_time: roadbookFormData.start_time || null,
           })
           .eq("id", roadbook.id);
 
         if (error) throw error;
         toast({ title: "Éxito", description: "Rutómetro actualizado" });
+        setRoadbookDialogOpen(false);
+        fetchRoadbook();
       } else {
-        const { error } = await supabase.from("roadbooks").insert({
-          race_distance_id: distanceId,
-          name: roadbookFormData.name,
-          description: roadbookFormData.description || null,
-          start_time: roadbookFormData.start_time || null,
-        });
+        const { data: nuevo, error } = await supabase
+          .from("roadbooks")
+          .insert({
+            race_distance_id: distanceId,
+            name: roadbookFormData.name,
+            description: roadbookFormData.description || null,
+          })
+          .select()
+          .single();
 
         if (error) throw error;
-        toast({ title: "Éxito", description: "Rutómetro creado" });
+        setRoadbookDialogOpen(false);
+        if (distanceInfo?.gpx_file_url) {
+          // El recorrido ya tiene GPX: los puntos se generan solos, sin subirlo otra vez
+          await generarDesdeGpxDelRecorrido(nuevo.id);
+        } else {
+          toast({ title: "Rutómetro creado", description: "El recorrido no tiene GPX: súbelo o añade los puntos a mano" });
+          fetchRoadbook();
+        }
       }
-      setRoadbookDialogOpen(false);
-      fetchRoadbook();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
-  // Create roadbook from GPX file
-  const createRoadbookFromGpx = async (gpxFileContent: string): Promise<number> => {
-    if (!distanceInfo) throw new Error("No distance info available");
+  const nombrePorDefecto = () => `${distanceInfo?.race_name || "Carrera"} - ${distanceInfo?.name || ""}`.trim();
 
-    const gpx = parseGpxFile(gpxFileContent);
-    
-    // Build route points from track with cumulative distance
-    interface RoutePoint {
-      lat: number;
-      lon: number;
-      ele?: number;
-      cumulativeDistance: number;
+  // Genera (o regenera) los puntos desde el texto de un GPX: borra los que
+  // hubiera e inserta el track y los waypoints (ver lib/rutometro)
+  const generarPuntos = async (gpxText: string, roadbookId: string): Promise<ResultadoRutometro> => {
+    if (!distanceInfo) throw new Error("No hay datos del recorrido");
+    let tipos = itemTypes;
+    if (tipos.length === 0) {
+      const { data } = await supabase
+        .from("roadbook_item_types")
+        .select("id, name, label, icon, race_type")
+        .eq("is_active", true);
+      tipos = ((data || []) as RoadbookItemType[]).filter((t) => t.race_type === "both" || t.race_type === raceType);
     }
-    
-    let routePoints: RoutePoint[] = [];
-    let totalTrackDistance = 0;
-    
-    if (gpx.tracks.length > 0) {
-      const track = gpx.tracks[0];
-      let cumulativeDist = 0;
-      
-      track.points.forEach((point, index) => {
-        if (index > 0) {
-          const prevPoint = track.points[index - 1];
-          cumulativeDist += calculateHaversineDistance(
-            prevPoint.lat,
-            prevPoint.lon,
-            point.lat,
-            point.lon
-          );
-        }
-        routePoints.push({
-          lat: point.lat,
-          lon: point.lon,
-          ele: point.ele,
-          cumulativeDistance: cumulativeDist,
-        });
-      });
-      totalTrackDistance = cumulativeDist;
+    const idPorTipo = new Map(tipos.map((t) => [t.name, t.id]));
+    const resultado = construirPuntosRutometro(gpxText, distanceInfo.distance_km, new Set(idPorTipo.keys()));
+    if (resultado.puntos.length === 0) throw new Error("El GPX no tiene track ni waypoints");
+
+    const { error: errorBorrar } = await supabase.from("roadbook_items").delete().eq("roadbook_id", roadbookId);
+    if (errorBorrar) throw errorBorrar;
+
+    const filas = resultado.puntos.map((p) => ({
+      ...p,
+      roadbook_id: roadbookId,
+      item_type_id: idPorTipo.get(p.item_type) ?? null,
+    }));
+    const batchSize = 500;
+    for (let i = 0; i < filas.length; i += batchSize) {
+      const { error } = await supabase.from("roadbook_items").insert(filas.slice(i, i + batchSize));
+      if (error) throw error;
     }
-    
-    // Use distance_km from distance info or calculated distance
-    const finalTotalDistance = distanceInfo.distance_km > 0 ? distanceInfo.distance_km : totalTrackDistance;
-    
-    // Delete existing roadbook items if roadbook exists
-    if (roadbook) {
-      await supabase
-        .from("roadbook_items")
-        .delete()
-        .eq("roadbook_id", roadbook.id);
-      
-      // Update roadbook description
-      await supabase
+    return resultado;
+  };
+
+  const textoGeneracion = (r: ResultadoRutometro) => {
+    let texto = `${r.puntos.length} puntos: ${r.waypointsIncluidos} waypoints del GPX destacados, más salida, meta y el track`;
+    if (r.waypointsFuera.length) {
+      texto += `. Quedan fuera por estar lejos del recorrido: ${r.waypointsFuera.join(", ")}`;
+    }
+    return texto;
+  };
+
+  // Los puntos salen del GPX que ya tiene el recorrido
+  const generarDesdeGpxDelRecorrido = async (roadbookId = roadbook?.id) => {
+    if (!roadbookId || !distanceInfo?.gpx_file_url) return;
+    setImporting(true);
+    try {
+      const respuesta = await fetch(distanceInfo.gpx_file_url, { cache: "no-store" });
+      if (!respuesta.ok) throw new Error(`No se pudo descargar el GPX del recorrido (${respuesta.status})`);
+      const resultado = await generarPuntos(await respuesta.text(), roadbookId);
+      toast({ title: "Puntos generados", description: textoGeneracion(resultado) });
+      await fetchRoadbook();
+      setCurrentPage(1);
+    } catch (error: any) {
+      toast({ title: "No se pudieron generar los puntos", description: error.message, variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Subir un GPX a mano: crea el rutómetro si no existe y genera sus puntos
+  const createRoadbookFromGpx = async (gpxFileContent: string): Promise<ResultadoRutometro> => {
+    if (!distanceInfo) throw new Error("No hay datos del recorrido");
+    let roadbookId = roadbook?.id;
+    if (!roadbookId) {
+      const { data: nuevo, error } = await supabase
         .from("roadbooks")
-        .update({
-          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
-        })
-        .eq("id", roadbook.id);
-    } else {
-      // Create new roadbook
-      const { data: race } = await supabase
-        .from("races")
-        .select("name")
-        .eq("id", distanceInfo.race_id)
-        .single();
-      
-      const roadbookName = `${race?.name || 'Carrera'} - ${distanceInfo.name}`;
-      const { data: newRoadbook, error: roadbookError } = await supabase
-        .from("roadbooks")
-        .insert({
-          race_distance_id: distanceId,
-          name: roadbookName,
-          description: `Rutómetro generado automáticamente desde GPX con ${routePoints.length} puntos`,
-        })
+        .insert({ race_distance_id: distanceId, name: nombrePorDefecto() })
         .select()
         .single();
-      
-      if (roadbookError) throw roadbookError;
-      setRoadbook(newRoadbook);
+      if (error) throw error;
+      roadbookId = nuevo.id;
+      setRoadbook(nuevo);
     }
-    
-    const currentRoadbookId = roadbook?.id;
-    if (!currentRoadbookId && !roadbook) {
-      // Fetch the newly created roadbook
-      const { data: freshRoadbook } = await supabase
-        .from("roadbooks")
-        .select("*")
-        .eq("race_distance_id", distanceId)
-        .single();
-      
-      if (!freshRoadbook) throw new Error("Could not find roadbook");
-      setRoadbook(freshRoadbook);
-    }
-    
-    // Get the roadbook ID to use
-    const targetRoadbookId = roadbook?.id || (await supabase
-      .from("roadbooks")
-      .select("id")
-      .eq("race_distance_id", distanceId)
-      .single()).data?.id;
-    
-    if (!targetRoadbookId) throw new Error("Could not find roadbook ID");
-    
-    // Fetch item type IDs
-    const { data: itemTypesData } = await supabase
-      .from("roadbook_item_types")
-      .select("id, name");
-    
-    const itemTypeMap = new Map<string, string>();
-    if (itemTypesData) {
-      itemTypesData.forEach(t => {
-        itemTypeMap.set(t.name, t.id);
-      });
-    }
-    
-    // Process waypoints to mark special points
-    const waypointPositions = new Map<string, { name: string; itemType: string }>();
-    
-    gpx.waypoints.forEach(wp => {
-      if (wp.lat !== 0 && wp.lon !== 0) {
-        // Find closest track point
-        let minDist = Infinity;
-        let closestIdx = 0;
-        routePoints.forEach((rp, idx) => {
-          const dist = calculateHaversineDistance(wp.lat, wp.lon, rp.lat, rp.lon);
-          if (dist < minDist) {
-            minDist = dist;
-            closestIdx = idx;
-          }
-        });
-        if (minDist < 0.1) { // Within 100m
-          waypointPositions.set(closestIdx.toString(), {
-            name: wp.name,
-            itemType: determineItemType(wp.name),
-          });
-        }
-      }
-    });
-    
-    // Create roadbook items from ALL track points
-    // All trkpt get type "point", except waypoints which get their specific type
-    const roadbookItems = routePoints.map((point, index) => {
-      const prevPoint = index > 0 ? routePoints[index - 1] : null;
-      const kmTotal = Math.round(point.cumulativeDistance * 1000) / 1000;
-      const kmPartial = prevPoint 
-        ? Math.round((point.cumulativeDistance - prevPoint.cumulativeDistance) * 1000) / 1000 
-        : 0;
-      const kmRemaining = Math.round((finalTotalDistance - point.cumulativeDistance) * 1000) / 1000;
-      
-      // Default: all trackpoints are type "point"
-      let itemType = 'point';
-      let description = `Punto ${index + 1}`;
-      let isHighlighted = false;
-      
-      // Check if this is a special waypoint
-      const wpInfo = waypointPositions.get(index.toString());
-      if (wpInfo) {
-        itemType = wpInfo.itemType;
-        description = wpInfo.name;
-        isHighlighted = true;
-      }
-      
-      // First point is start
-      if (index === 0) {
-        itemType = 'start';
-        description = 'Salida';
-        isHighlighted = true;
-      }
-      
-      // Last point is finish
-      if (index === routePoints.length - 1) {
-        itemType = 'finish';
-        description = 'Meta';
-        isHighlighted = true;
-      }
-      
-      return {
-        roadbook_id: targetRoadbookId,
-        item_order: index,
-        item_type: itemType,
-        item_type_id: itemTypeMap.get(itemType) || null,
-        description: description,
-        km_total: kmTotal,
-        km_partial: kmPartial,
-        km_remaining: kmRemaining,
-        altitude: point.ele ? Math.round(point.ele) : null,
-        latitude: point.lat,
-        longitude: point.lon,
-        is_highlighted: isHighlighted,
-      };
-    });
-    
-    // Insert in batches to avoid payload size limits
-    const batchSize = 500;
-    for (let i = 0; i < roadbookItems.length; i += batchSize) {
-      const batch = roadbookItems.slice(i, i + batchSize);
-      const { error: itemsError } = await supabase
-        .from("roadbook_items")
-        .insert(batch);
-      
-      if (itemsError) throw itemsError;
-    }
-    
-    return routePoints.length;
+    return generarPuntos(gpxFileContent, roadbookId);
   };
 
   const handleGpxFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -560,7 +406,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     setImporting(true);
     try {
       const gpxContent = await file.text();
-      const itemCount = await createRoadbookFromGpx(gpxContent);
+      const resultado = await createRoadbookFromGpx(gpxContent);
       
       // Upload GPX file to storage and update distance
       if (distanceInfo) {
@@ -590,7 +436,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       
       toast({ 
         title: "GPX importado", 
-        description: `Se han creado ${itemCount} puntos en el rutómetro y se ha habilitado la visualización del mapa` 
+        description: textoGeneracion(resultado) 
       });
       
       // Refresh data
@@ -804,13 +650,13 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                 </Button>
               )}
               <Dialog open={roadbookDialogOpen} onOpenChange={(open) => {
-                if (open && roadbook) {
-                  // Refresh form data when opening dialog to ensure it reflects current roadbook state
-                  setRoadbookFormData({
-                    name: roadbook.name,
-                    description: roadbook.description || "",
-                    start_time: formatTimeForInput(roadbook.start_time),
-                  });
+                if (open) {
+                  // Al abrir, el formulario refleja el rutómetro actual (o un nombre por defecto si es nuevo)
+                  setRoadbookFormData(
+                    roadbook
+                      ? { name: roadbook.name, description: roadbook.description || "" }
+                      : { name: nombrePorDefecto(), description: "" }
+                  );
                 }
                 setRoadbookDialogOpen(open);
               }}>
@@ -841,14 +687,12 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         rows={2}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Hora de Salida</Label>
-                      <Input
-                        type="time"
-                        value={roadbookFormData.start_time}
-                        onChange={(e) => setRoadbookFormData({ ...roadbookFormData, start_time: e.target.value })}
-                      />
-                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {salidaOleada
+                        ? `Salida a las ${salidaOleada}: es la hora de la oleada del recorrido y se cambia en Recorridos.`
+                        : "La hora de salida es la de la oleada del recorrido; se pone en Recorridos."}
+                      {!roadbook && distanceInfo?.gpx_file_url && " Al crearlo, los puntos se generan del GPX del recorrido."}
+                    </p>
                     <div className="flex justify-end gap-2">
                       <Button type="button" variant="outline" onClick={() => setRoadbookDialogOpen(false)}>
                         Cancelar
@@ -886,17 +730,28 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                 </>
               )}
             </Button>
+            {roadbook && distanceInfo?.gpx_file_url && (
+              <Button
+                variant={totalItems === 0 ? "default" : "outline"}
+                size="sm"
+                disabled={importing}
+                onClick={() => (totalItems === 0 ? generarDesdeGpxDelRecorrido() : setRegenerarDialogOpen(true))}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {totalItems === 0 ? "Generar puntos desde el GPX del recorrido" : "Regenerar desde el GPX del recorrido"}
+              </Button>
+            )}
             <span className="text-sm text-muted-foreground">
               {distanceInfo?.gpx_file_url 
-                ? "Ya hay un GPX asignado a esta distancia" 
-                : "Importa un archivo GPX para generar puntos automáticamente"}
+                ? "El recorrido ya tiene GPX: los puntos se generan de él" 
+                : "El recorrido no tiene GPX: súbelo para generar los puntos"}
             </span>
           </div>
 
           {roadbook && (
             <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
               <span>{totalItems} puntos</span>
-              {roadbook.start_time && <span>Salida: {formatTimeForDisplay(roadbook.start_time)}</span>}
+              {salidaOleada && <span>Salida: {salidaOleada}</span>}
             </div>
           )}
         </CardHeader>
@@ -1120,7 +975,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
             <Card>
               <CardContent className="py-8 text-center text-muted-foreground">
                 <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                No hay puntos en este rutómetro. Sube un GPX o añade puntos manualmente.
+                No hay puntos en este rutómetro. Genéralos desde el GPX del recorrido o añádelos a mano.
               </CardContent>
             </Card>
           ) : (
@@ -1246,6 +1101,28 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         </>
       )}
 
+      <AlertDialog open={regenerarDialogOpen} onOpenChange={setRegenerarDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Regenerar los puntos desde el GPX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borran los {totalItems} puntos actuales, también los añadidos o corregidos a mano, y se vuelven a
+              crear desde el GPX del recorrido.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setRegenerarDialogOpen(false);
+                generarDesdeGpxDelRecorrido();
+              }}
+            >
+              Regenerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

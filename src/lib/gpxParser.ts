@@ -7,6 +7,8 @@ export interface GpxWaypoint {
   ele?: number;
   desc?: string;
   cmt?: string;
+  /** símbolo del editor (Garmin, Wikiloc…): «Drinking Water», «Pharmacy», «Picnic Area»… */
+  sym?: string;
 }
 
 export interface GpxTrackPoint {
@@ -64,6 +66,7 @@ export function parseGpxFile(xmlString: string): ParsedGpx {
     const eleEl = wpt.querySelector("ele");
     const descEl = wpt.querySelector("desc");
     const cmtEl = wpt.querySelector("cmt");
+    const symEl = wpt.querySelector("sym");
 
     waypoints.push({
       name: nameEl?.textContent || "Sin nombre",
@@ -72,6 +75,7 @@ export function parseGpxFile(xmlString: string): ParsedGpx {
       ele: eleEl ? parseFloat(eleEl.textContent || "0") : undefined,
       desc: descEl?.textContent || undefined,
       cmt: cmtEl?.textContent || undefined,
+      sym: symEl?.textContent?.trim() || undefined,
     });
   });
 
