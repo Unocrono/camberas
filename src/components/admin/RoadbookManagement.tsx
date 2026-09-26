@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+const MapaElegirPunto = lazy(() => import("./MapaElegirPunto").then((m) => ({ default: m.MapaElegirPunto })));
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -862,6 +863,26 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         />
                       </div>
                     </div>
+                    {/* Elegir el punto en el mapa: se pega al track y rellena km, restante, altitud y coordenadas */}
+                    {distanceInfo?.gpx_file_url && itemDialogOpen && (
+                      <Suspense fallback={<div className="h-[280px] rounded-md border" />}>
+                        <MapaElegirPunto
+                          gpxUrl={distanceInfo.gpx_file_url}
+                          lat={itemFormData.latitude ? parseFloat(itemFormData.latitude) : null}
+                          lon={itemFormData.longitude ? parseFloat(itemFormData.longitude) : null}
+                          onElegir={(p) =>
+                            setItemFormData((f) => ({
+                              ...f,
+                              latitude: String(p.lat),
+                              longitude: String(p.lon),
+                              km_total: String(p.km),
+                              km_remaining: String(p.kmRestante),
+                              altitude: p.altitud != null ? String(p.altitud) : f.altitude,
+                            }))
+                          }
+                        />
+                      </Suspense>
+                    )}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Latitud</Label>
