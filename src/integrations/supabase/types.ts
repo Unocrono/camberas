@@ -5898,17 +5898,21 @@ export type Database = {
         Returns: Json
       }
       cronometrador_borrar_lectura: {
-        Args: { p_reading_id: string; p_token: string }
+        Args: { p_device_id: string; p_reading_id: string; p_token: string }
         Returns: boolean
       }
       cronometrador_borrar_retirada: {
-        Args: { p_id: string; p_token: string }
+        Args: { p_device_id: string; p_id: string; p_token: string }
         Returns: boolean
       }
-      cronometrador_contexto: { Args: { p_token: string }; Returns: Json }
+      cronometrador_contexto: {
+        Args: { p_device_id: string; p_token: string }
+        Returns: Json
+      }
       cronometrador_editar_lectura: {
         Args: {
           p_bib: number
+          p_device_id: string
           p_reading_id: string
           p_timestamp: string
           p_token: string
@@ -5917,6 +5921,7 @@ export type Database = {
       }
       cronometrador_editar_retirada: {
         Args: {
+          p_device_id: string
           p_id: string
           p_motivo: string
           p_tipo: string
@@ -5927,6 +5932,7 @@ export type Database = {
       cronometrador_fichar: {
         Args: {
           p_bib: number
+          p_device_id: string
           p_notes?: string
           p_status_code?: string
           p_timestamp: string
@@ -5935,7 +5941,7 @@ export type Database = {
         Returns: string
       }
       cronometrador_lecturas: {
-        Args: { p_limit?: number; p_token: string }
+        Args: { p_device_id: string; p_limit?: number; p_token: string }
         Returns: {
           bib_number: number
           id: string
@@ -5945,7 +5951,7 @@ export type Database = {
         }[]
       }
       cronometrador_puesto: {
-        Args: { p_token: string }
+        Args: { p_device_id: string; p_token: string }
         Returns: {
           race_id: string
           timing_point_id: string
@@ -5955,6 +5961,7 @@ export type Database = {
       cronometrador_retirada: {
         Args: {
           p_bib: number
+          p_device_id: string
           p_motivo: string
           p_tipo: string
           p_token: string
@@ -5962,11 +5969,12 @@ export type Database = {
         Returns: string
       }
       cronometrador_retiradas: {
-        Args: { p_token: string }
+        Args: { p_device_id: string; p_token: string }
         Returns: {
           abandon_type: string
           bib_number: number
           created_at: string
+          es_de_este_puesto: boolean
           id: string
           reason: string
           registration_id: string
@@ -5974,7 +5982,7 @@ export type Database = {
         }[]
       }
       cronometrador_startlist: {
-        Args: { p_token: string }
+        Args: { p_device_id: string; p_token: string }
         Returns: {
           bib_number: number
           event_name: string
@@ -5983,6 +5991,11 @@ export type Database = {
           race_distance_id: string
           registration_id: string
         }[]
+      }
+      cronometraje_en_ventana: { Args: { p_race_id: string }; Returns: boolean }
+      cronometraje_window: {
+        Args: { p_race_id: string }
+        Returns: Record<string, unknown>
       }
       deshacer_recordatorio_pago: {
         Args: {
