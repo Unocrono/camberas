@@ -31,6 +31,8 @@ interface MapControlsProps {
   hasRoute?: boolean;
   hasRunners?: boolean;
   currentStyle?: string;
+  /** En una barra horizontal fuera del mapa, en vez de flotando encima */
+  enBarra?: boolean;
 }
 
 const MAP_STYLES = [
@@ -53,11 +55,22 @@ export function MapControls({
   hasRoute = false,
   hasRunners = false,
   currentStyle = 'outdoors',
+  enBarra = false,
 }: MapControlsProps) {
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState(false);
+  // En barra, los avisos y el menú se abren hacia abajo y los separadores son verticales
+  const lado = enBarra ? 'bottom' : 'left';
+  // (en el móvil la barra va sin separadores para que quepa en una fila)
+  const separador = enBarra ? 'hidden sm:block w-px h-6 bg-border mx-1' : 'h-px bg-border my-1';
 
   return (
-    <div className="absolute top-4 right-14 z-10 flex flex-col gap-1">
+    <div
+      className={
+        enBarra
+          ? 'flex flex-wrap items-center gap-1 sm:gap-1.5'
+          : 'absolute top-4 right-14 z-10 flex flex-col gap-1'
+      }
+    >
       {/* Center on Route */}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -68,10 +81,12 @@ export function MapControls({
             onClick={onCenterRoute}
             disabled={!hasRoute}
           >
-            <Route className="h-4 w-4 mr-1" /> Recorrido
+            <Route className={enBarra ? "h-4 w-4 sm:mr-1" : "h-4 w-4 mr-1"} />
+            {/* En la barra del móvil, solo el icono: así cabe todo en una fila */}
+            <span className={enBarra ? "sr-only sm:not-sr-only" : undefined}>Recorrido</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>Centrar en el recorrido</p>
         </TooltipContent>
       </Tooltip>
@@ -86,10 +101,11 @@ export function MapControls({
             onClick={onCenterRunners}
             disabled={!hasRunners}
           >
-            <Users className="h-4 w-4 mr-1" /> Grupo
+            <Users className={enBarra ? "h-4 w-4 sm:mr-1" : "h-4 w-4 mr-1"} />
+            <span className={enBarra ? "sr-only sm:not-sr-only" : undefined}>Grupo</span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>Centrar en los participantes</p>
         </TooltipContent>
       </Tooltip>
@@ -107,13 +123,13 @@ export function MapControls({
             <LocateFixed className={`h-4 w-4 ${isFollowing ? 'animate-pulse' : ''}`} />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>{isFollowing ? 'Dejar de seguir' : 'Seguir corredor seleccionado'}</p>
         </TooltipContent>
       </Tooltip>
 
       {/* Divider */}
-      <div className="h-px bg-border my-1" />
+      <div className={separador} />
 
       {/* Zoom In */}
       <Tooltip>
@@ -127,7 +143,7 @@ export function MapControls({
             <ZoomIn className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>Acercar</p>
         </TooltipContent>
       </Tooltip>
@@ -144,13 +160,13 @@ export function MapControls({
             <ZoomOut className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>Alejar</p>
         </TooltipContent>
       </Tooltip>
 
       {/* Divider */}
-      <div className="h-px bg-border my-1" />
+      <div className={separador} />
 
       {/* Map Style */}
       <DropdownMenu open={isStyleMenuOpen} onOpenChange={setIsStyleMenuOpen}>
@@ -166,11 +182,11 @@ export function MapControls({
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="left">
+          <TooltipContent side={lado}>
             <p>Estilo del mapa</p>
           </TooltipContent>
         </Tooltip>
-        <DropdownMenuContent side="left" align="start">
+        <DropdownMenuContent side={lado} align="start">
           {MAP_STYLES.map((style) => (
             <DropdownMenuItem
               key={style.id}
@@ -196,7 +212,7 @@ export function MapControls({
             <Maximize2 className="h-4 w-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="left">
+        <TooltipContent side={lado}>
           <p>Pantalla completa</p>
         </TooltipContent>
       </Tooltip>

@@ -97,6 +97,7 @@ interface LiveGPSMapProps {
 
 export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seguirDorsal }: LiveGPSMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
+  const columnaMapa = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const checkpointMarkers = useRef<mapboxgl.Marker[]>([]);
@@ -191,7 +192,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
-      mapContainer.current.parentElement?.requestFullscreen();
+      // La columna entera (barra + mapa): en pantalla completa siguen los botones
+      (columnaMapa.current ?? mapContainer.current.parentElement)?.requestFullscreen();
     }
   }, []);
 
@@ -293,12 +295,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
       zoom: 12,
     });
 
-    map.current.addControl(
-      new mapboxgl.NavigationControl({
-        visualizePitch: true,
-      }),
-      'top-right'
-    );
+    // Sin NavigationControl de Mapbox: el zoom está en la barra de encima del
+    // mapa, y dentro del mapa no va ningún botón
 
     // Marcar el mapa como listo. Se engancha a DOS eventos a proposito: con
     // solo 'load' habia cargas en las que mapReady se quedaba en false para
@@ -1572,6 +1570,28 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
         </div>
       )}
 
+      {/* Columna del mapa: la barra de botones ENCIMA y el mapa debajo. Los
+          botones iban flotando dentro del mapa y en el móvil lo tapaban */}
+      <div ref={columnaMapa} className="flex-1 flex flex-col min-h-0 bg-card">
+        <div className="shrink-0 border-b px-2 py-1.5">
+          <TooltipProvider>
+            <MapControls
+              enBarra
+              onCenterRoute={handleCenterRoute}
+              onCenterRunners={handleCenterRunners}
+              onZoomIn={handleZoomIn}
+              onZoomOut={handleZoomOut}
+              onToggleFullscreen={handleToggleFullscreen}
+              onChangeStyle={handleChangeStyle}
+              onFollowRunner={handleFollowRunner}
+              isFollowing={isFollowing}
+              hasRoute={hasRoute}
+              hasRunners={runnerPositions.length > 0}
+              currentStyle={mapStyle}
+            />
+          </TooltipProvider>
+        </div>
+
       {/* Map Container - Full height on mobile */}
       <div className="flex-1 relative min-h-0">
         {/* Posición en línea, no solo con Tailwind: mapbox-gl.css va en su propio
@@ -1590,22 +1610,6 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
           </div>
         )}
         
-        {/* Map Controls */}
-        <TooltipProvider>
-          <MapControls
-            onCenterRoute={handleCenterRoute}
-            onCenterRunners={handleCenterRunners}
-            onZoomIn={handleZoomIn}
-            onZoomOut={handleZoomOut}
-            onToggleFullscreen={handleToggleFullscreen}
-            onChangeStyle={handleChangeStyle}
-            onFollowRunner={handleFollowRunner}
-            isFollowing={isFollowing}
-            hasRoute={hasRoute}
-            hasRunners={runnerPositions.length > 0}
-            currentStyle={mapStyle}
-          />
-        </TooltipProvider>
         
         {/* Selected Runner Info Panel */}
         {selectedRunner && !isPlaybackMode && (
@@ -1731,6 +1735,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
             )}
           </div>
         </div>
+      </div>
       </div>
 
       {/* Mobile Runners Panel - Bottom collapsible */}
