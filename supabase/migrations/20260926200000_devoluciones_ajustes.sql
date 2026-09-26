@@ -28,10 +28,10 @@
 --     (Ds_TransactionType 3, Ds_Response 0900) como un cobro fallido y pasa
 --     el cobro a 'failed': desaparecía del diálogo de devoluciones y de la
 --     recaudación. Así no depende del orden de despliegue.
---  6. registrations: un proceso sin sesión (webhook, cron, service_role) no
---     puede volver a dar por pagada una inscripción 'refunded' de la que ya
---     se devolvió dinero. El webhook antiguo lo hacía con un aviso de éxito
---     repetido. El admin y el organizador, desde el panel, sí pueden.
+--  6. registrations: nadie salvo el admin o el organizador de la carrera
+--     (ni webhook, ni cron, ni el propio corredor) puede volver a dar por
+--     pagada una inscripción 'refunded' de la que ya se devolvió dinero. El
+--     webhook antiguo lo hacía con un aviso de éxito repetido.
 --
 -- APLICAR ANTES DE DESPLEGAR redsys-devolucion (las secciones 5 y 6 son la
 -- red por si redsys-webhook de main no está desplegado todavía).
@@ -399,11 +399,12 @@ CREATE TRIGGER trg_payment_intents_no_descompletar
 -- ─────────────────────────────────────────────────────────────────────────
 -- 6. Una inscripción devuelta no vuelve a 'paid' sola
 -- ─────────────────────────────────────────────────────────────────────────
--- Solo frena a quien no tiene sesión (auth.uid() nulo: Edge Functions con
--- service_role, cron, editor SQL) y solo si de esa inscripción ya se
--- devolvió dinero ('hecha'). No alcanza:
---   · al admin o al organizador desde el panel (tienen sesión), que pueden
---     volver a marcarla pagada si hace falta;
+-- Frena a todo el que no gestiona la carrera (Edge Functions con
+-- service_role, cron, editor SQL y también el propio corredor, que por el
+-- agujero de autoedición de registrations puede escribir su payment_status)
+-- y solo si de esa inscripción ya se devolvió dinero ('hecha'). No alcanza:
+--   · al admin ni al organizador de la carrera desde el panel
+--     (puede_gestionar_carrera), que pueden volver a marcarla pagada;
 --   · a eventbooking-sync (source 'external'): esas inscripciones no tienen
 --     cobro en Camberas, así que tampoco devoluciones.
 -- redsys-webhook de main ya se salta las 'refunded' (87db6a9): esto es para
@@ -423,11 +424,11 @@ SECURITY DEFINER
 SET search_path = public
 AS $fn$
 BEGIN
-  IF auth.uid() IS NULL
+  IF NOT COALESCE(public.puede_gestionar_carrera(OLD.race_id), false)
      AND COALESCE(current_setting('camberas.permitir_repagar_devuelta', true), '') <> 'on'
      AND EXISTS (SELECT 1 FROM devoluciones d
                  WHERE d.registration_id = OLD.id AND d.estado = 'hecha') THEN
-    RAISE EXCEPTION 'La inscripción % está devuelta: un proceso automático no puede volver a darla por pagada',
+    RAISE EXCEPTION 'La inscripción % está devuelta: solo el admin o el organizador pueden volver a darla por pagada',
       OLD.id
       USING ERRCODE = '23514';
   END IF;
