@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTenant } from '@/tenant/TenantContext';
 import { supabase } from '@/integrations/supabase/client';
 import { LiveGPSMap } from '@/components/LiveGPSMap';
@@ -42,6 +42,11 @@ const LiveGPSTracking = () => {
   const slug = params.slug ?? tenant?.slug;
   const navigate = useNavigate();
   const { toast } = useToast();
+  // Enlace personal del correo de Camberas Track: ?dorsal=N&recorrido=<id>
+  // abre el mapa en ese recorrido siguiendo a ese corredor
+  const [searchParams] = useSearchParams();
+  const seguirDorsal = searchParams.get('dorsal')?.trim() || null;
+  const recorridoPedido = searchParams.get('recorrido');
   const [raceId, setRaceId] = useState<string | null>(null);
   const [race, setRace] = useState<Race | null>(null);
   const [distances, setDistances] = useState<Distance[]>([]);
@@ -126,7 +131,8 @@ const LiveGPSTracking = () => {
         setDistances(distancesData);
         // Select the first distance with GPS enabled, or the first one with GPX
         const gpsEnabled = distancesData.find(d => d.gps_tracking_enabled);
-        setSelectedDistanceId(gpsEnabled?.id || distancesData[0].id);
+        const pedido = distancesData.find(d => d.id === recorridoPedido);
+        setSelectedDistanceId(pedido?.id || gpsEnabled?.id || distancesData[0].id);
       }
 
       // The edge function returns { token: ... }
@@ -252,6 +258,12 @@ const LiveGPSTracking = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              {seguirDorsal && (
+                <>
+                  <span className="font-semibold text-foreground">Siguiendo al dorsal {seguirDorsal}</span>
+                  <span>•</span>
+                </>
+              )}
               {selectedDistance && (
                 <>
                   <span>
@@ -281,7 +293,8 @@ const LiveGPSTracking = () => {
               <LiveGPSMap 
                 raceId={race.id} 
                 distanceId={selectedDistanceId}
-                mapboxToken={mapboxToken} 
+                mapboxToken={mapboxToken}
+                seguirDorsal={seguirDorsal}
               />
             ) : (
               <div className="text-center py-12 text-muted-foreground">

@@ -92,6 +92,7 @@ export const BLOQUES_EMAIL: { clave: string; descripcion: string; requisito?: st
   { clave: "datos_inscripcion", descripcion: "Datos de su inscripción: documento, club, talla y preguntas de la carrera" },
   { clave: "botones_tiendas", descripcion: "Botones de App Store y Google Play de Camberas Track" },
   { clave: "boton_activar", descripcion: "Botón personal «Activar mi dorsal» en Camberas Track", requisito: "Solo recorridos con GPS y dorsal GPS generado" },
+  { clave: "boton_seguir", descripcion: "Botón «Ver mi posición en directo» y el enlace para compartir: el mapa de la carrera siguiendo a ese dorsal", requisito: "Solo a inscritos con dorsal" },
   { clave: "boton_pagar", descripcion: "Botón «Completar el pago», con el importe pendiente", requisito: "Solo a pendientes de pago por la pasarela" },
   { clave: "mensaje", descripcion: "El texto que escribas al enviar; si lo dejas vacío, no aparece" },
 ];

@@ -170,6 +170,8 @@ interface Datos {
   importe: number | null;
   referencia: string | null;
   miDorsalUrl: string | null;
+  /** Mapa público en directo centrado en este dorsal (para familia y amigos) */
+  seguirUrl: string | null;
   /** Datos de la inscripción (columnas, al día) + preguntas propias de la carrera */
   respuestas: { label: string; value: string }[];
 }
@@ -335,6 +337,16 @@ function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
       return `<p style="margin: 4px 0 16px;">${tienda(APP_STORE, "App Store (iPhone)")}${tienda(PLAY_STORE, "Google Play (Android)")}</p>`;
     case "boton_activar":
       return d.activacionUrl ? boton(d.activacionUrl, `Activar mi dorsal ${d.dorsal ?? ""}`.trim()) : "";
+    case "boton_seguir":
+      // El enlace va también en texto: se comparte SOLO el mapa, sin reenviar
+      // el correo (que lleva el enlace personal de activación)
+      return d.seguirUrl
+        ? `${boton(d.seguirUrl, "Ver mi posición en directo")}
+          <p style="text-align: center; margin: -8px 0 20px; color: #6b7280; font-size: 13px; line-height: 1.5;">
+            Copia este enlace y pásaselo a quien quieras:<br>
+            <a href="${esc(d.seguirUrl)}" style="color: ${VERDE}; word-break: break-all;">${esc(d.seguirUrl)}</a>
+          </p>`
+        : "";
     case "boton_pagar":
       return d.pagoUrl
         ? `${d.importe != null
@@ -429,7 +441,11 @@ function requisitos(p: PlantillaEmail) {
   const track = bloques.has("boton_activar");
   // Recordatorio de pago: el destinatario es justo el que las demás omiten
   const pago = bloques.has("boton_pagar");
-  const dorsal = track || bloques.has("tarjeta_dorsal") || `${p.asunto}\n${p.titulo}\n${p.cuerpo}`.includes("{dorsal}");
+  const dorsal =
+    track ||
+    bloques.has("tarjeta_dorsal") ||
+    bloques.has("boton_seguir") ||
+    `${p.asunto}\n${p.titulo}\n${p.cuerpo}`.includes("{dorsal}");
   return { dorsal, track, pago };
 }
 
@@ -503,6 +519,7 @@ serve(async (req: Request): Promise<Response> => {
         importe: 25,
         referencia: "260923123456",
         miDorsalUrl: `${SITE_URL}/mi-dorsal/${cero}`,
+        seguirUrl: `${SITE_URL}/carrera-de-ejemplo/gps?dorsal=123`,
         respuestas: [
           { label: "Documento", value: "12345678Z" },
           { label: "Club", value: "Club de ejemplo" },
@@ -587,7 +604,7 @@ serve(async (req: Request): Promise<Response> => {
     const raceIds = [...new Set(regs.map((r: any) => r.race_id as string))];
     const [{ data: roles }, { data: races, error: racesErr }] = await Promise.all([
       service.from("user_roles").select("role").eq("user_id", uid),
-      service.from("races").select("id, name, date, location, organizer_id").in("id", raceIds),
+      service.from("races").select("id, name, date, location, organizer_id, slug").in("id", raceIds),
     ]);
     if (racesErr) throw new Error(`races: ${racesErr.message}`);
     const esAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
@@ -907,6 +924,10 @@ serve(async (req: Request): Promise<Response> => {
         importe: importe != null && Number.isFinite(importe) ? importe : null,
         referencia: pago?.order ?? null,
         miDorsalUrl: r.token_inscripcion ? `${SITE_URL}/mi-dorsal/${r.token_inscripcion}` : null,
+        seguirUrl:
+          carrera?.slug && r.bib_number != null
+            ? `${SITE_URL}/${carrera.slug}/gps?dorsal=${r.bib_number}&recorrido=${r.race_distance_id}`
+            : null,
         respuestas: [
           // Lo que el panel mantiene al día, de las columnas de la inscripción
           ...[

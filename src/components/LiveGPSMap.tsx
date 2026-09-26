@@ -91,9 +91,11 @@ interface LiveGPSMapProps {
   raceId: string;
   distanceId?: string;
   mapboxToken: string;
+  /** Dorsal que abrir seleccionado y seguido (enlace ?dorsal= del correo) */
+  seguirDorsal?: string | null;
 }
 
-export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: LiveGPSMapProps) {
+export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seguirDorsal }: LiveGPSMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
@@ -152,6 +154,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: L
   const [mapStyle, setMapStyle] = useState<'outdoors' | 'satellite' | 'streets' | 'light' | 'dark'>('outdoors');
   const [isFollowing, setIsFollowing] = useState(false);
   const [hasRoute, setHasRoute] = useState(false);
+  // Enlace ?dorsal=N: se aplica una sola vez, cuando ese dorsal aparece; si el
+  // visitante elige después a otro corredor, se respeta
+  const seguimientoAplicado = useRef(false);
+  const [posicionesCargadas, setPosicionesCargadas] = useState(false);
 
   // Map control functions
   const handleCenterRoute = useCallback(() => {
@@ -250,6 +256,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: L
       });
     }
   }, [selectedRunner, isFollowing]);
+
+  useEffect(() => {
+    if (!seguirDorsal || seguimientoAplicado.current || !mapReady) return;
+    const corredor = runnerPositions.find((r) => r.bib_number === seguirDorsal);
+    if (!corredor) return;
+    seguimientoAplicado.current = true;
+    setSelectedRunner(corredor);
+    setIsFollowing(true);
+    map.current?.flyTo({ center: [corredor.longitude, corredor.latitude], zoom: 15 });
+  }, [seguirDorsal, runnerPositions, mapReady]);
 
   // Follow selected runner when position updates
   useEffect(() => {
@@ -885,6 +901,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: L
     }));
 
     setRunnerPositions(positions);
+    setPosicionesCargadas(true);
     // Durante la repetición del grupo, los marcadores los mueve el reloj maestro
     if (!groupPlaybackRef.current) updateMarkers(positions);
   };
@@ -1558,6 +1575,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken }: L
       {/* Map Container - Full height on mobile */}
       <div className="flex-1 relative min-h-0">
         <div ref={mapContainer} className="absolute inset-0 md:rounded-r-lg" />
+
+        {seguirDorsal && posicionesCargadas && !runnerPositions.some((r) => r.bib_number === seguirDorsal) && (
+          <div
+            role="status"
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-10 w-[90%] max-w-md rounded-md border bg-background/95 px-3 py-2 text-center text-sm shadow"
+          >
+            El dorsal {seguirDorsal} todavía no ha enviado su posición. Aparecerá aquí en cuanto active el
+            seguimiento en la app; esta página se actualiza sola.
+          </div>
+        )}
         
         {/* Map Controls */}
         <TooltipProvider>
