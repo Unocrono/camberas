@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock, Youtube, Play } from "lucide-react";
+import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, Upload, FileUp, Flag, FlagTriangleRight, Clock, Youtube, Play, ArrowDownUp } from "lucide-react";
 import { CircuitLapsPreview } from "./CircuitLapsPreview";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -1292,6 +1292,30 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
   };
 
   // Import checkpoints from roadbook items marked as is_checkpoint
+  // Tras importar: salida el primero, meta el último y el resto por kilómetro.
+  // Los importados entraban con el siguiente número libre, así que la meta
+  // (creada antes) quedaba en medio. Renumera en dos pasadas por el UNIQUE
+  // (race_distance_id, checkpoint_order).
+  const renumerarPuntosDeControl = async () => {
+    const { data, error } = await supabase
+      .from("race_checkpoints")
+      .select("id, checkpoint_order, checkpoint_type, distance_km")
+      .eq("race_distance_id", selectedDistanceId);
+    if (error || !data) return;
+    const peso = (t: string | null) => (t === "START" ? 0 : t === "FINISH" ? 2 : 1);
+    const ordenados = [...data].sort(
+      (a, b) => peso(a.checkpoint_type) - peso(b.checkpoint_type) || (a.distance_km ?? 0) - (b.distance_km ?? 0) || a.checkpoint_order - b.checkpoint_order,
+    );
+    const cambia = ordenados.some((c, i) => c.checkpoint_order !== i + 1);
+    if (!cambia) return;
+    for (const [i, c] of ordenados.entries()) {
+      await supabase.from("race_checkpoints").update({ checkpoint_order: 1000 + i + 1 }).eq("id", c.id);
+    }
+    for (const [i, c] of ordenados.entries()) {
+      await supabase.from("race_checkpoints").update({ checkpoint_order: i + 1 }).eq("id", c.id);
+    }
+  };
+
   const handleImportFromRoadbook = async () => {
     setRecalculatingDistances(true);
 
@@ -1535,6 +1559,9 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
         if (insertError) throw insertError;
       }
 
+      // Salida primero, meta al final, controles por km
+      await renumerarPuntosDeControl();
+
       // Refresh timing points list
       await fetchTimingPoints();
 
@@ -1622,6 +1649,21 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
             >
               <FileUp className={`mr-2 h-4 w-4 ${recalculatingDistances ? 'animate-spin' : ''}`} />
               {recalculatingDistances ? "Importando..." : "Importar desde Rutómetro"}
+            </Button>
+            <Button
+              variant="outline"
+              title="Salida primero, meta al final y los controles por kilómetro"
+              disabled={recalculatingDistances || checkpoints.length < 2}
+              onClick={async () => {
+                setRecalculatingDistances(true);
+                await renumerarPuntosDeControl();
+                await fetchCheckpoints();
+                setRecalculatingDistances(false);
+                toast.success("Puntos de control ordenados");
+              }}
+            >
+              <ArrowDownUp className="mr-2 h-4 w-4" />
+              Ordenar
             </Button>
             <Dialog
               open={isDialogOpen}
