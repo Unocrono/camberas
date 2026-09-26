@@ -67,11 +67,17 @@ export function Cabecera({ evento, rutas, compacta = false, onInscribirse }: Pro
     </a>
   );
 
-  const cta = abierta && (
+  // En la portada abre el formulario; en las páginas interiores (sin
+  // onInscribirse) lleva a la inscripción de la portada
+  const cta = abierta && (onInscribirse ? (
     <button type="button" onClick={onInscribirse} className="wp-btn text-base" style={{ minHeight: 44 }}>
       Inscríbete
     </button>
-  );
+  ) : (
+    <a href={rutas.ancla("inscripcion")} className="wp-btn text-base no-underline" style={{ minHeight: 44 }}>
+      Inscríbete
+    </a>
+  ));
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b bg-white" style={{ borderColor: "var(--wp-border)" }}>

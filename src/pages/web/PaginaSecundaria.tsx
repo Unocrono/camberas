@@ -15,7 +15,7 @@ import "@/plantillas/gurriana/estilos.css";
 
 /**
  * Marco de las páginas interiores de la web (reglamento, recorrido, resultado
- * del pago, legal): cabecera compacta y pie de la plantilla con los tokens de
+ * del pago, legal): la misma cabecera con menú que la portada y el pie de la plantilla con los tokens de
  * la carrera, y el contenido en medio. Resuelve el evento por slug (URL o
  * tenant) y cachea con la portada.
  */
@@ -49,7 +49,7 @@ export function PaginaSecundaria({ titulo, children }: { titulo?: string; childr
 
   return (
     <div className="wp min-h-screen" style={variablesCss(tokens)} data-plantilla={plantilla.id} data-modo={modo}>
-      <Cabecera evento={evento} rutas={rutas} compacta />
+      <Cabecera evento={evento} rutas={rutas} />
       <main className="pt-[72px]">
         <Suspense fallback={<Cargando />}>{children(evento, rutas)}</Suspense>
       </main>
