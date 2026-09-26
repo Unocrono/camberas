@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Html5Qrcode } from "html5-qrcode";
+import { CabeceraCamberas, PALETA } from "@/components/CabeceraCamberas";
 import {
   AlertCircle,
   AlertTriangle,
@@ -37,6 +38,8 @@ interface ResumenRecorrido {
 interface Contexto {
   estado: "ok" | "revocada" | "no_existe";
   mesa: string;
+  /** Orden de alta de la mesa en su carrera (#1, #2…). Sin la migración 20260926100000, no llega */
+  mesa_numero?: number;
   race_id: string;
   race_name: string;
   race_date: string;
@@ -237,24 +240,30 @@ const RecogidaDorsales = () => {
   // ── Pantallas de error / carga ──────────────────────────────────────────
   if (cargando) {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="min-h-screen flex flex-col" style={{ background: PALETA.crema }}>
+        <CabeceraCamberas />
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-10 w-10 animate-spin" style={{ color: PALETA.verde }} />
+        </div>
       </div>
     );
   }
 
   if (!ctx || ctx.estado !== "ok") {
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-background px-6 text-center">
-        <AlertCircle className="h-14 w-14 text-destructive" />
-        <h1 className="text-2xl font-bold">
-          {ctx?.estado === "revocada" ? "Esta mesa ha sido revocada" : "Enlace no válido"}
-        </h1>
-        <p className="text-muted-foreground max-w-md">
-          {ctx?.estado === "revocada"
-            ? "La organización ha desactivado este puesto. Pídeles un enlace nuevo."
-            : "Comprueba que has copiado la dirección entera, o pide otra a la organización."}
-        </p>
+      <div className="min-h-screen flex flex-col" style={{ background: PALETA.crema }}>
+        <CabeceraCamberas />
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
+          <AlertCircle className="h-14 w-14 text-destructive" />
+          <h1 className="text-2xl font-bold" style={{ color: PALETA.tinta }}>
+            {ctx?.estado === "revocada" ? "Esta mesa ha sido revocada" : "Enlace no válido"}
+          </h1>
+          <p className="text-muted-foreground max-w-md">
+            {ctx?.estado === "revocada"
+              ? "La organización ha desactivado este puesto. Pídeles un enlace nuevo."
+              : "Comprueba que has copiado la dirección entera, o pide otra a la organización."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -264,56 +273,89 @@ const RecogidaDorsales = () => {
     { total: 0, entregados: 0 },
   );
 
+  // "MESA #1" y, debajo, el nombre que le dio la organización si dice algo
+  // más que el número ("Mesa 1" no se repite; "Carpa federados" sí)
+  const tituloMesa = ctx.mesa_numero ? `Mesa #${ctx.mesa_numero}` : ctx.mesa;
+  const nombreMesaExtra =
+    ctx.mesa_numero &&
+    ctx.mesa.trim().toLowerCase().replace(/[#º°.\s]/g, "") !== `mesa${ctx.mesa_numero}`
+      ? ctx.mesa
+      : null;
+
   const pagoOk = ficha && (ficha.pago === "paid" || ficha.pago === "not_required");
   const esMenor = ficha?.edad_carrera != null && ficha.edad_carrera < 18;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Cabecera: qué carrera, qué mesa, cómo vamos */}
-      <header className="px-4 py-3 border-b border-border space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="font-archivo text-lg uppercase truncate">{ctx.race_name}</h1>
-            <p className="text-xs text-muted-foreground">Recogida de dorsales · {ctx.mesa}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-2xl font-bold text-primary leading-none">
-              {totales.entregados}<span className="text-muted-foreground text-base font-normal">/{totales.total}</span>
-            </p>
-            <p className="text-[11px] uppercase text-muted-foreground">entregados</p>
+    <div className="min-h-screen flex flex-col" style={{ background: PALETA.crema }}>
+      <CabeceraCamberas compacta />
+
+      {/* La carrera, sus recorridos y esta mesa, como el correo al corredor */}
+      <header className="bg-white px-4 pb-4 pt-5 border-b" style={{ borderColor: "#e8e1cf" }}>
+        <div className="mx-auto max-w-xl space-y-3">
+          <h1 className="font-archivo text-2xl uppercase leading-tight sm:text-3xl" style={{ color: PALETA.tinta }}>
+            {ctx.race_name}
+          </h1>
+
+          {ctx.resumen.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {ctx.resumen.map((r) => (
+                <span
+                  key={r.recorrido}
+                  className="rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ background: PALETA.crema, color: PALETA.colinaOscura, border: "1px solid #e8e1cf" }}
+                >
+                  {r.recorrido} · <strong style={{ color: PALETA.tinta }}>{r.entregados}</strong>/{r.total}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-end justify-between gap-3 pt-1">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: PALETA.naranja }}>
+                Entrega de dorsales
+              </p>
+              <p className="font-archivo text-3xl uppercase leading-tight" style={{ color: PALETA.verde }}>
+                {tituloMesa}
+              </p>
+              {nombreMesaExtra && (
+                <p className="truncate text-sm font-semibold" style={{ color: PALETA.colinaOscura }}>
+                  {nombreMesaExtra}
+                </p>
+              )}
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-3xl font-bold leading-none" style={{ color: PALETA.verde }}>
+                {totales.entregados}
+                <span className="text-base font-normal text-muted-foreground">/{totales.total}</span>
+              </p>
+              <p className="text-[11px] uppercase text-muted-foreground">entregados</p>
+            </div>
           </div>
         </div>
-        {ctx.resumen.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-0.5">
-            {ctx.resumen.map((r) => (
-              <span key={r.recorrido}
-                className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                {r.recorrido}: <strong className="text-foreground">{r.entregados}</strong>/{r.total}
-              </span>
-            ))}
-          </div>
-        )}
       </header>
 
       <main className="flex-1 p-4 space-y-3 max-w-xl w-full mx-auto">
         {/* Buscar + escanear: las dos puertas */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5" style={{ color: PALETA.colinaOscura }} />
             <input
               autoFocus
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               placeholder="Dorsal, nombre o DNI…"
-              className="w-full rounded-xl border border-border bg-card py-3 pl-9 pr-3 text-base"
+              className="w-full rounded-xl border-2 bg-white py-3.5 pl-11 pr-3 text-base outline-none focus:ring-2"
+              style={{ borderColor: "#d9d1bb", ["--tw-ring-color" as string]: PALETA.verde }}
             />
           </div>
           <button
             onClick={abrirEscaner}
-            className="shrink-0 rounded-xl bg-secondary px-4 text-secondary-foreground flex flex-col items-center justify-center"
+            className="shrink-0 rounded-xl px-4 text-white flex flex-col items-center justify-center gap-0.5 shadow-sm active:scale-95 transition-transform"
+            style={{ background: PALETA.naranja }}
           >
-            <QrCode className="h-5 w-5" />
-            <span className="text-[10px] font-bold uppercase">Escanear</span>
+            <QrCode className="h-6 w-6" />
+            <span className="text-[10px] font-bold uppercase tracking-wide">Escanear QR</span>
           </button>
         </div>
 
@@ -448,7 +490,8 @@ const RecogidaDorsales = () => {
 
       {/* Confirmación grande, visible desde el otro lado de la mesa */}
       {entregadoOk && (
-        <div className="fixed inset-0 z-50 bg-primary flex flex-col items-center justify-center gap-3 text-primary-foreground"
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 text-white"
+             style={{ background: PALETA.verde }}
              onClick={() => setEntregadoOk(null)}>
           <CheckCircle2 className="h-20 w-20" />
           <p className="text-5xl font-bold font-mono">{entregadoOk.dorsal ?? ""}</p>
