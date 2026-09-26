@@ -10,6 +10,18 @@ import DominioSinConfigurar from "./pages/web/DominioSinConfigurar";
 // antes de que se monte la pantalla que ofrece el botón "Instalar app")
 import "./lib/instalarPwa";
 
+// Un trozo de la web que no llega al navegar (se publicó una versión nueva
+// con la página abierta y el trozo viejo ya no existe): en vez de dejar la
+// pantalla rota, la misma autocuración que index.html (borrar caché y
+// recargar una vez)
+window.addEventListener("vite:preloadError", (evento) => {
+  const curar = (window as unknown as { __camberasCurar?: () => void }).__camberasCurar;
+  if (curar) {
+    evento.preventDefault();
+    curar();
+  }
+});
+
 // Antes de montar nada: ¿es camberas.com o el dominio propio de una carrera?
 // (src/tenant/resolverTenant.ts). Bajo un dominio propio no se registra el
 // service worker de Camberas (y se retira si lo hubiera): la web de la

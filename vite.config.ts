@@ -32,11 +32,34 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.ico", "robots.txt", "timing-icon-192.png", "timing-icon-512.png", "gps-icon-192.png", "gps-icon-512.png", "org-icon-192.png", "org-icon-512.png"],
       manifest: false, // We'll handle manifests manually for multiple PWAs
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        // SIN html en la precaché (26-sep-2026). Con index.html precacheado,
+        // el service worker servía la página de SU publicación sin preguntar
+        // al servidor: al abrir el navegador tras una publicación nueva, esa
+        // página vieja pedía hojas de estilo y trozos que ya no existen en el
+        // servidor y la web salía sin estilos hasta un Ctrl+F5 (que se salta
+        // el service worker). Los .js/.css llevan el hash en el nombre: esos
+        // sí se precachean, son inmutables.
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         // Manejador de push/notificationclick para Camberas Org
         importScripts: ["/push-sw.js"],
         runtimeCaching: [
+          // Las páginas, SIEMPRE del servidor mientras haya red (así apuntan
+          // a los .css/.js de la publicación vigente). La copia guardada solo
+          // se usa sin cobertura: /org y /timing siguen abriendo en la
+          // montaña si ya se abrieron antes con red.
+          {
+            urlPattern: ({ request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "paginas",
+              networkTimeoutSeconds: 6,
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/.*supabase\.co\/.*/i,
             handler: "NetworkFirst",
@@ -49,8 +72,9 @@ export default defineConfig(({ mode }) => ({
             },
           },
         ],
-        navigateFallback: "/index.html",
-        navigateFallbackAllowlist: [/^\/timing/, /^\/track/, /^\/org$/, /^\/org\//],
+        // Sin index.html precacheado no hay fallback de navegación: de eso se
+        // encarga la regla NetworkFirst de arriba
+        navigateFallback: null,
       },
     }),
   ].filter(Boolean),

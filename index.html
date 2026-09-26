@@ -11,6 +11,49 @@
     <meta name="description" content="Descubre las mejores carreras de Montaña: BTT y trail. Gestiona tu carrera desde la inscripción a la publicación de resultados. Ca rreras, tarifas, participantes, Reglamento, Tracks GPS, Diseño de Dorsales, Seguimiento GPS , Cronometaje electrónico y manual... Todo autogestionables">
     <meta name="author" content="Camberas" />
 
+    <!-- Autocuración (26-sep-2026): si no llega una hoja de estilos o un
+         script propio (/assets/…) —página vieja guardada que apunta a ficheros
+         de una publicación anterior— se borra la caché de la web y se recarga
+         UNA vez, lo que hacía a mano el Ctrl+F5. No desinstala el service
+         worker (se perderían los avisos push de Camberas Org): sin su caché,
+         pide todo al servidor. Como mucho una vez cada 2 minutos: nunca bucle.
+         Va lo primero del <head> para escuchar antes de que se pidan. -->
+    <script>
+      (function () {
+        var CLAVE = "camberas-autocura";
+        function curar() {
+          try {
+            var ultima = Number(sessionStorage.getItem(CLAVE) || 0);
+            if (Date.now() - ultima < 120000) return;
+            sessionStorage.setItem(CLAVE, String(Date.now()));
+          } catch (e) {
+            return;
+          }
+          var borrar = window.caches
+            ? caches.keys().then(function (ks) {
+                return Promise.all(
+                  ks
+                    .filter(function (k) { return k.indexOf("workbox-precache") === 0 || k === "paginas"; })
+                    .map(function (k) { return caches.delete(k); })
+                );
+              })
+            : Promise.resolve();
+          borrar.catch(function () {}).then(function () { location.reload(); });
+        }
+        window.__camberasCurar = curar;
+        window.addEventListener(
+          "error",
+          function (e) {
+            var t = e.target;
+            if (!t || (t.tagName !== "LINK" && t.tagName !== "SCRIPT")) return;
+            var url = t.href || t.src || "";
+            if (url.indexOf(location.origin + "/assets/") === 0) curar();
+          },
+          true
+        );
+      })();
+    </script>
+
     <!-- Manifest PWA según ruta (timing / org) -->
     <script src="/manifest-selector.js"></script>
 
