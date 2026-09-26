@@ -26,11 +26,11 @@ contraseñas, sin asignar personas.
 | Escáner en la app | `camberas-track/src/hooks/useQRScanner.ts` (la app de motos se retiró el 20-ago-2026; su repo queda archivado) |
 | Migración de referencia | `supabase/migrations/20260803120000_motos_tokens.sql` |
 
-## ESTADO: implementado el 4-ago (falta aplicar la migración)
+## ESTADO: implementado el 4-ago (falta aplicar el blindaje)
 
 | Pieza | Dónde |
 |---|---|
-| Migración | `supabase/migrations/20260804120000_cronometrador_tokens.sql` — **pendiente de ejecutar en Supabase** |
+| Migración | `supabase/migrations/20260804120000_cronometrador_tokens.sql` — aplicada el 4-ago. `20260804140000_cronometrador_blindaje.sql` — **sin aplicar** (revisada el 26-sep): mientras no se aplique, /timing no funciona, porque la web ya manda `p_device_id` |
 | Generar (puesto) | RPC `generar_token_cronometrador(p_timing_point_id, p_distance_id)` — dorsal `CP1`, `CP2`… y revoca el anterior |
 | Listar (panel) | RPC `tokens_cronometraje_carrera(p_race_id)` |
 | QR en el panel | `src/components/admin/TimingPointsManagement.tsx` (columna "Puesto (QR)" + diálogo) |
@@ -67,7 +67,9 @@ solo no basta. Todas las RPCs exigen `p_device_id` y responden únicamente si
 coincide con el móvil vinculado por `link_gps_token` — un QR reenviado no vale,
 hay que hacer el traspaso y el panel lo ve. Las escrituras además solo se
 aceptan dentro de la ventana de la carrera (`cronometraje_window`: de la salida
-más temprana −24 h al cierre más tardío +2 h), así que un QR viejo caduca solo.
+más temprana −24 h al cierre más tardío +2 h, en hora local tal cual y comparada
+con la hora local de Madrid; no usa `gps_capture_window`, que convierte la
+salida dos veces), así que un QR viejo caduca solo.
 Y las retiradas: se ven todas las de la carrera, pero cada puesto solo corrige o
 borra las suyas (`es_de_este_puesto`).
 

@@ -1,26 +1,57 @@
 -- ============================================================
--- BLINDAJE DEL TOKEN DE PUESTO (4-ago, tras el Trail de Loiu)
+-- /timing: CRONOMETRAJE POR QR — BLINDAJE DEL PUESTO
+-- Para ejecutar a mano en producción. Es la migración
+-- supabase/migrations/20260804140000_cronometrador_blindaje.sql
+-- (4-ago, nunca aplicada) con la revisión del 26-sep.
 --
--- El token era una contraseña compartible: bastaba tenerlo para
--- fichar desde cualquier sitio y para siempre. Tres cierres:
+-- QUÉ ARREGLA
+-- /timing vuelve a funcionar. Desde el 4-ago la web llama a las RPC
+-- cronometrador_* con p_device_id, pero en la base siguen las firmas
+-- de 20260804120000_cronometrador_tokens.sql, sin ese parámetro, y
+-- PostgREST no encuentra la función: el puesto no carga ni ficha.
 --
--- 1. DISPOSITIVO. Todas las RPCs exigen `p_device_id` y solo
---    responden si coincide con el móvil vinculado por
---    `link_gps_token`. Una foto del QR reenviada ya no sirve: para
---    cronometrar desde otro móvil hay que hacer el traspaso, y el
---    panel lo ve (columna Vinculado).
--- 2. VENTANA. Las ESCRITURAS solo se aceptan dentro de la ventana
---    de la carrera (misma que gps_positions, pero abarcando todos
---    sus eventos: de la salida más temprana −24 h al cierre más
---    tardío +2 h). Un QR viejo deja de valer al día siguiente.
---    Las lecturas siguen abiertas: preparar el puesto la víspera
---    debe poder hacerse.
--- 3. RETIRADAS. Ver, todas las de la carrera; corregir o borrar,
---    solo las del propio puesto.
+-- LA WEB YA ESTÁ PUBLICADA con el cliente que espera estas firmas:
+-- camberas.com manda p_device_id en las 10 llamadas (comprobado el
+-- 26-sep en el bundle publicado). No hay que publicar nada.
 --
--- OJO AL DESPLIEGUE: las firmas cambian (p_device_id es
--- obligatorio). Migración y publicación de la web van juntas — una
--- app antigua contra estas RPCs deja de fichar.
+-- QUÉ CAMBIA PARA LOS CRONOMETRADORES
+-- · El puesto queda atado al móvil que lo vincula. Al abrir el
+--   enlace del QR (…/timing?t=…) la web vincula ese móvil sola.
+--   Desde otro móvil sale «Puesto en otro móvil»: «Cronometrar
+--   aquí» se lleva el puesto y el anterior deja de poder fichar.
+--   Una foto del QR reenviada ya no basta para fichar a escondidas.
+-- · Cada navegador cuenta como un móvil (en iPhone, Safari y la app
+--   instalada son dos distintos): usar siempre el mismo.
+-- · Fichar, corregir lecturas y retiradas solo entra en la ventana
+--   de la carrera, en hora local: de la salida más temprana −24 h al
+--   cierre más tardío +2 h. Ver la lista de salida y las lecturas se
+--   puede siempre (preparar el puesto la víspera).
+-- · Retiradas: se ven todas las de la carrera; solo se corrigen o
+--   borran las del propio puesto.
+-- · El único puesto con QR hoy (Loiu 500 Trail 2026 → START) tiene
+--   que volver a abrir el enlace de su QR. El QR sigue valiendo.
+--
+-- CAMBIOS RESPECTO AL FICHERO DEL REPO
+-- · La ventana se calcula en HORA LOCAL tal cual y se compara con la
+--   hora local de Madrid. Ya no sale de gps_capture_window, que pasa
+--   la hora de la oleada dos veces por Europe/Madrid (ventana 1-2 h
+--   tarde; con salidas >= 22:00 en verano / >= 23:00 en invierno,
+--   la ventana entera caería antes de la salida).
+-- · Tiempo límite que gps_cutoff_interval no sabe leer («7 h»,
+--   «8 h»: la Gurriana 2027) → 12 h, lo mismo que sin tiempo límite.
+--   Sin esto la ventana de la Gurriana quedaría sin cierre.
+-- · cronometraje_window se cierra a anon, authenticated y PUBLIC:
+--   solo la usan funciones definer.
+-- · es_de_este_puesto nunca sale NULL (la web enseñaba editar y
+--   borrar en retiradas ajenas metidas sin token).
+--
+-- CÓMO EJECUTARLO
+-- Pegar el fichero ENTERO en el editor SQL del panel y ejecutarlo
+-- de una vez. Mandado como un solo lote, Postgres lo hace todo o
+-- nada: si una sentencia falla, no se aplica ninguna y /timing sigue
+-- como estaba. La última consulta es la comprobación: 13 filas,
+-- todas con ok = true. Si hay error, ejecutar solo esa consulta para
+-- ver el estado. Se puede repetir sin daño.
 -- ============================================================
 
 -- ── 1) Token + dispositivo: la resolución del puesto ───────────────────────
@@ -48,37 +79,64 @@ REVOKE EXECUTE ON FUNCTION public.cronometrador_puesto(uuid, text) FROM anon, au
 -- ── 2) Ventana de cronometraje de la carrera ───────────────────────────────
 --     Une las ventanas de todos los eventos: el puesto cronometra la carrera
 --     entera, no solo el evento del que cuelga su token.
+--     Mismas reglas que la ventana GPS (salida −24 h … salida + tiempo límite
+--     + 2 h; sin oleada, el día entero; carreras demo-* siempre abiertas),
+--     pero en HORA LOCAL tal cual: la fecha la manda races.date y la hora,
+--     race_waves.start_time leída sin convertir (el +00 no es UTC).
+--     t_ini / t_fin salen también como hora local con +00.
+--     Si gps_cutoff_interval no sabe leer el tiempo límite (devuelve NULL con
+--     «7 h», «8 h»…), se toman 12 h, como cuando no hay tiempo límite: si no,
+--     max() ignora ese evento y la ventana cierra antes, o queda sin cierre.
 CREATE OR REPLACE FUNCTION public.cronometraje_window(
   p_race_id uuid,
   OUT t_ini timestamptz,
   OUT t_fin timestamptz
 )
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $win$
-  SELECT min(w.t_ini), max(w.t_fin)
-  FROM race_distances d
-  CROSS JOIN LATERAL gps_capture_window(d.id::text) w
-  WHERE d.race_id = p_race_id
-$win$;
+AS $fn$
+  SELECT
+    CASE WHEN r.slug LIKE 'demo-%' THEN '-infinity'::timestamptz
+      ELSE min(COALESCE(s.salida, r.date::timestamp AT TIME ZONE 'UTC'))
+           - interval '24 hours'
+    END,
+    CASE WHEN r.slug LIKE 'demo-%' THEN 'infinity'::timestamptz
+      ELSE max(CASE WHEN s.salida IS NOT NULL
+                 THEN s.salida + COALESCE(gps_cutoff_interval(d.cutoff_time, r.group_type),
+                                          interval '12 hours')
+                 ELSE (r.date + time '23:59') AT TIME ZONE 'UTC'
+               END)
+           + interval '2 hours'
+    END
+  FROM races r
+  JOIN race_distances d ON d.race_id = r.id
+  LEFT JOIN race_waves w ON w.race_distance_id = d.id
+  CROSS JOIN LATERAL (
+    SELECT (r.date + (w.start_time AT TIME ZONE 'UTC')::time) AT TIME ZONE 'UTC' AS salida
+  ) s
+  WHERE r.id = p_race_id
+  GROUP BY r.id
+$fn$;
 
-REVOKE EXECUTE ON FUNCTION public.cronometraje_window(uuid) FROM PUBLIC;
-GRANT  EXECUTE ON FUNCTION public.cronometraje_window(uuid) TO anon, authenticated;
+-- Interna: la llaman cronometraje_en_ventana y cronometrador_contexto (definer)
+REVOKE EXECUTE ON FUNCTION public.cronometraje_window(uuid) FROM anon, authenticated, PUBLIC;
 
 -- Comprobación común de las escrituras. Una carrera sin eventos no tiene
 -- ventana que aplicar: en ese caso se deja pasar.
+-- «Ahora» en hora local de Madrid, para compararlo con horas locales.
 CREATE OR REPLACE FUNCTION public.cronometraje_en_ventana(p_race_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $fn$
   SELECT COALESCE(
-    (SELECT cw.t_ini IS NULL OR now() BETWEEN cw.t_ini AND cw.t_fin
+    (SELECT cw.t_ini IS NULL
+            OR ((now() AT TIME ZONE 'Europe/Madrid') AT TIME ZONE 'UTC')
+               BETWEEN cw.t_ini AND cw.t_fin
        FROM cronometraje_window(p_race_id) cw),
     true
   )
 $fn$;
 
-REVOKE EXECUTE ON FUNCTION public.cronometraje_en_ventana(uuid) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.cronometraje_en_ventana(uuid) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.cronometraje_en_ventana(uuid) FROM anon, authenticated, PUBLIC;
 
 -- ── 3) Lecturas del puesto (contexto, lista de salida, fichajes) ───────────
 DROP FUNCTION IF EXISTS public.cronometrador_contexto(uuid);
@@ -369,7 +427,10 @@ BEGIN
   RETURN QUERY
   SELECT a.id, a.bib_number::int, a.abandon_type::text, a.reason::text,
          a.timing_point_id, a.created_at, a.registration_id,
-         (a.timing_point_id = v_p.timing_point_id OR a.token_id = v_p.token_id)
+         -- Nunca NULL: una retirada de otro punto metida sin token (token_id
+         -- NULL) daría false OR NULL = NULL, y la web solo oculta con === false
+         COALESCE(a.timing_point_id = v_p.timing_point_id
+                  OR a.token_id = v_p.token_id, false)
   FROM race_results_abandons a
   WHERE a.race_id = v_p.race_id
   ORDER BY a.created_at DESC;
@@ -528,3 +589,59 @@ $fn$;
 
 REVOKE EXECUTE ON FUNCTION public.cronometrador_borrar_retirada(uuid, text, uuid) FROM PUBLIC;
 GRANT  EXECUTE ON FUNCTION public.cronometrador_borrar_retirada(uuid, text, uuid) TO anon, authenticated;
+
+-- PostgREST recarga el esquema solo (pgrst_ddl_watch), pero por si acaso:
+NOTIFY pgrst, 'reload schema';
+
+-- ── Comprobación (solo lectura) ───────────────────────────────────────────
+-- Esperado: 13 filas y todas con ok = true.
+-- · Las 10 RPC del puesto, con p_device_id: anon y authenticated sí, PUBLIC no.
+-- · cronometrador_puesto (con p_device_id), cronometraje_window y
+--   cronometraje_en_ventana: ni anon, ni authenticated, ni PUBLIC.
+-- · Si sale una fila de más con ok = false y sin p_device_id, sobrevive una
+--   firma vieja; si sale una fila sin args, falta la función.
+WITH esperado(funcion, abierta) AS (
+  VALUES
+    ('cronometrador_contexto', true),
+    ('cronometrador_startlist', true),
+    ('cronometrador_lecturas', true),
+    ('cronometrador_fichar', true),
+    ('cronometrador_editar_lectura', true),
+    ('cronometrador_borrar_lectura', true),
+    ('cronometrador_retiradas', true),
+    ('cronometrador_retirada', true),
+    ('cronometrador_editar_retirada', true),
+    ('cronometrador_borrar_retirada', true),
+    ('cronometrador_puesto', false),
+    ('cronometraje_window', false),
+    ('cronometraje_en_ventana', false)
+),
+f AS (
+  SELECT p.proname,
+         pg_get_function_identity_arguments(p.oid)                 AS args,
+         has_function_privilege('anon', p.oid, 'EXECUTE')          AS anon,
+         has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated,
+         -- PUBLIC es el grantee 0; proacl NULL = permisos por defecto (con PUBLIC)
+         EXISTS (SELECT 1
+                   FROM aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) a
+                  WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE')  AS public
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+)
+SELECT e.funcion, f.args, f.anon, f.authenticated, f.public,
+       CASE WHEN e.abierta THEN 'anon y authenticated: sí · PUBLIC: no'
+            ELSE 'anon, authenticated y PUBLIC: no' END AS esperado,
+       COALESCE(
+         (e.funcion LIKE 'cronometraje%' OR f.args LIKE '%p_device_id text%')
+         AND f.anon = e.abierta
+         AND f.authenticated = e.abierta
+         AND NOT f.public,
+         false) AS ok
+FROM esperado e
+LEFT JOIN f ON f.proname = e.funcion
+ORDER BY e.abierta DESC, e.funcion, f.args;
+
+-- Aparte, si se quiere: la ventana de Loiu (hora local) debe dar
+-- t_ini = 2026-10-31 09:30:00+00 y t_fin = 2026-11-01 19:40:00+00.
+-- SELECT * FROM cronometraje_window('f5f7ed25-dc74-4a2d-8be9-5f6fb023307a');
