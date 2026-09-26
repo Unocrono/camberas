@@ -8,8 +8,9 @@
 //  · Cada confirmación lleva un id propio. Si no llega respuesta, solo se
 //    puede REINTENTAR con ese mismo id (la función reconoce la petición y no
 //    pide otra devolución); no se puede volver al formulario y lanzar otra.
-//  · Se manda lo devuelto que se veía en pantalla: si ha cambiado (otra
-//    pestaña, otro admin) la reserva se para y el diálogo recarga.
+//  · Se manda lo devuelto que se veía en pantalla AL CONFIRMAR (se congela
+//    en ese momento y va igual en cada reintento, aunque el diálogo se haya
+//    recargado): si ha cambiado (otra pestaña, otro admin) la reserva se para.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -187,8 +188,38 @@ function EstadoBadge({ d }: { d: Devolucion }) {
 const esRespuestaConocida = (r: Resultado | null | undefined) =>
   !!r && (typeof r.estado === "string" || typeof r.motivo === "string" || r.ok === true);
 
+// La función espera a Redsys 45 s como mucho; pasado esto se deja de esperar
+// y se trata como "no sabemos si llegó" (el reintento lleva el mismo id)
+const ESPERA_FUNCION_MS = 90_000;
+
+// Fallo al llamar a la función. delServidor: contestó la PROPIA función con su
+// error (terminó); si no, fue la red, la pasarela o el tiempo de espera
+class ErrorLlamada extends Error {
+  delServidor: boolean;
+  constructor(mensaje: string, delServidor = false) {
+    super(mensaje);
+    this.delServidor = delServidor;
+  }
+}
+
+// Los errores de functions-js, en cristiano. El tiempo de espera agotado
+// llega como FunctionsFetchError con el AbortError del fetch en context
+function enCristiano(error: { message: string; context?: unknown }): string {
+  const causa = (error.context ?? null) as { name?: unknown } | null;
+  if (causa?.name === "AbortError" || causa?.name === "TimeoutError") {
+    return "la función no ha contestado en 90 segundos";
+  }
+  const mensaje = error.message;
+  if (/Failed to send a request|Failed to fetch|NetworkError|Load failed/i.test(mensaje)) {
+    return "no se ha podido conectar con la función de devoluciones";
+  }
+  if (/Relay Error/i.test(mensaje)) return "la pasarela de Supabase no ha llegado a la función";
+  if (/non-2xx/i.test(mensaje)) return "la función de devoluciones ha contestado con un error";
+  return mensaje;
+}
+
 async function llamarFuncion(body: Record<string, unknown>): Promise<Resultado> {
-  const { data, error } = await supabase.functions.invoke("redsys-devolucion", { body });
+  const { data, error } = await supabase.functions.invoke("redsys-devolucion", { body, timeout: ESPERA_FUNCION_MS });
   if (error) {
     const contexto = (error as { context?: { status?: number; json?: () => Promise<unknown> } }).context;
     const status = contexto?.status;
@@ -200,14 +231,19 @@ async function llamarFuncion(body: Record<string, unknown>): Promise<Resultado> 
     }
     // Un 5xx (la función pudo morir después de llamar a Redsys) o un cuerpo
     // que no es nuestro: no se puede dar por fallida
-    if (!status || status >= 500 || !cuerpo) throw new Error(error.message);
+    if (!status || !cuerpo) throw new ErrorLlamada(enCristiano(error));
+    if (status >= 500) {
+      // El 500 de la propia función trae {error}; los de la pasarela, {code, message}
+      const propio = status === 500 && typeof cuerpo.error === "string" && !esRespuestaConocida(cuerpo);
+      throw propio ? new ErrorLlamada(String(cuerpo.error), true) : new ErrorLlamada(enCristiano(error));
+    }
     if (!esRespuestaConocida(cuerpo)) {
-      if (status < 500 && typeof cuerpo.error === "string") return cuerpo;
-      throw new Error(error.message);
+      if (typeof cuerpo.error === "string") return cuerpo;
+      throw new ErrorLlamada(enCristiano(error));
     }
     return cuerpo;
   }
-  if (!esRespuestaConocida(data as Resultado)) throw new Error("Respuesta inesperada");
+  if (!esRespuestaConocida(data as Resultado)) throw new ErrorLlamada("respuesta inesperada de la función");
   return data as Resultado;
 }
 
@@ -233,9 +269,15 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
 
   const [paso, setPaso] = useState<"form" | "confirmar" | "resultado">("form");
   const [peticionId, setPeticionId] = useState<string | null>(null);
+  // Lo devuelto + en curso del cobro que se veía al confirmar: va igual en la
+  // petición y en todos sus reintentos (aunque el diálogo se recargue)
+  const [vistoAlConfirmar, setVistoAlConfirmar] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
   const [sinRespuesta, setSinRespuesta] = useState(false);
+  // Por qué no llegó respuesta. sinRedsys: la propia función contestó con un
+  // error y no hay fila, así que no llegó a pedir nada a Redsys
+  const [falloEnvio, setFalloEnvio] = useState<{ texto: string; sinRedsys: boolean } | null>(null);
   const [resolviendo, setResolviendo] = useState<{ id: string; estado: "hecha" | "rechazada" } | null>(null);
 
   // Para descartar respuestas tardías de otra inscripción
@@ -295,8 +337,10 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     setNotificar(true);
     setPaso("form");
     setPeticionId(null);
+    setVistoAlConfirmar(null);
     setResultado(null);
     setSinRespuesta(false);
+    setFalloEnvio(null);
     setResolviendo(null);
     setErrorResolver(null);
     cargar();
@@ -368,14 +412,16 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
   };
 
   const continuar = () => {
-    if (!importeValido || !motivoValido) return;
+    if (!importeValido || !motivoValido || !cobro) return;
     setPeticionId(crypto.randomUUID());
+    setVistoAlConfirmar(cobro.devuelto_cent + cobro.en_curso_cent);
     setSinRespuesta(false);
+    setFalloEnvio(null);
     setPaso("confirmar");
   };
 
   const enviar = async () => {
-    if (!peticionId || !cobro || importe === null || !registrationId) return;
+    if (!peticionId || vistoAlConfirmar === null || !cobro || importe === null || !registrationId) return;
     setEnviando(true);
     huboEnvio.current = true;
     try {
@@ -387,24 +433,34 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
         importe_cent: importe,
         motivo,
         cancelar: yaAnulada ? true : cancelar,
-        notificar,
-        comprometido_visto_cent: cobro.devuelto_cent + cobro.en_curso_cent,
+        notificar: notificar && !info?.cedida,
+        // El de la confirmación, no el de ahora: si otra pestaña devolvió
+        // algo mientras tanto y esta petición no llegó, la reserva se para
+        comprometido_visto_cent: vistoAlConfirmar,
       });
       setSinRespuesta(false);
+      setFalloEnvio(null);
       setResultado(r);
       setPaso("resultado");
       await cargar();
-    } catch {
+    } catch (e) {
       // No sabemos si la petición llegó. Se mira si la fila existe; si no,
       // solo queda reintentar con el MISMO id
       const i = await cargar();
       const fila = i?.devoluciones.find((d) => d.id === peticionId);
       if (fila) {
         setSinRespuesta(false);
+        setFalloEnvio(null);
         setResultado({ estado: fila.estado, error_code: fila.error_code, ds_response: fila.ds_response });
         setPaso("resultado");
       } else {
         setSinRespuesta(true);
+        setFalloEnvio({
+          texto: e instanceof Error ? e.message : String(e),
+          // Solo se afirma si la recarga funcionó: sin fila, no hubo reserva, y
+          // Redsys siempre va después de la reserva
+          sinRedsys: !!i && e instanceof ErrorLlamada && e.delServidor,
+        });
       }
     } finally {
       setEnviando(false);
@@ -445,6 +501,8 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     setPaso("form");
     setResultado(null);
     setPeticionId(null);
+    setVistoAlConfirmar(null);
+    setFalloEnvio(null);
     setExterna(false);
     setMotivo("");
     setImporteTexto("");
@@ -453,6 +511,16 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
   const hayDudosas = info?.devoluciones.some(sinConfirmar) ?? false;
   const reembolsadaSinApuntar =
     info?.inscripcion.payment_status === "refunded" && !info.devoluciones.some((d) => d.estado === "hecha");
+  // Lo devuelto del cobro ya no es lo que se veía al confirmar (otra pestaña u
+  // otra persona): el reintento se parará si la primera petición no llegó
+  const cambioTrasConfirmar =
+    paso === "confirmar" &&
+    vistoAlConfirmar !== null &&
+    !!cobro &&
+    cobro.devuelto_cent + cobro.en_curso_cent !== vistoAlConfirmar;
+  // Con CAMBERAS_NO_APUNTADA la fila puede seguir 'pendiente': hasta que pasa a
+  // 'sin confirmar' (10 minutos) no salen los botones del historial
+  const filaMarcable = !filaPeticion || filaPeticion.estado === "dudosa" || filaPeticion.atascada;
 
   return (
     <Dialog open={!!registrationId} onOpenChange={(o) => !o && cerrar()}>
@@ -474,9 +542,13 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
           </div>
         )}
         {errorCarga && (
-          <p className="text-sm text-destructive" role="alert">
-            {errorCarga}
-          </p>
+          <div className="flex flex-wrap items-center gap-2" role="alert">
+            <p className="text-sm text-destructive flex-1 min-w-0">{errorCarga}</p>
+            <Button variant="outline" size="sm" onClick={() => cargar()} disabled={cargando}>
+              {cargando && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+              Volver a cargar
+            </Button>
+          </div>
         )}
 
         {info && (
@@ -641,9 +713,18 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                     Anular la inscripción (libera la plaza)
                   </label>
                 )}
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={notificar} onCheckedChange={(v) => setNotificar(v === true)} />
-                  Avisar al corredor por email
+                {/* Con el dorsal cedido la función no manda el email (el correo
+                    dice "te hemos devuelto" y a quien tiene ahora la plaza no se
+                    le devuelve nada): la casilla no puede prometerlo */}
+                <label className={`flex items-center gap-2 text-sm ${info.cedida ? "text-muted-foreground" : ""}`}>
+                  <Checkbox
+                    checked={notificar && !info.cedida}
+                    disabled={info.cedida}
+                    onCheckedChange={(v) => setNotificar(v === true)}
+                  />
+                  {info.cedida
+                    ? "Avisar al corredor por email: no se puede con el dorsal cedido, avisa tú al titular actual"
+                    : "Avisar al corredor por email"}
                 </label>
 
                 <div className="flex justify-end gap-2 pt-2">
@@ -695,12 +776,28 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                     querías devolver una parte, vuelve y desmarca «Anular la inscripción».
                   </Aviso>
                 )}
-                {sinRespuesta && (
-                  <Aviso rol="status">
-                    No ha llegado respuesta y todavía no consta ninguna devolución con esta petición. Pulsa Reintentar:
-                    es la misma petición y no se devolverá dos veces. Si sigue fallando, puede que la función de
-                    devoluciones no esté disponible: no la devuelvas a mano en Canales sin apuntarla después aquí. Si
-                    cierras, al volver a abrir verás en el historial cómo quedó.
+                {sinRespuesta &&
+                  (falloEnvio?.sinRedsys ? (
+                    <Aviso rol="alert">
+                      La función de devoluciones ha fallado antes de pedir nada a Redsys ({falloEnvio.texto}). No se ha
+                      movido dinero ni hay nada apuntado. Puedes reintentar (es la misma petición) o cerrar; si vuelve a
+                      fallar, avisa a quien mantiene Camberas y no la devuelvas a mano en Canales sin apuntarla después
+                      aquí.
+                    </Aviso>
+                  ) : (
+                    <Aviso rol="status">
+                      No ha llegado respuesta
+                      {falloEnvio ? ` (${falloEnvio.texto})` : ""} y todavía no consta ninguna devolución con esta
+                      petición. Pulsa Reintentar: es la misma petición y no se devolverá dos veces. Si sigue fallando,
+                      puede que la función de devoluciones no esté disponible: no la devuelvas a mano en Canales sin
+                      apuntarla después aquí. Si cierras, al volver a abrir verás en el historial cómo quedó.
+                    </Aviso>
+                  ))}
+                {sinRespuesta && cambioTrasConfirmar && (
+                  <Aviso rol="alert">
+                    Mientras tanto ha cambiado lo devuelto de este cobro (otra pestaña u otra persona): revisa el
+                    historial de abajo antes de reintentar. Si esta petición no llegó, al reintentar Camberas la parará
+                    sin pedir nada a Redsys.
                   </Aviso>
                 )}
                 <div className="flex justify-end gap-2">
@@ -750,16 +847,19 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                 {resultado.estado === "dudosa" &&
                   (resultado.error_code === "CAMBERAS_NO_APUNTADA" && resultado.ds_response === "0900" ? (
                     <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
-                      Redsys SÍ la ha hecho (contestó 0900), pero Camberas no pudo apuntarlo. Pasados 10 minutos desde
-                      la petición, márcala en el historial de abajo con «Sí se hizo»
+                      Redsys SÍ la ha hecho (contestó 0900), pero Camberas no pudo apuntarlo: la inscripción no se ha
+                      anulado ni se ha avisado al corredor.{" "}
+                      {filaMarcable ? "Márcala" : "Pasados 10 minutos desde la petición, márcala"} en el historial de
+                      abajo con «Sí se hizo»
                       {(filaPeticion?.cancelar ?? cancelar) ? ": entonces se anulará la inscripción" : ""}
                       {(filaPeticion?.notificar ?? notificar) && !info.cedida ? " y se avisará al corredor" : ""}. No pidas
                       otra devolución.
                     </Linea>
                   ) : (
                     <Linea icono={<AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />}>
-                      No sabemos si Redsys la ha hecho. {explicar(resultado)} Mírala en el portal de Redsys (Canales) y
-                      márcala en el historial de abajo.
+                      No sabemos si Redsys la ha hecho. {explicar(resultado)} Mírala en el portal de Redsys (Canales) y{" "}
+                      {filaMarcable ? "márcala" : "pasados 10 minutos desde la petición márcala"} en el historial de
+                      abajo.
                     </Linea>
                   ))}
                 {!resultado.estado && (
@@ -810,9 +910,11 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                         <div className="text-muted-foreground">Email al corredor enviado el {fecha(d.aviso_enviado_at, true)}</div>
                       ) : (
                         <div className="text-amber-700">
+                          {/* "Sin confirmar" y no "no enviado": si Resend tardó más
+                              de 10 s pudo salir igualmente sin quedar apuntado */}
                           {info.cedida
                             ? "No se envió email: el dorsal está cedido."
-                            : "Email al corredor NO enviado: avísale por otra vía."}
+                            : "Email al corredor sin confirmar: puede que no saliera (sin email, o el envío falló o tardó). Avísale por otra vía."}
                         </div>
                       ))}
                     {sinConfirmar(d) &&

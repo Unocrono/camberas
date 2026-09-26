@@ -262,9 +262,18 @@ serve(async (req) => {
       };
     }
 
-    const apuntada = await resolver(service, id, { ...resultado, respuesta: { ...resultado.respuesta, entorno } }, user.id);
+    const aApuntar: Resultado = { ...resultado, respuesta: { ...resultado.respuesta, entorno } };
+    let apuntada = await resolver(service, id, aApuntar, user.id);
+    // Plan B con una respuesta clara de Redsys (hecha o rechazada) que no se
+    // pudo apuntar: dejarla al menos 'dudosa' CON lo que contestó Redsys. Así
+    // el 0900 no se pierde (impide darla por no hecha) y el admin puede
+    // marcarla ya, sin esperar a que la 'pendiente' caduque a los 10 minutos
+    if (!apuntada && resultado.estado !== "dudosa") {
+      apuntada = (await apuntarComoDudosa(service, id, aApuntar, user.id)) === "original";
+    }
     if (!apuntada) {
-      // La fila sigue 'pendiente' y a los 10 minutos pasa a 'dudosa'
+      // La fila queda 'dudosa' (plan B) o, si ni eso, 'pendiente' (a los 10
+      // minutos pasa a 'sin confirmar')
       resultado = { ...resultado, estado: "dudosa", errorCode: "CAMBERAS_NO_APUNTADA" };
     } else if (resultado.estado === "hecha") {
       await avisarSiToca(service, id);
@@ -324,14 +333,47 @@ async function resolver(service: any, id: string, r: Resultado, usuario: string)
       ultimo = e instanceof Error ? e.message : String(e);
     }
   }
-  // La fila se queda 'pendiente' y a los 10 minutos pasa a 'dudosa': nadie
-  // puede pedir otra devolución de ese cobro sin mirarlo antes
+  // La fila se queda 'pendiente' (y el que llama intenta dejarla 'dudosa'):
+  // nadie puede pedir otra devolución de ese cobro sin mirarlo antes
   console.error(
     `redsys-devolucion: no se pudo apuntar ${id} como ${r.estado} ` +
       `(Redsys: ${r.dsResponse ?? r.errorCode ?? "-"}):`,
     ultimo,
   );
   return false;
+}
+
+/**
+ * Último recurso cuando no se pudo apuntar la respuesta clara de Redsys: la
+ * deja 'dudosa' con su Ds_Response y CAMBERAS_NO_APUNTADA. Solo toca la
+ * fila de devoluciones (no la inscripción), así que no depende de lo que
+ * pudiera fallar al anularla.
+ *  · 'dudosa':   guardada como dudosa.
+ *  · 'original': el apunte original SÍ se guardó (se perdió su respuesta).
+ *  · null:       tampoco; la fila sigue 'pendiente'.
+ */
+// deno-lint-ignore no-explicit-any
+async function apuntarComoDudosa(service: any, id: string, r: Resultado, usuario: string): Promise<"dudosa" | "original" | null> {
+  try {
+    const { data, error } = await service.rpc("devolucion_resolver", {
+      p_id: id,
+      p_estado: "dudosa",
+      p_ds_response: r.dsResponse,
+      p_auth: r.auth,
+      p_error_code: "CAMBERAS_NO_APUNTADA",
+      p_respuesta: { ...r.respuesta, no_apuntada: { estado: r.estado, error_code: r.errorCode } },
+      p_usuario: usuario,
+    });
+    if (!error && data?.ok) {
+      console.error(`redsys-devolucion: ${id} queda 'dudosa' (Redsys: ${r.dsResponse ?? r.errorCode ?? "-"}, no se pudo apuntar como ${r.estado})`);
+      return "dudosa";
+    }
+    if (!error && data?.motivo === "ya_resuelta" && data?.estado === r.estado) return "original";
+    console.error(`redsys-devolucion: tampoco se pudo dejar ${id} como dudosa:`, error?.message ?? data?.motivo);
+  } catch (e) {
+    console.error(`redsys-devolucion: tampoco se pudo dejar ${id} como dudosa:`, e);
+  }
+  return null;
 }
 
 // Aviso al corredor si la devolución lo pide y aún no se ha mandado

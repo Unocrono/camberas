@@ -29,9 +29,11 @@
 --     el cobro a 'failed': desaparecía del diálogo de devoluciones y de la
 --     recaudación. Así no depende del orden de despliegue.
 --  6. registrations: nadie salvo el admin o el organizador de la carrera
---     (ni webhook, ni cron, ni el propio corredor) puede volver a dar por
---     pagada una inscripción 'refunded' de la que ya se devolvió dinero. El
---     webhook antiguo lo hacía con un aviso de éxito repetido.
+--     (ni webhook, ni cron, ni el propio corredor) puede sacar de 'refunded'
+--     ni de 'cancelled' una inscripción de la que ya se devolvió dinero, en
+--     ningún número de pasos (refunded→pending→paid, refunded→not_required,
+--     cancelled→confirmed). El webhook antiguo la volvía a dar por pagada
+--     con un aviso de éxito repetido, y el corredor podía hacerlo por la API.
 --
 -- APLICAR ANTES DE DESPLEGAR redsys-devolucion (las secciones 5 y 6 son la
 -- red por si redsys-webhook de main no está desplegado todavía).
@@ -397,20 +399,36 @@ CREATE TRIGGER trg_payment_intents_no_descompletar
   EXECUTE FUNCTION public.payment_intents_no_descompletar();
 
 -- ─────────────────────────────────────────────────────────────────────────
--- 6. Una inscripción devuelta no vuelve a 'paid' sola
+-- 6. Una inscripción devuelta no sale sola de 'refunded' ni de 'cancelled'
 -- ─────────────────────────────────────────────────────────────────────────
+-- Salta con CUALQUIER salida de 'refunded' (a 'paid', 'pending' o
+-- 'not_required') y de 'cancelled' (a 'confirmed' o 'pending'), no solo con
+-- refunded→paid: si no, se esquivaba en dos pasos (refunded→pending y luego
+-- pending→paid, con OLD ya 'pending'), pasando a 'not_required' (que plazas,
+-- dorsal y recogida cuentan igual que 'paid') o sacándola de 'cancelled'. Y
+-- una inscripción que el corredor deja en 'pending' la vuelve a confirmar el
+-- webhook con un aviso de cobro repetido.
+--
 -- Frena a todo el que no gestiona la carrera (Edge Functions con
 -- service_role, cron, editor SQL y también el propio corredor, que por el
--- agujero de autoedición de registrations puede escribir su payment_status)
--- y solo si de esa inscripción ya se devolvió dinero ('hecha'). No alcanza:
+-- agujero de autoedición de registrations puede escribir su status y su
+-- payment_status) y solo si de esa inscripción ya se devolvió dinero
+-- ('hecha'). No alcanza:
 --   · al admin ni al organizador de la carrera desde el panel
---     (puede_gestionar_carrera), que pueden volver a marcarla pagada;
+--     (puede_gestionar_carrera), que pueden reactivarla;
+--   · a devolucion_resolver, que la lleva HACIA cancelled/refunded;
 --   · a eventbooking-sync (source 'external'): esas inscripciones no tienen
 --     cobro en Camberas, así que tampoco devoluciones.
--- redsys-webhook de main ya se salta las 'refunded' (87db6a9): esto es para
--- el webhook anterior, que con un aviso de éxito repetido la confirmaba otra
--- vez. OJO: ese webhook viejo manda igualmente el correo de pago confirmado
--- y el push al organizador; eso solo lo quita desplegar el de main.
+-- Ninguna función SQL de producción (26-sep) saca una inscripción de
+-- 'cancelled' ni de 'refunded', ni ninguna Edge Function salvo
+-- redsys-webhook (que en main ya se salta las 'refunded', 87db6a9). OJO: el
+-- webhook viejo manda igualmente el correo de pago confirmado y el push al
+-- organizador aunque la BD le frene el UPDATE; eso solo lo quita desplegar
+-- el de main.
+--
+-- El resto del agujero de autoedición (payment_status de una inscripción
+-- que nunca se pagó, bib_number, source...) NO se cierra aquí: es su propia
+-- tarea (24-sep).
 --
 -- Corregir a mano desde el editor SQL: mismo DO con
 -- set_config('camberas.permitir_repagar_devuelta', 'on', true).
@@ -428,7 +446,7 @@ BEGIN
      AND COALESCE(current_setting('camberas.permitir_repagar_devuelta', true), '') <> 'on'
      AND EXISTS (SELECT 1 FROM devoluciones d
                  WHERE d.registration_id = OLD.id AND d.estado = 'hecha') THEN
-    RAISE EXCEPTION 'La inscripción % está devuelta: solo el admin o el organizador pueden volver a darla por pagada',
+    RAISE EXCEPTION 'La inscripción % está devuelta: solo el admin o el organizador pueden reactivarla o volver a darla por pagada',
       OLD.id
       USING ERRCODE = '23514';
   END IF;
@@ -441,9 +459,10 @@ REVOKE EXECUTE ON FUNCTION public.registrations_no_repagar_devuelta() FROM anon,
 
 DROP TRIGGER IF EXISTS trg_registrations_no_repagar_devuelta ON public.registrations;
 CREATE TRIGGER trg_registrations_no_repagar_devuelta
-  BEFORE UPDATE OF payment_status ON public.registrations
+  BEFORE UPDATE OF payment_status, status ON public.registrations
   FOR EACH ROW
-  WHEN (OLD.payment_status = 'refunded' AND NEW.payment_status = 'paid')
+  WHEN ((OLD.payment_status = 'refunded' AND NEW.payment_status IS DISTINCT FROM 'refunded')
+     OR (OLD.status = 'cancelled' AND NEW.status IS DISTINCT FROM 'cancelled'))
   EXECUTE FUNCTION public.registrations_no_repagar_devuelta();
 
 -- ─────────────────────────────────────────────────────────────────────────
@@ -467,7 +486,9 @@ WHERE n.nspname = 'public'
                     'registrations_no_repagar_devuelta')
 ORDER BY p.proname;
 
-SELECT tgrelid::regclass AS tabla, tgname, tgenabled FROM pg_trigger
+-- (el de la sección 6 tiene que ser «BEFORE UPDATE OF payment_status, status»
+-- con las dos salidas, de 'refunded' y de 'cancelled', en el WHEN)
+SELECT tgrelid::regclass AS tabla, tgname, tgenabled, pg_get_triggerdef(oid) AS definicion FROM pg_trigger
 WHERE tgname IN ('trg_registrations_no_borrar_con_devolucion',
                  'trg_payment_intents_no_descompletar',
                  'trg_registrations_no_repagar_devuelta')
@@ -485,4 +506,18 @@ ORDER BY tgname;
 --   WHERE pi.order_number = '<pedido>';
 -- Esperado: status 'completed', response_code '0000', y el mismo auth_code
 -- y completed_at que antes de devolver (updated_at anterior a la devolución).
+-- ─────────────────────────────────────────────────────────────────────────
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- Control tras cada devolución con anulación: ninguna inscripción devuelta y
+-- anulada puede haber vuelto a la vida. Esperado: 0 filas.
+--   SELECT d.registration_id, d.order_number, r.status, r.payment_status, r.updated_at
+--   FROM devoluciones d JOIN registrations r ON r.id = d.registration_id
+--   WHERE d.estado = 'hecha' AND d.cancelar
+--     AND (r.status <> 'cancelled' OR r.payment_status <> 'refunded');
+-- Comprobar el freno de la sección 6 con el JWT de un corredor (no admin ni
+-- organizador) sobre una inscripción suya devuelta y anulada: el PATCH
+-- /rest/v1/registrations?id=eq.<id> con {"payment_status":"pending"}, con
+-- {"payment_status":"not_required"} o con {"status":"confirmed"} tiene que
+-- dar error 23514.
 -- ─────────────────────────────────────────────────────────────────────────

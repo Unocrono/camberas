@@ -12,6 +12,7 @@ Plan y decisiones: `~/.claude/plans/algo-asi-hace-lovable-crystalline-jellyfish.
    - Ejecutar las **comprobaciones** del final de cada fichero.
 2. **Regenerar `src/integrations/supabase/types.ts`** y, después, quitar los `rpcSinTipos` / `tablaSinTipos` de `src/eventos/rpc.ts` donde ya no hagan falta.
 3. **Desplegar las edge functions**: `_shared/redsys.ts`, `redsys-init-payment`, `team-init-payment`, `redsys-webhook`, `verificar-dominio` (esta última con `verify_jwt = true`, ya en `supabase/config.toml`).
+   - **`redsys-webhook` va antes que `redsys-devolucion`, o a la vez; nunca después.** El webhook anterior a `87db6a9` trata el aviso de una devolución (tipo 3, `0900`) como un cobro fallido y pasa el cobro original a `failed`. Orden completo y qué comprobar en la prueba de 1 € en la cabecera de `supabase/functions/redsys-devolucion/index.ts` (primero se aplica `20260926200000_devoluciones_ajustes.sql`). Un push a GitHub no despliega las funciones: hay que pedirlas expresamente.
 4. Secretos: no hay ninguno nuevo. `REDSYS_MERCHANT_CODE`, `REDSYS_TERMINAL`, `REDSYS_SECRET_KEY` siguen siendo el TPV de UNO, que es el respaldo cuando una carrera no tiene TPV propio. `SITE_URL` sigue siendo `https://camberas.com`.
 
 ## Cómo se da de alta una web (panel del organizador → «Web propia»)
