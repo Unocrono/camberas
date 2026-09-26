@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { LibroDisenoEditor } from "./webpropia/LibroDisenoEditor";
+import { DisenoEventoEditor } from "./webpropia/DisenoEventoEditor";
 import { ContenidoWebEditor } from "./webpropia/ContenidoWebEditor";
 import { PatrocinadoresManagement } from "./webpropia/PatrocinadoresManagement";
 import { DominioManagement } from "./webpropia/DominioManagement";
@@ -74,6 +75,7 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
       <Tabs defaultValue="diseno">
         <TabsList className="flex-wrap">
           <TabsTrigger value="diseno">Diseño</TabsTrigger>
+          <TabsTrigger value="diseno-evento">Diseño evento</TabsTrigger>
           <TabsTrigger value="contenido">Contenido</TabsTrigger>
           <TabsTrigger value="patrocinadores">Patrocinadores</TabsTrigger>
           <TabsTrigger value="dominio">Dominio</TabsTrigger>
@@ -82,6 +84,9 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
         </TabsList>
         <TabsContent value="diseno" className="mt-4">
           <LibroDisenoEditor slug={slug} plantilla={web.plantilla} tema={web.tema} guardando={guardando} onGuardar={guardarDiseno} />
+        </TabsContent>
+        <TabsContent value="diseno-evento" className="mt-4">
+          <DisenoEventoEditor slug={slug} plantilla={web.plantilla} tema={web.tema} guardando={guardando} onGuardar={guardarDiseno} />
         </TabsContent>
         <TabsContent value="contenido" className="mt-4">
           <ContenidoWebEditor contenido={web.contenido} guardando={guardando} onGuardar={guardarContenido} />

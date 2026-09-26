@@ -4,7 +4,7 @@ import { useEventoPublico } from "@/eventos/useEventoPublico";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { plantillaDe } from "@/plantillas/registro";
-import { cargarFuentes, resolverTokens, variablesCss } from "@/plantillas/libroDiseno";
+import { cargarFuentes, resolverTokens, variablesCss, type LibroDiseno } from "@/plantillas/libroDiseno";
 import { Cabecera } from "@/plantillas/gurriana/Cabecera";
 import { Pie } from "@/plantillas/gurriana/Pie";
 import { rutasDeWeb, useTenant } from "@/tenant/TenantContext";
@@ -19,7 +19,7 @@ import "@/plantillas/gurriana/estilos.css";
  * la carrera, y el contenido en medio. Resuelve el evento por slug (URL o
  * tenant) y cachea con la portada.
  */
-export function PaginaSecundaria({ titulo, children }: { titulo?: string; children: (evento: EventoPublico, rutas: RutasWeb) => ReactNode }) {
+export function PaginaSecundaria({ titulo, children }: { titulo?: string; children: (evento: EventoPublico, rutas: RutasWeb, tokens: LibroDiseno) => ReactNode }) {
   const { slug: slugUrl } = useParams();
   const { modo, tenant } = useTenant();
   const slug = modo === "propia" ? tenant?.slug : slugUrl;
@@ -51,7 +51,7 @@ export function PaginaSecundaria({ titulo, children }: { titulo?: string; childr
     <div className="wp min-h-screen" style={variablesCss(tokens)} data-plantilla={plantilla.id} data-modo={modo}>
       <Cabecera evento={evento} rutas={rutas} />
       <main className="pt-[72px]">
-        <Suspense fallback={<Cargando />}>{children(evento, rutas)}</Suspense>
+        <Suspense fallback={<Cargando />}>{children(evento, rutas, tokens)}</Suspense>
       </main>
       <Pie evento={evento} rutas={rutas} />
     </div>

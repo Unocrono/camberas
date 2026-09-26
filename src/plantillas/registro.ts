@@ -1,7 +1,7 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
-import { SECCIONES_IDS, type LibroDiseno } from "./libroDiseno";
+import { SECCIONES_IDS, SECCIONES_EVENTO_IDS, type LibroDiseno } from "./libroDiseno";
 
 /**
  * Registro de plantillas de la web de la carrera. Una plantilla es la capa de
@@ -45,6 +45,7 @@ export const PLANTILLAS: Record<string, Plantilla> = {
       hero: "textura",
       cinta: true,
       secciones: SECCIONES_IDS.map((id) => ({ id, activa: true })),
+      seccionesEvento: SECCIONES_EVENTO_IDS.map((id) => ({ id, activa: true })),
     },
   },
 };

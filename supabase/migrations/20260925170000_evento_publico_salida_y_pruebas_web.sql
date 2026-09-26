@@ -5,10 +5,6 @@
 --    escribe DistanceManagement y así la pinta RaceDetail con formatLocalTime).
 --    La RPC la convertía a Europe/Madrid y daba una hora de más (Sarrio salía
 --    a las 11:30 en vez de a las 10:30). Ahora se lee sin convertir.
--- 3. reglamento e infoPractica de race_web se fusionan con los calculados en vez
---    de pisarlos: antes, si la web traía material o marcaje, desaparecían las
---    secciones de race_regulations (y con ellas la página «Reglamento»), y si
---    traía «cómo llegar», desaparecían las FAQ de race_faqs.
 -- 2. race_web.contenido.pruebas[] (por id de race_distance o por nombre)
 --    aporta a cada prueba lo que Camberas no modela: descripcion, relato,
 --    avituallamientos (si no hay race_checkpoints), terreno, marcaje, color…
@@ -200,6 +196,7 @@ AS $fn$
                  'apertura',       d.registration_opens,
                  'cierre',         d.registration_closes,
                  'imagen',         d.image_url,
+                 'rutometro',      (SELECT r.id FROM roadbooks r WHERE r.race_distance_id = d.id ORDER BY r.created_at LIMIT 1),
                  'track',          CASE WHEN d.gpx_file_url IS NULL THEN NULL
                                         ELSE jsonb_build_object('gpx', d.gpx_file_url) END,
                  'categorias',     (SELECT jsonb_agg(jsonb_strip_nulls(jsonb_build_object(

@@ -45,6 +45,22 @@ export const SECCIONES_IDS = [
 ] as const;
 export type SeccionId = (typeof SECCIONES_IDS)[number];
 
+/** Secciones de la página de cada recorrido (evento), en su orden por defecto */
+export const SECCIONES_EVENTO_IDS = [
+  "cifras",
+  "descripcion",
+  "perfil",
+  "botones",
+  "precios",
+  "categorias",
+  "terreno",
+  "mapa",
+  "vuelo3d",
+  "rutometro",
+  "avituallamientos",
+] as const;
+export type SeccionEventoId = (typeof SECCIONES_EVENTO_IDS)[number];
+
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color hex de 6 dígitos");
 
 export const LibroDisenoSchema = z.object({
@@ -57,6 +73,8 @@ export const LibroDisenoSchema = z.object({
   hero: z.enum(["foto", "color", "textura"]),
   cinta: z.boolean(),
   secciones: z.array(z.object({ id: z.enum(SECCIONES_IDS), activa: z.boolean() })),
+  /** Página del recorrido: qué se pinta y en qué orden (temas antiguos no lo traen: se rellena) */
+  seccionesEvento: z.array(z.object({ id: z.enum(SECCIONES_EVENTO_IDS), activa: z.boolean() })),
 });
 
 export type LibroDiseno = z.infer<typeof LibroDisenoSchema>;
@@ -78,6 +96,11 @@ export function resolverTokens(porDefecto: LibroDiseno, tema: unknown): LibroDis
   const secciones = salida.secciones as LibroDiseno["secciones"];
   const vistas = new Set(secciones.map((s) => s.id));
   for (const s of porDefecto.secciones) if (!vistas.has(s.id)) secciones.push(s);
+  // Temas guardados antes de existir seccionesEvento: se completa con el default
+  const evento = (salida.seccionesEvento ?? []) as LibroDiseno["seccionesEvento"];
+  const vistasEvento = new Set(evento.map((s) => s.id));
+  for (const s of porDefecto.seccionesEvento ?? []) if (!vistasEvento.has(s.id)) evento.push(s);
+  salida.seccionesEvento = evento;
   return salida as LibroDiseno;
 }
 

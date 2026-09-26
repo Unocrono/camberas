@@ -93,6 +93,8 @@ export interface Prueba {
   descripcion?: string;
   /** Texto largo del recorrido (race_web.contenido.pruebas[].relato); solo en la página del recorrido */
   relato?: string;
+  /** Id del rutómetro (roadbooks) del recorrido, si lo tiene: camberas.com/roadbook/{id} */
+  rutometro?: string;
   plazas?: number;
   plazasLibres?: number;
   estado?: EstadoEvento;
