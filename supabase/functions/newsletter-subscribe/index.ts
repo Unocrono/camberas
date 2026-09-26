@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { correoAltaSuscripcion, correoReenvioConfirmacion } from "./plantilla.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -79,19 +80,9 @@ serve(async (req) => {
       
       // Resend confirmation email
       const confirmUrl = `${supabaseUrl}/functions/v1/newsletter-confirm?token=${existing.confirmation_token}`;
-      
-      await sendEmail(
-        email,
-        "Confirma tu suscripción a Camberas",
-        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">¡Bienvenido a Camberas!</h1>
-          <p>Confirma tu suscripción haciendo clic en el siguiente botón:</p>
-          <a href="${confirmUrl}" style="display: inline-block; background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-            Confirmar suscripción
-          </a>
-          <p style="color: #666; font-size: 14px;">Si no solicitaste esta suscripción, puedes ignorar este email.</p>
-        </div>`
-      );
+      const reenvio = correoReenvioConfirmacion({ confirmUrl });
+
+      await sendEmail(email, reenvio.asunto, reenvio.html);
 
       return new Response(
         JSON.stringify({ success: true, resent: true }),
@@ -120,21 +111,8 @@ serve(async (req) => {
     const confirmUrl = `${supabaseUrl}/functions/v1/newsletter-confirm?token=${newSubscriber.confirmation_token}`;
 
     try {
-      await sendEmail(
-        email,
-        "Confirma tu suscripción a Camberas",
-        `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #333;">¡Bienvenido a Camberas!</h1>
-          <p>Gracias por suscribirte a nuestro newsletter. Recibirás las últimas noticias sobre carreras de trail y montaña.</p>
-          <p>Para confirmar tu suscripción, haz clic en el siguiente botón:</p>
-          <a href="${confirmUrl}" style="display: inline-block; background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-            Confirmar suscripción
-          </a>
-          <p style="color: #666; font-size: 14px;">Si no solicitaste esta suscripción, puedes ignorar este email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px;">© 2025 Camberas - Tu plataforma de carreras de montaña</p>
-        </div>`
-      );
+      const alta = correoAltaSuscripcion({ confirmUrl });
+      await sendEmail(email, alta.asunto, alta.html);
     } catch (emailError: any) {
       console.error("Email error:", emailError);
       // Don't fail the request, subscription is created

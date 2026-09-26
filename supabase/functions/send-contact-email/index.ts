@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { avisoSoporte, confirmacionUsuario } from "./plantilla.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -48,35 +49,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Processing contact form:", { name, email: email.substring(0, 3) + "***", subject });
 
+    const contacto = { nombre: name, email, asunto: subject, mensaje: message };
+
     // Enviar email al equipo de Camberas
+    const aviso = avisoSoporte(contacto);
     const emailToSupport = await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: ["soporte@camberas.com"],
       reply_to: email,
-      subject: `[Contacto Web] ${subject}`,
-      html: `
-        <h2>Nuevo mensaje de contacto</h2>
-        <p><strong>De:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p>
-        <p><strong>Asunto:</strong> ${escapeHtml(subject)}</p>
-        <hr>
-        <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
-      `,
+      subject: aviso.asunto,
+      html: aviso.html,
     });
 
     // Enviar confirmación al usuario
+    const confirmacion = confirmacionUsuario(contacto);
     const confirmationEmail = await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: [email],
-      subject: "Hemos recibido tu mensaje - Camberas",
-      html: `
-        <h1>¡Gracias por contactarnos, ${escapeHtml(name)}!</h1>
-        <p>Hemos recibido tu mensaje y te responderemos lo antes posible.</p>
-        <hr>
-        <p><strong>Tu mensaje:</strong></p>
-        <p>${escapeHtml(message).replace(/\n/g, '<br>')}</p>
-        <hr>
-        <p>Saludos,<br><strong>El equipo de Camberas</strong></p>
-      `,
+      subject: confirmacion.asunto,
+      html: confirmacion.html,
     });
 
     console.log("Emails sent successfully");
@@ -102,17 +93,5 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-// Helper function to escape HTML and prevent XSS in emails
-function escapeHtml(text: string): string {
-  const htmlEntities: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  };
-  return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
-}
 
 serve(handler);

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { avisoOrganizador, copiaParticipante } from "./plantilla.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -17,18 +18,6 @@ const contactSchema = z.object({
   email: z.string().email("Email inválido").max(255).trim(),
   message: z.string().min(10, "El mensaje es muy corto").max(5000).trim(),
 });
-
-// Escapar HTML para prevenir XSS en los emails
-function escapeHtml(text: string): string {
-  const htmlEntities: Record<string, string> = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  };
-  return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
-}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -90,39 +79,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Contact form for race:", race.name, "→ organizer:", organizerEmail.substring(0, 3) + "***");
 
+    const consulta = { carrera: race.name, nombre: name, email, mensaje: message };
+
     // Email al organizador con el contenido del formulario (reply-to: el participante)
+    const aviso = avisoOrganizador(consulta);
     await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: [organizerEmail],
       reply_to: email,
-      subject: `[${race.name}] Consulta de ${name}`,
-      html: `
-        <h2>Nueva consulta sobre ${escapeHtml(race.name)}</h2>
-        <p><strong>De:</strong> ${escapeHtml(name)} (${escapeHtml(email)})</p>
-        <hr>
-        <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
-        <hr>
-        <p style="color:#6b7280;font-size:13px">
-          Puedes responder directamente a este correo: la respuesta le llegará a ${escapeHtml(name)}.
-          <br>Enviado desde la página de la carrera en camberas.com
-        </p>
-      `,
+      subject: aviso.asunto,
+      html: aviso.html,
     });
 
     // Copia de confirmación al participante
+    const copia = copiaParticipante(consulta);
     await resend.emails.send({
       from: "Camberas <noreply@camberas.com>",
       to: [email],
-      subject: `Tu consulta sobre ${race.name} ha sido enviada`,
-      html: `
-        <h2>¡Hola ${escapeHtml(name)}!</h2>
-        <p>Hemos hecho llegar tu consulta al organizador de <strong>${escapeHtml(race.name)}</strong>. Te responderá directamente a este email.</p>
-        <hr>
-        <p><strong>Tu mensaje:</strong></p>
-        <p>${escapeHtml(message).replace(/\n/g, "<br>")}</p>
-        <hr>
-        <p>Saludos,<br><strong>El equipo de Camberas</strong></p>
-      `,
+      subject: copia.asunto,
+      html: copia.html,
     });
 
     return new Response(
