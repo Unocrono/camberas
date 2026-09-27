@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ahoraPared } from "../_shared/horaLocal.ts";
 import {
   generateSignature,
   merchantParamsB64 as codificarParams,
@@ -63,7 +64,9 @@ serve(async (req) => {
     const vuelta = await resolverRetorno(supabaseAuth, req.headers.get("origin"), raceId, raceSlug);
 
     // Prefer active price tier (race_distance_prices covering now), else base price on race_distances
-    const nowIso = new Date().toISOString();
+    // Los tramos de precio son hora de pared de Madrid (+00): se comparan con
+    // «ahora» en hora de pared, no en UTC (Loiu cobraba el tramo viejo de 00:00 a 02:00)
+    const nowIso = ahoraPared();
     const { data: tier } = await supabaseAuth
       .from("race_distance_prices")
       .select("price, start_datetime, end_datetime")

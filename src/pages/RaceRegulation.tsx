@@ -291,7 +291,7 @@ const RaceRegulation = () => {
                             <>
                               Plazo: hasta el{" "}
                               <strong>
-                                {new Date(cesion.fecha_limite).toLocaleDateString("es-ES", {
+                                {new Date(`${cesion.fecha_limite.slice(0, 10)}T12:00:00`).toLocaleDateString("es-ES", {
                                   day: "numeric",
                                   month: "long",
                                   year: "numeric",

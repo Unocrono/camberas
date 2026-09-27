@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { ahoraPared } from "../_shared/horaLocal.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 // Validación de cupones para el formulario de inscripción. Solo LEE: no
@@ -121,7 +122,9 @@ serve(async (req) => {
     }
 
     // Precio vigente: tarifa por tramos si existe, si no el precio base
-    const nowIso = now.toISOString();
+    // Los tramos de precio son hora de pared de Madrid (+00): se comparan con
+    // «ahora» en hora de pared, no en UTC (Loiu cobraba el tramo viejo de 00:00 a 02:00)
+    const nowIso = ahoraPared();
     const { data: tier } = await supabase
       .from("race_distance_prices")
       .select("price")

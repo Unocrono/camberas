@@ -247,7 +247,10 @@ const RaceDetail = () => {
           }),
       );
 
-      const now = new Date();
+      // Plazos y tramos son hora de pared (+00, no UTC): se comparan con «ahora»
+      // en hora de pared. Con new Date() abrían, cerraban y cambiaban de precio
+      // 2 h tarde en verano (1 h en invierno)
+      const now = ahoraParedMs();
 
       const distancesWithAvailability = distancesData.map((distance: any) => {
         const registeredCount = registrationsData.filter(
@@ -261,21 +264,21 @@ const RaceDetail = () => {
         const wave = wavesData?.find((w: any) => w.race_distance_id === distance.id);
         
         // Check registration window
-        const regOpens = distance.registration_opens ? new Date(distance.registration_opens) : null;
-        const regCloses = distance.registration_closes ? new Date(distance.registration_closes) : null;
-        const isRegistrationOpen = (!regOpens || now >= regOpens) && (!regCloses || now <= regCloses);
+        const regOpens = distance.registration_opens ? paredAMs(distance.registration_opens) : null;
+        const regCloses = distance.registration_closes ? paredAMs(distance.registration_closes) : null;
+        const isRegistrationOpen = (regOpens === null || now >= regOpens) && (regCloses === null || now <= regCloses);
         
         // Get current price from ranges or fallback to base price. Si dos
         // tramos se solapan, gana el que EMPEZÓ MÁS TARDE: la misma regla que
         // el cobro (redsys-init-payment, guest-register) y el widget
         const distancePriceRanges = (priceRangesData?.filter((pr: any) => pr.race_distance_id === distance.id) || [])
-          .sort((a: any, b: any) => new Date(b.start_datetime).getTime() - new Date(a.start_datetime).getTime());
+          .sort((a: any, b: any) => (paredAMs(b.start_datetime) ?? 0) - (paredAMs(a.start_datetime) ?? 0));
         let currentPrice = distance.price;
         
         for (const range of distancePriceRanges) {
-          const rangeStart = new Date(range.start_datetime);
-          const rangeEnd = new Date(range.end_datetime);
-          if (now >= rangeStart && now <= rangeEnd) {
+          const rangeStart = paredAMs(range.start_datetime);
+          const rangeEnd = paredAMs(range.end_datetime);
+          if (rangeStart !== null && rangeEnd !== null && now >= rangeStart && now <= rangeEnd) {
             currentPrice = range.price;
             break;
           }

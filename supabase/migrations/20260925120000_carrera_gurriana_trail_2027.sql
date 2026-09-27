@@ -27,8 +27,10 @@ DECLARE
   v_gt20     uuid := 'd4b0f6e3-8c2a-4f7b-8e1d-4a5b6c7d8e9f';
   v_gt40     uuid := 'e5c1a7f4-9d3b-4a8c-9f2e-5b6c7d8e9fa0';
   v_reg      uuid;
-  v_apertura timestamptz := '2026-10-01 20:00:00+02';
-  v_cierre   timestamptz := '2027-02-15 00:00:00+01';
+  -- Hora de pared tal cual con +00 (norma de horas de CLAUDE.md): con +01/+02
+  -- se guardaban instantes y la apertura dependía de un error que anulaba otro
+  v_apertura timestamptz := '2026-10-01 20:00:00+00';
+  v_cierre   timestamptz := '2027-02-15 00:00:00+00';
   v_dist     uuid;
 BEGIN
   -- ---------------------------------------------------------------- carrera

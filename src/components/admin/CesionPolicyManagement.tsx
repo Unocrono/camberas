@@ -75,7 +75,9 @@ export function CesionPolicyManagement({ raceId }: Props) {
         {
           race_id: raceId,
           permitida: cfg.permitida,
-          fecha_limite: cfg.fecha_limite ? new Date(cfg.fecha_limite).toISOString() : null,
+          // Hora de pared tal cual (norma de la casa): sin new Date().toISOString(),
+          // que la pasaba a UTC y el plazo cerraba 2 h antes
+          fecha_limite: cfg.fecha_limite || null,
           max_cesiones: Number(cfg.max_cesiones) || 1,
           texto_extra: cfg.texto_extra || null,
           updated_at: new Date().toISOString(),

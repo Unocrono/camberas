@@ -26,7 +26,7 @@ import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { camposVisibles } from "@/lib/fieldConditions";
 import type { Session } from "@supabase/supabase-js";
-import { hoyLocal } from "@/lib/timezoneUtils";
+import { hoyLocal, paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
 
 interface Team {
   id: string;
@@ -176,11 +176,12 @@ const TeamRegister = () => {
           .eq("race_id", carreraId)
           .order("min_members", { ascending: true }),
       ]);
-      const now = new Date();
+      // Plazos en hora de pared (+00, no UTC): «ahora» también en hora de pared
+      const now = ahoraParedMs();
       const abiertas = ((ds ?? []) as DistanceOption[]).filter((d) => {
-        const opens = d.registration_opens ? new Date(d.registration_opens) : null;
-        const closes = d.registration_closes ? new Date(d.registration_closes) : null;
-        return (!opens || now >= opens) && (!closes || now <= closes);
+        const opens = d.registration_opens ? paredAMs(d.registration_opens) : null;
+        const closes = d.registration_closes ? paredAMs(d.registration_closes) : null;
+        return (opens === null || now >= opens) && (closes === null || now <= closes);
       });
       setDistancias(abiertas);
       setTramos((ts ?? []) as TeamTier[]);

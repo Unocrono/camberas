@@ -22,8 +22,10 @@ DECLARE
   v_race     uuid := 'a7e3c1d0-4f2b-4c8e-9b6a-1d2e3f4a5b6c';
   v_dist     uuid := 'b8f4d2e1-5a3c-4d9f-8c7b-2e3f4a5b6c7d';
   v_reg      uuid;
-  v_apertura timestamptz := '2026-11-01 20:00:00+01';
-  v_cierre   timestamptz := '2026-12-07 23:59:59+01';
+  -- Hora de pared tal cual con +00 (norma de horas de CLAUDE.md): con +01/+02
+  -- se guardaban instantes y la apertura dependía de un error que anulaba otro
+  v_apertura timestamptz := '2026-11-01 20:00:00+00';
+  v_cierre   timestamptz := '2026-12-07 23:59:59+00';
 BEGIN
   -- ---------------------------------------------------------------- carrera
   INSERT INTO public.races (
