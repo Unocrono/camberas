@@ -15,6 +15,7 @@ import RaceResults from "./pages/RaceResults";
 import LiveResults from "./pages/LiveResults";
 import SplitClassification from "./pages/SplitClassification";
 import LiveGPSTracking from "./pages/LiveGPSTracking";
+import MapaLigero from "./pages/MapaLigero";
 import Grupetta from "./pages/Grupetta";
 import Descargas from "./pages/Descargas";
 import GrupettaCapo from "./pages/GrupettaCapo";
@@ -163,6 +164,8 @@ const AppCamberas = () => (
           <Route path="/:slug" element={<FichaCarrera />} />
           <Route path="/:slug/live" element={<LiveResults />} />
           <Route path="/:slug/gps" element={<LiveGPSTracking />} />
+          {/* Mapa ligero: el enlace que se puede reenviar a todo el mundo (solo posiciones) */}
+          <Route path="/:slug/mapa" element={<MapaLigero />} />
           <Route path="/:slug/live" element={<CamberasTrackLive />} />
           <Route path="/:slug/live/split/:checkpointOrder" element={<SplitClassification />} />
           {/* Páginas interiores de la web de la carrera (plantilla). Cuelgan del
