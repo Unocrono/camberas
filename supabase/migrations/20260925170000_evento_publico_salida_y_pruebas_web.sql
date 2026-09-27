@@ -209,7 +209,10 @@ AS $fn$
                                                    'foto', COALESCE(i.photo_16_9_url, i.photo_9_16_url)))
                                                  ORDER BY i.item_order, i.km_total)
                                          FROM roadbook_items i LEFT JOIN roadbook_item_types t ON t.id = i.item_type_id
-                                         WHERE i.roadbook_id = r.id)))
+                                         -- Solo los puntos con sentido: el rutómetro generado desde el GPX
+                                         -- guarda además cada punto del track (item_type 'point', miles)
+                                         WHERE i.roadbook_id = r.id
+                                           AND (i.is_highlighted OR i.is_checkpoint OR i.item_type <> 'point'))))
                                     FROM roadbooks r WHERE r.race_distance_id = d.id ORDER BY r.created_at LIMIT 1),
                  'track',          CASE WHEN d.gpx_file_url IS NULL THEN NULL
                                         ELSE jsonb_build_object('gpx', d.gpx_file_url) END,
