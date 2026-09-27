@@ -1,4 +1,10 @@
 -- ============================================================
+-- ⚠ NO APLICAR TODAVÍA (27-sep): las grupettas (crear_grupetta,
+-- actualizar_grupetta) guardan la salida como instante real, no como hora
+-- local. Con esta función sola, a una grupetta de las 09:00 se le cortaría
+-- la captura 2 h antes. Primero hay que alinear las grupettas con la norma
+-- (funciones + sus 4 olas), en la misma migración.
+--
 -- LA HORA DE SALIDA ES HORA LOCAL (27-sep, tras la marcha ADEMCO)
 --
 -- race_waves.start_time guarda la hora de pared tal cual la escribe el
