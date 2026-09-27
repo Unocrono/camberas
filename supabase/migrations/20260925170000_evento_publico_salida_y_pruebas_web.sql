@@ -41,6 +41,8 @@ AS $fn$
            CASE WHEN jsonb_typeof(c->'imagenes')    = 'object' THEN c->'imagenes'    ELSE '{}'::jsonb END AS img,
            CASE WHEN jsonb_typeof(c->'reglamento')  = 'object' THEN c->'reglamento'  ELSE '{}'::jsonb END AS reg,
            CASE WHEN jsonb_typeof(c->'infoPractica') = 'object' THEN c->'infoPractica' ELSE '{}'::jsonb END AS inf,
+           CASE WHEN jsonb_typeof(c->'camiseta')    = 'object' THEN c->'camiseta'    ELSE '{}'::jsonb END AS cam,
+           CASE WHEN jsonb_typeof(c->'sanitario')   = 'object' THEN c->'sanitario'   ELSE '{}'::jsonb END AS san,
            CASE WHEN jsonb_typeof(c->'pruebas')     = 'array'  THEN c->'pruebas'     ELSE '[]'::jsonb END AS pru
     FROM (
       SELECT COALESCE(w.contenido, '{}'::jsonb) AS c,
@@ -251,6 +253,18 @@ AS $fn$
                      WHERE c.race_id = ra.id AND c.race_distance_id IS NULL),
       'reglamento', (SELECT jsonb_build_object(
                               'version', g.version,
+                              -- Líneas con viñeta de la sección de material obligatorio
+                              'materialObligatorio', (SELECT jsonb_agg(l ORDER BY n) FROM (
+                                  SELECT btrim(regexp_replace(x, '^\s*[•\-\*·]\s*', '')) AS l, n
+                                  FROM race_regulation_sections s2, regexp_split_to_table(s2.content, E'\n') WITH ORDINALITY AS t(x, n)
+                                  WHERE s2.regulation_id = g.id AND s2.section_type = 'mandatory_gear' AND btrim(x) ~ '^[•\-\*·]') m),
+                              'normas', (SELECT jsonb_agg(l ORDER BY n) FROM (
+                                  SELECT btrim(regexp_replace(x, '^\s*[•\-\*·]\s*', '')) AS l, n
+                                  FROM race_regulation_sections s2, regexp_split_to_table(s2.content, E'\n') WITH ORDINALITY AS t(x, n)
+                                  WHERE s2.regulation_id = g.id AND s2.section_type = 'disqualifications' AND btrim(x) ~ '^[•\-\*·]') m),
+                              'reclamaciones', (SELECT btrim(s2.content) FROM race_regulation_sections s2
+                                                WHERE s2.regulation_id = g.id AND s2.title ILIKE '%reclamac%' AND s2.section_type <> 'classifications'
+                                                ORDER BY s2.section_order LIMIT 1),
                               'secciones', (SELECT jsonb_agg(jsonb_build_object(
                                                      'titulo', s.title, 'tipo', s.section_type, 'texto', s.content)
                                                    ORDER BY s.section_order)
@@ -271,6 +285,20 @@ AS $fn$
                            'tiempoReal', true),
       'gps', jsonb_build_object('activo', COALESCE(ra.gps_tracking_enabled, false),
                                 'url', 'https://camberas.com/' || COALESCE(ra.slug, ra.id::text) || '/gps'),
+      -- Camiseta: si el formulario tiene el campo de talla, va incluida (tallas = sus opciones)
+      'camiseta', (SELECT jsonb_strip_nulls(jsonb_build_object(
+                     'incluida', true,
+                     'tallas', CASE WHEN jsonb_typeof(f.field_options) = 'array' THEN f.field_options
+                                    WHEN jsonb_typeof(f.field_options->'options') = 'array' THEN f.field_options->'options' END))
+                   FROM registration_form_fields f
+                   WHERE f.field_name = 'tshirt_size' AND f.is_visible = true
+                     AND (f.race_id = ra.id OR f.race_distance_id IN (SELECT id FROM dist))
+                   LIMIT 1),
+      -- Dispositivo sanitario: puestos de voluntariado de tipo sanitario
+      'sanitario', (SELECT jsonb_build_object('medios', jsonb_agg(jsonb_build_array(COALESCE(p.needed, 1)::text, p.name) ORDER BY p.post_order NULLS LAST, p.name))
+                    FROM race_posts p JOIN race_post_types t ON t.id = p.post_type_id
+                    WHERE p.race_id = ra.id AND t.name = 'sanitario'
+                    HAVING count(*) > 0),
       'contacto', jsonb_strip_nulls(jsonb_build_object('email', ra.organizer_email)),
       'fuente', jsonb_build_object('origen', 'camberas', 'generado', now())
     ) AS j
@@ -283,7 +311,7 @@ AS $fn$
            calculado.j
            -- subtitulo y descripcion son de races: la web no los pisa
            || (web.c - 'pruebas' - 'inscripcion' - 'lugar' - 'organizador' - 'contacto' - 'imagenes' - 'web' - 'marca'
-                     - 'reglamento' - 'infoPractica' - 'subtitulo' - 'descripcion')
+                     - 'reglamento' - 'infoPractica' - 'subtitulo' - 'descripcion' - 'camiseta' - 'sanitario')
            || jsonb_build_object(
                 'inscripcion', (calculado.j->'inscripcion') || web.ins
                                  || jsonb_build_object('tarifas', calculado.j->'inscripcion'->'tarifas',
@@ -293,7 +321,10 @@ AS $fn$
                 'contacto',    (calculado.j->'contacto')    || (web.con - 'email'),
                 'imagenes',    (calculado.j->'imagenes')    || web.img,
                 -- NULLIF: sin reglamento ni info en ningún lado, la clave no sale
-                'reglamento',  NULLIF(COALESCE(calculado.j->'reglamento', '{}'::jsonb) || web.reg, '{}'::jsonb),
+                -- Tablas primero: lo de la web solo rellena lo que el reglamento por secciones no dé
+                'reglamento',  NULLIF(web.reg || jsonb_strip_nulls(COALESCE(calculado.j->'reglamento', '{}'::jsonb)), '{}'::jsonb),
+                'camiseta',    NULLIF(web.cam || jsonb_strip_nulls(COALESCE(calculado.j->'camiseta', '{}'::jsonb)), '{}'::jsonb),
+                'sanitario',   NULLIF(web.san || jsonb_strip_nulls(COALESCE(calculado.j->'sanitario', '{}'::jsonb)), '{}'::jsonb),
                 'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || (web.inf - 'faq'), '{}'::jsonb)
               )
          )

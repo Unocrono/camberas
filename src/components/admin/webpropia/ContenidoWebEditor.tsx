@@ -162,6 +162,7 @@ export function ContenidoWebEditor({ slug, contenido, guardando, onGuardar }: Pr
           <AccordionItem value="reglamento">
             <AccordionTrigger>Reglamento en tarjetas: material, marcaje, normas</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
+              <p className="text-xs text-muted-foreground">Si el reglamento de la carrera (Reglamento, en el menú) tiene secciones «Material obligatorio», «Descalificaciones» o «Reclamaciones», sus líneas con viñeta mandan aquí; estos campos solo rellenan lo que falte.</p>
               <Texto etiqueta="Reglamento en PDF (URL)" valor={c.reglamento?.url} onChange={(v) => patch("reglamento", { url: v })} ayuda="Si el reglamento está publicado por secciones en Camberas, la web usa ese." />
               <Lineas etiqueta="Material obligatorio" valor={c.reglamento?.materialObligatorio} onChange={(v) => patch("reglamento", { materialObligatorio: v })} />
               <TextoLargo etiqueta="Normas sobre el material" valor={c.reglamento?.normasMaterial} onChange={(v) => patch("reglamento", { normasMaterial: v })} filas={2} />
@@ -203,7 +204,7 @@ export function ContenidoWebEditor({ slug, contenido, guardando, onGuardar }: Pr
                 ]}
                 nuevo={() => ({ premio: "", categoria: "", texto: "" })}
               />
-              <Pares etiqueta="Servicio sanitario: medios" valor={c.sanitario?.medios} onChange={(v) => patch("sanitario", { medios: v })} cabeceras={["Cuántos", "Qué"]} />
+              <Pares etiqueta="Servicio sanitario: medios" valor={c.sanitario?.medios} onChange={(v) => patch("sanitario", { medios: v })} cabeceras={["Cuántos", "Qué"]} ayuda="Si el voluntariado tiene puestos de tipo «Sanitario», la web enseña esos (cuántos y nombre) y esta lista no hace falta." />
               <TextoLargo etiqueta="Servicio sanitario: nota" valor={c.sanitario?.nota} onChange={(v) => patch("sanitario", { nota: v })} filas={2} />
             </AccordionContent>
           </AccordionItem>
@@ -211,6 +212,7 @@ export function ContenidoWebEditor({ slug, contenido, guardando, onGuardar }: Pr
           <AccordionItem value="servicios">
             <AccordionTrigger>Servicios al corredor y camiseta</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
+              <p className="text-xs text-muted-foreground">Si el formulario de inscripción tiene el campo de talla de camiseta, la web ya la da por incluida con esas tallas; aquí solo el texto, la fecha límite o el precio si es opcional.</p>
               <ListaEditable
                 etiqueta="Servicios"
                 valor={c.servicios as Record<string, unknown>[] | undefined}
