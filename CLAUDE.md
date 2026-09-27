@@ -64,6 +64,27 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
   ignoreDuplicates: true`.
 - **Antes de tocar una tabla, busca todos sus lectores.** Hay pipelines paralelos legítimos que
   parecen duplicados y no lo son (ver GPS más abajo).
+- **HORAS: todas las horas de carrera son hora LOCAL y no se convierten nunca.** Salidas
+  (`race_waves.start_time`), lecturas, aperturas, cierres y tramos se guardan como hora de pared:
+  en columnas `timestamptz` llegan con `+00`, pero NO son UTC. Solo dos cosas son instantes reales:
+  **el GPS** (`gps_positions.timestamp`) y **«ahora»** (`now()`, el reloj del sistema). La norma
+  está en `src/lib/timezoneUtils.ts:208` (commit `3675818`, 26-sep), que es el único sitio de la
+  web donde se cruzan las dos cosas. En SQL:
+  - la hora de una salida se lee **tal cual**: `to_char(w.start_time AT TIME ZONE 'UTC', 'HH24:MI')`.
+    **Nunca** `w.start_time AT TIME ZONE 'Europe/Madrid'`: eso le suma 2 h en verano (1 h en
+    invierno). Así la salida de las 09:30 de ADEMCO se leyó como 11:30 y su ventana GPS cerró
+    2 h tarde (27-sep).
+  - para compararla con `now()` o con el GPS se sitúa en Madrid el día de la carrera:
+    `(r.date::text || ' ' || <hora tal cual>)::timestamp AT TIME ZONE 'Europe/Madrid'`
+    (así lo hace bien `cronometraje_window`).
+  - **copiar una función de producción «tal cual» copia también sus fallos.** La conversión mala
+    nació en `20260801140000_grupetta_nativa.sql` y se ha arrastrado de migración en migración
+    (la última, `20260927180000_insert_posiciones_barato.sql`, el 27-sep). Antes de reescribir una
+    función que toque horas, contrástala con esta norma.
+  - Pendiente de alinear (27-sep): `gps_capture_window`, `evento_publico`, y las grupettas
+    (`crear_grupetta`, `actualizar_grupetta`, `mis_grupettas`), que guardan la salida como
+    instante real. Comprobar lo que queda:
+    `SELECT proname FROM pg_proc WHERE pg_get_functiondef(oid) ~* 'start_time[^;]{0,60}AT TIME ZONE ''Europe/Madrid'''`.
 
 ## Arquitectura
 
