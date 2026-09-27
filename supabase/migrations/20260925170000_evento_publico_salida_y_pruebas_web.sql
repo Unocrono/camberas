@@ -335,8 +335,8 @@ AS $fn$
                 -- NULLIF: sin reglamento ni info en ningún lado, la clave no sale
                 -- Tablas primero: lo de la web solo rellena lo que el reglamento por secciones no dé
                 'reglamento',  NULLIF(web.reg || jsonb_strip_nulls(COALESCE(calculado.j->'reglamento', '{}'::jsonb)), '{}'::jsonb),
-                'camiseta',    NULLIF(web.cam || jsonb_strip_nulls(COALESCE(calculado.j->'camiseta', '{}'::jsonb)), '{}'::jsonb),
-                'sanitario',   NULLIF(web.san || jsonb_strip_nulls(COALESCE(calculado.j->'sanitario', '{}'::jsonb)), '{}'::jsonb),
+                'camiseta',    NULLIF(web.cam || CASE WHEN jsonb_typeof(calculado.j->'camiseta') = 'object' THEN jsonb_strip_nulls(calculado.j->'camiseta') ELSE '{}'::jsonb END, '{}'::jsonb),
+                'sanitario',   NULLIF(web.san || CASE WHEN jsonb_typeof(calculado.j->'sanitario') = 'object' THEN jsonb_strip_nulls(calculado.j->'sanitario') ELSE '{}'::jsonb END, '{}'::jsonb),
                 'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || (web.inf - 'faq'), '{}'::jsonb)
               )
          )
