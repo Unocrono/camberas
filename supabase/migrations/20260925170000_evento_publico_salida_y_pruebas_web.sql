@@ -10,6 +10,15 @@
 --    avituallamientos (si no hay race_checkpoints), terreno, marcaje, color…
 --    Lo calculado manda; la web rellena lo que falta.
 -- Sustituye la función de 20260924180000 (mismos permisos: anon y authenticated).
+--
+-- 27-sep noche: plazos, tramos y «hoy» con public.ahora_pared()/public.hoy_local()
+-- (norma de horas de CLAUDE.md, 20260927230000). Reaplicar este fichero entero
+-- SIN esto deshizo esos arreglos en producción: después de aplicar cualquier
+-- versión de evento_publico, comprobar
+--   SELECT * FROM public.guardia_horas() WHERE nivel = 'FALLO';   -- 0 filas
+-- Los cupones (valid_until > now()) son instantes reales y se quedan con now().
+-- Ojo: la clave 'salida' de este fichero lee start_time; en producción, desde
+-- 20260928090000, lee hora_prevista (la salida prevista).
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.evento_publico(p_slug text)
@@ -62,13 +71,13 @@ AS $fn$
            COALESCE((
              SELECT p.price FROM race_distance_prices p
              WHERE p.race_distance_id = d.id
-               AND now() BETWEEN p.start_datetime AND p.end_datetime
+               AND public.ahora_pared() BETWEEN p.start_datetime AND p.end_datetime
              ORDER BY p.start_datetime LIMIT 1
            ), d.price) AS precio_vigente,
            CASE
-             WHEN ra.date < current_date THEN 'celebrada'
-             WHEN d.registration_opens IS NOT NULL AND now() < d.registration_opens THEN 'proximamente'
-             WHEN d.registration_closes IS NOT NULL AND now() > d.registration_closes THEN 'cerrada'
+             WHEN ra.date < public.hoy_local() THEN 'celebrada'
+             WHEN d.registration_opens IS NOT NULL AND public.ahora_pared() < d.registration_opens THEN 'proximamente'
+             WHEN d.registration_closes IS NOT NULL AND public.ahora_pared() > d.registration_closes THEN 'cerrada'
              WHEN d.max_participants IS NOT NULL AND public.plazas_libres(d.id) <= 0 THEN 'agotada'
              ELSE 'abierta'
            END AS estado
@@ -88,7 +97,7 @@ AS $fn$
       'lugar',       jsonb_build_object('nombre', ra.location),
       'organizador', jsonb_build_object('email', ra.organizer_email, 'web', ra.official_website_url),
       'estado',      CASE
-                       WHEN ra.date < current_date THEN 'celebrada'
+                       WHEN ra.date < public.hoy_local() THEN 'celebrada'
                        WHEN EXISTS (SELECT 1 FROM dist WHERE dist.estado = 'abierta') THEN 'abierta'
                        WHEN EXISTS (SELECT 1 FROM dist WHERE dist.estado = 'proximamente') THEN 'proximamente'
                        WHEN EXISTS (SELECT 1 FROM dist WHERE dist.estado = 'agotada') THEN 'agotada'
@@ -126,7 +135,7 @@ AS $fn$
                    'periodos', COALESCE((
                      SELECT jsonb_agg(jsonb_build_object(
                               'desde', p.start_datetime, 'hasta', p.end_datetime, 'precio', p.price,
-                              'vigente', now() BETWEEN p.start_datetime AND p.end_datetime)
+                              'vigente', public.ahora_pared() BETWEEN p.start_datetime AND p.end_datetime)
                             ORDER BY p.start_datetime)
                      FROM race_distance_prices p WHERE p.race_distance_id = d.id
                    ), jsonb_build_array(jsonb_build_object('precio', d.price, 'vigente', true)))
