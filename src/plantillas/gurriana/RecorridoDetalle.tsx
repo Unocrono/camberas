@@ -57,14 +57,11 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
   const secciones: Record<SeccionEventoId, () => ReactNode> = {
     cifras: () => (
       <>
-        <div className="grid grid-cols-2 gap-5 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
           {prueba.distanciaTexto && <Dato valor={prueba.distanciaTexto} etiqueta="distancia" />}
           {prueba.desnivelPos != null && <Dato valor={`+${prueba.desnivelPos} m`} etiqueta="desnivel positivo" />}
-          {prueba.desnivelNeg != null && <Dato valor={`−${prueba.desnivelNeg} m`} etiqueta="desnivel negativo" />}
           {prueba.altMax != null && <Dato valor={`${prueba.altMax} m`} etiqueta="altitud máxima" />}
-          {prueba.salida && <Dato valor={`${prueba.salida} h`} etiqueta="salida prevista" />}
-          {prueba.limite && <Dato valor={prueba.limite} etiqueta="tiempo límite" />}
-          {prueba.precio != null && <Dato valor={formatoPrecio(prueba.precio)} etiqueta="inscripción" />}
+          {prueba.altMin != null && <Dato valor={`${prueba.altMin} m`} etiqueta="altitud mínima" />}
         </div>
         {(prueba.lugarSalida || prueba.lugarMeta || prueba.municipios || prueba.marcaje) && (
           <p className="mt-6 text-[15px]">
