@@ -218,7 +218,7 @@ const RaceDetail = () => {
       // Fetch waves for start times
       const { data: wavesData, error: wavesError } = await supabase
         .from("race_waves")
-        .select("race_distance_id, start_time, wave_name")
+        .select("race_distance_id, start_time, hora_prevista, wave_name")
         .eq("race_id", raceId);
 
       if (wavesError) throw wavesError;
@@ -289,6 +289,9 @@ const RaceDetail = () => {
           registeredCount,
           availablePlaces,
           start_time: wave?.start_time || null,
+          // Lo que se enseña al público es la salida PREVISTA; start_time es
+          // la oficial de cronometraje
+          hora_prevista: (wave as { hora_prevista?: string | null } | undefined)?.hora_prevista || null,
           wave_name: wave?.wave_name || null,
           isRegistrationOpen,
           currentPrice,
@@ -1127,11 +1130,11 @@ const RaceDetail = () => {
                               <span>+{distance.elevation_gain}m desnivel</span>
                             </div>
                           )}
-                          {distance.start_time && (
+                          {distance.hora_prevista && (
                             <div className="flex items-center gap-2 text-foreground font-medium">
                               <Clock className="h-5 w-5 text-primary" />
                               <span>
-                                Salida: {formatLocalTime(distance.start_time).slice(0, 5)}h
+                                Hora de salida prevista: {formatLocalTime(distance.hora_prevista).slice(0, 5)}h
                               </span>
                             </div>
                           )}

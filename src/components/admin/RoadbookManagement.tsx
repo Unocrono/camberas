@@ -103,8 +103,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     name: "",
     description: "",
   });
-  // Hora de salida de la oleada del recorrido (hora local, tal cual): el
-  // rutómetro no tiene hora propia
+  // Hora de salida PREVISTA de la ola del recorrido (hora local, tal cual):
+  // el rutómetro no tiene hora propia y no usa la oficial de cronometraje
   const [salidaOleada, setSalidaOleada] = useState<string | null>(null);
   const [regenerarDialogOpen, setRegenerarDialogOpen] = useState(false);
   
@@ -166,13 +166,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
 
     const { data: oleada } = await supabase
       .from("race_waves")
-      .select("start_time")
+      .select("hora_prevista")
       .eq("race_distance_id", distanceId)
-      .not("start_time", "is", null)
-      .order("start_time", { ascending: true })
-      .limit(1)
       .maybeSingle();
-    setSalidaOleada(oleada?.start_time ? formatLocalTime(oleada.start_time).slice(0, 5) : null);
+    const prevista = (oleada as { hora_prevista: string | null } | null)?.hora_prevista ?? null;
+    setSalidaOleada(prevista ? formatLocalTime(prevista).slice(0, 5) : null);
   };
 
   const fetchItemTypes = async () => {
@@ -690,8 +688,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {salidaOleada
-                        ? `Salida a las ${salidaOleada}: es la hora de la oleada del recorrido y se cambia en Recorridos.`
-                        : "La hora de salida es la de la oleada del recorrido; se pone en Recorridos."}
+                        ? `Hora de salida prevista: ${salidaOleada} (no es la oficial de cronometraje); se cambia en Recorridos.`
+                        : "La hora de salida prevista se pone en Recorridos."}
                       {!roadbook && distanceInfo?.gpx_file_url && " Al crearlo, los puntos se generan del GPX del recorrido."}
                     </p>
                     <div className="flex justify-end gap-2">
@@ -752,7 +750,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           {roadbook && (
             <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
               <span>{totalItems} puntos</span>
-              {salidaOleada && <span>Salida: {salidaOleada}</span>}
+              {salidaOleada && <span>Hora de salida prevista: {salidaOleada}</span>}
             </div>
           )}
         </CardHeader>

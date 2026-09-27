@@ -371,6 +371,9 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
 
       // Los recorridos, uno a uno: si alguno falla se dice cuál, y la carrera
       // ya creada se queda (se puede completar por el camino largo)
+      // Recorridos cuya hora no se pudo guardar: la carrera ya existe, así que
+      // no se aborta (reintentar la duplicaría); se avisa al final
+      const horasSinGuardar: string[] = [];
       for (const r of recorridos) {
         const { data: dist, error: errorDist } = await supabase
           .from("race_distances")
@@ -391,14 +394,17 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
 
         if (errorDist) throw new Error(`El recorrido "${r.nombre}" no se pudo crear: ${errorDist.message}`);
 
-        // La hora de salida vive en race_waves (la crea el trigger del insert);
-        // misma convención que DistanceManagement: fecha de la carrera + hora
+        // La salida vive en race_waves (la crea vacía el trigger del insert).
+        // Al crear, la prevista y la oficial nacen iguales (fecha de la carrera
+        // + hora, hora de pared sin zona); la oficial se ajusta luego en
+        // Cronometraje › Horas de Salida o en /start
         if (dist && r.hora) {
+          const salida = `${carrera.date}T${r.hora}`;
           const { error: errorWave } = await supabase
             .from("race_waves")
-            .update({ start_time: `${carrera.date}T${r.hora}` })
+            .update({ hora_prevista: salida, start_time: salida } as never)
             .eq("race_distance_id", dist.id);
-          if (errorWave) console.error("Error al poner la hora de salida:", errorWave);
+          if (errorWave) horasSinGuardar.push(r.nombre);
         }
       }
 
@@ -428,6 +434,13 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
 
       setSlugCreado(nuevaCarrera.slug);
       setIdCreado(nuevaCarrera.id);
+      if (horasSinGuardar.length > 0) {
+        toast({
+          title: "Carrera creada, pero falta alguna hora de salida",
+          description: `No se guardó la hora de: ${horasSinGuardar.join(", ")}. Ponla en Recorridos.`,
+          variant: "destructive",
+        });
+      }
       setPaso("creada");
       onCreated();
     } catch (error: any) {
@@ -702,7 +715,7 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="wiz-dist-hora">Hora de salida</Label>
+                  <Label htmlFor="wiz-dist-hora">Hora de salida prevista</Label>
                   <Input
                     id="wiz-dist-hora"
                     type="time"
@@ -800,7 +813,7 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                   <span className="font-medium">{r.nombre}</span>
                   <span className="text-muted-foreground">
                     {r.km} km{r.desnivel ? ` · +${r.desnivel} m` : ""} · {euro(r.precio)}
-                    {r.hora ? ` · salida ${r.hora}` : ""}
+                    {r.hora ? ` · salida prevista ${r.hora}` : ""}
                     {r.plazas ? ` · ${r.plazas} plazas` : ""}
                   </span>
                 </div>

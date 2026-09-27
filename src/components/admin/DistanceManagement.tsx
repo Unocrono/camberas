@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { triggerRefresh } from "@/hooks/useDataRefresh";
@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
 
 // Format timestamp to local time HH:MM - extract directly from ISO string
 const formatTimeLocal = (isoString: string | null): string => {
@@ -21,6 +22,12 @@ const formatTimeLocal = (isoString: string | null): string => {
   // Extract time directly from ISO string without timezone conversion
   const match = isoString.match(/T(\d{2}:\d{2})/);
   return match ? match[1] : "";
+};
+// Igual, con segundos (la salida oficial se da al segundo)
+const formatTimeLocalSeg = (isoString: string | null): string => {
+  if (!isoString) return "";
+  const match = isoString.match(/T(\d{2}:\d{2}:\d{2})/);
+  return match ? match[1] : formatTimeLocal(isoString);
 };
 const distanceSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(200, "Máximo 200 caracteres"),
@@ -71,8 +78,10 @@ interface Distance {
   registration_opens: string | null;
   registration_closes: string | null;
   display_order: number | null;
-  // From race_waves join
+  // From race_waves join: la salida PREVISTA (se edita aquí) y la OFICIAL
+  // (cronometraje; se edita en Cronometraje › Horas de Salida y en /start)
   wave_start_time: string | null;
+  wave_hora_prevista: string | null;
 }
 
 interface Race {
@@ -95,6 +104,23 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingDistance, setEditingDistance] = useState<Distance | null>(null);
+  // «¿Esta hora es también la salida oficial?» al cambiar la prevista
+  const [preguntaOficial, setPreguntaOficial] = useState<{ prevista: string; oficial: string; salidaDada: boolean; cambiaDia: boolean } | null>(null);
+  const [preguntaAbierta, setPreguntaAbierta] = useState(false);
+  const respuestaOficialRef = useRef<((si: boolean) => void) | null>(null);
+  const botonSiOficialRef = useRef<HTMLButtonElement>(null);
+  const preguntarSiOficial = (prevista: string, oficial: string, salidaDada: boolean, cambiaDia: boolean) =>
+    new Promise<boolean>((resolver) => {
+      respuestaOficialRef.current = resolver;
+      setPreguntaOficial({ prevista, oficial, salidaDada, cambiaDia });
+      setPreguntaAbierta(true);
+    });
+  const responderOficial = (si: boolean) => {
+    const resolver = respuestaOficialRef.current;
+    respuestaOficialRef.current = null;
+    setPreguntaAbierta(false); // los datos se quedan para el fundido de cierre
+    resolver?.(si);
+  };
   
   const [formData, setFormData] = useState({
     race_id: "",
@@ -172,12 +198,12 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
   const fetchDistances = async () => {
     try {
-      // Fetch distances with wave start_time
+      // Fetch distances with the wave's planned and official start
       let query = supabase
         .from("race_distances")
         .select(`
           *,
-          race_waves!race_waves_race_distance_id_fkey(start_time)
+          race_waves!race_waves_race_distance_id_fkey(start_time, hora_prevista)
         `)
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("created_at", { ascending: false });
@@ -208,6 +234,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       const distancesWithWaveTime = (data || []).map((d: any) => ({
         ...d,
         wave_start_time: d.race_waves?.start_time || null,
+        wave_hora_prevista: d.race_waves?.hora_prevista || null,
         race_waves: undefined, // Clean up the nested object
       }));
       
@@ -270,8 +297,11 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
   const handleOpenDialog = async (distance?: Distance) => {
     if (distance) {
       setEditingDistance(distance);
-      // Parse wave start_time into date and time using LOCAL timezone
-      const waveStart = parseTimestamp(distance.wave_start_time);
+      // Aquí se edita la salida PREVISTA (la oficial es de cronometraje). Sin
+      // hora todavía, la fecha por defecto es la de la carrera: si no, quien
+      // teclea solo la hora no guardaba nada
+      const waveStart = parseTimestamp(distance.wave_hora_prevista);
+      if (!waveStart.date) waveStart.date = races.find(r => r.id === distance.race_id)?.date || "";
       const regOpens = parseTimestamp(distance.registration_opens);
       const regCloses = parseTimestamp(distance.registration_closes);
       
@@ -432,6 +462,74 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         finish_location: formData.finish_location || undefined,
       });
 
+      // ── Salida prevista (la de aquí) y oficial (start_time, cronometraje) ──
+      // Hora de pared tal cual, sin zona (norma de horas de CLAUDE.md).
+      // Regla del dueño: al CREAR, la oficial nace igual que la prevista; al
+      // CAMBIAR la prevista, la oficial solo cambia si se responde «Sí».
+      const aHoraPared = (fecha: string, hora: string) =>
+        `${fecha}T${hora.length === 5 ? `${hora}:00` : hora.slice(0, 8)}`;
+      const normal = (ts: string | null | undefined) => {
+        const p = parseTimestamp(ts ?? null);
+        return p.date && p.time ? aHoraPared(p.date, p.time) : null;
+      };
+      const legible = (ts: string) => {
+        const [f, h] = ts.split("T");
+        const [a, m, d] = f.split("-");
+        return `${d}/${m}/${a} ${h}`;
+      };
+      if (formData.start_time_value && !formData.start_date) {
+        toast({
+          title: "Falta la fecha de salida prevista",
+          description: "Pon la fecha además de la hora (o deja las dos vacías).",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        setUploading(false);
+        return;
+      }
+      // Una fecha sin hora es «sin salida prevista»
+      const horaPrevista = formData.start_date && formData.start_time_value
+        ? aHoraPared(formData.start_date, formData.start_time_value)
+        : null;
+      let cambiosOleada: { hora_prevista?: string | null; start_time?: string | null } | null = null;
+      let oficialLeida: string | null = null; // start_time tal como vino de la BD
+      let olaExiste = true;
+      let avisarRecalculo = false;
+      // ¿La ha cambiado quien edita? Se compara con lo que se cargó al abrir,
+      // no con la BD: un campo que nadie ha tocado no es un cambio
+      if (editingDistance && horaPrevista !== normal(editingDistance.wave_hora_prevista)) {
+        // Releer la ola ahora: la oficial puede haberse dado en /start desde
+        // otro móvil después de abrir el formulario
+        const { data: ola, error: olaError } = await supabase
+          .from("race_waves")
+          .select("hora_prevista, start_time")
+          .eq("race_distance_id", editingDistance.id)
+          .maybeSingle();
+        if (olaError) throw olaError;
+        const fila = ola as { hora_prevista: string | null; start_time: string | null } | null;
+        olaExiste = !!fila;
+        oficialLeida = fila?.start_time ?? null;
+        const previstaAntes = normal(fila?.hora_prevista);
+        const oficial = normal(fila?.start_time);
+        cambiosOleada = { hora_prevista: horaPrevista };
+        if (horaPrevista && !oficial) {
+          // Sin salida oficial todavía: nace igual que la prevista, sin preguntar
+          cambiosOleada.start_time = horaPrevista;
+        } else if (horaPrevista && oficial && horaPrevista !== oficial) {
+          // La salida ya se dio o se ajustó si la oficial no es la prevista de
+          // antes, o si su hora ya ha pasado
+          const oficialMs = paredAMs(oficial);
+          const salidaDada = oficial !== previstaAntes || (oficialMs !== null && oficialMs <= ahoraParedMs());
+          const cambiaDia = horaPrevista.slice(0, 10) !== oficial.slice(0, 10);
+          const si = await preguntarSiOficial(legible(horaPrevista), legible(oficial), salidaDada, cambiaDia);
+          if (si) {
+            cambiosOleada.start_time = horaPrevista;
+            avisarRecalculo = salidaDada;
+          }
+        }
+        // Prevista borrada: la oficial se queda como está
+      }
+
       let imageUrl = currentImageUrl;
       let gpxUrl = currentGpxUrl;
 
@@ -473,12 +571,6 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           description: "El siguiente dorsal supera el rango final. No se podrán asignar dorsales automáticamente.",
           variant: "destructive",
         });
-      }
-
-      // Build start_time from date and time for race_waves
-      let startTime: string | null = null;
-      if (formData.start_date && formData.start_time_value) {
-        startTime = `${formData.start_date}T${formData.start_time_value}`;
       }
 
       // Build registration window timestamps.
@@ -537,14 +629,42 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         if (error) throw error;
 
-        // Update start_time in race_waves (source of truth)
-        const { error: waveError } = await supabase
-          .from("race_waves")
-          .update({ start_time: startTime })
-          .eq("race_distance_id", editingDistance.id);
-
-        if (waveError) {
-          console.error("Error updating wave start_time:", waveError);
+        // Salida prevista y, si toca, la oficial. Antes se reescribía la
+        // oficial en CADA guardado, aunque no cambiara
+        let oficialPisada = false;
+        if (cambiosOleada && !olaExiste) {
+          // Recorrido sin ola (no debería pasar: la crea un trigger)
+          const { error: waveError } = await supabase
+            .from("race_waves")
+            .insert({
+              race_id: formData.race_id,
+              race_distance_id: editingDistance.id,
+              wave_name: validatedData.name,
+              hora_prevista: cambiosOleada.hora_prevista ?? null,
+              start_time: cambiosOleada.start_time ?? cambiosOleada.hora_prevista ?? null,
+            } as never);
+          if (waveError) throw waveError;
+        } else if (cambiosOleada && cambiosOleada.start_time !== undefined) {
+          // La oficial se escribe solo si sigue siendo la que se leyó: si en
+          // /start acaban de dar la salida, no se pisa
+          let q = supabase.from("race_waves").update(cambiosOleada as never).eq("race_distance_id", editingDistance.id);
+          q = oficialLeida === null ? q.is("start_time", null) : q.eq("start_time", oficialLeida);
+          const { data: tocadas, error: waveError } = await q.select("id");
+          if (waveError) throw waveError;
+          if (!tocadas || tocadas.length === 0) {
+            oficialPisada = true;
+            const { error: previstaError } = await supabase
+              .from("race_waves")
+              .update({ hora_prevista: cambiosOleada.hora_prevista ?? null } as never)
+              .eq("race_distance_id", editingDistance.id);
+            if (previstaError) throw previstaError;
+          }
+        } else if (cambiosOleada) {
+          const { error: waveError } = await supabase
+            .from("race_waves")
+            .update(cambiosOleada as never)
+            .eq("race_distance_id", editingDistance.id);
+          if (waveError) throw waveError;
         }
 
         // Manage price ranges
@@ -573,7 +693,11 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         toast({
           title: "Recorrido actualizado",
-          description: "El recorrido se ha actualizado exitosamente",
+          description: oficialPisada
+            ? "La salida oficial cambió mientras editabas (¿se ha dado en /start?): se ha guardado solo la prevista. Revisa la oficial en Cronometraje › Horas de Salida."
+            : avisarRecalculo
+              ? "Ha cambiado una salida oficial que ya se había dado: recalcula tiempos y resultados en Resultados."
+              : "El recorrido se ha actualizado exitosamente",
         });
       } else {
         // Insert new distance - wave will be created by trigger
@@ -587,16 +711,16 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         distanceId = newDistance?.id;
 
-        // Update start_time in the newly created wave
-        if (newDistance && startTime) {
+        // La ola la crea un trigger vacía: al crear, la oficial nace como
+        // copia de la prevista (las dos columnas, explícitas)
+        let horaSinGuardar = false;
+        if (newDistance && horaPrevista) {
           const { error: waveError } = await supabase
             .from("race_waves")
-            .update({ start_time: startTime })
+            .update({ hora_prevista: horaPrevista, start_time: horaPrevista } as never)
             .eq("race_distance_id", newDistance.id);
-
-          if (waveError) {
-            console.error("Error updating wave start_time:", waveError);
-          }
+          // El recorrido ya existe: no se relanza (reintentar lo duplicaría)
+          if (waveError) horaSinGuardar = true;
         }
 
         // Insert price ranges for new distance
@@ -619,7 +743,10 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
 
         toast({
           title: "Recorrido creado",
-          description: "El recorrido se ha creado exitosamente",
+          description: horaSinGuardar
+            ? "El recorrido se ha creado, pero la hora de salida no se guardó: edítalo y ponla otra vez."
+            : "El recorrido se ha creado exitosamente",
+          variant: horaSinGuardar ? "destructive" : undefined,
         });
       }
 
@@ -1195,7 +1322,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                 <TabsContent value="horarios" className="space-y-4 mt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="start_date">Fecha de Salida</Label>
+                      <Label htmlFor="start_date">Fecha de salida prevista</Label>
                       <Input
                         id="start_date"
                         type="date"
@@ -1208,7 +1335,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="start_time_value">Hora de Salida</Label>
+                      <Label htmlFor="start_time_value">Hora de salida prevista</Label>
                       <Input
                         id="start_time_value"
                         type="time"
@@ -1217,6 +1344,10 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                         value={formData.start_time_value}
                         onChange={(e) => setFormData({ ...formData, start_time_value: e.target.value })}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        No es la oficial de cronometraje. Al crear el recorrido la oficial nace igual;
+                        después se ajusta en Cronometraje › Horas de Salida o en /start.
+                      </p>
                     </div>
                   </div>
 
@@ -1441,14 +1572,20 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     </div>
                   )}
 
-                  {distance.wave_start_time && (
+                  {(distance.wave_hora_prevista || distance.wave_start_time) && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <p className="text-xs text-muted-foreground">Salida</p>
+                        <p className="text-xs text-muted-foreground">Salida prevista</p>
                         <p className="font-semibold">
-                          {formatTimeLocal(distance.wave_start_time)}
+                          {distance.wave_hora_prevista ? formatTimeLocal(distance.wave_hora_prevista) : "—"}
                         </p>
+                        {distance.wave_start_time &&
+                          formatTimeLocalSeg(distance.wave_start_time) !== formatTimeLocalSeg(distance.wave_hora_prevista) && (
+                            <p className="text-xs text-muted-foreground">
+                              Oficial {formatTimeLocalSeg(distance.wave_start_time)}
+                            </p>
+                          )}
                       </div>
                     </div>
                   )}
@@ -1478,6 +1615,43 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
           ))
         )}
       </div>
+
+      <AlertDialog
+        open={preguntaAbierta}
+        onOpenChange={(abierto) => { if (!abierto && respuestaOficialRef.current) responderOficial(false); }}
+      >
+        <AlertDialogContent
+          onOpenAutoFocus={(e) => {
+            // Sin salida dada todavía, lo normal es que la oficial siga a la
+            // prevista: el foco va a «Sí». Con salida dada, al «No».
+            if (preguntaOficial && !preguntaOficial.salidaDada) {
+              e.preventDefault();
+              botonSiOficialRef.current?.focus();
+            }
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Esta hora es también la salida oficial?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {preguntaOficial?.salidaDada
+                ? `Ojo: la salida oficial ya se dio o se ajustó (${preguntaOficial.oficial}). Si respondes Sí se sustituye por ${preguntaOficial.prevista} y habrá que recalcular tiempos y resultados. Con No solo cambia la prevista.`
+                : `Salida oficial ahora: ${preguntaOficial?.oficial}. Con Sí pasa a ${preguntaOficial?.prevista}: es la que usan el cronometraje, la ventana GPS y las cesiones. Con No solo cambia la prevista.`}
+              {preguntaOficial?.cambiaDia &&
+                " Cambia el día: si la carrera se ha movido de fecha, responde Sí, o la oficial se quedará en el día anterior."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => responderOficial(false)}>No, solo la prevista</AlertDialogCancel>
+            <AlertDialogAction
+              ref={botonSiOficialRef}
+              onClick={() => responderOficial(true)}
+              className={preguntaOficial?.salidaDada ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
+            >
+              Sí, también la oficial
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

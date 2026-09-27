@@ -81,7 +81,8 @@ export default function Roadbook() {
   const [race, setRace] = useState<Race | null>(null);
   const [items, setItems] = useState<RoadbookItem[]>([]);
   const [itemTypes, setItemTypes] = useState<RoadbookItemType[]>([]);
-  // Hora de salida de la oleada del recorrido (hora local, tal cual)
+  // Hora de salida PREVISTA de la ola del recorrido (hora local, tal cual).
+  // No es la oficial de cronometraje, y el rutómetro no tiene hora propia
   const [salida, setSalida] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -116,15 +117,14 @@ export default function Roadbook() {
       if (distanceError) throw distanceError;
       setDistance(distanceData);
 
+      // Una ola por recorrido (UNIQUE race_distance_id)
       const { data: oleada } = await supabase
         .from("race_waves")
-        .select("start_time")
+        .select("hora_prevista")
         .eq("race_distance_id", roadbookData.race_distance_id)
-        .not("start_time", "is", null)
-        .order("start_time", { ascending: true })
-        .limit(1)
         .maybeSingle();
-      setSalida(oleada?.start_time ? formatLocalTime(oleada.start_time).slice(0, 5) : null);
+      const prevista = (oleada as { hora_prevista: string | null } | null)?.hora_prevista ?? null;
+      setSalida(prevista ? formatLocalTime(prevista).slice(0, 5) : null);
 
       const { data: raceData, error: raceError } = await supabase
         .from("races")
@@ -244,10 +244,10 @@ export default function Roadbook() {
                 {race.name} - {distance.name} ({distance.distance_km}km)
               </p>
             </div>
-            {(salida || roadbook.start_time) && (
+            {salida && (
               <div className="flex items-center gap-2 text-lg">
                 <Clock className="h-5 w-5" />
-                <span className="font-semibold">Salida: {salida ?? roadbook.start_time?.slice(0, 5)}</span>
+                <span className="font-semibold">Hora de salida prevista: {salida}</span>
               </div>
             )}
           </div>

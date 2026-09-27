@@ -3882,6 +3882,7 @@ export type Database = {
       race_waves: {
         Row: {
           created_at: string
+          hora_prevista: string | null
           id: string
           race_distance_id: string
           race_id: string
@@ -3891,6 +3892,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          hora_prevista?: string | null
           id?: string
           race_distance_id: string
           race_id: string
@@ -3900,6 +3902,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          hora_prevista?: string | null
           id?: string
           race_distance_id?: string
           race_id?: string

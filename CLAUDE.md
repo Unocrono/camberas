@@ -94,6 +94,15 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
     Toda migración que toque funciones termina con
     `DO $$ BEGIN IF EXISTS (SELECT 1 FROM public.guardia_horas() WHERE nivel='FALLO') THEN RAISE EXCEPTION 'horas'; END IF; END $$;`
     y se mira también antes de cada carrera. Las siembras de datos usan literales `+00`.
+  - **Dos salidas por ola** (`20260928090000`): `race_waves.hora_prevista` es la PREVISTA (se
+    teclea solo en Recorridos; la leen el rutómetro, la ficha pública y `evento_publico.salida`,
+    siempre con el texto «Hora de salida prevista») y `start_time` es la OFICIAL (cronometraje,
+    ventanas GPS y de cronometraje, cesiones, relojes: todo lo demás). Al crear, la oficial nace
+    igual que la prevista (trigger `race_waves_completar_salidas` al insertar). Al cambiar la
+    prevista, Recorridos pregunta «¿Esta hora es también la salida oficial?» y solo con Sí toca
+    `start_time`, y solo si no ha cambiado entretanto (salida dada en /start). En Cronometraje ›
+    Horas de Salida la oficial se edita y la prevista se ve sin poder tocarla. Nada copia de una a
+    otra al actualizar.
   - Ya no hay «desfase UTC» por carrera (`races.utc_offset` queda sin lectores): el GPS se pasa a
     hora local con la zona `Europe/Madrid`, que pone sola el horario de verano.
 

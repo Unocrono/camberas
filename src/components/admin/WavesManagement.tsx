@@ -26,7 +26,10 @@ interface Wave {
   race_id: string;
   race_distance_id: string;
   wave_name: string;
+  // OFICIAL (cronometraje): se edita aquí y en /start
   start_time: string | null;
+  // PREVISTA: viene de Recorridos y aquí no se edita
+  hora_prevista: string | null;
   created_at: string;
   updated_at: string;
   distance?: {
@@ -117,6 +120,19 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
     try {
       setSaving(true);
       
+      // La oficial necesita fecha y hora: con una sola, antes se guardaba vacía.
+      // Las dos vacías solo valen si no había oficial (p. ej. renombrar la ola);
+      // una oficial que ya existe no se borra desde aquí
+      const conFecha = !!formData.start_date;
+      const conHora = !!formData.start_time;
+      if (conFecha !== conHora || (!conFecha && editingWave.start_time)) {
+        toast({
+          title: "Falta la fecha o la hora",
+          description: "La salida oficial necesita fecha y hora.",
+          variant: "destructive",
+        });
+        return;
+      }
       let startTimestamp: string | null = null;
       if (formData.start_date && formData.start_time) {
         // Asegurar formato HH:mm:ss
@@ -214,7 +230,8 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
               <TableRow>
                 <TableHead>Evento / Distancia</TableHead>
                 <TableHead>Nombre Oleada</TableHead>
-                <TableHead>Hora de Salida</TableHead>
+                <TableHead>Hora de salida prevista</TableHead>
+                <TableHead>Hora de salida oficial</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -230,6 +247,11 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
                     )}
                   </TableCell>
                   <TableCell>{wave.wave_name}</TableCell>
+                  <TableCell>
+                    <span className="text-muted-foreground" title="Se cambia en Recorridos">
+                      {formatStartTime(wave.hora_prevista)}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <span className={wave.start_time ? "" : "text-muted-foreground"}>
                       {formatStartTime(wave.start_time)}
@@ -267,9 +289,17 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
                 />
               </div>
               
+              <div className="rounded-md bg-muted px-3 py-2 text-sm">
+                <span className="text-muted-foreground">Prevista: </span>
+                {formatStartTime(editingWave?.hora_prevista ?? null)}
+                <span className="block text-xs text-muted-foreground">
+                  La prevista se cambia en Recorridos; aquí solo la oficial, que es la del cronometraje.
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="start_date">Fecha de Salida</Label>
+                  <Label htmlFor="start_date">Fecha de salida oficial</Label>
                   <Input
                     id="start_date"
                     type="date"
@@ -278,7 +308,7 @@ export function WavesManagement({ selectedRaceId }: WavesManagementProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="start_time">Hora de Salida</Label>
+                  <Label htmlFor="start_time">Hora de salida oficial</Label>
                   <Input
                     id="start_time"
                     type="time"
