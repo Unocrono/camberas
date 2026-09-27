@@ -117,7 +117,7 @@ export function Cifras({ evento }: { evento: EventoPublico }) {
   if (evento.inscripcion.limiteDorsales) cifras.push({ valor: String(evento.inscripcion.limiteDorsales), etiqueta: "dorsales en total", movil: true });
   if (altMax > 0) cifras.push({ valor: `${altMax} m`, etiqueta: "altitud máxima", movil: true });
   else if (desnivelMax > 0) cifras.push({ valor: `+${desnivelMax} m`, etiqueta: "desnivel positivo", movil: true });
-  if (evento.lugar?.zona) cifras.push({ valor: evento.lugar.zona.split(" ")[0], etiqueta: evento.lugar.zona, movil: false });
+  // La zona (sierra, valle) ya va en la portada y en el lugar: en la franja de cifras solo números
   // Fechas ISO, no el cierreTexto: de "Del 1 de noviembre al 7 de diciembre"
   // salía "1 NOV" como cierre. Antes de abrir, lo que interesa es la apertura.
   const { apertura, cierre } = evento.inscripcion;
