@@ -138,6 +138,14 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   // Repetición del grupo (reloj maestro)
   const [isGroupPlayback, setIsGroupPlayback] = useState(false);
   const groupPlaybackRef = useRef(false);
+  // Freno de recargas. Cada lectura nueva que llega por tiempo real lanzaba
+  // la consulta completa del mapa: con 34 móviles (~1,5 lecturas/s) y diez
+  // espectadores eran ~15 consultas por segundo, y la base de datos se
+  // saturó en plena marcha ADEMCO (27-sep). Ahora, como mucho una recarga
+  // cada RECARGA_MIN_MS por espectador, y la última lectura nunca se pierde:
+  // si llegan varias seguidas, se agenda una recarga al final del plazo.
+  const ultimaRecargaRef = useRef(0);
+  const recargaPendienteRef = useRef<number | null>(null);
   // Modo de cámara. Antes el mapa se reencuadraba sobre todos los corredores
   // en CADA refresco (cada 15 s), pisara lo que pisara: pulsabas "Recorrido"
   // o hacías zoom y a los pocos segundos volvía a "todos" (marcha ADEMCO,
@@ -926,12 +934,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     if (!groupPlaybackRef.current) updateMarkers(positions);
   };
   const setupRealtimeSubscription = () => {
-    const onNewPosition = () => {
+    const RECARGA_MIN_MS = 10000;
+    const recargar = () => {
+      ultimaRecargaRef.current = Date.now();
       fetchInitialPositions();
       // Also refresh runner track if one is selected
       if (selectedRunner) {
         fetchRunnerTrack(selectedRunner.registration_id);
       }
+    };
+    const onNewPosition = () => {
+      const espera = RECARGA_MIN_MS - (Date.now() - ultimaRecargaRef.current);
+      if (espera <= 0) { recargar(); return; }
+      if (recargaPendienteRef.current !== null) return;   // ya hay una agendada
+      recargaPendienteRef.current = window.setTimeout(() => {
+        recargaPendienteRef.current = null;
+        recargar();
+      }, espera);
     };
 
     const channel = supabase
@@ -967,6 +986,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(appChannel);
+      if (recargaPendienteRef.current !== null) {
+        window.clearTimeout(recargaPendienteRef.current);
+        recargaPendienteRef.current = null;
+      }
     };
   };
 
