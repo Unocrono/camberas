@@ -83,10 +83,14 @@ export function Cabecera({ evento, rutas, compacta = false, onInscribirse }: Pro
     <header className="fixed inset-x-0 top-0 z-50 border-b bg-white" style={{ borderColor: "var(--wp-border)" }}>
       <div className="mx-auto flex h-[72px] max-w-[1296px] items-center justify-between px-5 lg:px-[72px]">
         <a href={rutas.a("/") || "/"} className="flex items-center gap-3 no-underline">
-          {evento.imagenes?.logo && <img src={evento.imagenes.logo} alt="" className="h-9 w-auto lg:h-11" />}
-          <span className="wp-display text-xl sm:text-2xl" style={{ color: "var(--wp-ink)" }}>
-            {evento.nombreCorto ?? evento.nombre}
-          </span>
+          {/* Con logo (races.logo_url) va solo el logo; sin logo, el nombre */}
+          {evento.imagenes?.logo ? (
+            <img src={evento.imagenes.logo} alt={evento.nombreCorto ?? evento.nombre} className="h-11 w-auto lg:h-14" />
+          ) : (
+            <span className="wp-display text-xl sm:text-2xl" style={{ color: "var(--wp-ink)" }}>
+              {evento.nombreCorto ?? evento.nombre}
+            </span>
+          )}
         </a>
 
         {!compacta && (

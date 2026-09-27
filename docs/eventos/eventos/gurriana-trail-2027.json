@@ -508,7 +508,7 @@
     }
   },
   "imagenes": {
-    "logo": "logo.svg",
+    "logo": "/logos/gurriana-trail-icono.svg",
     "montanas": "montanas.svg"
   },
   "marca": {

@@ -21,8 +21,11 @@ export function Pie({ evento, rutas }: { evento: EventoPublico; rutas: RutasWeb 
       <div className="mx-auto max-w-[1296px]">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-4 lg:gap-12">
           <div>
+            {/* Logo sobre placa blanca: el pie es oscuro y los logos suelen ir sobre fondo claro */}
             {evento.imagenes?.logo ? (
-              <img src={evento.imagenes.logo} alt={evento.nombre} className="w-[160px]" />
+              <span className="inline-block rounded-[12px] bg-white p-3">
+                <img src={evento.imagenes.logo} alt={evento.nombre} className="block w-[160px]" />
+              </span>
             ) : null}
             <p className="wp-display mt-4 text-2xl" style={{ color: "#fff" }}>{evento.nombre}</p>
             {evento.organizador?.nombre && (
