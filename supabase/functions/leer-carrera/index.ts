@@ -196,7 +196,12 @@ serve(async (req: Request): Promise<Response> => {
     if (response.stop_reason === "refusal") {
       return json({ error: "No se pudo leer el material" }, 422);
     }
-    const textoRespuesta = response.content.find((b) => b.type === "text")?.text ?? "";
+    // Tipos escritos a mano: el comprobador de Lovable no resuelve las
+    // definiciones del SDK que llega por esm.sh
+    const bloqueTexto = response.content.find((b: { type: string }) => b.type === "text") as
+      | { type: "text"; text: string }
+      | undefined;
+    const textoRespuesta = bloqueTexto?.text ?? "";
     let lectura: unknown = null;
     try {
       lectura = JSON.parse(textoRespuesta);
@@ -222,8 +227,9 @@ serve(async (req: Request): Promise<Response> => {
       return json({ error: "Demasiadas lecturas seguidas: espera un momento y vuelve a intentarlo" }, 429);
     }
     if (err instanceof Anthropic.APIError) {
-      console.error(`leer-carrera: API de Anthropic ${err.status}:`, err.message);
-      return json({ error: `No se pudo leer (${err.status})` }, 502);
+      const e = err as { status?: number; message?: string };
+      console.error(`leer-carrera: API de Anthropic ${e.status}:`, e.message);
+      return json({ error: `No se pudo leer (${e.status})` }, 502);
     }
     const msg = err instanceof Error ? err.message : "Error desconocido";
     console.error("leer-carrera:", msg);
