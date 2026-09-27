@@ -81,10 +81,12 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
     nació en `20260801140000_grupetta_nativa.sql` y se ha arrastrado de migración en migración
     (la última, `20260927180000_insert_posiciones_barato.sql`, el 27-sep). Antes de reescribir una
     función que toque horas, contrástala con esta norma.
-  - Pendiente de alinear (27-sep): `gps_capture_window`, `evento_publico`, y las grupettas
-    (`crear_grupetta`, `actualizar_grupetta`, `mis_grupettas`), que guardan la salida como
-    instante real. Comprobar lo que queda:
-    `SELECT proname FROM pg_proc WHERE pg_get_functiondef(oid) ~* 'start_time[^;]{0,60}AT TIME ZONE ''Europe/Madrid'''`.
+  - Alineadas el 27-sep: `gps_capture_window`, `evento_publico`, `hora_salida_recorrido` y las
+    grupettas (`crear_grupetta`, `actualizar_grupetta`, `mis_grupettas`, que guardaban la salida
+    como instante real; sus olas se pasaron a hora de pared). Guardia, debe devolver 0 filas:
+    `SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND pg_get_functiondef(oid) ~* 'start_time\)?\s+AT TIME ZONE\s+''Europe/Madrid'''`.
+  - Ya no hay «desfase UTC» por carrera (`races.utc_offset` queda sin lectores): el GPS se pasa a
+    hora local con la zona `Europe/Madrid`, que pone sola el horario de verano.
 
 ## Arquitectura
 

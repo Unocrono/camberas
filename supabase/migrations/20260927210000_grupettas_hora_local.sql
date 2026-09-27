@@ -16,6 +16,11 @@
 -- Las funciones se corrigen sustituyendo SOLO la expresión mala sobre su
 -- definición de producción (pg_get_functiondef), con comprobación de que
 -- cambia exactamente una aparición: nada se copia a mano.
+--
+-- APLICADA en producción el 27-sep tras ensayarla con ROLLBACK. Comprobado
+-- después: Roubaix 08:00 y Subida al palo 09:00 (antes 06:00 y 07:00+00),
+-- salida de ADEMCO para cesiones 09:30, y ninguna función de public
+-- convierte ya start_time con Europe/Madrid.
 -- ============================================================
 
 SET client_encoding = 'UTF8';

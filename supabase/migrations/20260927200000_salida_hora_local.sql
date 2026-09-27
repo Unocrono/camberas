@@ -1,9 +1,7 @@
 -- ============================================================
--- ⚠ NO APLICAR TODAVÍA (27-sep): las grupettas (crear_grupetta,
--- actualizar_grupetta) guardan la salida como instante real, no como hora
--- local. Con esta función sola, a una grupetta de las 09:00 se le cortaría
--- la captura 2 h antes. Primero hay que alinear las grupettas con la norma
--- (funciones + sus 4 olas), en la misma migración.
+-- APLICADA en producción el 27-sep (la ejecutó el dueño). Las grupettas,
+-- que guardaban la salida como instante real, se alinearon justo después en
+-- 20260927210000_grupettas_hora_local.sql.
 --
 -- LA HORA DE SALIDA ES HORA LOCAL (27-sep, tras la marcha ADEMCO)
 --
