@@ -100,6 +100,9 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   const columnaMapa = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  // Cada carga de posiciones lleva un número; si al volver ya hay otra más
+  // nueva (se cambió de recorrido a medias), la vieja no pinta nada
+  const cargaPosicionesRef = useRef(0);
   const checkpointMarkers = useRef<mapboxgl.Marker[]>([]);
   const roadbookMarkers = useRef<mapboxgl.Marker[]>([]);
   const routeCoordinates = useRef<[number, number][]>([]);
@@ -404,6 +407,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   // Setup realtime and fetch positions
   useEffect(() => {
     if (!mapReady) return;
+    // Al cambiar de recorrido, los marcadores del anterior se quedaban en el
+    // mapa (updateMarkers solo añade y mueve), y tras pasar por los tres
+    // recorridos se veían todos los dorsales de la carrera (ADEMCO, 27-sep)
+    limpiarCorredores();
     fetchInitialPositions();
     const cleanupGPS = setupRealtimeSubscription();
     const cleanupTimings = setupTimingReadingsSubscription();
@@ -892,12 +899,41 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     map.current.fitBounds(bounds, { padding: 50, maxZoom: 15 });
   };
 
+  /** Quita del mapa los marcadores de corredores que ya no están en la lista */
+  const podarMarcadores = (ids: Set<string>) => {
+    markers.current.forEach((m, id) => {
+      if (!ids.has(id)) {
+        m.remove();
+        markers.current.delete(id);
+      }
+    });
+  };
+
+  /** Deja el mapa sin corredores: marcadores, selección y repetición del grupo */
+  const limpiarCorredores = () => {
+    podarMarcadores(new Set());
+    groupPlaybackRef.current = false;
+    setIsGroupPlayback(false);
+    setReplayPositions(null);
+    groupTracksRef.current = new Map();
+    setSelectedRunner(null);
+    setIsFollowing(false);
+    setIsPlaybackMode(false);
+    if (playbackMarker.current) {
+      playbackMarker.current.remove();
+      playbackMarker.current = null;
+    }
+    setRunnerPositions([]);
+  };
+
   const fetchInitialPositions = async () => {
+    const mia = ++cargaPosicionesRef.current;
     // Use RPC function to get positions with runner info (bypasses RLS)
     let { data, error } = await supabase.rpc('get_live_gps_positions', {
       p_race_id: raceId,
       p_distance_id: distanceId || null
     });
+    if (mia !== cargaPosicionesRef.current) return;
 
     if (error) {
       console.error('Error fetching positions:', error);
@@ -911,6 +947,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
         p_race_id: raceId,
         p_distance_id: distanceId || null,
       });
+      if (mia !== cargaPosicionesRef.current) return;
       if (!replay.error && replay.data && replay.data.length > 0) {
         data = replay.data;
         setFinalizadoMode(true);
@@ -938,7 +975,11 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     setRunnerPositions(positions);
     setPosicionesCargadas(true);
     // Durante la repetición del grupo, los marcadores los mueve el reloj maestro
-    if (!groupPlaybackRef.current) updateMarkers(positions);
+    if (!groupPlaybackRef.current) {
+      // Quien ya no viene en la respuesta (otro recorrido, dorsal revocado) sale del mapa
+      podarMarcadores(new Set(positions.map(p => p.registration_id)));
+      updateMarkers(positions);
+    }
   };
   const setupRealtimeSubscription = () => {
     const RECARGA_MIN_MS = 10000;
