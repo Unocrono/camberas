@@ -476,6 +476,11 @@
   },
   "patrocinadores": [
     {
+      "nombre": "Club Deportivo Elemental Lábaru Trail",
+      "nivel": "organiza",
+      "logo": "/logos/gurriana/club-labaru-trail.webp"
+    },
+    {
       "nombre": "Ayuntamiento de Cabezón de la Sal",
       "nivel": "institucional",
       "logo": "/logos/gurriana/ayto-cabezon-de-la-sal.webp"
