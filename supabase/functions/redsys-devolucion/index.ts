@@ -43,6 +43,8 @@ import {
   type Entorno,
 } from "../_shared/redsys.ts";
 import { interpretarRespuesta, type Resultado } from "./respuesta.ts";
+import { euros } from "../_shared/emailCamberas.ts";
+import { correoCorredor, correoOrganizador } from "./plantilla.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,13 +59,6 @@ const CLAVE_PRUEBAS_PUBLICA = "sq7HjrUOBfKmC576ILgskD5srU870gJ7";
 // Redsys espera 30 s al emisor; se le da margen para que siempre conteste
 const ESPERA_REDSYS_MS = 45_000;
 
-// Paleta Camberas (docs/paleta-camberas.md)
-const VERDE = "#235940";
-const CREMA = "#FAF6EC";
-const ARENA = "#FCEBD6";
-const TINTA = "#0E2419";
-const COLINA_OSCURA = "#1E5B38";
-const CABECERA = `${Deno.env.get("SITE_URL") ?? "https://camberas.com"}/email/cabecera-colinas.png`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -73,13 +68,8 @@ const json = (cuerpo: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-const esc = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-/** 1.174,50 € a partir de céntimos */
-const euros = (cent: number) =>
-  (cent / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: true }) +
-  " €";
+/** 1.174,50 € a partir de céntimos (para el log) */
+const eurosCent = (cent: number) => euros(cent / 100);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -280,7 +270,7 @@ serve(async (req) => {
     }
 
     console.log(
-      `redsys-devolucion: pedido ${order} ${euros(importe)} → ${resultado.estado} ` +
+      `redsys-devolucion: pedido ${order} ${eurosCent(importe)} → ${resultado.estado} ` +
         `(${resultado.dsResponse ?? resultado.errorCode ?? "-"}) por ${user.email ?? user.id}`,
     );
 
@@ -376,16 +366,24 @@ async function apuntarComoDudosa(service: any, id: string, r: Resultado, usuario
   return null;
 }
 
-// Aviso al corredor si la devolución lo pide y aún no se ha mandado
+// Aviso por email si la devolución lo pide y aún no se ha mandado: al
+// corredor y, como con cada inscripción pagada, copia a la organización
 // deno-lint-ignore no-explicit-any
 async function avisarSiToca(service: any, id: string) {
   try {
     const { data: d } = await service
       .from("devoluciones")
-      .select("id, importe_cent, cancelar, notificar, estado, aviso_enviado_at, registration_id")
+      .select("id, importe_cent, cancelar, notificar, estado, aviso_enviado_at, registration_id, order_number, motivo, origen")
       .eq("id", id)
       .single();
     if (!d || d.estado !== "hecha" || !d.notificar || d.aviso_enviado_at || !d.registration_id) return;
+
+    const { data: reg } = await service
+      .from("registrations")
+      .select("first_name, last_name, email, user_id, bib_number, races(name, organizer_email, organizer_id), race_distances(name)")
+      .eq("id", d.registration_id)
+      .single();
+    if (!reg) return;
 
     // Con el dorsal cedido, la inscripción ya es de otra persona y el dinero
     // vuelve a la tarjeta de quien pagó: no se le escribe al titular actual
@@ -394,14 +392,7 @@ async function avisarSiToca(service: any, id: string) {
       .select("id", { count: "exact", head: true })
       .eq("registration_id", d.registration_id)
       .eq("estado", "completada");
-    if ((cesiones ?? 0) > 0) return;
-
-    const { data: reg } = await service
-      .from("registrations")
-      .select("first_name, email, user_id, races(name)")
-      .eq("id", d.registration_id)
-      .single();
-    if (!reg) return;
+    const cedida = (cesiones ?? 0) > 0;
 
     let email: string | null = (reg.email ?? "").trim() || null;
     let nombre: string = (reg.first_name ?? "").trim();
@@ -419,71 +410,74 @@ async function avisarSiToca(service: any, id: string) {
       }
     }
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    if (!email || !resendKey) return;
+    if (!resendKey) return;
 
-    const carrera: string = reg.races?.name ?? "la carrera";
-    const html = correoDevolucion(nombre, carrera, d.importe_cent, d.cancelar);
-    // Con tiempo límite: el aviso no puede retener la respuesta al panel
-    const { error } = await Promise.race([
-      new Resend(resendKey).emails.send({
-        from: "Camberas <noreply@camberas.com>",
-        to: [email],
-        subject: `Te hemos devuelto ${euros(d.importe_cent)} · ${carrera}`,
-        html,
-      }),
-      new Promise<{ error: { message: string } }>((r) =>
-        setTimeout(() => r({ error: { message: "Resend no contestó en 10 s" } }), 10_000)
-      ),
-    ]);
-    if (error) {
-      console.error(`redsys-devolucion: aviso de ${id} no enviado:`, (error as { message?: string }).message ?? error);
-      return;
+    // Email de la organización: organizer_email de la carrera como override,
+    // si no, el del perfil del organizador (mismo criterio que redsys-webhook)
+    let organizadorEmail: string | null = (reg.races?.organizer_email ?? "").trim() || null;
+    if (!organizadorEmail && reg.races?.organizer_id) {
+      const { data: perfilOrg } = await service
+        .from("profiles")
+        .select("email")
+        .eq("id", reg.races.organizer_id)
+        .maybeSingle();
+      organizadorEmail = (perfilOrg?.email ?? "").trim() || null;
     }
-    await service.from("devoluciones").update({ aviso_enviado_at: new Date().toISOString() }).eq("id", id);
+
+    const datos = {
+      nombre,
+      apellidos: (reg.last_name ?? "").trim() || null,
+      email,
+      carrera: reg.races?.name ?? "la carrera",
+      recorrido: reg.race_distances?.name ?? null,
+      dorsal: reg.bib_number ?? null,
+      importeCent: d.importe_cent,
+      anulada: !!d.cancelar,
+      orderNumber: d.order_number ?? null,
+      motivo: d.motivo ?? null,
+      origen: d.origen === "externa" ? "externa" as const : "redsys" as const,
+      cedida,
+    };
+
+    const resend = new Resend(resendKey);
+    // Con tiempo límite: el aviso no puede retener la respuesta al panel
+    const enviar = (to: string, asunto: string, html: string) =>
+      Promise.race([
+        resend.emails.send({ from: "Camberas <noreply@camberas.com>", to: [to], subject: asunto, html }),
+        new Promise<{ error: { message: string } }>((r) =>
+          setTimeout(() => r({ error: { message: "Resend no contestó en 10 s" } }), 10_000)
+        ),
+      ]);
+
+    let alCorredor = false;
+    if (email && !cedida) {
+      const correo = correoCorredor(datos);
+      const { error } = await enviar(email, correo.asunto, correo.html);
+      if (error) {
+        console.error(`redsys-devolucion: aviso de ${id} no enviado:`, (error as { message?: string }).message ?? error);
+      } else {
+        alCorredor = true;
+      }
+    }
+
+    // La copia interna no depende de que el corredor tenga email ni de que
+    // saliera su aviso; su fallo solo se apunta en el log
+    if (organizadorEmail) {
+      const copia = correoOrganizador(datos);
+      const { error } = await enviar(organizadorEmail, copia.asunto, copia.html);
+      if (error) {
+        console.error(`redsys-devolucion: copia a la organización de ${id} no enviada:`, (error as { message?: string }).message ?? error);
+      }
+    }
+
+    // aviso_enviado_at es lo que el panel enseña como «Email enviado»: solo
+    // cuando el aviso al corredor salió de verdad
+    if (alCorredor) {
+      await service.from("devoluciones").update({ aviso_enviado_at: new Date().toISOString() }).eq("id", id);
+    }
   } catch (e) {
     // El aviso no puede tumbar una devolución que ya salió
     console.error(`redsys-devolucion: aviso de ${id}:`, e);
   }
 }
 
-function correoDevolucion(nombre: string, carrera: string, importeCent: number, anulada: boolean): string {
-  const saludo = nombre ? `Hola, ${esc(nombre)}:` : "Hola:";
-  const anulacion = anulada
-    ? `<p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 14px;">
-         Tu inscripción en <strong>${esc(carrera)}</strong> queda anulada.
-       </p>`
-    : "";
-  return `
-  <div style="font-family: Arial, Helvetica, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-    <div style="background: ${ARENA}; padding: 24px 30px 6px; text-align: center;">
-      <h1 style="color: ${TINTA}; margin: 0; font-size: 28px; letter-spacing: 0.5px;">Camberas</h1>
-      <p style="color: ${COLINA_OSCURA}; margin: 6px 0 0; font-size: 13px;">Carreras de trail y montaña</p>
-    </div>
-    <img src="${CABECERA}" width="600" alt=""
-         style="display: block; width: 100%; max-width: 600px; height: auto; border: 0; background: ${ARENA};">
-    <div style="padding: 32px 30px 36px;">
-      <h2 style="color: ${TINTA}; margin: 0 0 16px; font-size: 24px;">Te hemos hecho una devolución</h2>
-      <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 14px;">${saludo}</p>
-      <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 14px;">
-        Hemos ordenado la devolución de tu pago de <strong>${esc(carrera)}</strong>.
-      </p>
-      <div style="background: ${CREMA}; border-radius: 10px; padding: 16px 20px; margin: 0 0 18px; text-align: center;">
-        <p style="color: #6b7280; font-size: 13px; margin: 0 0 4px;">Importe devuelto</p>
-        <p style="color: ${VERDE}; font-size: 26px; font-weight: bold; margin: 0;">${euros(importeCent)}</p>
-      </div>
-      ${anulacion}
-      <p style="color: #374151; font-size: 15px; line-height: 1.6; margin: 0 0 14px;">
-        El dinero vuelve a la misma tarjeta con la que pagaste. Según tu banco, puede tardar
-        unos días en aparecer en tu cuenta.
-      </p>
-      <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 18px 0 0;">
-        Si tienes cualquier duda, escribe a la organización de la carrera.
-      </p>
-    </div>
-    <div style="background: ${CREMA}; padding: 18px 30px; text-align: center;">
-      <p style="color: #6b7280; font-size: 12px; margin: 0;">
-        Inscripción gestionada con <strong>camberas.com</strong>
-      </p>
-    </div>
-  </div>`;
-}

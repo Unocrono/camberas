@@ -723,8 +723,8 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
                     onCheckedChange={(v) => setNotificar(v === true)}
                   />
                   {info.cedida
-                    ? "Avisar al corredor por email: no se puede con el dorsal cedido, avisa tú al titular actual"
-                    : "Avisar al corredor por email"}
+                    ? "Avisar por email: no se puede con el dorsal cedido, avisa tú al titular actual"
+                    : "Avisar por email al corredor, con copia a la organización"}
                 </label>
 
                 <div className="flex justify-end gap-2 pt-2">
