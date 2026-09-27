@@ -51,7 +51,7 @@ const MapaLigero = () => {
   const [error, setError] = useState<string | null>(null);
   const [enMapa, setEnMapa] = useState(0);
   const [actualizado, setActualizado] = useState<Date | null>(null);
-  const [pausado, setPausado] = useState(false);
+  const [pausado, setPausado] = useState(() => typeof document !== "undefined" && document.visibilityState !== "visible");
 
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<mapboxgl.Map | null>(null);
