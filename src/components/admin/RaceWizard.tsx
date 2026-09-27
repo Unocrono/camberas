@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calculateUtcOffsetFromDateString } from "@/lib/timezoneUtils";
 import { ImageCropper } from "./ImageCropper";
@@ -30,25 +31,74 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  ClipboardList,
   ExternalLink,
+  FileText,
+  Hash,
   Image as ImageIcon,
   Loader2,
   Mountain,
   Plus,
   Trash2,
+  Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface Recorrido {
   nombre: string;
   km: string;
+  desnivel: string; // m D+, opcional
   precio: string;
   plazas: string;
   hora: string; // HH:MM, opcional
 }
 
-const RECORRIDO_VACIO: Recorrido = { nombre: "", km: "", precio: "", plazas: "", hora: "" };
+const RECORRIDO_VACIO: Recorrido = { nombre: "", km: "", desnivel: "", precio: "", plazas: "", hora: "" };
 
-type Paso = "carrera" | "recorridos" | "cartel" | "resumen" | "creada";
+type Paso = "origen" | "carrera" | "recorridos" | "cartel" | "resumen" | "creada";
+
+/** Lo que devuelve la función leer-carrera (Claude lee el cartel o el reglamento) */
+interface LecturaCarrera {
+  carrera?: {
+    nombre?: string | null;
+    fecha?: string | null;
+    localidad?: string | null;
+    tipo?: "trail" | "mtb" | null;
+    cierre_inscripciones?: string | null;
+  };
+  recorridos?: {
+    nombre?: string | null;
+    km?: number | null;
+    desnivel?: number | null;
+    precio?: number | null;
+    plazas?: number | null;
+    hora?: string | null;
+  }[];
+  /** Lo que no se pudo leer o queda en duda, para que el organizador lo mire */
+  avisos?: string[];
+}
+
+/** Reduce el cartel a 1600 px y lo pasa a base64 (JPEG): de sobra para leerlo y ligero de enviar */
+async function imagenABase64(file: File): Promise<{ base64: string; mediaType: string }> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, mal) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => mal(new Error("No se pudo abrir la imagen"));
+      i.src = url;
+    });
+    const escala = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * escala);
+    canvas.height = Math.round(img.height * escala);
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    return { base64: dataUrl.split(",")[1], mediaType: "image/jpeg" };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 interface Props {
   open: boolean;
@@ -77,6 +127,10 @@ const rutaStorage = (nombre: string, fecha: string): string => {
 };
 
 const TITULOS: Record<Exclude<Paso, "creada">, { titulo: string; texto: string }> = {
+  origen: {
+    titulo: "¿Cómo empezamos?",
+    texto: "Si tienes el cartel o el reglamento, lo leemos y te rellenamos el asistente. Tú revisas y creas.",
+  },
   carrera: { titulo: "La carrera", texto: "Lo mínimo que la define. Todo lo demás se puede completar después." },
   recorridos: { titulo: "Los recorridos", texto: "Al menos uno: sin recorrido no hay dónde inscribirse." },
   cartel: { titulo: "El cartel", texto: "Si lo tienes a mano, súbelo ya. Si no, se puede añadir después." },
@@ -85,7 +139,7 @@ const TITULOS: Record<Exclude<Paso, "creada">, { titulo: string; texto: string }
 
 export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props) {
   const { toast } = useToast();
-  const [paso, setPaso] = useState<Paso>("carrera");
+  const [paso, setPaso] = useState<Paso>("origen");
   const [creando, setCreando] = useState(false);
 
   const [carrera, setCarrera] = useState({
@@ -93,6 +147,9 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
     date: "",
     location: "",
     race_type: "trail" as "trail" | "mtb",
+    // Último día de inscripción (opcional). Se escribe en cada recorrido
+    // (registration_closes), que es lo que mira la ficha pública
+    cierre: "",
   });
   const [recorridos, setRecorridos] = useState<Recorrido[]>([]);
   const [actual, setActual] = useState<Recorrido>(RECORRIDO_VACIO);
@@ -106,15 +163,99 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
 
   // Al terminar: adónde ir
   const [slugCreado, setSlugCreado] = useState<string | null>(null);
+  const [idCreado, setIdCreado] = useState<string | null>(null);
+
+  // Lectura del cartel o del reglamento (función leer-carrera, Claude)
+  const [leyendo, setLeyendo] = useState(false);
+  const [leidoDe, setLeidoDe] = useState<"cartel" | "reglamento" | null>(null);
+  const [textoReglamento, setTextoReglamento] = useState("");
+  const [avisosLectura, setAvisosLectura] = useState<string[]>([]);
 
   const reiniciar = () => {
-    setPaso("carrera");
-    setCarrera({ name: "", date: "", location: "", race_type: "trail" });
+    setPaso("origen");
+    setCarrera({ name: "", date: "", location: "", race_type: "trail", cierre: "" });
     setRecorridos([]);
     setActual(RECORRIDO_VACIO);
     setCartelUrl(null);
     setCartelFile(null);
     setSlugCreado(null);
+    setIdCreado(null);
+    setLeidoDe(null);
+    setTextoReglamento("");
+    setAvisosLectura([]);
+  };
+
+  // ── Paso 0: leer el cartel o el reglamento ──────────────────────────────
+  // La función devuelve los datos ya estructurados; aquí solo se vuelcan al
+  // asistente y el organizador los revisa paso a paso antes de crear nada
+  const aplicarLectura = (datos: LecturaCarrera, fuente: "cartel" | "reglamento") => {
+    const c = datos.carrera ?? {};
+    setCarrera({
+      name: c.nombre ?? "",
+      date: c.fecha ?? "",
+      location: c.localidad ?? "",
+      race_type: c.tipo === "mtb" ? "mtb" : "trail",
+      cierre: c.cierre_inscripciones ?? "",
+    });
+    setRecorridos(
+      (datos.recorridos ?? [])
+        .filter((r) => r.nombre)
+        .map((r) => ({
+          nombre: r.nombre ?? "",
+          km: r.km != null ? String(r.km) : "",
+          desnivel: r.desnivel != null ? String(r.desnivel) : "",
+          precio: r.precio != null ? String(r.precio) : "",
+          plazas: r.plazas != null ? String(r.plazas) : "",
+          hora: r.hora ?? "",
+        })),
+    );
+    setAvisosLectura(datos.avisos ?? []);
+    setLeidoDe(fuente);
+    setPaso("carrera");
+  };
+
+  const leer = async (
+    cuerpo: { texto?: string; imagen?: { base64: string; mediaType: string } },
+    fuente: "cartel" | "reglamento",
+  ) => {
+    setLeyendo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("leer-carrera", { body: cuerpo });
+      if (error) {
+        // El error genérico de invoke esconde el motivo; el cuerpo lo trae
+        let detalle = error.message;
+        try {
+          const c = await (error as any).context?.json();
+          if (c?.error) detalle = c.error;
+        } catch { /* sin cuerpo legible */ }
+        throw new Error(detalle);
+      }
+      if (data?.error) throw new Error(data.error);
+      aplicarLectura(data as LecturaCarrera, fuente);
+    } catch (e: any) {
+      toast({ title: "No se pudo leer", description: e.message, variant: "destructive" });
+    } finally {
+      setLeyendo(false);
+    }
+  };
+
+  const elegirCartelParaLeer = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      // Se guarda por si luego lo quiere también de imagen de la carrera
+      setCartelFile(file);
+      try {
+        const imagen = await imagenABase64(file);
+        await leer({ imagen }, "cartel");
+      } catch (err: any) {
+        toast({ title: "No se pudo abrir la imagen", description: err.message, variant: "destructive" });
+      }
+    };
+    input.click();
   };
 
   const cerrar = (abierto: boolean) => {
@@ -125,6 +266,18 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
   // ── Paso 1: la carrera ───────────────────────────────────────────────────
   const carreraCompleta =
     carrera.name.trim() !== "" && carrera.date !== "" && carrera.location.trim() !== "";
+
+  const continuarDesdeCarrera = () => {
+    if (carrera.cierre && carrera.cierre > carrera.date) {
+      toast({
+        title: "El cierre de inscripciones es después de la carrera",
+        description: "Pon un día igual o anterior a la fecha de la carrera, o déjalo vacío.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setPaso("recorridos");
+  };
 
   // ── Paso 2: recorridos ───────────────────────────────────────────────────
   const actualEnBlanco = actual.nombre.trim() === "" && actual.km === "" && actual.precio === "";
@@ -227,8 +380,12 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
             race_id: nuevaCarrera.id,
             name: r.nombre.trim(),
             distance_km: parseFloat(r.km),
+            elevation_gain: r.desnivel ? parseInt(r.desnivel) : null,
             price: parseFloat(r.precio),
             max_participants: r.plazas ? parseInt(r.plazas) : null,
+            // Misma convención que DistanceManagement: la hora tal cual la
+            // teclea el organizador, sin huso
+            registration_closes: carrera.cierre ? `${carrera.cierre}T23:59:00` : null,
             is_visible: true,
           }])
           .select("id")
@@ -272,6 +429,7 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
       }
 
       setSlugCreado(nuevaCarrera.slug);
+      setIdCreado(nuevaCarrera.id);
       setPaso("creada");
       onCreated();
     } catch (error: any) {
@@ -286,16 +444,37 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
     return n === 0 ? "Gratis" : `${n.toLocaleString("es-ES", { minimumFractionDigits: 2 })} €`;
   };
 
-  const numeroPaso: Record<Exclude<Paso, "creada">, number> = { carrera: 1, recorridos: 2, cartel: 3, resumen: 4 };
+  const numeroPaso: Record<Exclude<Paso, "creada" | "origen">, number> = { carrera: 1, recorridos: 2, cartel: 3, resumen: 4 };
+
+  // Lo que queda por hacer tras crear, cada cosa con su pantalla. Navegación
+  // completa a propósito: el panel lee la carrera seleccionada de localStorage
+  // solo al arrancar (useRaceSelection), así la nueva sale ya elegida al llegar.
+  const irAlPanel = (view: string) => {
+    if (idCreado) {
+      localStorage.setItem(isOrganizer ? "organizer_selected_race" : "admin_selected_race", idCreado);
+    }
+    window.location.assign(isOrganizer ? `/organizer?view=${view}` : `/admin/${view}`);
+  };
+
+  const tareasPendientes: { view: string; icon: LucideIcon; titulo: string; texto: string }[] = [
+    { view: "distances", icon: Mountain, titulo: "Track GPX de cada recorrido", texto: "Mapa, perfil y vuelo 3D en la ficha" },
+    { view: "regulations", icon: FileText, titulo: "Reglamento", texto: "El corredor lo acepta al inscribirse" },
+    { view: "form-fields", icon: ClipboardList, titulo: "Formulario de inscripción", texto: "Talla, club y las preguntas propias de la carrera" },
+    { view: "categories", icon: Users, titulo: "Categorías", texto: "Por edad y sexo, o de elección" },
+    { view: "distances", icon: Hash, titulo: "Tramos de precio y numeración de dorsales", texto: "En la ficha de cada recorrido" },
+    ...(cartelUrl ? [] : [{ view: "races", icon: ImageIcon, titulo: "Cartel y fotos", texto: "Imagen principal y portada de la ficha" }]),
+  ];
 
   return (
     <Dialog open={open} onOpenChange={cerrar}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         {paso !== "creada" ? (
           <DialogHeader>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Paso {numeroPaso[paso]} de 4
-            </p>
+            {paso !== "origen" && (
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Paso {numeroPaso[paso]} de 4
+              </p>
+            )}
             <DialogTitle>{TITULOS[paso].titulo}</DialogTitle>
             <DialogDescription>{TITULOS[paso].texto}</DialogDescription>
           </DialogHeader>
@@ -309,9 +488,79 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
           </DialogHeader>
         )}
 
+        {/* ── Paso 0: de dónde partimos ── */}
+        {paso === "origen" && (
+          <div className="space-y-3 mt-2">
+            {leyendo ? (
+              <div className="flex flex-col items-center gap-3 py-10 text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-secondary" />
+                <p className="text-sm">Leyendo… unos segundos.</p>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={elegirCartelParaLeer}
+                  className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-4 text-left transition-colors hover:border-secondary"
+                >
+                  <ImageIcon className="h-6 w-6 shrink-0 text-primary" />
+                  <span>
+                    <span className="block font-medium">Desde el cartel</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Sube la imagen: leemos nombre, fecha, lugar, recorridos, precios y horas.
+                    </span>
+                  </span>
+                </button>
+
+                <div className="space-y-2 rounded-lg border border-border px-4 py-4">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-6 w-6 shrink-0 text-primary" />
+                    <span>
+                      <span className="block font-medium">Desde el reglamento</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Pega el texto del reglamento o de la convocatoria.
+                      </span>
+                    </span>
+                  </div>
+                  <Textarea
+                    rows={5}
+                    placeholder="Artículo 1. El Desafío Sarrio se celebrará el 29 de noviembre de 2026…"
+                    value={textoReglamento}
+                    onChange={(e) => setTextoReglamento(e.target.value)}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={textoReglamento.trim().length < 40}
+                    onClick={() => leer({ texto: textoReglamento.trim() }, "reglamento")}
+                  >
+                    Leer el reglamento
+                  </Button>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button variant="ghost" onClick={() => setPaso("carrera")} className="gap-2">
+                    Rellenar a mano
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* ── Paso 1: la carrera ── */}
         {paso === "carrera" && (
           <div className="space-y-4 mt-2">
+            {leidoDe && (
+              <div className="space-y-1 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">
+                  Leído del {leidoDe}. Revisa cada dato en los pasos siguientes: la lectura puede equivocarse.
+                </p>
+                {avisosLectura.map((a, i) => (
+                  <p key={i} className="text-xs">· {a}</p>
+                ))}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="wiz-name">Nombre de la carrera *</Label>
               <Input
@@ -354,8 +603,25 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                 onChange={(e) => setCarrera({ ...carrera, location: e.target.value })}
               />
             </div>
-            <div className="flex justify-end pt-2">
-              <Button onClick={() => setPaso("recorridos")} disabled={!carreraCompleta} className="gap-2">
+            <div className="space-y-2">
+              <Label htmlFor="wiz-cierre">Inscripciones abiertas hasta</Label>
+              <Input
+                id="wiz-cierre"
+                type="date"
+                max={carrera.date || undefined}
+                value={carrera.cierre}
+                onChange={(e) => setCarrera({ ...carrera, cierre: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Ese día a las 23:59 se cierran. Vacío = hasta el día de la carrera.
+              </p>
+            </div>
+            <div className="flex justify-between pt-2">
+              <Button variant="ghost" onClick={() => setPaso("origen")} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Atrás
+              </Button>
+              <Button onClick={continuarDesdeCarrera} disabled={!carreraCompleta} className="gap-2">
                 Continuar
                 <ArrowRight className="h-4 w-4" />
               </Button>
@@ -374,7 +640,7 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                       <Mountain className="h-4 w-4 text-secondary shrink-0" />
                       <span className="truncate font-medium">{r.nombre}</span>
                       <span className="text-muted-foreground shrink-0">
-                        {r.km} km · {euro(r.precio)}
+                        {r.km} km{r.desnivel ? ` · +${r.desnivel} m` : ""} · {euro(r.precio)}
                         {r.hora ? ` · ${r.hora}` : ""}
                       </span>
                     </span>
@@ -411,6 +677,18 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                     placeholder="21"
                     value={actual.km}
                     onChange={(e) => setActual({ ...actual, km: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wiz-dist-desnivel">Desnivel (m D+)</Label>
+                  <Input
+                    id="wiz-dist-desnivel"
+                    type="number"
+                    step="1"
+                    min="0"
+                    placeholder="850"
+                    value={actual.desnivel}
+                    onChange={(e) => setActual({ ...actual, desnivel: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -479,6 +757,12 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                 <span className="text-sm">{subiendoCartel ? "Subiendo…" : "Elegir imagen"}</span>
               </button>
             )}
+            {!cartelUrl && cartelFile && leidoDe === "cartel" && (
+              <Button variant="outline" size="sm" onClick={() => setCropperOpen(true)} disabled={subiendoCartel} className="gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Usar el cartel que hemos leído
+              </Button>
+            )}
             {cartelUrl && (
               <Button variant="outline" size="sm" onClick={elegirCartel} disabled={subiendoCartel}>
                 Cambiar imagen
@@ -517,7 +801,7 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
                 <div key={i} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
                   <span className="font-medium">{r.nombre}</span>
                   <span className="text-muted-foreground">
-                    {r.km} km · {euro(r.precio)}
+                    {r.km} km{r.desnivel ? ` · +${r.desnivel} m` : ""} · {euro(r.precio)}
                     {r.hora ? ` · salida ${r.hora}` : ""}
                     {r.plazas ? ` · ${r.plazas} plazas` : ""}
                   </span>
@@ -541,9 +825,27 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
         {paso === "creada" && (
           <div className="space-y-4 mt-2">
             <p className="text-sm text-muted-foreground">
-              Cuando quieras, desde el panel puedes completar lo que falta: cartel y fotos, el track
-              GPX de cada recorrido, tramos de precio, dorsales y el formulario de inscripción.
+              Lo que falta se completa cuando quieras. Cada punto abre su pantalla con esta carrera ya
+              seleccionada:
             </p>
+            <div className="space-y-2">
+              {tareasPendientes.map((t) => (
+                <button
+                  key={`${t.view}-${t.titulo}`}
+                  onClick={() => irAlPanel(t.view)}
+                  className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2.5 text-left text-sm transition-colors hover:border-secondary"
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <t.icon className="h-5 w-5 shrink-0 text-primary" />
+                    <span className="min-w-0">
+                      <span className="block font-medium">{t.titulo}</span>
+                      <span className="block text-xs text-muted-foreground">{t.texto}</span>
+                    </span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
             {slugCreado && (
               <Button asChild className="w-full gap-2">
                 <a href={`/${slugCreado}`} target="_blank" rel="noopener noreferrer">
