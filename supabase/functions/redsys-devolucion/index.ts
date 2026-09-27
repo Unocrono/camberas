@@ -15,6 +15,23 @@
 //
 // v1: cobros individuales con el TPV de UNO. Ver la migración
 // 20260925213000_devoluciones_redsys.sql.
+//
+// DESPLIEGUE, en este orden:
+//  1. Aplicar 20260926200000_devoluciones_ajustes.sql. Sus secciones 5 y 6
+//     frenan en la BD al redsys-webhook anterior a 87db6a9: ese webhook trata
+//     el aviso de una devolución (tipo 3, Ds_Response 0900) como un cobro
+//     fallido y pasaba el cobro original a 'failed'; y con un aviso de éxito
+//     repetido volvía a dar por pagada una inscripción devuelta.
+//  2. Desplegar redsys-webhook de main (87db6a9 o posterior), antes que esta
+//     función o a la vez. La BD evita el daño en los datos, pero el webhook
+//     viejo aún mandaría el correo de pago confirmado de una devuelta.
+//  3. Desplegar esta función.
+//  4. En la prueba de 1 €: en los logs de redsys-webhook tiene que salir
+//     «Aviso de operación tipo 3 (0900) del pedido …: no toca el cobro», y el
+//     payment_intent seguir 'completed'/0000 con el mismo completed_at y
+//     auth_code (consulta al final de la migración de ajustes). Si sale
+//     «Error updating payment intent: El cobro … ya está completado», el
+//     webhook desplegado es el viejo.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -99,10 +116,15 @@ serve(async (req) => {
       // llamada: no se resuelve a mano hasta que pase a dudosa (10 minutos)
       const { data: actual } = await service
         .from("devoluciones")
-        .select("estado, created_at")
+        .select("estado, created_at, ds_response")
         .eq("id", body.id)
         .maybeSingle();
       if (!actual) return json({ error: "No existe esa devolución" }, 404);
+      // Redsys ya contestó 0900 firmado (devolución aceptada) aunque algo no
+      // cuadrara: darla por no hecha liberaría el tope y permitiría devolver dos veces
+      if (body.estado === "rechazada" && actual.ds_response === "0900") {
+        return json({ error: "Redsys contestó que la devolución estaba aceptada (0900)", motivo: "redsys_dijo_0900" }, 409);
+      }
       const minutos = (Date.now() - new Date(actual.created_at).getTime()) / 60_000;
       if (actual.estado === "pendiente" && minutos < 10) {
         return json({ error: "Esa devolución aún está esperando respuesta de Redsys", motivo: "en_curso" }, 409);
@@ -240,9 +262,18 @@ serve(async (req) => {
       };
     }
 
-    const apuntada = await resolver(service, id, { ...resultado, respuesta: { ...resultado.respuesta, entorno } }, user.id);
+    const aApuntar: Resultado = { ...resultado, respuesta: { ...resultado.respuesta, entorno } };
+    let apuntada = await resolver(service, id, aApuntar, user.id);
+    // Plan B con una respuesta clara de Redsys (hecha o rechazada) que no se
+    // pudo apuntar: dejarla al menos 'dudosa' CON lo que contestó Redsys. Así
+    // el 0900 no se pierde (impide darla por no hecha) y el admin puede
+    // marcarla ya, sin esperar a que la 'pendiente' caduque a los 10 minutos
+    if (!apuntada && resultado.estado !== "dudosa") {
+      apuntada = (await apuntarComoDudosa(service, id, aApuntar, user.id)) === "original";
+    }
     if (!apuntada) {
-      // La fila sigue 'pendiente' y a los 10 minutos pasa a 'dudosa'
+      // La fila queda 'dudosa' (plan B) o, si ni eso, 'pendiente' (a los 10
+      // minutos pasa a 'sin confirmar')
       resultado = { ...resultado, estado: "dudosa", errorCode: "CAMBERAS_NO_APUNTADA" };
     } else if (resultado.estado === "hecha") {
       await avisarSiToca(service, id);
@@ -266,25 +297,83 @@ serve(async (req) => {
   }
 });
 
-/** Apunta el resultado; false si no se pudo (la fila se queda 'pendiente') */
+/**
+ * Apunta el resultado; false si no se pudo (la fila se queda 'pendiente').
+ * Con Redsys ya contestado, perder el apunte por un corte de la BD deja la
+ * devolución sin confirmar: se reintenta un par de veces. Si un intento
+ * anterior sí se guardó (y se perdió su respuesta), devolucion_resolver
+ * contesta 'ya_resuelta' con el mismo estado, y eso cuenta como apuntada.
+ */
 // deno-lint-ignore no-explicit-any
 async function resolver(service: any, id: string, r: Resultado, usuario: string): Promise<boolean> {
-  const { data, error } = await service.rpc("devolucion_resolver", {
-    p_id: id,
-    p_estado: r.estado,
-    p_ds_response: r.dsResponse,
-    p_auth: r.auth,
-    p_error_code: r.errorCode,
-    p_respuesta: r.respuesta,
-    p_usuario: usuario,
-  });
-  if (error || !data?.ok) {
-    // La fila se queda 'pendiente' y a los 10 minutos pasa a 'dudosa': nadie
-    // puede pedir otra devolución de ese cobro sin mirarlo antes
-    console.error(`redsys-devolucion: no se pudo apuntar ${id} como ${r.estado}:`, error?.message ?? data?.motivo);
-    return false;
+  const esperas = [0, 500, 2000];
+  let ultimo = "";
+  for (const espera of esperas) {
+    if (espera) await new Promise((ok) => setTimeout(ok, espera));
+    try {
+      const { data, error } = await service.rpc("devolucion_resolver", {
+        p_id: id,
+        p_estado: r.estado,
+        p_ds_response: r.dsResponse,
+        p_auth: r.auth,
+        p_error_code: r.errorCode,
+        p_respuesta: r.respuesta,
+        p_usuario: usuario,
+      });
+      if (!error && data?.ok) return true;
+      if (!error && data?.motivo === "ya_resuelta" && data?.estado === r.estado) return true;
+      // Una respuesta clara de la BD (no_existe, ya resuelta con otro estado) no
+      // cambia por reintentar
+      if (!error) {
+        ultimo = String(data?.motivo ?? "sin motivo");
+        break;
+      }
+      ultimo = error.message;
+    } catch (e) {
+      ultimo = e instanceof Error ? e.message : String(e);
+    }
   }
-  return true;
+  // La fila se queda 'pendiente' (y el que llama intenta dejarla 'dudosa'):
+  // nadie puede pedir otra devolución de ese cobro sin mirarlo antes
+  console.error(
+    `redsys-devolucion: no se pudo apuntar ${id} como ${r.estado} ` +
+      `(Redsys: ${r.dsResponse ?? r.errorCode ?? "-"}):`,
+    ultimo,
+  );
+  return false;
+}
+
+/**
+ * Último recurso cuando no se pudo apuntar la respuesta clara de Redsys: la
+ * deja 'dudosa' con su Ds_Response y CAMBERAS_NO_APUNTADA. Solo toca la
+ * fila de devoluciones (no la inscripción), así que no depende de lo que
+ * pudiera fallar al anularla.
+ *  · 'dudosa':   guardada como dudosa.
+ *  · 'original': el apunte original SÍ se guardó (se perdió su respuesta).
+ *  · null:       tampoco; la fila sigue 'pendiente'.
+ */
+// deno-lint-ignore no-explicit-any
+async function apuntarComoDudosa(service: any, id: string, r: Resultado, usuario: string): Promise<"dudosa" | "original" | null> {
+  try {
+    const { data, error } = await service.rpc("devolucion_resolver", {
+      p_id: id,
+      p_estado: "dudosa",
+      p_ds_response: r.dsResponse,
+      p_auth: r.auth,
+      p_error_code: "CAMBERAS_NO_APUNTADA",
+      p_respuesta: { ...r.respuesta, no_apuntada: { estado: r.estado, error_code: r.errorCode } },
+      p_usuario: usuario,
+    });
+    if (!error && data?.ok) {
+      console.error(`redsys-devolucion: ${id} queda 'dudosa' (Redsys: ${r.dsResponse ?? r.errorCode ?? "-"}, no se pudo apuntar como ${r.estado})`);
+      return "dudosa";
+    }
+    if (!error && data?.motivo === "ya_resuelta" && data?.estado === r.estado) return "original";
+    console.error(`redsys-devolucion: tampoco se pudo dejar ${id} como dudosa:`, error?.message ?? data?.motivo);
+  } catch (e) {
+    console.error(`redsys-devolucion: tampoco se pudo dejar ${id} como dudosa:`, e);
+  }
+  return null;
 }
 
 // Aviso al corredor si la devolución lo pide y aún no se ha mandado

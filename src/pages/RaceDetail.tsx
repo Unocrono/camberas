@@ -746,9 +746,16 @@ const RaceDetail = () => {
         await completeRegistration(newRegistration.id, user.email || "", firstName, lastName, false);
       }
     } catch (error: any) {
+      // La cuenta ya tiene una fila en esta carrera que la comprobación previa
+      // no cuenta: una anulada (a mano, por el propio corredor o tras una
+      // devolución). El índice único (user_id, race_id) incluye las anuladas
+      const yaTieneFila =
+        error?.code === "23505" && /registrations_user_id_race_id_key/.test(String(error?.message ?? ""));
       toast({
         title: "Error al inscribirse",
-        description: error.message,
+        description: yaTieneFila
+          ? "Tu cuenta ya tiene una inscripción en esta carrera (puede que anulada) y no se puede crear otra. Escribe a la organización para que la revise o la reactive."
+          : error.message,
         variant: "destructive",
       });
     } finally {
