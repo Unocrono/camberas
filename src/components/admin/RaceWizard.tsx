@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calculateUtcOffsetFromDateString } from "@/lib/timezoneUtils";
 import { ImageCropper } from "./ImageCropper";
 import {
   ArrowLeft,
@@ -364,7 +363,6 @@ export function RaceWizard({ open, onOpenChange, isOrganizer, onCreated }: Props
           image_url: cartelUrl,
           is_visible: true,
           organizer_id: isOrganizer ? user?.id : null,
-          utc_offset: calculateUtcOffsetFromDateString(carrera.date),
         }])
         .select("id, slug")
         .single();

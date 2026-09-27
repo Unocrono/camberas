@@ -119,19 +119,19 @@ function formatMs(ms: number): string {
   return `${hours}h${mins.toString().padStart(2, '0')}m${secs.toString().padStart(2, '0')}s`
 }
 
-// Apply UTC offset to a timestamp and return as local time string
-// offsetMinutes: positive = local is ahead of UTC (e.g., +60 for CET, +120 for CEST)
-function applyUtcOffset(utcTimestamp: string, offsetMinutes: number): string {
-  const date = new Date(utcTimestamp)
-  date.setMinutes(date.getMinutes() + offsetMinutes)
-  // Return as ISO string without timezone (treated as local)
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  const hours = String(date.getUTCHours()).padStart(2, '0')
-  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
-  const seconds = String(date.getUTCSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+// GPS (instante real, UTC) → hora local de Madrid como hora de pared
+// 'YYYY-MM-DDTHH:mm:ss', que es como se guardan las lecturas. El horario de
+// verano lo pone Intl. Antes se sumaba el «desfase UTC» tecleado a mano en
+// cada carrera (retirado el 27-sep: una carrera lo tenía a 1 minuto).
+function gpsAHoraLocal(utcTimestamp: string): string {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(utcTimestamp))
+  const v = (t: string) => partes.find(p => p.type === t)?.value ?? '00'
+  return `${v('year')}-${v('month')}-${v('day')}T${v('hour')}:${v('minute')}:${v('second')}`
 }
 
 Deno.serve(async (req) => {
@@ -323,22 +323,6 @@ Deno.serve(async (req) => {
     // Get unique race IDs from GPS readings
     const raceIds = [...new Set(gpsReadings.map(r => r.race_id))]
 
-    // Fetch races to get utc_offset for each race
-    const { data: races, error: racesError } = await supabase
-      .from('races')
-      .select('id, utc_offset')
-      .in('id', raceIds)
-
-    if (racesError) {
-      console.error('Error fetching races:', racesError)
-      throw racesError
-    }
-
-    // Map race ID to utc_offset (default to 60 minutes = CET)
-    const raceOffsetMap = new Map<string, number>(
-      races?.map(r => [r.id, r.utc_offset ?? 60]) || []
-    )
-    console.log(`Loaded UTC offsets for ${races?.length || 0} races`)
 
     // Fetch checkpoints with coordinates AND timing_point for these races (including time constraints)
     // IMPORTANT: Only process checkpoints that have a timing_point_id assigned
@@ -454,7 +438,9 @@ Deno.serve(async (req) => {
 
       // Get wave start and GPS timestamps (both are UTC)
       const waveStartStr = waveStartMap.get(registration.race_distance_id)
-      const gpsTimeMs = parseLocalTimestampToMs(gps.timestamp)
+      // El GPS es UTC y la salida, hora local: se pasa el GPS a hora local
+      // antes de restar (antes se restaban tal cual y salían 1-2 h de error)
+      const gpsTimeMs = parseLocalTimestampToMs(gpsAHoraLocal(gps.timestamp))
 
       // Find applicable checkpoints for this registration's race/distance
       // IMPORTANT: Only use checkpoints that belong to the runner's specific race_distance
@@ -570,9 +556,8 @@ Deno.serve(async (req) => {
           `Race time: ${raceTimeMs ? formatMs(raceTimeMs) : 'unknown'}, Lap: ${newLap}`
         )
 
-        // Apply UTC offset to convert GPS UTC time to local race time
-        const utcOffset = raceOffsetMap.get(gps.race_id) || 60
-        const localTimestamp = applyUtcOffset(gps.timestamp, utcOffset)
+        // GPS (UTC) → hora local de la carrera
+        const localTimestamp = gpsAHoraLocal(gps.timestamp)
 
         newTimingReadings.push({
           race_id: gps.race_id,
@@ -581,10 +566,10 @@ Deno.serve(async (req) => {
           bib_number: registration.bib_number,
           checkpoint_id: checkpoint.id,
           timing_point_id: checkpoint.timing_point_id,
-          timing_timestamp: localTimestamp, // Local time (GPS UTC + offset)
+          timing_timestamp: localTimestamp, // Hora local (GPS pasado a Madrid)
           reading_timestamp: new Date().toISOString(),
           reading_type: 'gps_geofence',
-          notes: `GPS geofence detection. Distance: ${distance.toFixed(1)}m, Race time: ${raceTimeMs ? formatMs(raceTimeMs) : 'unknown'}, UTC offset: ${utcOffset}min`,
+          notes: `GPS geofence detection. Distance: ${distance.toFixed(1)}m, Race time: ${raceTimeMs ? formatMs(raceTimeMs) : 'unknown'}`,
           is_processed: false,
           lap_number: newLap
         })

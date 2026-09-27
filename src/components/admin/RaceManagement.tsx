@@ -10,9 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, Clock, User, Wand2, Copy } from "lucide-react";
+import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, User, Wand2, Copy } from "lucide-react";
 import { DuplicarCarreraDialog } from "./DuplicarCarreraDialog";
-import { calculateUtcOffsetFromDateString, formatUtcOffset, parseUtcOffset } from "@/lib/timezoneUtils";
 import { Switch } from "@/components/ui/switch";
 import { z } from "zod";
 import { ImageCropper } from "./ImageCropper";
@@ -97,7 +96,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     // Plazas libres en la ficha y en el widget: por defecto no se enseñan
     show_available_places: false,
     slug: "",
-    utc_offset: "+1:00",
     organizer_id: "" as string,
     organizer_email: "",
   });
@@ -200,7 +198,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_featured: (race as any).is_featured ?? false,
         show_available_places: (race as any).show_available_places ?? false,
         slug: race.slug || "",
-        utc_offset: formatUtcOffset((race as any).utc_offset ?? 60),
         organizer_id: race.organizer_id || "",
         organizer_email: (race as any).organizer_email || "",
       });
@@ -223,7 +220,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_featured: false,
         show_available_places: false,
         slug: "",
-        utc_offset: "+1:00",
         organizer_id: "",
         organizer_email: "",
       });
@@ -362,7 +358,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           race_type: formData.race_type,
           is_visible: formData.is_visible,
           is_featured: formData.is_featured,
-          utc_offset: parseUtcOffset(formData.utc_offset),
           organizer_email: formData.organizer_email.trim() || null,
           // Solo si la columna ya existe (migración 20260924140000): si se
           // publica antes de ejecutarla, guardar la carrera no debe romperse
@@ -428,7 +423,6 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             race_type: formData.race_type,
             is_visible: formData.is_visible,
             is_featured: formData.is_featured,
-            utc_offset: parseUtcOffset(formData.utc_offset),
             organizer_email: formData.organizer_email.trim() || null,
             ...(columnaPlazasExiste ? { show_available_places: formData.show_available_places } : {}),
           }])
@@ -679,35 +673,11 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                     id="date"
                     type="date"
                     value={formData.date}
-                    onChange={(e) => {
-                      const newDate = e.target.value;
-                      const calculatedOffset = formatUtcOffset(calculateUtcOffsetFromDateString(newDate));
-                      setFormData({ ...formData, date: newDate, utc_offset: calculatedOffset });
-                    }}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="utc_offset" className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Desfase UTC
-                  </Label>
-                  <Input
-                    id="utc_offset"
-                    value={formData.utc_offset}
-                    onChange={(e) => setFormData({ ...formData, utc_offset: e.target.value })}
-                    placeholder="+1:00"
-                    disabled={isOrganizer}
-                    className={isOrganizer ? "bg-muted cursor-not-allowed" : ""}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {isOrganizer 
-                      ? "Valor calculado automáticamente. Solo administradores pueden modificarlo."
-                      : "Calculado automáticamente para España. +1:00 (invierno) o +2:00 (verano)."
-                    }
-                  </p>
-                </div>
               </div>
 
               <div className="space-y-2">

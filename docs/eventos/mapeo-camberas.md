@@ -7,7 +7,7 @@ Fuente: `src/integrations/supabase/types.ts` (generado), migraciones y `RaceDeta
 | Esquema | Tabla · columna | Notas |
 |---|---|---|
 | `slug`, `nombre`, `subtitulo`, `descripcion` | `races.slug`, `name`, `subtitle`, `description` | `additional_info` es texto libre (hoy "Información adicional" con viñetas) |
-| `fecha` | `races.date` (+ `utc_offset`) | |
+| `fecha` | `races.date` | |
 | `lugar.nombre/municipio` | `races.location` | Un solo campo de texto; no hay municipio/provincia separados |
 | `organizador` | `races.organizer_id` (usuario) + `organizer_email` | No hay tabla de organizadores/tenants con nombre, web, logo |
 | `estado` | derivado de `registration_opens/closes`, `is_visible`, `date` | No hay columna de estado; "agotada" se deduce de `max_participants` vs inscritos |
