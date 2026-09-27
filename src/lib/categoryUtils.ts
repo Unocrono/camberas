@@ -98,22 +98,22 @@ export function calculateCategoryByAge(
   
   if (ageDependentCategories.length === 0) return null;
   
-  // Sort by display_order to ensure consistent matching
-  const sortedCategories = [...ageDependentCategories].sort((a, b) => a.display_order - b.display_order);
-  
-  for (const category of sortedCategories) {
-    const referenceDate = category.age_calculation_date || raceDate;
-    const age = calculateAge(birthDate, referenceDate);
-    
-    const minAge = category.min_age ?? 0;
-    const maxAge = category.max_age ?? 999;
-    
-    if (age >= minAge && age <= maxAge) {
-      return category;
-    }
-  }
-  
-  return null;
+  // Entre las que cuadran por edad gana la de rango más estrecho (la más
+  // específica); a igual rango, el orden de la lista. Así una «Absoluta desde
+  // 18» puede ir la primera y aun así un corredor de 45 cae en Veteranos A
+  // (40-49): es el modelo FEDME de absoluta + subcategorías.
+  const candidatas = ageDependentCategories
+    .map((category) => {
+      const referenceDate = category.age_calculation_date || raceDate;
+      const age = calculateAge(birthDate, referenceDate);
+      const minAge = category.min_age ?? 0;
+      const maxAge = category.max_age ?? 999;
+      return age >= minAge && age <= maxAge ? { category, rango: maxAge - minAge } : null;
+    })
+    .filter((c): c is { category: RaceCategory; rango: number } => c !== null)
+    .sort((a, b) => a.rango - b.rango || a.category.display_order - b.category.display_order);
+
+  return candidatas[0]?.category ?? null;
 }
 
 export interface CategoryResult {
