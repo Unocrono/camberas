@@ -320,8 +320,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     // Arrastrar o hacer zoom a mano deja de seguir al grupo. Solo gestos del
     // usuario (originalEvent): los fitBounds del propio código también
     // disparan zoomstart y no deben apagar el seguimiento.
-    const dejarDeSeguir = (e: { originalEvent?: unknown }) => {
-      if (e.originalEvent) seguirGrupoRef.current = false;
+    const dejarDeSeguir = (e: unknown) => {
+      if (
+        typeof e === 'object' &&
+        e !== null &&
+        'originalEvent' in e &&
+        e.originalEvent
+      ) {
+        seguirGrupoRef.current = false;
+      }
     };
     map.current.on('dragstart', dejarDeSeguir);
     map.current.on('zoomstart', dejarDeSeguir);
