@@ -37,6 +37,7 @@ interface RaceWave {
   race_distance_id: string;
   wave_name: string;
   start_time: string | null;
+  hora_prevista?: string | null;
 }
 
 export default function StartControl() {
@@ -195,7 +196,7 @@ export default function StartControl() {
 
     const [distancesRes, wavesRes] = await Promise.all([
       supabase.from('race_distances').select('id, name, distance_km').eq('race_id', selectedRaceId).order('distance_km'),
-      supabase.from('race_waves').select('id, race_distance_id, wave_name, start_time').eq('race_id', selectedRaceId)
+      supabase.from('race_waves').select('id, race_distance_id, wave_name, start_time, hora_prevista').eq('race_id', selectedRaceId)
     ]);
     
     setDistances(distancesRes.data || []);

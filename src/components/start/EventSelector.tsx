@@ -21,7 +21,10 @@ interface RaceWave {
   id: string;
   race_distance_id: string;
   wave_name: string;
+  // OFICIAL: nace igual que la prevista y cambia al dar la salida aquí
   start_time: string | null;
+  // PREVISTA (Recorridos)
+  hora_prevista?: string | null;
 }
 
 interface EventSelectorProps {
@@ -127,6 +130,18 @@ export function EventSelector({
     }
     
     if (wave?.start_time) {
+      // La oficial nace igual que la prevista: mientras sigan iguales, la
+      // salida NO se ha dado (antes salía en verde «Salida ✓» antes del
+      // disparo y el juez podía no pulsar). Límite: una salida dada justo en
+      // el segundo previsto se ve como «sin dar».
+      const sinDar = !!wave.hora_prevista && wave.start_time.slice(0, 19) === wave.hora_prevista.slice(0, 19);
+      if (sinDar) {
+        return {
+          type: 'prevista' as const,
+          time: parseLocalTime(wave.hora_prevista as string),
+          wave
+        };
+      }
       return {
         type: 'synced' as const,
         time: parseLocalTime(wave.start_time),
@@ -162,7 +177,7 @@ export function EventSelector({
         <AnimatePresence mode="popLayout">
           {distances.map((distance, index) => {
             const status = getEventStatus(distance.id);
-            const hasStarted = status.type !== 'none';
+            const hasStarted = status.type !== 'none' && status.type !== 'prevista';
             const isSelected = selectedIds.includes(distance.id);
             
             return (
@@ -201,6 +216,16 @@ export function EventSelector({
                     </Badge>
                   </div>
                   
+                  {/* Salida prevista, aún sin dar */}
+                  {status.type === 'prevista' && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-sm font-mono text-muted-foreground">
+                        Prevista {status.time} (sin dar)
+                      </span>
+                    </div>
+                  )}
+
                   {/* Estado de salida */}
                   {hasStarted && (
                     <motion.div 
