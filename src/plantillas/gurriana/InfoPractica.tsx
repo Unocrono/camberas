@@ -114,12 +114,24 @@ export function Patrocinadores({ evento }: { evento: EventoPublico }) {
         {grupos.map((g) => (
           <div key={g.nivel} className="mt-10 first:mt-0">
             <p className="wp-label">{NIVEL_TITULO[g.nivel]}</p>
-            <ul className="mt-6 flex flex-wrap items-center justify-center gap-3 list-none p-0 m-0">
+            <ul className="mt-6 flex flex-wrap items-center justify-center gap-4 list-none p-0 m-0">
               {g.items.map((p: Patrocinador) => (
                 <li key={p.nombre}>
                   {p.logo ? (
-                    <a href={p.web} target="_blank" rel="noopener noreferrer" className="block rounded-lg border bg-white p-3" style={{ borderColor: "var(--wp-border)" }} title={p.nombre}>
-                      <img src={p.logo} alt={p.nombre} className={`${g.nivel === "organiza" || g.nivel === "principal" ? "h-20" : "h-12"} w-auto object-contain`} loading="lazy" />
+                    // Tarjeta de tamaño fijo: escudos altos, logos cuadrados o apaisados
+                    // ocupan la misma caja (object-contain) y quedan proporcionados
+                    <a
+                      href={p.web}
+                      target={p.web ? "_blank" : undefined}
+                      rel="noopener noreferrer"
+                      className="flex w-[152px] flex-col items-center gap-2 rounded-[var(--wp-radio,16px)] border bg-white px-3 pb-3 pt-4 no-underline shadow-sm transition-shadow hover:shadow-md"
+                      style={{ borderColor: "var(--wp-border)", color: "var(--wp-ink)" }}
+                      title={p.nombre}
+                    >
+                      <span className={`flex w-full items-center justify-center ${g.nivel === "organiza" || g.nivel === "principal" ? "h-[112px]" : "h-[96px]"}`}>
+                        <img src={p.logo} alt={p.nombre} className="max-h-full max-w-full object-contain" loading="lazy" />
+                      </span>
+                      <span className="text-center text-[12px] font-semibold leading-tight">{p.nombre}</span>
                     </a>
                   ) : (
                     <span className="inline-block rounded-lg border bg-white px-4 py-2 text-[15px] font-semibold" style={{ borderColor: "var(--wp-border)" }}>

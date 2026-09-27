@@ -477,23 +477,28 @@
   "patrocinadores": [
     {
       "nombre": "Ayuntamiento de Cabezón de la Sal",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/ayto-cabezon-de-la-sal.webp"
     },
     {
       "nombre": "Ayuntamiento de Ruente",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/ayto-ruente.webp"
     },
     {
       "nombre": "Ayuntamiento de Cabuérniga",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/ayto-cabuerniga.webp"
     },
     {
       "nombre": "Ayuntamiento de Valdáliga",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/ayto-valdaliga.webp"
     },
     {
       "nombre": "Junta Vecinal Carrejo–Santibáñez",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/junta-vecinal-carrejo-santibanez.webp"
     },
     {
       "nombre": "FCDME",
