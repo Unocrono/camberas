@@ -7,15 +7,17 @@
 // Quién puede: admin u organizador aprobado (has_role), con sesión.
 //
 // Claude (API de Anthropic, secreto ANTHROPIC_API_KEY en Lovable) con salida
-// estructurada: la respuesta cumple siempre el esquema de abajo, así el
-// asistente no tiene que interpretar texto libre. Lo que no está en el cartel
-// vuelve como null y se explica en `avisos`; nunca se inventa.
+// estructurada (output_config.format, esquema JSON de abajo): la respuesta
+// cumple siempre el esquema, así el asistente no interpreta texto libre. Lo
+// que no está en el cartel vuelve como null y se explica en `avisos`; nunca
+// se inventa.
+//
+// Imports por esm.sh, como el resto de funciones: la comprobación de Lovable
+// no resuelve los especificadores npm: (27-sep-2026).
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import Anthropic from "npm:@anthropic-ai/sdk";
-import { zodOutputFormat } from "npm:@anthropic-ai/sdk/helpers/zod";
-import { z } from "npm:zod";
+import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.128.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,29 +29,77 @@ const corsHeaders = {
 const MAX_TEXTO = 30_000;
 const MAX_IMAGEN_BASE64 = 6_000_000;
 const TIPOS_IMAGEN = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+type TipoImagen = (typeof TIPOS_IMAGEN)[number];
 
-const Recorrido = z.object({
-  nombre: z.string().nullable().describe("Nombre del recorrido o modalidad, p. ej. «Trail 21K», «Marcha»"),
-  km: z.number().nullable().describe("Distancia en kilómetros"),
-  desnivel: z.number().nullable().describe("Desnivel positivo acumulado en metros (D+)"),
-  precio: z.number().nullable().describe("Precio de inscripción en euros. Si hay varios tramos, el primero o el vigente"),
-  plazas: z.number().nullable().describe("Número máximo de participantes, si se indica"),
-  hora: z.string().nullable().describe("Hora de salida en formato HH:MM (24 h)"),
-});
+// Lo que devuelve la lectura. Cada campo puede ser null: lo que no está en
+// el material no se rellena. Es el mismo contrato que LecturaCarrera en
+// RaceWizard.tsx.
+const ESQUEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["carrera", "recorridos", "avisos"],
+  properties: {
+    carrera: {
+      type: "object",
+      additionalProperties: false,
+      required: ["nombre", "fecha", "localidad", "tipo", "cierre_inscripciones"],
+      properties: {
+        nombre: { type: ["string", "null"], description: "Nombre completo de la carrera, sin el año si va aparte" },
+        fecha: { type: ["string", "null"], description: "Fecha de la carrera en formato YYYY-MM-DD" },
+        localidad: { type: ["string", "null"], description: "Localidad y provincia, p. ej. «Santoña, Cantabria»" },
+        tipo: { type: ["string", "null"], enum: ["trail", "mtb", null], description: "mtb si es de bicicleta (BTT, MTB); trail si es a pie" },
+        cierre_inscripciones: { type: ["string", "null"], description: "Último día de inscripción, YYYY-MM-DD" },
+      },
+    },
+    recorridos: {
+      type: "array",
+      description: "Un elemento por recorrido, distancia o modalidad",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["nombre", "km", "desnivel", "precio", "plazas", "hora"],
+        properties: {
+          nombre: { type: ["string", "null"], description: "Nombre del recorrido o modalidad, p. ej. «Trail 21K», «Marcha»" },
+          km: { type: ["number", "null"], description: "Distancia en kilómetros" },
+          desnivel: { type: ["number", "null"], description: "Desnivel positivo acumulado en metros (D+)" },
+          precio: { type: ["number", "null"], description: "Precio de inscripción en euros. Si hay varios tramos, el primero o el vigente" },
+          plazas: { type: ["number", "null"], description: "Número máximo de participantes, si se indica" },
+          hora: { type: ["string", "null"], description: "Hora de salida en formato HH:MM (24 h)" },
+        },
+      },
+    },
+    avisos: {
+      type: "array",
+      items: { type: "string" },
+      description: "Notas breves en español sobre lo que falta, es dudoso o se ha supuesto (p. ej. el año de la fecha)",
+    },
+  },
+};
 
-const Lectura = z.object({
-  carrera: z.object({
-    nombre: z.string().nullable().describe("Nombre completo de la carrera, sin el año si va aparte"),
-    fecha: z.string().nullable().describe("Fecha de la carrera en formato YYYY-MM-DD"),
-    localidad: z.string().nullable().describe("Localidad y provincia, p. ej. «Santoña, Cantabria»"),
-    tipo: z.enum(["trail", "mtb"]).nullable().describe("mtb si es de bicicleta (BTT, MTB); trail si es a pie"),
-    cierre_inscripciones: z.string().nullable().describe("Último día de inscripción, YYYY-MM-DD"),
-  }),
-  recorridos: z.array(Recorrido).describe("Un elemento por recorrido, distancia o modalidad"),
-  avisos: z
-    .array(z.string())
-    .describe("Notas breves en español sobre lo que falta, es dudoso o se ha supuesto (p. ej. el año de la fecha)"),
-});
+interface Lectura {
+  carrera: {
+    nombre: string | null;
+    fecha: string | null;
+    localidad: string | null;
+    tipo: "trail" | "mtb" | null;
+    cierre_inscripciones: string | null;
+  };
+  recorridos: {
+    nombre: string | null;
+    km: number | null;
+    desnivel: number | null;
+    precio: number | null;
+    plazas: number | null;
+    hora: string | null;
+  }[];
+  avisos: string[];
+}
+
+/** El esquema lo garantiza el servidor; esto solo evita reventar si llegara otra cosa */
+const esLectura = (x: unknown): x is Lectura =>
+  typeof x === "object" && x !== null &&
+  typeof (x as Lectura).carrera === "object" && (x as Lectura).carrera !== null &&
+  Array.isArray((x as Lectura).recorridos) && Array.isArray((x as Lectura).avisos);
 
 const instrucciones = (hoy: string) => `Eres el asistente de Camberas, una plataforma de inscripciones de carreras de trail y MTB. Te dan el cartel o el reglamento de una carrera y devuelves sus datos para dar de alta la carrera.
 
@@ -120,7 +170,7 @@ serve(async (req: Request): Promise<Response> => {
     if (base64) {
       contenido.push({
         type: "image",
-        source: { type: "base64", media_type: mediaType as (typeof TIPOS_IMAGEN)[number], data: base64 },
+        source: { type: "base64", media_type: mediaType as TipoImagen, data: base64 },
       });
     }
     contenido.push({
@@ -135,20 +185,26 @@ serve(async (req: Request): Promise<Response> => {
     // de seguridad, y así la petición se queda en lo mínimo.
     const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
     const hoy = new Date().toISOString().slice(0, 10);
-    const response = await anthropic.messages.parse({
+    const response = await anthropic.messages.create({
       model: "claude-opus-5",
       max_tokens: 8000,
       system: instrucciones(hoy),
-      output_config: { effort: "medium", format: zodOutputFormat(Lectura) },
+      output_config: { effort: "medium", format: { type: "json_schema", schema: ESQUEMA } },
       messages: [{ role: "user", content: contenido }],
     });
 
     if (response.stop_reason === "refusal") {
       return json({ error: "No se pudo leer el material" }, 422);
     }
-    const lectura = response.parsed_output;
-    if (!lectura) {
-      console.error("leer-carrera: respuesta sin formato esperado", JSON.stringify(response.content).slice(0, 500));
+    const textoRespuesta = response.content.find((b) => b.type === "text")?.text ?? "";
+    let lectura: unknown = null;
+    try {
+      lectura = JSON.parse(textoRespuesta);
+    } catch {
+      /* se trata abajo */
+    }
+    if (!esLectura(lectura)) {
+      console.error("leer-carrera: respuesta sin el formato esperado", textoRespuesta.slice(0, 500));
       return json({ error: "No se pudo interpretar la lectura. Prueba con una imagen más nítida o pega el texto." }, 502);
     }
 
