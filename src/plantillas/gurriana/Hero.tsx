@@ -34,18 +34,25 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
 
   return (
     <section id="top" className="pt-[72px]">
-      <div className="relative w-full overflow-hidden" style={{ background: "var(--wp-marca)", color: "var(--wp-marca-texto)" }}>
+      <div className={`relative flex w-full overflow-hidden ${foto ? "min-h-[560px] lg:min-h-[720px]" : ""}`} style={{ background: "var(--wp-marca)", color: "var(--wp-marca-texto)" }}>
         {foto && (
           <>
-            <img src={foto} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: "center 35%" }} />
-            <div className="absolute inset-0" style={{ backgroundColor: "rgba(15,26,8,0.52)" }} />
+            <img src={foto} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: tokens.heroPosicion }} />
+            {/* Oscurecido para leer el texto sin apagar el paisaje: en móvil igual en
+                toda la foto; en escritorio más oscuro a la izquierda (donde va el
+                texto) y abajo, y casi limpio a la derecha */}
+            <div className="absolute inset-0 lg:hidden" style={{ background: "linear-gradient(0deg, rgba(10,18,6,0.78) 0%, rgba(10,18,6,0.5) 55%, rgba(10,18,6,0.35) 100%)" }} />
+            <div
+              className="absolute inset-0 hidden lg:block"
+              style={{ background: "linear-gradient(90deg, rgba(10,18,6,0.8) 0%, rgba(10,18,6,0.55) 38%, rgba(10,18,6,0.12) 75%, rgba(10,18,6,0) 100%), linear-gradient(0deg, rgba(10,18,6,0.5) 0%, rgba(10,18,6,0) 45%)" }}
+            />
           </>
         )}
         {textura && !foto && (
           <img src={textura} alt="" aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 w-[140%] opacity-15 lg:w-[55%]" />
         )}
 
-        <div className="relative mx-auto flex w-full max-w-[1296px] flex-col gap-8 px-5 py-16 lg:flex-row lg:items-end lg:justify-between lg:px-[72px] lg:py-24">
+        <div className="relative mx-auto flex w-full max-w-[1296px] flex-col gap-8 self-end px-5 py-16 lg:flex-row lg:items-end lg:justify-between lg:px-[72px] lg:py-24">
           <div className="max-w-2xl">
             <p className="wp-label" style={{ color: foto ? "#fff" : "var(--wp-marca-texto)", opacity: 0.85 }}>
               {[evento.deporte === "trail" ? "Carrera por montaña" : evento.deporte === "marcha" ? "Marcha popular" : "Carrera popular", evento.federacion]

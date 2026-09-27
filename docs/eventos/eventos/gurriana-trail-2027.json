@@ -502,7 +502,8 @@
     },
     {
       "nombre": "FCDME",
-      "nivel": "institucional"
+      "nivel": "institucional",
+      "logo": "/logos/gurriana/fcdme.webp"
     }
   ],
   "contacto": {
@@ -514,13 +515,16 @@
   },
   "imagenes": {
     "logo": "/logos/gurriana-trail-icono.svg",
-    "montanas": "montanas.svg"
+    "montanas": "montanas.svg",
+    "hero": "/fotos/gurriana/portada-valle.webp"
   },
   "marca": {
     "colorMarca": "#3F6A12",
     "colorAccion": "#8BC34A",
     "colorSecundario": "#1E6FB5",
-    "heroTexturaLogo": true
+    "heroTexturaLogo": true,
+    "hero": "foto",
+    "heroPosicion": "70% 60%"
   },
   "servicios_tecnicos": {
     "proveedor": "UNO · Camberas",

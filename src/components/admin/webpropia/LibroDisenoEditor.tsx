@@ -147,6 +147,22 @@ export function LibroDisenoEditor({ slug, plantilla: plantillaInicial, tema, gua
                   </SelectContent>
                 </Select>
               </div>
+              {tokens.hero === "foto" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Encuadre de la foto</Label>
+                  <Select value={tokens.heroPosicion} onValueChange={(v) => set("heroPosicion", v as LibroDiseno["heroPosicion"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="center 25%">Parte de arriba (cielo)</SelectItem>
+                      <SelectItem value="center 50%">Centro</SelectItem>
+                      <SelectItem value="center 70%">Parte de abajo (suelo)</SelectItem>
+                      <SelectItem value="30% 60%">Izquierda</SelectItem>
+                      <SelectItem value="70% 60%">Derecha</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">La foto es la «Portada» de la carrera (Carreras → editar).</p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between rounded-md border p-3">
