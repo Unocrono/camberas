@@ -24,9 +24,14 @@ function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
  * salidas), recogida de dorsales, salida y meta, sanitario. Solo lo que haya.
  */
 export function DiaCarrera({ evento }: { evento: EventoPublico }) {
-  const programa = evento.programa?.length
-    ? evento.programa
-    : evento.pruebas.filter((p) => p.salida).map((p) => ({ hora: p.salida, titulo: `Salida ${p.nombre}`, lugar: p.lugarSalida }));
+  // Las salidas del programa salen SIEMPRE de los recorridos (hora de salida
+  // prevista de Camberas): las filas «Salida …» tecleadas en la web se ignoran
+  // para que no se queden desfasadas si cambia la hora en Recorridos.
+  const salidas = evento.pruebas
+    .filter((p) => p.salida)
+    .map((p) => ({ fecha: evento.fecha, hora: p.salida, horaFin: undefined as string | undefined, titulo: `Salida prevista ${p.nombre}`, lugar: p.lugarSalida }));
+  const manual = (evento.programa ?? []).filter((f) => !/^salida\b/i.test(f.titulo ?? ""));
+  const programa = [...manual, ...salidas].sort((a, b) => `${a.fecha ?? evento.fecha} ${a.hora ?? ""}`.localeCompare(`${b.fecha ?? evento.fecha} ${b.hora ?? ""}`));
   const conLugar = evento.pruebas.filter((p) => p.lugarSalida || p.lugarMeta);
   const hayAlgo = programa.length > 0 || evento.dorsales || conLugar.length > 0 || evento.sanitario || evento.entregaPremios;
   if (!hayAlgo) return null;
@@ -77,7 +82,7 @@ export function DiaCarrera({ evento }: { evento: EventoPublico }) {
                       {p.lugarSalida && `Salida: ${p.lugarSalida}`}
                       {p.lugarSalida && p.lugarMeta && " · "}
                       {p.lugarMeta && `Meta: ${p.lugarMeta}`}
-                      {p.salida && ` · ${p.salida} h`}
+                      {p.salida && ` · salida prevista ${p.salida} h`}
                     </p>
                   </div>
                 ))}

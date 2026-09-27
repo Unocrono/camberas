@@ -162,7 +162,7 @@ BEGIN
       "inscripcion": {
         "cierreTexto": "15 de febrero de 2027 o al completar los 600 dorsales",
         "edadMinima": 18,
-        "incluye": ["Dorsal con chip", "Bolsa del corredor", "Avituallamientos", "Comida post carrera", "Duchas", "Seguro de accidentes y RC"],
+        "incluye": ["Bolsa de corredor", "Duchas", "Avituallamientos sólidos y líquidos durante la carrera", "Avituallamiento en meta", "Dorsal", "Comida post carrera", "Uso del dispositivo de seguridad", "Seguro de responsabilidad civil"],
         "nota": "Precio para federados; sin licencia en vigor se añaden 4 € de seguro de día. No hay inscripciones el día de la carrera.",
         "devolucion": {"hasta": "2027-02-15", "gastos": 10, "texto": "Inscripciones personales e intransferibles. Cambios de distancia, titularidad y devoluciones por lesión justificada hasta el cierre, con 10 € de gastos de gestión."}
       },

@@ -110,7 +110,7 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
         <p className="mt-6 text-[15px]">
           {[
             prueba.municipios,
-            prueba.salida ? `Salida ${prueba.salida} h` : null,
+            prueba.salida ? `Salida prevista ${prueba.salida} h` : null,
             prueba.lugarSalida ? `desde ${prueba.lugarSalida}` : null,
             prueba.altMin != null ? `Altitud mínima ${prueba.altMin} m` : null,
           ]

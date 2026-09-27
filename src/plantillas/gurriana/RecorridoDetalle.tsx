@@ -62,7 +62,7 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
           {prueba.desnivelPos != null && <Dato valor={`+${prueba.desnivelPos} m`} etiqueta="desnivel positivo" />}
           {prueba.desnivelNeg != null && <Dato valor={`−${prueba.desnivelNeg} m`} etiqueta="desnivel negativo" />}
           {prueba.altMax != null && <Dato valor={`${prueba.altMax} m`} etiqueta="altitud máxima" />}
-          {prueba.salida && <Dato valor={`${prueba.salida} h`} etiqueta="salida" />}
+          {prueba.salida && <Dato valor={`${prueba.salida} h`} etiqueta="salida prevista" />}
           {prueba.limite && <Dato valor={prueba.limite} etiqueta="tiempo límite" />}
           {prueba.precio != null && <Dato valor={formatoPrecio(prueba.precio)} etiqueta="inscripción" />}
         </div>

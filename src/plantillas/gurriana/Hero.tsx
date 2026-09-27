@@ -94,7 +94,7 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
                   {pruebasConSalida.slice(0, 4).map((p) => (
                     <div key={p.id}>
                       <p className="wp-display text-[24px]" style={{ color: p.color ?? "var(--wp-marca)" }}>{p.nombre}</p>
-                      <p className="mt-1 text-sm tabular-nums">Salida {p.salida}</p>
+                      <p className="mt-1 text-sm tabular-nums">Salida prevista {p.salida}</p>
                     </div>
                   ))}
                 </div>
