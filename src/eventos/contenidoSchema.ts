@@ -60,6 +60,12 @@ export const ContenidoSchema = z
     contacto: z.object({ email: textoOpc, emailDatos: textoOpc, telefono: textoOpc, direccion: textoOpc, redes: z.record(texto).optional() }).partial().optional(),
     documentos: z.array(z.object({ nombre: texto, url: texto, tipo: textoOpc })).optional(),
     imagenes: z.record(texto).optional(),
+    /** Lo que la web añade a cada recorrido de Camberas (por id de race_distances) */
+    pruebas: z
+      .array(
+        z.object({ id: texto, descripcion: textoOpc, relato: textoOpc, terreno: z.array(par).optional(), marcaje: textoOpc, color: textoOpc }).partial({ descripcion: true, relato: true, terreno: true, marcaje: true, color: true }),
+      )
+      .optional(),
     seo: z.object({ titulo: textoOpc, descripcion: textoOpc }).partial().optional(),
     analytics: z.object({ ga4: textoOpc }).partial().optional(),
   })

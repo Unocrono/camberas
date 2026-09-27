@@ -6,9 +6,12 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ContenidoSchema, limpiarVacios, type Contenido } from "@/eventos/contenidoSchema";
+import { useEventoPublico } from "@/eventos/useEventoPublico";
 import { Lineas, ListaEditable, Pares, Texto, TextoLargo } from "./campos";
 
 interface Props {
+  /** Slug de la carrera: para listar sus recorridos (evento_publico) */
+  slug: string | null;
   contenido: Record<string, unknown>;
   guardando: boolean;
   onGuardar: (contenido: Record<string, unknown>) => Promise<boolean>;
@@ -20,8 +23,9 @@ interface Props {
  * se editan aquí: salen de la carrera. Se valida con ContenidoSchema al
  * guardar; los vacíos no se guardan.
  */
-export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
+export function ContenidoWebEditor({ slug, contenido, guardando, onGuardar }: Props) {
   const [c, setC] = useState<Contenido>(() => (ContenidoSchema.safeParse(contenido).success ? (contenido as Contenido) : {}));
+  const { data: evento } = useEventoPublico(slug ?? undefined);
   const [cambios, setCambios] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +44,20 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
     setCambios(true);
   };
   const setTexto = <K extends keyof Contenido>(k: K) => (v: string) => patch(k, v as Contenido[K]);
+  // Lo que la web añade a un recorrido concreto (por id de race_distances)
+  type PruebaWeb = NonNullable<Contenido["pruebas"]>[number];
+  const pruebaWeb = (id: string): Partial<PruebaWeb> => c.pruebas?.find((p) => p.id === id) ?? {};
+  const patchPrueba = (id: string, parcial: Partial<PruebaWeb>) => {
+    setC((prev) => {
+      const lista = [...(prev.pruebas ?? [])];
+      const i = lista.findIndex((p) => p.id === id);
+      const nuevo = { ...(i >= 0 ? lista[i] : { id }), ...parcial } as PruebaWeb;
+      if (i >= 0) lista[i] = nuevo;
+      else lista.push(nuevo);
+      return { ...prev, pruebas: lista };
+    });
+    setCambios(true);
+  };
 
   const guardar = async () => {
     const limpio = limpiarVacios(c);
@@ -58,7 +76,7 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
         <div>
           <CardTitle>Contenido de la web</CardTitle>
           <CardDescription>
-            Lo que la web cuenta además de los datos de la carrera. Fechas, precios, recorridos, horas de salida y formulario salen de la propia carrera y no se tocan aquí.
+            Solo lo que Camberas no tiene en tablas. Nombre, subtítulo, descripción, fechas, precios, recorridos, salidas, formulario, reglamento por secciones, FAQ, categorías, avituallamientos y rutómetro salen de la propia carrera y se editan en sus pantallas.
           </CardDescription>
         </div>
         <Button type="button" onClick={guardar} disabled={guardando || !cambios}>
@@ -75,10 +93,9 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
               <div className="grid gap-4 md:grid-cols-2">
                 <Texto etiqueta="Nombre corto" valor={c.nombreCorto} onChange={setTexto("nombreCorto")} ayuda="Para la cabecera. Si se deja vacío, el nombre completo." />
                 <Texto etiqueta="Fecha en texto" valor={c.fechaTexto} onChange={setTexto("fechaTexto")} placeholder="Domingo 1 de noviembre de 2026" />
-                <Texto etiqueta="Subtítulo" valor={c.subtitulo} onChange={setTexto("subtitulo")} />
                 <Texto etiqueta="Federación / calendario" valor={c.federacion} onChange={setTexto("federacion")} placeholder="Calendario oficial FCDME 2027" />
               </div>
-              <TextoLargo etiqueta="Descripción" valor={c.descripcion} onChange={setTexto("descripcion")} />
+              <p className="text-xs text-muted-foreground">El subtítulo y la descripción son los de la carrera (Carreras, editar).</p>
               <div className="grid gap-4 md:grid-cols-3">
                 <Texto etiqueta="Zona / sierra" valor={c.lugar?.zona} onChange={(v) => patch("lugar", { zona: v })} />
                 <Texto etiqueta="Municipio" valor={c.lugar?.municipio} onChange={(v) => patch("lugar", { municipio: v })} />
@@ -86,12 +103,34 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <Texto etiqueta="Organizador (nombre público)" valor={c.organizador?.nombre} onChange={(v) => patch("organizador", { nombre: v })} />
-                <Texto etiqueta="Web del organizador" valor={c.organizador?.web} onChange={(v) => patch("organizador", { web: v })} />
                 <Texto etiqueta="Razón social (aviso legal)" valor={c.organizador?.razonSocial} onChange={(v) => patch("organizador", { razonSocial: v })} />
                 <Texto etiqueta="CIF" valor={c.organizador?.cif} onChange={(v) => patch("organizador", { cif: v })} />
                 <Texto etiqueta="Dirección (aviso legal)" valor={c.organizador?.direccion} onChange={(v) => patch("organizador", { direccion: v })} />
                 <Texto etiqueta="Teléfono" valor={c.organizador?.telefono} onChange={(v) => patch("organizador", { telefono: v })} />
               </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="recorridos">
+            <AccordionTrigger>Recorridos: descripción y relato</AccordionTrigger>
+            <AccordionContent className="space-y-6 pt-2">
+              <p className="text-xs text-muted-foreground">Distancia, desniveles, salida, precio, avituallamientos y rutómetro salen de Camberas. Aquí solo lo que no tiene tabla: el texto de cada recorrido.</p>
+              {!evento && <p className="text-sm text-muted-foreground">Cargando los recorridos de la carrera…</p>}
+              {evento?.pruebas.map((pr) => {
+                const w = pruebaWeb(pr.id);
+                return (
+                  <div key={pr.id} className="space-y-3 rounded-md border p-3">
+                    <p className="font-semibold">{pr.nombre}</p>
+                    <Texto etiqueta="Descripción corta" valor={w.descripcion} onChange={(v) => patchPrueba(pr.id, { descripcion: v })} ayuda="Una o dos frases; sale en la tarjeta de la portada y en la página del recorrido." />
+                    <TextoLargo etiqueta="Relato del recorrido" valor={w.relato} onChange={(v) => patchPrueba(pr.id, { relato: v })} filas={5} ayuda="Texto largo, solo en la página del recorrido. Párrafos separados por línea en blanco." />
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <Texto etiqueta="Marcaje" valor={w.marcaje} onChange={(v) => patchPrueba(pr.id, { marcaje: v })} placeholder="Cintas y banderines naranjas" />
+                      <Texto etiqueta="Color del recorrido (hex)" valor={w.color} onChange={(v) => patchPrueba(pr.id, { color: v })} placeholder="#C62828" />
+                    </div>
+                    <Pares etiqueta="Terreno" valor={w.terreno} onChange={(v) => patchPrueba(pr.id, { terreno: v })} cabeceras={["Tipo de firme", "Distancia"]} />
+                  </div>
+                );
+              })}
             </AccordionContent>
           </AccordionItem>
 
@@ -197,23 +236,13 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
           </AccordionItem>
 
           <AccordionItem value="info">
-            <AccordionTrigger>Info práctica y FAQ</AccordionTrigger>
+            <AccordionTrigger>Info práctica</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
               <TextoLargo etiqueta="Cómo llegar" valor={c.infoPractica?.comoLlegar} onChange={(v) => patch("infoPractica", { comoLlegar: v })} filas={3} />
               <TextoLargo etiqueta="Aparcamiento" valor={c.infoPractica?.parking} onChange={(v) => patch("infoPractica", { parking: v })} filas={2} />
               <TextoLargo etiqueta="Alojamiento" valor={c.infoPractica?.alojamiento} onChange={(v) => patch("infoPractica", { alojamiento: v })} filas={3} />
               <TextoLargo etiqueta="Espectadores" valor={c.infoPractica?.espectadores} onChange={(v) => patch("infoPractica", { espectadores: v })} filas={3} />
-              <ListaEditable
-                etiqueta="Preguntas frecuentes"
-                ayuda="Si la carrera tiene FAQ en Camberas, se muestran esas; estas se añaden."
-                valor={c.infoPractica?.faq as Record<string, unknown>[] | undefined}
-                onChange={(v) => patch("infoPractica", { faq: v as NonNullable<Contenido["infoPractica"]>["faq"] })}
-                columnas={[
-                  { clave: "p", etiqueta: "Pregunta" },
-                  { clave: "r", etiqueta: "Respuesta" },
-                ]}
-                nuevo={() => ({ p: "", r: "" })}
-              />
+              <p className="text-xs text-muted-foreground">Las preguntas frecuentes son las de la carrera (Preguntas frecuentes, en el menú).</p>
             </AccordionContent>
           </AccordionItem>
 
@@ -231,8 +260,8 @@ export function ContenidoWebEditor({ contenido, guardando, onGuardar }: Props) {
           <AccordionItem value="enlaces">
             <AccordionTrigger>Contacto, documentos, fotos y SEO</AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
+              <p className="text-xs text-muted-foreground">El email de contacto y la web del organizador son los de la carrera (Carreras, editar).</p>
               <div className="grid gap-4 md:grid-cols-2">
-                <Texto etiqueta="Email de contacto" valor={c.contacto?.email} onChange={(v) => patch("contacto", { email: v })} />
                 <Texto etiqueta="Email de protección de datos" valor={c.contacto?.emailDatos} onChange={(v) => patch("contacto", { emailDatos: v })} />
                 <Texto etiqueta="Teléfono" valor={c.contacto?.telefono} onChange={(v) => patch("contacto", { telefono: v })} />
                 <Texto etiqueta="Dirección" valor={c.contacto?.direccion} onChange={(v) => patch("contacto", { direccion: v })} />

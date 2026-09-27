@@ -89,7 +89,7 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
           <DisenoEventoEditor slug={slug} plantilla={web.plantilla} tema={web.tema} guardando={guardando} onGuardar={guardarDiseno} />
         </TabsContent>
         <TabsContent value="contenido" className="mt-4">
-          <ContenidoWebEditor contenido={web.contenido} guardando={guardando} onGuardar={guardarContenido} />
+          <ContenidoWebEditor slug={slug} contenido={web.contenido} guardando={guardando} onGuardar={guardarContenido} />
         </TabsContent>
         <TabsContent value="patrocinadores" className="mt-4">
           <PatrocinadoresManagement raceId={selectedRaceId} />

@@ -281,19 +281,20 @@ AS $fn$
   -- calculado; pruebas/tarifas/campos/web siempre son los de las tablas.
   SELECT jsonb_strip_nulls(
            calculado.j
+           -- subtitulo y descripcion son de races: la web no los pisa
            || (web.c - 'pruebas' - 'inscripcion' - 'lugar' - 'organizador' - 'contacto' - 'imagenes' - 'web' - 'marca'
-                     - 'reglamento' - 'infoPractica')
+                     - 'reglamento' - 'infoPractica' - 'subtitulo' - 'descripcion')
            || jsonb_build_object(
                 'inscripcion', (calculado.j->'inscripcion') || web.ins
                                  || jsonb_build_object('tarifas', calculado.j->'inscripcion'->'tarifas',
                                                        'campos',  calculado.j->'inscripcion'->'campos'),
                 'lugar',       (calculado.j->'lugar')       || web.lug,
-                'organizador', (calculado.j->'organizador') || web.org,
-                'contacto',    (calculado.j->'contacto')    || web.con,
+                'organizador', (calculado.j->'organizador') || (web.org - 'web'),
+                'contacto',    (calculado.j->'contacto')    || (web.con - 'email'),
                 'imagenes',    (calculado.j->'imagenes')    || web.img,
                 -- NULLIF: sin reglamento ni info en ningún lado, la clave no sale
                 'reglamento',  NULLIF(COALESCE(calculado.j->'reglamento', '{}'::jsonb) || web.reg, '{}'::jsonb),
-                'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || web.inf, '{}'::jsonb)
+                'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || (web.inf - 'faq'), '{}'::jsonb)
               )
          )
   FROM calculado, web;
