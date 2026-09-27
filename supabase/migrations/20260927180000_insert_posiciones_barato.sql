@@ -23,12 +23,13 @@
 -- frente a 0,22 ms por fila): Postgres deja de poder calcular una vez por
 -- sentencia las partes comunes. La política se queda en línea.
 --
--- Sin cambio de semántica práctico: comparado para los 559 tokens de
--- producción, ninguno gana permiso; dos (dorsales 101 y 210, recorridos
--- ocultos, sin lecturas en 7 días) lo pierden, porque la política vieja
--- trataba un recorrido que anon no ve como "sin evento" — un efecto
--- colateral de la RLS, no una regla. Las 34 ventanas de captura dan
--- exactamente lo mismo.
+-- Sin cambio de semántica: la política sigue en línea y su subconsulta de
+-- race_distances corre como anon con la RLS de race_distances, igual que
+-- antes (un recorrido que anon no ve cuenta como "sin evento" y deja
+-- escribir sin ventana — efecto colateral heredado, sin tocar). Las 34
+-- ventanas de captura dan exactamente lo mismo que antes.
+-- APLICADA en producción el 27-sep a las ~17:12, tras ensayarla entera
+-- con ROLLBACK; los móviles siguieron subiendo sin cortes.
 -- Revisado por un atacante de seguridad independiente: no abre nada que
 -- estuviera cerrado. De su revisión salen lock_timeout, pg_temp en el
 -- search_path y la comprobación final. La rama demo-% de la ventana ya
