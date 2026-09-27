@@ -20,8 +20,12 @@ ALTER TABLE public.gps_positions
   ADD COLUMN IF NOT EXISTS event_id uuid,
   ADD COLUMN IF NOT EXISTS heading real;
 
-CREATE INDEX IF NOT EXISTS idx_gps_positions_token_ts
-  ON public.gps_positions (token_id, "timestamp" DESC);
+-- RETIRADO el 27-sep-2026 (20260927180000): duplicaba el UNIQUE
+-- uq_token_timestamp (token_id, "timestamp"), que se recorre al revés para
+-- "la última posición". Cada índice de más encarece cada subida de los
+-- móviles; no volver a crearlo si se reaplica esta migración.
+-- CREATE INDEX IF NOT EXISTS idx_gps_positions_token_ts
+--   ON public.gps_positions (token_id, "timestamp" DESC);
 
 -- ── 2) Vinculación de dorsal vía RPC (sustituye el UPDATE directo de la app) ─
 CREATE OR REPLACE FUNCTION public.link_gps_token(
@@ -227,10 +231,14 @@ $fn$;
 GRANT EXECUTE ON FUNCTION public.get_race_sos_alerts(uuid) TO anon, authenticated;
 
 -- ── 6) Realtime para el mapa público ────────────────────────────────────────
-DO $fn$ BEGIN
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.gps_positions;
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $fn$;
+-- RETIRADO (verificado el 27-sep-2026: gps_positions NO está publicada en
+-- producción, y así debe seguir). Publicada, cada posición de cada móvil se
+-- evaluaría con RLS una vez por suscriptor, y varios mapas recargan la
+-- carrera entera por cada evento recibido. Los mapas sondean con freno.
+-- DO $fn$ BEGIN
+--   ALTER PUBLICATION supabase_realtime ADD TABLE public.gps_positions;
+-- EXCEPTION WHEN duplicate_object THEN NULL;
+-- END $fn$;
 
 DO $fn$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.gps_sos_alerts;

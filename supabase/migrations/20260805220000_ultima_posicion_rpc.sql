@@ -10,8 +10,12 @@
 -- barrido.
 -- ============================================================
 
-CREATE INDEX IF NOT EXISTS idx_gps_positions_token_ts
-  ON public.gps_positions (token_id, "timestamp" DESC);
+-- RETIRADO el 27-sep-2026 (20260927180000): duplicaba el UNIQUE
+-- uq_token_timestamp (token_id, "timestamp"), que se recorre al revés para
+-- "la última posición". Cada índice de más encarece cada subida de los
+-- móviles; no volver a crearlo si se reaplica esta migración.
+-- CREATE INDEX IF NOT EXISTS idx_gps_positions_token_ts
+--   ON public.gps_positions (token_id, "timestamp" DESC);
 
 CREATE OR REPLACE FUNCTION public.get_latest_gps_positions(
   p_event_ids uuid[] DEFAULT NULL
