@@ -138,6 +138,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   // Repetición del grupo (reloj maestro)
   const [isGroupPlayback, setIsGroupPlayback] = useState(false);
   const groupPlaybackRef = useRef(false);
+  // Modo de cámara. Antes el mapa se reencuadraba sobre todos los corredores
+  // en CADA refresco (cada 15 s), pisara lo que pisara: pulsabas "Recorrido"
+  // o hacías zoom y a los pocos segundos volvía a "todos" (marcha ADEMCO,
+  // 27-sep). Ahora la cámara sigue al grupo solo si quien mira lo ha elegido:
+  //   true  → botón "Grupo": seguir a todos en cada refresco
+  //   false → botón "Recorrido", o arrastre/zoom a mano: la cámara se queda
+  //   null  → aún no ha elegido: lo de siempre (seguir si no hay GPX único)
+  const seguirGrupoRef = useRef<boolean | null>(null);
+  useEffect(() => { seguirGrupoRef.current = null; }, [raceId, distanceId]);
   const [groupLoading, setGroupLoading] = useState(false);
   const [groupTracks, setGroupTracks] = useState<Map<string, RunnerTrackPoint[]>>(new Map());
   const groupTracksRef = useRef<Map<string, RunnerTrackPoint[]>>(new Map());
@@ -162,6 +171,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
 
   // Map control functions
   const handleCenterRoute = useCallback(() => {
+    seguirGrupoRef.current = false;   // "Recorrido": la cámara se queda aquí
     if (!map.current || routeCoordinates.current.length === 0) return;
     const bounds = new mapboxgl.LngLatBounds();
     routeCoordinates.current.forEach(coord => bounds.extend(coord));
@@ -169,6 +179,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   }, []);
 
   const handleCenterRunners = useCallback(() => {
+    seguirGrupoRef.current = true;    // "Grupo": seguir a todos al refrescar
     if (!map.current || runnerPositions.length === 0) return;
     const bounds = new mapboxgl.LngLatBounds();
     runnerPositions.forEach(pos => {
@@ -297,6 +308,17 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
 
     // Sin NavigationControl de Mapbox: el zoom está en la barra de encima del
     // mapa, y dentro del mapa no va ningún botón
+
+    // Arrastrar o hacer zoom a mano deja de seguir al grupo. Solo gestos del
+    // usuario (originalEvent): los fitBounds del propio código también
+    // disparan zoomstart y no deben apagar el seguimiento.
+    const dejarDeSeguir = (e: { originalEvent?: unknown }) => {
+      if (e.originalEvent) seguirGrupoRef.current = false;
+    };
+    map.current.on('dragstart', dejarDeSeguir);
+    map.current.on('zoomstart', dejarDeSeguir);
+    map.current.on('rotatestart', dejarDeSeguir);
+    map.current.on('pitchstart', dejarDeSeguir);
 
     // Marcar el mapa como listo. Se engancha a DOS eventos a proposito: con
     // solo 'load' habia cargas en las que mapReady se quedaba en false para
@@ -1140,8 +1162,10 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
       marker.getElement().style.opacity = stale ? '0.4' : '1';
     });
 
-    // Only fit bounds to runners if no GPX route is loaded (nunca durante la repetición)
-    if (positions.length > 0 && !gpxUrl && !groupPlaybackRef.current) {
+    // Seguir al grupo según el modo de cámara (seguirGrupoRef), nunca
+    // durante la repetición
+    const seguirGrupo = seguirGrupoRef.current ?? !gpxUrl;
+    if (positions.length > 0 && seguirGrupo && !groupPlaybackRef.current) {
       const bounds = new mapboxgl.LngLatBounds();
       positions.forEach((pos) => {
         bounds.extend([pos.longitude, pos.latitude]);
