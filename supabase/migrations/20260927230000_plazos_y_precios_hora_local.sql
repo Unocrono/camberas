@@ -23,9 +23,11 @@
 -- Madrid, cuando Loiu cambia de tramo): RaceDetail.tsx, TeamRegister.tsx,
 -- CesionPolicyManagement.tsx y las 5 funciones edge de cobro.
 --
--- ESTADO (27-sep, 22:30): ENSAYADA entera con ROLLBACK (22 sustituciones
--- cuadran, Gurriana abre 20:00, guardia 0 FALLO). NO APLICADA: se aplica en
--- la misma hora que el Publish de la web, y antes del 1-oct 18:00 UTC.
+-- APLICADA en producción el 27-sep, justo después del Publish de la web,
+-- tras ensayarla entera con ROLLBACK. Comprobado después: guardia 0 FALLO
+-- (2 REVISAR: Garita Trail, pendiente de confirmar), Gurriana abre 01/10
+-- 20:00, Monte Tejas 01/11 20:00–07/12 23:59, 15 funciones con
+-- ahora_pared()/hoy_local().
 -- ============================================================
 
 SET client_encoding = 'UTF8';

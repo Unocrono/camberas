@@ -83,8 +83,17 @@ No hay Supabase local. El proyecto (`rsahtxjpisnldxnsmupk`) está en la nube y l
     función que toque horas, contrástala con esta norma.
   - Alineadas el 27-sep: `gps_capture_window`, `evento_publico`, `hora_salida_recorrido` y las
     grupettas (`crear_grupetta`, `actualizar_grupetta`, `mis_grupettas`, que guardaban la salida
-    como instante real; sus olas se pasaron a hora de pared). Guardia, debe devolver 0 filas:
-    `SELECT proname FROM pg_proc WHERE pronamespace = 'public'::regnamespace AND pg_get_functiondef(oid) ~* 'start_time\)?\s+AT TIME ZONE\s+''Europe/Madrid'''`.
+    como instante real; sus olas se pasaron a hora de pared), y plazos, tramos de precio y «hoy»
+    en 15 funciones más (`20260927230000`).
+  - **Ayudantes:** `public.ahora_pared()` («ahora» como hora de pared +00, se compara tal cual
+    con plazos, tramos y salidas) y `public.hoy_local()` (el día de Madrid; `current_date` es el
+    de UTC). En la web, `ahoraParedMs()`/`hoyLocal()`; en funciones edge,
+    `supabase/functions/_shared/horaLocal.ts`. Los cupones (`valid_from/valid_until`) son hoy la
+    única excepción: se guardan como instante real y se comparan con `now()`.
+  - **Guardia:** `SELECT * FROM public.guardia_horas() WHERE nivel = 'FALLO'` debe dar 0 filas.
+    Toda migración que toque funciones termina con
+    `DO $$ BEGIN IF EXISTS (SELECT 1 FROM public.guardia_horas() WHERE nivel='FALLO') THEN RAISE EXCEPTION 'horas'; END IF; END $$;`
+    y se mira también antes de cada carrera. Las siembras de datos usan literales `+00`.
   - Ya no hay «desfase UTC» por carrera (`races.utc_offset` queda sin lectores): el GPS se pasa a
     hora local con la zona `Europe/Madrid`, que pone sola el horario de verano.
 
