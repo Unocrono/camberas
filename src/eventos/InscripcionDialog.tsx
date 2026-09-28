@@ -160,19 +160,11 @@ export function InscripcionDialog({ evento, prueba, abierto, onOpenChange, cupon
         return;
       }
 
-      // Gratuita: ya está confirmada — email y cerrar
+      // Gratuita: ya está confirmada — email y cerrar. Solo el id: el email,
+      // el nombre y la carrera los lee la función
       try {
         await supabase.functions.invoke("send-registration-confirmation", {
-          body: {
-            userEmail: email,
-            userName: `${nombre} ${apellidos}`,
-            raceName: evento.nombre,
-            raceDate: evento.fecha,
-            raceLocation: evento.lugar?.nombre ?? "",
-            distanceName: prueba.nombre,
-            price: 0,
-            isGuest: true,
-          },
+          body: { registrationId: result.registrationId },
         });
       } catch (err) {
         console.error("No se pudo enviar el email de confirmación:", err);

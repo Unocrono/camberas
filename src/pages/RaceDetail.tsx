@@ -567,19 +567,11 @@ const RaceDetail = () => {
           return;
         }
 
-        // Gratuita: la función ya la dejó confirmada — enviar email y cerrar
+        // Gratuita: la función ya la dejó confirmada — enviar email y cerrar.
+        // Solo el id: el email, el nombre y la carrera los lee la función
         try {
           await supabase.functions.invoke('send-registration-confirmation', {
-            body: {
-              userEmail: email,
-              userName: `${firstName} ${lastName}`,
-              raceName: race!.name,
-              raceDate: race!.date,
-              raceLocation: race!.location,
-              distanceName: selectedDistance!.name,
-              price: 0,
-              isGuest: true,
-            },
+            body: { registrationId: result.registrationId },
           });
         } catch (emailError) {
           console.error("Failed to send confirmation email:", emailError);
@@ -788,19 +780,11 @@ const RaceDetail = () => {
       })
       .eq("id", registrationId);
 
-    // Send confirmation email
+    // Email de confirmación. Solo el id: la función lee el resto de la base y
+    // solo lo manda si la inscripción es gratuita y quedó confirmada
     try {
       await supabase.functions.invoke('send-registration-confirmation', {
-        body: {
-          userEmail: email,
-          userName: `${firstName} ${lastName}`,
-          raceName: race!.name,
-          raceDate: race!.date,
-          raceLocation: race!.location,
-          distanceName: selectedDistance!.name,
-          price: selectedDistance!.currentPrice,
-          isGuest,
-        },
+        body: { registrationId },
       });
     } catch (emailError) {
       console.error("Failed to send confirmation email:", emailError);
