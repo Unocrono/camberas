@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { LibroDiseno } from "@/plantillas/libroDiseno";
 import { diaMes, diaMesAbreviado, fechaLarga } from "@/eventos/useEventoPublico";
@@ -26,6 +27,9 @@ const ESTADO_TEXTO: Record<string, string> = {
  */
 export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
   const foto = tokens.hero === "foto" ? evento.imagenes?.hero ?? evento.imagenes?.imagen : undefined;
+  // Foto propia para el móvil (race_web.contenido.imagenes.heroMovil), normalmente
+  // vertical: sin ella, el móvil recorta la de escritorio con el mismo encuadre
+  const fotoMovil = foto ? evento.imagenes?.heroMovil : undefined;
   const textura = tokens.hero === "textura" ? evento.imagenes?.logo : undefined;
   const { dia, mes } = diaMes(evento.fecha);
   const diaSemana = fechaLarga(evento.fecha).split(" ")[0];
@@ -37,7 +41,16 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
       <div className={`relative flex w-full overflow-hidden ${foto ? "min-h-[560px] lg:min-h-[720px]" : ""}`} style={{ background: "var(--wp-marca)", color: "var(--wp-marca-texto)" }}>
         {foto && (
           <>
-            <img src={foto} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: tokens.heroPosicion }} />
+            <picture>
+              {fotoMovil && <source media="(max-width: 1023px)" srcSet={fotoMovil} />}
+              <img
+                src={foto}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover [object-position:var(--wp-hero-pos-movil)] lg:[object-position:var(--wp-hero-pos)]"
+                style={{ "--wp-hero-pos": tokens.heroPosicion, "--wp-hero-pos-movil": fotoMovil ? "center 40%" : tokens.heroPosicion } as CSSProperties}
+              />
+            </picture>
             {/* Oscurecido para leer el texto sin apagar el paisaje: en móvil igual en
                 toda la foto; en escritorio más oscuro a la izquierda (donde va el
                 texto) y abajo, y casi limpio a la derecha */}
