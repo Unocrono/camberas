@@ -11,6 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
  * El cuarto parámetro llega con 20260928150000. Hasta aplicarlo, la función
  * de producción solo tiene tres y la llamada con cuatro da PGRST202: entonces
  * se repite sin recorrido, así la web se puede publicar antes que el SQL.
+ *
+ * null = ninguna categoría encaja con esa edad y sexo; un fallo de la
+ * consulta se lanza como error.
  */
 export async function categoriaCalculada(
   raceId: string,
@@ -24,15 +27,11 @@ export async function categoriaCalculada(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase.rpc as any)("get_race_category", { ...base, p_race_distance_id: distanceId });
     if (!error) return (data as string | null) ?? null;
-    if (error.code !== "PGRST202") {
-      console.error("Error calculando la categoría:", error);
-      return null;
-    }
+    // Un error no es «ninguna categoría»: se lanza para que el formulario no
+    // diga que la edad no encaja cuando solo ha fallado la consulta
+    if (error.code !== "PGRST202") throw error;
   }
   const { data, error } = await supabase.rpc("get_race_category", base);
-  if (error) {
-    console.error("Error calculando la categoría:", error);
-    return null;
-  }
+  if (error) throw error;
   return data ?? null;
 }

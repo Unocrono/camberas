@@ -57,6 +57,8 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   const [loading, setLoading] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [calculatedCategory, setCalculatedCategory] = useState<string | null>(null);
+  // Con fecha y sexo, ninguna categoría del recorrido encaja (p. ej. menor de la edad mínima)
+  const [sinCategoria, setSinCategoria] = useState(false);
   // Las categorías del RECORRIDO, para que el campo "Categoría" del
   // formulario esté vinculado a lo que el organizador configuró en el evento
   const [eventCategories, setEventCategories] = useState<{ name: string; age_dependent: boolean }[]>([]);
@@ -155,6 +157,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       calculateCategory(birthDate, genderId, genderText);
     } else {
       setCalculatedCategory(null);
+      setSinCategoria(false);
     }
   }, [formData.birth_date, formData.gender_id, formData.gender, raceId, distanceId, modoCategoria]);
 
@@ -184,8 +187,14 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
 
       if (data) {
         setCalculatedCategory(data);
+        setSinCategoria(false);
         // Update formData so it gets saved
         onChange('category', data);
+      } else {
+        // Ninguna categoría encaja: no se deja la de antes ni una genérica
+        setCalculatedCategory(null);
+        setSinCategoria(true);
+        onChange('category', '');
       }
     } catch (err) {
       console.error('Error calculating category:', err);
@@ -511,6 +520,10 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
                   <Badge variant="secondary" className="text-sm">
                     {categoriaAEnsenar}
                   </Badge>
+                ) : sinCategoria ? (
+                  <span className="text-sm text-destructive">
+                    Tu edad no encaja en ninguna categoría de este recorrido. Revisa la fecha de nacimiento.
+                  </span>
                 ) : (
                   <span className="text-muted-foreground text-sm">
                     Introduce fecha de nacimiento y sexo
