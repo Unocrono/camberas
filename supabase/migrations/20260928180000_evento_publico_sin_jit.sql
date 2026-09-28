@@ -28,3 +28,10 @@ BEGIN
   n := length(public.evento_publico('gurriana-trail-2027')::text);
   RAISE NOTICE 'evento_publico(gurriana): % bytes en % ms', n, round(extract(epoch FROM clock_timestamp() - t0) * 1000);
 END $$;
+
+-- Comprobaciones que pide la sesión de horas -----------------------------------
+-- Guardia: debe dar 0
+SELECT count(*) AS fallos_horas FROM public.guardia_horas() WHERE nivel = 'FALLO';
+-- Peña Prieta: las salidas deben seguir siendo 09:30, 09:00 y 09:30
+SELECT p->>'nombre' AS recorrido, p->>'salida' AS salida
+  FROM jsonb_array_elements(public.evento_publico('ii-pena-prieta-skyrace')->'pruebas') p;
