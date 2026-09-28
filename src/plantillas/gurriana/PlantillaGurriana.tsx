@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { PropsPlantilla } from "@/plantillas/registro";
 import { cargarFuentes, variablesCss, type SeccionId } from "@/plantillas/libroDiseno";
 import { Cabecera } from "./Cabecera";
@@ -9,6 +9,7 @@ import { Reglamento } from "./Reglamento";
 import { DiaCarrera, PremiosServiciosCamiseta } from "./DiaCarrera";
 import { InfoPractica, Medioambiente, Beneficiario, Patrocinadores } from "./InfoPractica";
 import { Pie } from "./Pie";
+import { ElegirRecorrido } from "./ElegirRecorrido";
 import "./estilos.css";
 
 /**
@@ -23,8 +24,14 @@ export default function PlantillaGurriana({ evento, tokens, rutas, modo, onInscr
     cargarFuentes(tokens);
   }, [tokens]);
 
-  const primeraAbierta = evento.pruebas.find((p) => p.estado === "abierta") ?? evento.pruebas[0];
-  const inscribirse = () => primeraAbierta && onInscribirse(primeraAbierta.id);
+  // Botones generales de inscripción: con un solo recorrido abierto, directo a
+  // su formulario; con varios, se pregunta cuál (antes iban siempre al primero)
+  const abiertas = evento.pruebas.filter((p) => p.estado === "abierta");
+  const [eligiendo, setEligiendo] = useState(false);
+  const inscribirse = () => {
+    if (abiertas.length > 1) setEligiendo(true);
+    else if (abiertas[0] ?? evento.pruebas[0]) onInscribirse((abiertas[0] ?? evento.pruebas[0]).id);
+  };
 
   const secciones: Record<SeccionId, () => ReactNode> = {
     hero: () => <Hero evento={evento} tokens={tokens} onInscribirse={inscribirse} hrefRecorridos={rutas.ancla("recorridos")} />,
@@ -32,7 +39,8 @@ export default function PlantillaGurriana({ evento, tokens, rutas, modo, onInscr
     cinta: () => (tokens.cinta ? <div className="wp-cinta" aria-hidden="true" /> : null),
     beneficiario: () => <Beneficiario evento={evento} />,
     recorridos: () => <Recorridos evento={evento} rutas={rutas} onInscribirse={onInscribirse} />,
-    inscripcion: () => <Inscripcion evento={evento} onInscribirse={onInscribirse} />,
+    // Su botón «Inscríbete ahora» es general: pregunta el recorrido si hay varios
+    inscripcion: () => <Inscripcion evento={evento} onInscribirse={() => inscribirse()} />,
     reglamento: () => <Reglamento evento={evento} rutas={rutas} />,
     dia: () => <DiaCarrera evento={evento} />,
     premios: () => null, // premios, servicios y camiseta van juntos en "servicios"
@@ -52,6 +60,16 @@ export default function PlantillaGurriana({ evento, tokens, rutas, modo, onInscr
         ))}
       </main>
       <Pie evento={evento} rutas={rutas} />
+      {eligiendo && (
+        <ElegirRecorrido
+          evento={evento}
+          onCerrar={() => setEligiendo(false)}
+          onElegir={(id) => {
+            setEligiendo(false);
+            onInscribirse(id);
+          }}
+        />
+      )}
     </div>
   );
 }

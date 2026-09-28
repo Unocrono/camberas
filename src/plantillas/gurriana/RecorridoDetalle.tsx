@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, type CSSProperties, type ReactNode } from "react";
 import { Download, MapPin, Plane, Map as MapaIcono } from "lucide-react";
 import type { EventoPublico, Prueba, Tarifa } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
@@ -58,6 +58,34 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
   const ritmos = ritmosDe(prueba.rutometro?.ritmos);
   const hayHoras = !!prueba.salida && !!(ritmos.primero || ritmos.corte);
   const kmTexto = (km: number) => String(Math.round(km * 10) / 10).replace(".", ",");
+  // Horarios en dos columnas con cabecera, «Primero» y «Cierre» (solo con ritmos)
+  const conPrimero = hayHoras && !!ritmos.primero;
+  const conCierre = hayHoras && !!ritmos.corte;
+  const colsRutometro = [
+    "56px minmax(0,1fr)",
+    conPrimero ? "52px" : "",
+    conCierre ? "52px" : "",
+  ].filter(Boolean).join(" ");
+  const colsRutometroSm = [
+    "72px minmax(0,1fr) 64px",
+    conPrimero ? "72px" : "",
+    conCierre ? "72px" : "",
+  ].filter(Boolean).join(" ");
+  const estiloCols = { "--cols": colsRutometro, "--cols-sm": colsRutometroSm } as CSSProperties;
+  const claseFila = "grid gap-x-3 [grid-template-columns:var(--cols)] sm:[grid-template-columns:var(--cols-sm)]";
+  // En móvil el nombre ocupa la fila y las horas bajan a una segunda línea,
+  // alineadas bajo su cabecera; desde sm, todo en una fila
+  const spanPunto = hayHoras ? (conPrimero && conCierre ? "col-span-3 sm:col-span-1" : "col-span-2 sm:col-span-1") : "";
+  const primeraHora = "col-start-3 sm:col-start-auto";
+  const Cabecera = ({ primera }: { primera: string }) => (
+    <div className={`${claseFila} px-4 pb-1 text-[12px] font-semibold uppercase tracking-[1px]`} style={{ ...estiloCols, color: "var(--wp-body)" }}>
+      <span>km</span>
+      <span>{primera}</span>
+      <span className="hidden text-right sm:block">Parcial</span>
+      {conPrimero && <span className="text-right">Primero</span>}
+      {conCierre && <span className="text-right">Cierre</span>}
+    </div>
+  );
   // Tipos de avituallamiento presentes, para la leyenda
   const leyenda = Array.from(
     new Map(
@@ -261,31 +289,26 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
             </p>
           )}
           {prueba.rutometro.puntos && prueba.rutometro.puntos.length > 0 && (
-            <ol className="mt-4 flex flex-col gap-2 list-none p-0 m-0">
+            <>
+            {hayHoras && <div className="mt-4"><Cabecera primera="Punto" /></div>}
+            <ol className={`${hayHoras ? "" : "mt-4 "}flex flex-col gap-2 list-none p-0 m-0`}>
               {prueba.rutometro.puntos.map((p, i) => (
-                <li key={`${p.km}-${i}`} className="flex flex-wrap items-start gap-3 rounded-lg px-4 py-3 text-[15px]" style={{ background: p.destacado ? "var(--wp-claro, var(--wp-cream))" : "var(--wp-cream)" }}>
-                  <span className="wp-num shrink-0 text-[18px]" style={{ color: "var(--wp-ink)", minWidth: 72 }}>km {String(Math.round(p.km * 10) / 10).replace(".", ",")}</span>
-                  <span className="min-w-0 flex-1">
+                <li key={`${p.km}-${i}`} className={`${claseFila} items-start rounded-lg px-4 py-3 text-[15px]`} style={{ ...estiloCols, background: p.destacado ? "var(--wp-claro, var(--wp-cream))" : "var(--wp-cream)" }}>
+                  <span className="wp-num text-[18px]" style={{ color: "var(--wp-ink)" }}>{kmTexto(p.km)}</span>
+                  <span className={`min-w-0 ${spanPunto}`}>
                     <strong style={{ color: "var(--wp-ink)" }}>{p.descripcion}</strong>
                     {p.etiqueta && <span className="ml-2 text-[12px] font-semibold uppercase tracking-[1px]" style={{ color: "var(--wp-body)" }}>{p.etiqueta}</span>}
                     {(p.via || p.notas || p.altitud != null) && (
                       <span className="block text-sm">{[p.via, p.altitud != null ? `${p.altitud} m` : null, p.notas].filter(Boolean).join(" · ")}</span>
                     )}
                   </span>
-                  {p.kmParcial != null && <span className="text-sm">+{String(Math.round(p.kmParcial * 10) / 10).replace(".", ",")} km</span>}
-                  {hayHoras && p.km > 0 && (
-                    <span className="w-full text-sm tabular-nums sm:w-auto sm:text-right">
-                      {[
-                        ritmos.primero && "1º " + horaDePaso(prueba.salida, p.km, ritmos.primero),
-                        ritmos.corte && "cierre " + horaDePaso(prueba.salida, p.km, ritmos.corte),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  )}
+                  <span className="hidden text-right text-sm tabular-nums sm:block">{p.kmParcial ? `+${kmTexto(p.kmParcial)} km` : ""}</span>
+                  {conPrimero && <span className={`${primeraHora} text-right text-sm tabular-nums`}>{horaDePaso(prueba.salida, p.km, ritmos.primero)}</span>}
+                  {conCierre && <span className={`${conPrimero ? "" : primeraHora} text-right text-sm tabular-nums`}>{horaDePaso(prueba.salida, p.km, ritmos.corte)}</span>}
                 </li>
               ))}
             </ol>
+            </>
           )}
           <a href={urlCamberas(`/roadbook/${prueba.rutometro.id}`)} target="_blank" rel="noopener noreferrer" className="wp-btn-outline mt-5" style={{ color: "var(--wp-ink)" }}>
             <MapaIcono size={18} strokeWidth={2} aria-hidden="true" />
@@ -310,33 +333,34 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
               })}
             </ul>
           )}
+          {hayHoras && <Cabecera primera="Punto" />}
           <ul className="flex flex-col gap-2 list-none p-0 m-0">
             {prueba.avituallamientos.map((a, i) => {
               const Icono = iconoRutometro(a.icono, a.tipo);
+              const esExtremo = a.tipo === "start" || a.tipo === "finish";
               return (
-                <li key={`${a.nombre}-${a.km}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-3 text-[15px]" style={{ background: "var(--wp-cream)" }}>
-                  <Icono size={18} strokeWidth={2} aria-hidden="true" className="shrink-0" style={{ color }} />
-                  <span className="min-w-0 flex-1">
-                    <strong style={{ color: "var(--wp-ink)" }}>km {kmTexto(a.km)}</strong> · {a.nombre}
-                    {a.lugar && a.lugar !== a.nombre ? ` · ${a.lugar}` : ""}
-                    {(a.etiqueta || a.control) && (
-                      <span className="block text-sm">
-                        {[a.tipo !== "start" && a.tipo !== "finish" ? a.etiqueta : null, a.control && a.tipo !== "start" && a.tipo !== "finish" ? "control de paso" : null]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    )}
-                  </span>
-                  {(a.corte || a.pasoPrimero || a.cierreEstimado) && (
-                    <span className="text-sm tabular-nums">
-                      {[a.pasoPrimero && "1º " + a.pasoPrimero, !a.corte && a.cierreEstimado && "cierre " + a.cierreEstimado].filter(Boolean).join(" · ")}
-                      {a.corte && (
-                        <span className="wp-num ml-2 text-[18px]" style={{ color: "var(--wp-red)" }}>
-                          corte {a.corte}
+                <li key={`${a.nombre}-${a.km}-${i}`} className={`${claseFila} items-center rounded-lg px-4 py-3 text-[15px]`} style={{ ...estiloCols, background: "var(--wp-cream)" }}>
+                  <span className="wp-num text-[18px]" style={{ color: "var(--wp-ink)" }}>{kmTexto(a.km)}</span>
+                  <span className={`flex min-w-0 items-start gap-2 ${spanPunto}`}>
+                    <Icono size={18} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color }} />
+                    <span className="min-w-0">
+                      <strong style={{ color: "var(--wp-ink)" }}>{a.nombre}</strong>
+                      {a.lugar && a.lugar !== a.nombre ? ` · ${a.lugar}` : ""}
+                      {(!esExtremo && (a.etiqueta || a.control)) || a.corte ? (
+                        <span className="block text-sm">
+                          {[!esExtremo ? a.etiqueta : null, !esExtremo && a.control ? "control de paso" : null].filter(Boolean).join(" · ")}
+                          {a.corte && (
+                            <span className="wp-num ml-2 text-[16px]" style={{ color: "var(--wp-red)" }}>
+                              corte oficial {a.corte}
+                            </span>
+                          )}
                         </span>
-                      )}
+                      ) : null}
                     </span>
-                  )}
+                  </span>
+                  <span className="hidden sm:block" />
+                  {conPrimero && <span className={`${primeraHora} text-right text-sm tabular-nums`}>{a.pasoPrimero ?? ""}</span>}
+                  {conCierre && <span className={`${conPrimero ? "" : primeraHora} text-right text-sm tabular-nums`}>{a.cierreEstimado ?? ""}</span>}
                 </li>
               );
             })}
