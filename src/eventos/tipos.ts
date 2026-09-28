@@ -134,6 +134,8 @@ export interface Prueba {
   relato?: string;
   /** Rutómetro de Camberas del recorrido (roadbooks + roadbook_items), si lo tiene */
   rutometro?: Rutometro;
+  /** Ritmos del rutómetro tal como los da evento_publico; normalizar.ts los mete en rutometro.ritmos */
+  ritmosRutometro?: RitmoRutometro[];
   plazas?: number;
   plazasLibres?: number;
   estado?: EstadoEvento;
@@ -266,6 +268,8 @@ export interface EventoPublico {
     faq?: { p: string; r: string }[];
   };
   clasificaciones?: { url?: string; tiempoReal?: boolean; anteriores?: { anio: number; url: string }[] };
+  /** Clasificaciones de años anteriores (race_web.contenido); normalizar.ts las pasa a clasificaciones.anteriores */
+  edicionesAnteriores?: { anio: number; url: string }[];
   gps?: { activo?: boolean; url?: string };
   fotos?: { url?: string; disponible?: boolean; texto?: string };
   patrocinadores?: Patrocinador[];

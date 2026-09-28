@@ -18,12 +18,10 @@
 --            las 15:03, antes del corte de las 15:30.
 --      GT40: Bustriguado a las 13:00 (4 h, km 21,1) = 11:22 min/km; así
 --            Cortafuegos cierra a las 15:09 y la meta a las 16:13.
--- 4. evento_publico, por sustitución sobre la definición de producción:
---    a) el rutómetro de cada recorrido lleva sus ritmos ('ritmos');
---    b) 'clasificaciones' se fusiona (lo calculado + lo de la web) en vez de
---       que la web lo pise: así «anteriores» no borra el enlace a las de este
---       año.
--- 5. Gurriana: clasificaciones de 2016, 2017 y 2018 (resultados.uno.es).
+-- 4. evento_publico, por sustitución sobre la definición de producción: cada
+--    recorrido lleva 'ritmosRutometro' (ver la parte 4).
+-- 5. Gurriana: clasificaciones de 2016, 2017 y 2018 (resultados.uno.es) en
+--    race_web.contenido.edicionesAnteriores.
 -- 6. Gurriana: sección «Info práctica» encendida (Cómo llegar y FAQ).
 --
 -- No toca horas de carrera; termina con la guardia.
@@ -82,6 +80,15 @@ JOIN (VALUES
 WHERE d.race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e';
 
 -- 4. evento_publico por sustitución -------------------------------------------
+-- Primera versión (28-sep 22:30): tres sustituciones que anclaban en texto
+-- que en producción no está escrito igual → «se esperaban 1 apariciones y
+-- hay 0» y la función quedó intacta (las partes 1 a 3 sí entraron; todo el
+-- fichero se puede volver a ejecutar). Ahora un solo anclaje, la clave
+-- 'rutometro' de cada recorrido, que es única, y una clave nueva a su lado:
+-- 'ritmosRutometro'. La web la mete dentro del rutómetro
+-- (src/eventos/normalizar.ts). Las clasificaciones anteriores ya no tocan la
+-- función: van en contenido.edicionesAnteriores, que evento_publico deja
+-- pasar tal cual.
 CREATE OR REPLACE FUNCTION pg_temp.sustituir(p_fn regprocedure, p_patron text, p_nuevo text, p_n int)
 RETURNS void LANGUAGE plpgsql AS $f$
 DECLARE d text; n int;
@@ -94,44 +101,35 @@ BEGIN
   EXECUTE regexp_replace(d, p_patron, p_nuevo, 'g');
 END $f$;
 
--- a) ritmos del rutómetro
-SELECT pg_temp.sustituir(
-  'public.evento_publico(text)',
-  $r$'id', r\.id, 'nombre', r\.name, 'descripcion', r\.description,$r$,
-  $n$'id', r.id, 'nombre', r.name, 'descripcion', r.description,
-                                      'ritmos', (SELECT jsonb_agg(jsonb_build_object(
-                                                   'nombre', pc.pace_name, 'minKm', pc.pace_minutes_per_km, 'orden', pc.pace_order)
-                                                 ORDER BY pc.pace_order)
-                                         FROM roadbook_paces pc WHERE pc.roadbook_id = r.id),$n$,
-  1);
-
--- b) clasificaciones: fuera del «la web pisa»...
-SELECT pg_temp.sustituir(
-  'public.evento_publico(text)',
-  $r$- 'camiseta' - 'sanitario'\)$r$,
-  $n$- 'camiseta' - 'sanitario' - 'clasificaciones')$n$,
-  1);
-
--- ...y fusionadas: lo calculado (enlace a /live) + lo de la web (anteriores)
-SELECT pg_temp.sustituir(
-  'public.evento_publico(text)',
-  $r$'infoPractica', NULLIF\(COALESCE\(calculado\.j->'infoPractica', '\{\}'::jsonb\) \|\| \(web\.inf - 'faq'\), '\{\}'::jsonb\)$r$,
-  $n$'infoPractica', NULLIF(COALESCE(calculado.j->'infoPractica', '{}'::jsonb) || (web.inf - 'faq'), '{}'::jsonb),
-                'clasificaciones', COALESCE(calculado.j->'clasificaciones', '{}'::jsonb)
-                                   || CASE WHEN jsonb_typeof(web.c->'clasificaciones') = 'object' THEN web.c->'clasificaciones' ELSE '{}'::jsonb END$n$,
-  1);
+-- Idempotente: si ya lleva los ritmos, no se toca
+DO $do$
+BEGIN
+  IF pg_get_functiondef('public.evento_publico(text)'::regprocedure) NOT LIKE '%ritmosRutometro%' THEN
+    PERFORM pg_temp.sustituir(
+      'public.evento_publico(text)',
+      $r$'rutometro',(\s+)\(SELECT$r$,
+      $n$'ritmosRutometro', (SELECT jsonb_agg(jsonb_build_object(
+                                        'nombre', pc.pace_name, 'minKm', pc.pace_minutes_per_km, 'orden', pc.pace_order)
+                                      ORDER BY pc.pace_order)
+                                    FROM roadbook_paces pc
+                                   WHERE pc.roadbook_id = (SELECT r0.id FROM roadbooks r0
+                                                            WHERE r0.race_distance_id = d.id
+                                                            ORDER BY r0.created_at LIMIT 1)),
+                 'rutometro',\1(SELECT$n$,
+      1);
+  END IF;
+END
+$do$;
 
 -- Guardia de horas: obligatoria tras tocar funciones
 DO $$ BEGIN IF EXISTS (SELECT 1 FROM public.guardia_horas() WHERE nivel = 'FALLO') THEN RAISE EXCEPTION 'horas'; END IF; END $$;
 
 -- 5. Clasificaciones de años anteriores de Gurriana ---------------------------
 UPDATE public.race_web
-   SET contenido = jsonb_set(COALESCE(contenido, '{}'::jsonb), '{clasificaciones}',
-         COALESCE(CASE WHEN jsonb_typeof(contenido->'clasificaciones') = 'object' THEN contenido->'clasificaciones' END, '{}'::jsonb)
-         || jsonb_build_object('anteriores', jsonb_build_array(
-              jsonb_build_object('anio', 2018, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=190'),
-              jsonb_build_object('anio', 2017, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=126'),
-              jsonb_build_object('anio', 2016, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=70'))))
+   SET contenido = COALESCE(contenido, '{}'::jsonb) || jsonb_build_object('edicionesAnteriores', jsonb_build_array(
+         jsonb_build_object('anio', 2018, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=190'),
+         jsonb_build_object('anio', 2017, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=126'),
+         jsonb_build_object('anio', 2016, 'url', 'https://resultados.uno.es/results.aspx?CId=16479&RId=70')))
  WHERE race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e';
 
 -- 6. Gurriana: se enciende «Info práctica» en su portada (Cómo llegar con mapa y FAQ)
@@ -154,9 +152,8 @@ SELECT d.name AS prueba, p.pace_name, p.pace_minutes_per_km
   JOIN public.race_distances d ON d.id = r.race_distance_id
  WHERE d.race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e'
  ORDER BY d.name, p.pace_order;
-SELECT contenido->'clasificaciones' AS clasificaciones FROM public.race_web
+SELECT contenido->'edicionesAnteriores' AS ediciones_anteriores FROM public.race_web
  WHERE race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e';
--- La sustitución quedó hecha: la definición lleva los ritmos y la fusión de clasificaciones
-SELECT pg_get_functiondef('public.evento_publico(text)'::regprocedure) LIKE '%roadbook_paces%' AS ritmos_en_funcion,
-       pg_get_functiondef('public.evento_publico(text)'::regprocedure) LIKE '%''clasificaciones'', COALESCE(calculado.j%' AS clasificaciones_fusionadas;
+-- La sustitución quedó hecha: la definición lleva los ritmos
+SELECT pg_get_functiondef('public.evento_publico(text)'::regprocedure) LIKE '%ritmosRutometro%' AS ritmos_en_funcion;
 SELECT * FROM public.guardia_horas() WHERE nivel = 'FALLO';

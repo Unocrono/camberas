@@ -104,20 +104,25 @@ function sinRepetir(texto: string | undefined): string | undefined {
 }
 
 function limpiarRutometro(prueba: Prueba): Prueba {
-  if (!prueba.rutometro?.puntos) return prueba;
+  if (!prueba.rutometro) return prueba;
   return {
     ...prueba,
     rutometro: {
       ...prueba.rutometro,
-      puntos: prueba.rutometro.puntos.map((p) => ({ ...p, descripcion: (p.descripcion ?? "").trim(), notas: sinRepetir(p.notas) })),
+      // evento_publico da los ritmos al lado del rutómetro (ritmosRutometro)
+      ritmos: prueba.rutometro.ritmos ?? prueba.ritmosRutometro,
+      puntos: prueba.rutometro.puntos?.map((p) => ({ ...p, descripcion: (p.descripcion ?? "").trim(), notas: sinRepetir(p.notas) })),
     },
   };
 }
 
 export function normalizarEvento(evento: EventoPublico | null): EventoPublico | null {
   if (!evento) return evento;
+  const anteriores = evento.clasificaciones?.anteriores ?? evento.edicionesAnteriores;
   return {
     ...evento,
+    // Clasificaciones de años anteriores: vienen del contenido de la web
+    clasificaciones: anteriores?.length ? { ...(evento.clasificaciones ?? {}), anteriores } : evento.clasificaciones,
     pruebas: (evento.pruebas ?? []).map(limpiarRutometro).map((p) => ({ ...p, avituallamientos: avituallamientosDePrueba(p) })),
   };
 }
