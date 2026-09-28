@@ -559,6 +559,54 @@ export type Database = {
           },
         ]
       }
+      consultas_inscripcion: {
+        Row: {
+          acierto: boolean
+          clave_dni: string
+          clave_ip: string | null
+          created_at: string
+          id: number
+          race_id: string
+          registration_id: string | null
+          tipo: string
+        }
+        Insert: {
+          acierto?: boolean
+          clave_dni: string
+          clave_ip?: string | null
+          created_at?: string
+          id?: never
+          race_id: string
+          registration_id?: string | null
+          tipo: string
+        }
+        Update: {
+          acierto?: boolean
+          clave_dni?: string
+          clave_ip?: string | null
+          created_at?: string
+          id?: never
+          race_id?: string
+          registration_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultas_inscripcion_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultas_inscripcion_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_settings: {
         Row: {
           created_at: string
@@ -5786,6 +5834,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      ahora_pared: { Args: never; Returns: string }
       asignar_dorsal_carrera: {
         Args: { p_registration_id: string }
         Returns: number
@@ -5811,6 +5860,28 @@ export type Database = {
         }[]
       }
       borrar_grupetta: { Args: { p_race_id: string }; Returns: undefined }
+      buscar_inscripcion_consulta: {
+        Args: {
+          p_dni: string
+          p_email: string
+          p_nacimiento: string
+          p_race_id: string
+        }
+        Returns: {
+          bib_number: number
+          created_at: string
+          email_destino: string
+          first_name: string
+          id: string
+          last_name: string
+          payment_status: string
+          race_distance_id: string
+          recorrido: string
+          source: string
+          status: string
+          team_id: string
+        }[]
+      }
       calculate_race_results: {
         Args: { p_race_distance_id: string }
         Returns: {
@@ -6164,7 +6235,12 @@ export type Database = {
       }
       get_organizer_status: { Args: { _user_id: string }; Returns: string }
       get_race_category: {
-        Args: { p_birth_date: string; p_gender: string; p_race_id: string }
+        Args: {
+          p_birth_date: string
+          p_gender: string
+          p_race_distance_id?: string
+          p_race_id: string
+        }
         Returns: string
       }
       get_race_sos_alerts: {
@@ -6213,6 +6289,16 @@ export type Database = {
         Args: { p_cutoff: string; p_group: string }
         Returns: string
       }
+      guardia_horas: {
+        Args: never
+        Returns: {
+          clase: string
+          nivel: string
+          nombre: string
+          regla: string
+          trozo: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6224,6 +6310,7 @@ export type Database = {
         Args: { p_distance_id: string }
         Returns: string
       }
+      hoy_local: { Args: never; Returns: string }
       inscripcion_ya_dentro: {
         Args: { p_registration_id: string }
         Returns: boolean
