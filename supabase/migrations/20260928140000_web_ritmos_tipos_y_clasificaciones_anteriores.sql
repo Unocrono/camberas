@@ -146,8 +146,17 @@ UPDATE public.race_web
 -- Tipos: los cuatro de avituallamiento y aparcamiento
 SELECT name, label, icon, race_type FROM public.roadbook_item_types
  WHERE name IN ('refreshment', 'aid_station', 'aid_gluten_free', 'parking') ORDER BY display_order;
--- Gurriana: ritmos y clasificaciones (enlace de este año + tres anteriores)
-SELECT p->>'nombre' AS prueba, p->'rutometro'->'ritmos' AS ritmos
-  FROM jsonb_array_elements(public.evento_publico('gurriana-trail-2027')->'pruebas') p;
-SELECT public.evento_publico('gurriana-trail-2027')->'clasificaciones' AS clasificaciones;
+-- Gurriana: ritmos y clasificaciones anteriores (en las tablas: evento_publico
+-- va justa de tiempo y no se llama aquí; la web lo comprueba al cargar)
+SELECT d.name AS prueba, p.pace_name, p.pace_minutes_per_km
+  FROM public.roadbook_paces p
+  JOIN public.roadbooks r ON r.id = p.roadbook_id
+  JOIN public.race_distances d ON d.id = r.race_distance_id
+ WHERE d.race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e'
+ ORDER BY d.name, p.pace_order;
+SELECT contenido->'clasificaciones' AS clasificaciones FROM public.race_web
+ WHERE race_id = 'c3a9e5d2-7b1f-4e6a-9d0c-3f4a5b6c7d8e';
+-- La sustitución quedó hecha: la definición lleva los ritmos y la fusión de clasificaciones
+SELECT pg_get_functiondef('public.evento_publico(text)'::regprocedure) LIKE '%roadbook_paces%' AS ritmos_en_funcion,
+       pg_get_functiondef('public.evento_publico(text)'::regprocedure) LIKE '%''clasificaciones'', COALESCE(calculado.j%' AS clasificaciones_fusionadas;
 SELECT * FROM public.guardia_horas() WHERE nivel = 'FALLO';
