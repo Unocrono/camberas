@@ -1,11 +1,73 @@
+import { lazy, Suspense } from "react";
+import { Navigation } from "lucide-react";
 import type { EventoPublico, Patrocinador } from "@/eventos/tipos";
+import { lugaresDeAcceso, urlComoLlegar, type LugarAcceso } from "@/eventos/normalizar";
+import { iconoRutometro } from "@/lib/iconosRutometro";
+
+// Mapbox solo se descarga si la carrera tiene sitios con coordenadas
+const MapaLugares = lazy(() => import("@/components/MapaLugares").then((m) => ({ default: m.MapaLugares })));
+
+const NOMBRE_TIPO: Record<LugarAcceso["tipo"], string> = {
+  "salida-meta": "Salida y meta",
+  salida: "Salida",
+  meta: "Meta",
+  parking: "Aparcamiento",
+};
+const TIPO_ICONO: Record<LugarAcceso["tipo"], string> = { "salida-meta": "start", salida: "start", meta: "finish", parking: "parking" };
+
+/**
+ * Cómo llegar: mapa con la salida, la meta y los aparcamientos del rutómetro,
+ * y un botón de ruta en Google Maps por sitio. El texto de la web (si lo hay)
+ * va encima como complemento.
+ */
+function ComoLlegar({ evento, texto }: { evento: EventoPublico; texto?: string }) {
+  const lugares = lugaresDeAcceso(evento);
+  const variasPruebas = evento.pruebas.length > 1;
+  return (
+    <article id="como-llegar" className="wp-card overflow-hidden lg:col-span-2" style={{ scrollMarginTop: 90 }}>
+      <div className="p-[22px] lg:p-8">
+        <h3 className="text-[24px] lg:text-[28px]">Cómo llegar</h3>
+        {texto && <p className="mt-4 whitespace-pre-line text-[15px]">{texto}</p>}
+      </div>
+      <Suspense fallback={<div className="h-[360px] lg:h-[420px]" style={{ background: "var(--wp-cream)" }} />}>
+        <MapaLugares
+          lugares={lugares.map((l) => ({ lat: l.lat, lon: l.lon, nombre: l.tipo === "parking" ? l.nombre : NOMBRE_TIPO[l.tipo], tipo: TIPO_ICONO[l.tipo], detalle: l.detalle }))}
+          color="var(--wp-marca)"
+        />
+      </Suspense>
+      <ul className="grid grid-cols-1 gap-3 p-[22px] list-none m-0 sm:grid-cols-2 lg:grid-cols-3 lg:p-8">
+        {lugares.map((l) => {
+          const Icono = iconoRutometro(undefined, TIPO_ICONO[l.tipo]);
+          return (
+            <li key={`${l.lat},${l.lon}`} className="flex flex-col gap-3 rounded-lg p-4" style={{ background: "var(--wp-cream)" }}>
+              <p className="flex items-start gap-2 text-[15px]">
+                <Icono size={18} strokeWidth={2} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: "var(--wp-marca)" }} />
+                <span>
+                  <strong style={{ color: "var(--wp-ink)" }}>{l.tipo === "parking" ? l.nombre : NOMBRE_TIPO[l.tipo]}</strong>
+                  {variasPruebas && l.tipo !== "parking" && <span className="block text-sm">{l.pruebas.join(" y ")}</span>}
+                  {l.detalle && <span className="block text-sm">{l.detalle}</span>}
+                </span>
+              </p>
+              <a href={urlComoLlegar(l)} target="_blank" rel="noopener noreferrer" className="wp-btn-outline mt-auto self-start text-sm" style={{ color: "var(--wp-ink)", minHeight: 40 }}>
+                <Navigation size={16} strokeWidth={2} aria-hidden="true" />
+                Cómo llegar
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </article>
+  );
+}
 
 /** Info práctica: cómo llegar, alojamiento, espectadores, FAQ. Solo lo que haya. */
 export function InfoPractica({ evento }: { evento: EventoPublico }) {
-  const ip = evento.infoPractica;
-  if (!ip || (!ip.comoLlegar && !ip.parking && !ip.alojamiento && !ip.espectadores && !ip.transporte && !ip.faq?.length)) return null;
+  const ip = evento.infoPractica ?? {};
+  const hayLugares = lugaresDeAcceso(evento).length > 0;
+  if (!hayLugares && !ip.comoLlegar && !ip.parking && !ip.alojamiento && !ip.espectadores && !ip.transporte && !ip.faq?.length) return null;
   const bloques: { id: string; titulo: string; texto?: string }[] = [
-    { id: "como-llegar", titulo: "Cómo llegar", texto: ip.comoLlegar },
+    // Con sitios en el rutómetro, «Cómo llegar» va aparte con su mapa
+    { id: "como-llegar", titulo: "Cómo llegar", texto: hayLugares ? undefined : ip.comoLlegar },
     { id: "parking", titulo: "Aparcamiento", texto: ip.parking },
     { id: "transporte", titulo: "Transporte", texto: ip.transporte },
     { id: "alojamiento", titulo: "Alojamiento", texto: ip.alojamiento },
@@ -18,6 +80,7 @@ export function InfoPractica({ evento }: { evento: EventoPublico }) {
         <p className="wp-label">Info práctica</p>
         <h2 className="mt-4" style={{ fontSize: "clamp(40px, 5vw, 60px)" }}>Antes de salir de casa</h2>
         <div className="mt-10 grid grid-cols-1 gap-4 lg:mt-14 lg:grid-cols-2 lg:gap-8">
+          {hayLugares && <ComoLlegar evento={evento} texto={ip.comoLlegar} />}
           {bloques.map((b) => (
             <article key={b.id} id={b.id} className="wp-card p-[22px] lg:p-8">
               <h3 className="text-[24px] lg:text-[28px]">{b.titulo}</h3>

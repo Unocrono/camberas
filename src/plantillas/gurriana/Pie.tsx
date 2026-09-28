@@ -1,6 +1,7 @@
 import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { useTenant } from "@/tenant/TenantContext";
+import { FormularioContacto } from "./FormularioContacto";
 
 function Titulo({ children }: { children: string }) {
   return (
@@ -19,6 +20,19 @@ export function Pie({ evento, rutas }: { evento: EventoPublico; rutas: RutasWeb 
   return (
     <footer id="contacto" className="px-5 pb-12 pt-12 lg:px-[72px] lg:pb-14 lg:pt-20" style={{ background: "var(--wp-dark)", color: "var(--wp-muted-dark)" }}>
       <div className="mx-auto max-w-[1296px]">
+        {/* Contacto con la organización: el email del organizador no sale al navegador */}
+        {evento.id && (
+          <div className="mb-12 grid grid-cols-1 gap-8 border-b pb-12 lg:mb-16 lg:grid-cols-[1fr_1.4fr] lg:gap-16 lg:pb-16" style={{ borderColor: "var(--wp-border-dark)" }}>
+            <div>
+              <p className="wp-label" style={{ color: "var(--wp-accion)" }}>Contacto</p>
+              <h2 className="mt-4" style={{ fontSize: "clamp(36px, 4vw, 52px)", color: "#fff" }}>¿Tienes alguna duda?</h2>
+              <p className="mt-4 max-w-md text-[15px]">
+                Escríbenos y la organización te contestará por email. Antes, echa un vistazo a las preguntas frecuentes: puede que ya esté resuelta.
+              </p>
+            </div>
+            <FormularioContacto evento={evento} />
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-4 lg:gap-12">
           <div>
             {/* Logo sobre placa blanca: el pie es oscuro y los logos suelen ir sobre fondo claro */}
@@ -71,6 +85,13 @@ export function Pie({ evento, rutas }: { evento: EventoPublico; rutas: RutasWeb 
             <ul className="mt-5 flex flex-col gap-3 text-[15px] list-none p-0 m-0">
               {evento.clasificaciones?.url && <li><a href={evento.clasificaciones.url} className="no-underline hover:underline" style={{ color: "inherit" }}>Clasificaciones{evento.clasificaciones.tiempoReal ? " en directo" : ""}</a></li>}
               {evento.gps?.activo && evento.gps.url && <li><a href={evento.gps.url} className="no-underline hover:underline" style={{ color: "inherit" }}>GPS en vivo</a></li>}
+              {(evento.clasificaciones?.anteriores ?? []).map((a) => (
+                <li key={a.anio} id={a === evento.clasificaciones?.anteriores?.[0] ? "clasificaciones-anteriores" : undefined}>
+                  <a href={a.url} target="_blank" rel="noopener noreferrer" className="no-underline hover:underline" style={{ color: "inherit" }}>
+                    Clasificaciones {a.anio}
+                  </a>
+                </li>
+              ))}
               {evento.pruebas.filter((p) => p.track?.gpx).map((p) => (
                 <li key={p.id}><a href={p.track!.gpx} download className="no-underline hover:underline" style={{ color: "inherit" }}>Track {p.nombre} (GPX)</a></li>
               ))}

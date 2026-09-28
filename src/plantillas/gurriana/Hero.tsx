@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ahoraParedMs, paredAMs } from "@/lib/timezoneUtils";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { LibroDiseno } from "@/plantillas/libroDiseno";
 import { diaMes, diaMesAbreviado, fechaLarga } from "@/eventos/useEventoPublico";
@@ -8,6 +9,55 @@ interface Props {
   tokens: LibroDiseno;
   onInscribirse: () => void;
   hrefRecorridos: string;
+}
+
+/**
+ * Cuenta atrás de la portada. Antes de abrir, hasta la apertura de
+ * inscripciones; después, hasta la primera salida prevista. Todo en hora de
+ * pared (sin zonas): la apertura llega con +00 pero es hora local, y «ahora»
+ * se pasa a hora local con ahoraParedMs. Desaparece al llegar la salida.
+ */
+function CuentaAtras({ evento, claro }: { evento: EventoPublico; claro: boolean }) {
+  const [ahora, setAhora] = useState(() => ahoraParedMs());
+  useEffect(() => {
+    const t = setInterval(() => setAhora(ahoraParedMs()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const salidas = evento.pruebas.map((p) => p.salida).filter((s): s is string => !!s).sort();
+  const objetivos: { ms: number | null; texto: string }[] = [];
+  if (evento.estado === "proximamente" && evento.inscripcion.apertura) {
+    objetivos.push({ ms: paredAMs(evento.inscripcion.apertura), texto: "Abren las inscripciones en" });
+  }
+  if (evento.estado !== "celebrada" && evento.fecha) {
+    objetivos.push({ ms: paredAMs(`${evento.fecha}T${salidas[0] ?? "00:00"}:00`), texto: salidas[0] ? "Salida en" : "Faltan" });
+  }
+  const objetivo = objetivos.find((o) => o.ms != null && o.ms > ahora);
+  if (!objetivo || objetivo.ms == null) return null;
+
+  const resto = Math.floor((objetivo.ms - ahora) / 1000);
+  const partes = [
+    { valor: Math.floor(resto / 86400), etiqueta: "días" },
+    { valor: Math.floor((resto % 86400) / 3600), etiqueta: "horas" },
+    { valor: Math.floor((resto % 3600) / 60), etiqueta: "min" },
+    { valor: resto % 60, etiqueta: "seg" },
+  ];
+  const colorTexto = claro ? "#fff" : "var(--wp-marca-texto)";
+  return (
+    <div className="mt-8" aria-live="off">
+      <p className="wp-label" style={{ color: colorTexto, opacity: 0.85 }}>{objetivo.texto}</p>
+      <div className="mt-3 flex gap-3">
+        {partes.map((p) => (
+          <div key={p.etiqueta} className="min-w-[64px] rounded-[10px] px-3 py-2 text-center" style={{ background: "rgba(255,255,255,0.14)", backdropFilter: "blur(4px)" }}>
+            <p className="wp-num tabular-nums" style={{ fontSize: "clamp(26px, 3vw, 36px)", color: colorTexto, lineHeight: 1.05 }}>
+              {String(p.valor).padStart(2, "0")}
+            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[1.5px]" style={{ color: colorTexto, opacity: 0.8 }}>{p.etiqueta}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 const ESTADO_TEXTO: Record<string, string> = {
@@ -96,6 +146,7 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
                 Ver {evento.pruebas.length > 1 ? "recorridos" : "recorrido"}
               </a>
             </div>
+            {tokens.cuentaAtras && <CuentaAtras evento={evento} claro={!!foto} />}
           </div>
 
           <div className="wp-card w-full p-6 lg:w-[340px] lg:p-8" style={{ color: "var(--wp-body)" }}>

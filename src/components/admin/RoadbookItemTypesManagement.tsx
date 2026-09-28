@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Edit, Trash2, Flag, MapPin, Droplet, GlassWater, AlertTriangle, Camera, Trophy, Mountain, Coffee, Utensils, Home, Star, CircleDot } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Flag, MapPin, Droplet, GlassWater, AlertTriangle, Camera, Trophy, Mountain, Coffee, Utensils, Home, Star, CircleDot, Timer, Clock, WheatOff, SquareParking, Shirt, Bath } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface RoadbookItemType {
@@ -45,6 +45,12 @@ const availableIcons = [
   { value: "Home", label: "Casa/Refugio", Icon: Home },
   { value: "Star", label: "Estrella", Icon: Star },
   { value: "CircleDot", label: "Punto", Icon: CircleDot },
+  { value: "Timer", label: "Cronómetro", Icon: Timer },
+  { value: "Clock", label: "Reloj", Icon: Clock },
+  { value: "WheatOff", label: "Sin gluten", Icon: WheatOff },
+  { value: "SquareParking", label: "Aparcamiento", Icon: SquareParking },
+  { value: "Shirt", label: "Guardarropa", Icon: Shirt },
+  { value: "Bath", label: "Duchas / aseos", Icon: Bath },
 ];
 
 const getIconComponent = (iconName: string) => {

@@ -173,6 +173,14 @@ export function LibroDisenoEditor({ slug, plantilla: plantillaInicial, tema, gua
               <Switch checked={tokens.cinta} onCheckedChange={(v) => set("cinta", v)} />
             </div>
 
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label>Cuenta atrás</Label>
+                <p className="text-xs text-muted-foreground">En la portada: hasta la apertura de inscripciones y después hasta la salida</p>
+              </div>
+              <Switch checked={tokens.cuentaAtras} onCheckedChange={(v) => set("cuentaAtras", v)} />
+            </div>
+
             <div className="space-y-2">
               <Label>Secciones y orden</Label>
               <ul className="divide-y rounded-md border">

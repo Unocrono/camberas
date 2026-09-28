@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { ICONOS_RUTOMETRO } from "@/lib/iconosRutometro";
+import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto } from "@/lib/ritmos";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,19 +62,8 @@ interface Race {
 }
 
 // Icon mapping for item types
-const iconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
-  Flag,
-  MapPin,
-  Droplet,
-  GlassWater,
-  AlertTriangle,
-  Camera,
-  Trophy,
-  Mountain,
-  CircleDot,
-  Timer,
-  Clock,
-};
+// Iconos de los tipos: el mapa compartido con el panel y la web propia
+const iconComponents = ICONOS_RUTOMETRO;
 
 export default function Roadbook() {
   const { roadbookId } = useParams<{ roadbookId: string }>();
@@ -84,6 +75,8 @@ export default function Roadbook() {
   // Hora de salida PREVISTA de la ola del recorrido (hora local, tal cual).
   // No es la oficial de cronometraje, y el rutómetro no tiene hora propia
   const [salida, setSalida] = useState<string | null>(null);
+  // Ritmos del rutómetro (roadbook_paces, orden 1 primero y 2 corte), en min/km
+  const [ritmos, setRitmos] = useState<{ primero?: number; corte?: number }>({});
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -134,6 +127,16 @@ export default function Roadbook() {
 
       if (raceError) throw raceError;
       setRace(raceData);
+
+      const { data: paces } = await supabase
+        .from("roadbook_paces")
+        .select("pace_order, pace_minutes_per_km")
+        .eq("roadbook_id", roadbookId);
+      const ritmoDe = (orden: number) => {
+        const fila = (paces ?? []).find((r) => r.pace_order === orden);
+        return fila ? Number(fila.pace_minutes_per_km) : undefined;
+      };
+      setRitmos({ primero: ritmoDe(RITMO_PRIMERO.orden), corte: ritmoDe(RITMO_CORTE.orden) });
 
       // Fetch item types
       const { data: typesData, error: typesError } = await supabase
@@ -201,6 +204,8 @@ export default function Roadbook() {
     return { icon: null, label: item.item_type };
   };
 
+  const hayHoras = !!salida && !!(ritmos.primero || ritmos.corte);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -254,6 +259,17 @@ export default function Roadbook() {
           {roadbook.description && (
             <p className="text-muted-foreground mt-3">{roadbook.description}</p>
           )}
+          {hayHoras && (
+            <p className="text-sm text-muted-foreground mt-2">
+              {[
+                ritmos.primero && RITMO_PRIMERO.nombre + ": " + ritmoATexto(ritmos.primero) + " min/km",
+                ritmos.corte && RITMO_CORTE.nombre + ": " + ritmoATexto(ritmos.corte) + " min/km",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              . Horas estimadas desde la salida prevista, sin contar el desnivel.
+            </p>
+          )}
         </div>
       </header>
 
@@ -279,6 +295,8 @@ export default function Roadbook() {
                       <TableHead className="text-right w-20">FALTAN</TableHead>
                       <TableHead className="text-right w-20">ALT.</TableHead>
                       <TableHead className="w-32">Vía</TableHead>
+                      {hayHoras && ritmos.primero && <TableHead className="text-right w-20" title="Hora estimada de paso del primero">1º</TableHead>}
+                      {hayHoras && ritmos.corte && <TableHead className="text-right w-20" title="Cierre estimado por el ritmo de corte">CIERRE</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -311,6 +329,12 @@ export default function Roadbook() {
                           <TableCell className="text-muted-foreground">
                             {item.via || "-"}
                           </TableCell>
+                          {hayHoras && ritmos.primero && (
+                            <TableCell className="text-right tabular-nums">{horaDePaso(salida, item.km_total, ritmos.primero)}</TableCell>
+                          )}
+                          {hayHoras && ritmos.corte && (
+                            <TableCell className="text-right tabular-nums">{horaDePaso(salida, item.km_total, ritmos.corte)}</TableCell>
+                          )}
                         </TableRow>
                       );
                     })}

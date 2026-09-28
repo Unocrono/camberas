@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import RaceDetail from "@/pages/RaceDetail";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
 import type { EventoPublico } from "@/eventos/tipos";
+import { normalizarEvento } from "@/eventos/normalizar";
 import PaginaCarrera from "./PaginaCarrera";
 import { Cargando } from "./Cargando";
 
@@ -41,7 +42,7 @@ export default function FichaCarrera() {
       return;
     }
     cargador()
-      .then((m) => setEventoFixture((m.default ?? m) as EventoPublico))
+      .then((m) => setEventoFixture(normalizarEvento((m.default ?? m) as EventoPublico)))
       .catch((e) => {
         console.error("[web propia] No se pudo cargar el fixture:", e);
         setEventoFixture(null);

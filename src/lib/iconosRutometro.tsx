@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { AlertTriangle, Camera, CircleDot, Clock, Coffee, Droplet, Flag, GlassWater, Home, MapPin, Mountain, Star, Timer, Trophy, Utensils, type LucideProps } from "lucide-react";
+import { AlertTriangle, Bath, Camera, CircleDot, Clock, Coffee, Droplet, Flag, GlassWater, Home, MapPin, Mountain, Shirt, SquareParking, Star, Timer, Trophy, Utensils, WheatOff, type LucideProps } from "lucide-react";
 
 /**
  * Iconos de los tipos de ítem del rutómetro (roadbook_item_types.icon): la
@@ -23,6 +23,10 @@ export const ICONOS_RUTOMETRO: Record<string, ComponentType<LucideProps>> = {
   CircleDot,
   Timer,
   Clock,
+  WheatOff,
+  SquareParking,
+  Shirt,
+  Bath,
 };
 
 /** Icono por tipo de punto cuando el ítem no tiene tipo con icono (o viene de puntos de control) */
@@ -33,6 +37,9 @@ const POR_TIPO: Record<string, string> = {
   meta: "Trophy",
   aid_station: "Utensils",
   completo: "Utensils",
+  aid_gluten_free: "WheatOff",
+  sin_gluten: "WheatOff",
+  parking: "SquareParking",
   refreshment: "Droplet",
   liquido: "Droplet",
   standard: "Droplet",

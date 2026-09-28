@@ -7,6 +7,7 @@
  * La RPC pasa el resultado por jsonb_strip_nulls: un dato que no existe NO
  * viene a null, directamente no está. Por eso casi todo es opcional.
  */
+import type { RitmoRutometro } from "@/lib/ritmos";
 
 export type EstadoEvento = "abierta" | "proximamente" | "cerrada" | "agotada" | "celebrada" | "borrador" | "suspendida";
 export type TipoPrueba = "carrera" | "marcha" | "infantil" | "relevos" | "km_vertical";
@@ -62,7 +63,7 @@ export interface Categoria {
 export interface PuntoRutometro {
   km: number;
   kmParcial?: number;
-  /** aid_station, refreshment, checkpoint, start, finish, medical, poi, technical, uphill, downhill, bike_wash */
+  /** aid_station, refreshment, aid_gluten_free, parking, checkpoint, start, finish, medical, poi, technical, uphill, downhill, bike_wash */
   tipo: string;
   lat?: number;
   lon?: number;
@@ -82,14 +83,23 @@ export interface Rutometro {
   nombre?: string;
   descripcion?: string;
   puntos?: PuntoRutometro[];
+  /** roadbook_paces: orden 1 «Ritmo del primero», orden 2 «Ritmo de corte» (ver lib/ritmos) */
+  ritmos?: RitmoRutometro[];
 }
 
 export interface Avituallamiento {
   km: number;
   nombre: string;
   lugar?: string;
-  /** liquido | completo | start | finish | standard (checkpoints de Camberas) */
+  /** liquido | completo | sin_gluten | control | start | finish | standard (checkpoints de Camberas) */
   tipo: string;
+  /** Nombre del tipo de ítem del rutómetro («Avituallamiento líquido»…) */
+  etiqueta?: string;
+  /** También es control de paso (cronometraje o rutómetro) */
+  control?: boolean;
+  /** Calculados en el cliente con los ritmos del rutómetro (eventos/normalizar.ts) */
+  pasoPrimero?: string;
+  cierreEstimado?: string;
   corte?: string;
   lat?: number;
   lon?: number;

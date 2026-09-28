@@ -45,6 +45,7 @@ export const PLANTILLAS: Record<string, Plantilla> = {
       hero: "textura",
       heroPosicion: "center 50%",
       cinta: true,
+      cuentaAtras: true,
       secciones: SECCIONES_IDS.map((id) => ({ id, activa: true })),
       seccionesEvento: SECCIONES_EVENTO_IDS.map((id) => ({ id, activa: true })),
     },

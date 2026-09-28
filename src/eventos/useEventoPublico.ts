@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { rpcSinTipos } from "./rpc";
 import type { EventoPublico } from "./tipos";
+import { normalizarEvento } from "./normalizar";
 
 /**
  * El evento entero para la web de la carrera, de la RPC evento_publico(slug).
@@ -20,7 +21,7 @@ export function useEventoPublico(slug: string | undefined) {
       const evento = query.state.data;
       return evento?.pruebas?.some((p) => p.estado === "abierta") ? 60_000 : false;
     },
-    queryFn: async () => (await rpcSinTipos<EventoPublico | null>("evento_publico", { p_slug: slug })) ?? null,
+    queryFn: async () => normalizarEvento((await rpcSinTipos<EventoPublico | null>("evento_publico", { p_slug: slug })) ?? null),
   });
 }
 

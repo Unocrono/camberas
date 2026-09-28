@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, type ReactNode } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
+import { useEventoFixture } from "@/eventos/fixtures";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { plantillaDe } from "@/plantillas/registro";
@@ -23,7 +24,13 @@ export function PaginaSecundaria({ titulo, children }: { titulo?: string; childr
   const { slug: slugUrl } = useParams();
   const { modo, tenant } = useTenant();
   const slug = modo === "propia" ? tenant?.slug : slugUrl;
-  const { data: evento, isLoading } = useEventoPublico(slug);
+  // Solo en desarrollo: ?fixture=<nombre> usa un JSON de docs/eventos/eventos/
+  const [searchParams] = useSearchParams();
+  const fixture = import.meta.env.DEV ? searchParams.get("fixture") : null;
+  const real = useEventoPublico(fixture ? undefined : slug);
+  const deFixture = useEventoFixture(fixture);
+  const evento = fixture ? deFixture ?? undefined : real.data;
+  const isLoading = fixture ? deFixture === undefined : real.isLoading;
   const plantilla = plantillaDe(evento?.web?.plantilla);
   const tokens = useMemo(() => resolverTokens(plantilla.tokensPorDefecto, evento?.marca), [plantilla, evento?.marca]);
   const rutas = useMemo(() => rutasDeWeb(modo, slug ?? "", false), [modo, slug]);

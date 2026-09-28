@@ -74,6 +74,8 @@ export const LibroDisenoSchema = z.object({
   /** Encuadre de la foto de portada (CSS object-position): qué parte se conserva al recortar */
   heroPosicion: z.enum(["center 25%", "center 50%", "center 70%", "30% 60%", "70% 60%"]),
   cinta: z.boolean(),
+  /** Cuenta atrás en la portada: hasta la apertura de inscripciones y después hasta la salida */
+  cuentaAtras: z.boolean(),
   secciones: z.array(z.object({ id: z.enum(SECCIONES_IDS), activa: z.boolean() })),
   /** Página del recorrido: qué se pinta y en qué orden (temas antiguos no lo traen: se rellena) */
   seccionesEvento: z.array(z.object({ id: z.enum(SECCIONES_EVENTO_IDS), activa: z.boolean() })),

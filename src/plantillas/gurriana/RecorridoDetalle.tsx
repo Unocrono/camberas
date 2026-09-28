@@ -6,6 +6,8 @@ import { formatoPrecio, precioVigente } from "@/eventos/useEventoPublico";
 import { useTenant } from "@/tenant/TenantContext";
 import type { LibroDiseno, SeccionEventoId } from "@/plantillas/libroDiseno";
 import { ESTADO_BOTON, PerfilAltimetria } from "./Recorridos";
+import { iconoRutometro } from "@/lib/iconosRutometro";
+import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, ritmosDe } from "@/lib/ritmos";
 
 // Mapbox y el visor 3D solo se descargan cuando la sección está activa
 const RouteFlightViewer = lazy(() => import("@/components/RouteFlightViewer").then((m) => ({ default: m.RouteFlightViewer })));
@@ -53,6 +55,17 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
   const tarifas: Tarifa[] = evento.inscripcion.tarifas.filter((t) => t.pruebas.includes(prueba.id) || t.id === prueba.id);
   const categorias = prueba.categorias?.length ? prueba.categorias : (evento.categorias ?? []);
   const hayPerfil = !!gpx || !!prueba.avituallamientos?.length;
+  const ritmos = ritmosDe(prueba.rutometro?.ritmos);
+  const hayHoras = !!prueba.salida && !!(ritmos.primero || ritmos.corte);
+  const kmTexto = (km: number) => String(Math.round(km * 10) / 10).replace(".", ",");
+  // Tipos de avituallamiento presentes, para la leyenda
+  const leyenda = Array.from(
+    new Map(
+      (prueba.avituallamientos ?? [])
+        .filter((a) => a.etiqueta && a.tipo !== "start" && a.tipo !== "finish")
+        .map((a) => [a.etiqueta as string, a]),
+    ).values(),
+  );
 
   const secciones: Record<SeccionEventoId, () => ReactNode> = {
     cifras: () => (
@@ -236,6 +249,17 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
       prueba.rutometro ? (
         <Tarjeta id="rutometro" titulo={prueba.rutometro.nombre ?? "Rutómetro"} color={color}>
           {prueba.rutometro.descripcion && <p className="text-[15px]">{prueba.rutometro.descripcion}</p>}
+          {hayHoras && (
+            <p className="mt-2 text-sm">
+              {[
+                ritmos.primero && RITMO_PRIMERO.nombre + " " + ritmoATexto(ritmos.primero) + " min/km",
+                ritmos.corte && RITMO_CORTE.nombre.toLowerCase() + " " + ritmoATexto(ritmos.corte) + " min/km",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              . Horas estimadas desde la salida prevista de las {prueba.salida}.
+            </p>
+          )}
           {prueba.rutometro.puntos && prueba.rutometro.puntos.length > 0 && (
             <ol className="mt-4 flex flex-col gap-2 list-none p-0 m-0">
               {prueba.rutometro.puntos.map((p, i) => (
@@ -249,6 +273,16 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
                     )}
                   </span>
                   {p.kmParcial != null && <span className="text-sm">+{String(Math.round(p.kmParcial * 10) / 10).replace(".", ",")} km</span>}
+                  {hayHoras && p.km > 0 && (
+                    <span className="w-full text-sm tabular-nums sm:w-auto sm:text-right">
+                      {[
+                        ritmos.primero && "1º " + horaDePaso(prueba.salida, p.km, ritmos.primero),
+                        ritmos.corte && "cierre " + horaDePaso(prueba.salida, p.km, ritmos.corte),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>
@@ -263,17 +297,55 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
     avituallamientos: () =>
       prueba.avituallamientos && prueba.avituallamientos.length > 0 ? (
         <Tarjeta id="avituallamientos" titulo="Avituallamientos y controles" color={color}>
+          {leyenda.length > 0 && (
+            <ul className="mb-4 flex flex-wrap gap-x-5 gap-y-2 text-sm list-none p-0 m-0">
+              {leyenda.map((a) => {
+                const Icono = iconoRutometro(a.icono, a.tipo);
+                return (
+                  <li key={a.etiqueta} className="inline-flex items-center gap-2">
+                    <Icono size={16} strokeWidth={2} aria-hidden="true" style={{ color }} />
+                    {a.etiqueta}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <ul className="flex flex-col gap-2 list-none p-0 m-0">
-            {prueba.avituallamientos.map((a) => (
-              <li key={`${a.nombre}-${a.km}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-4 py-3 text-[15px]" style={{ background: "var(--wp-cream)" }}>
-                <span>
-                  <strong style={{ color: "var(--wp-ink)" }}>km {String(a.km).replace(".", ",")}</strong> · {a.nombre}
-                  {a.lugar && a.lugar !== a.nombre ? ` · ${a.lugar}` : ""}
-                </span>
-                {a.corte && <span className="wp-num text-[18px]" style={{ color: "var(--wp-red)" }}>corte {a.corte}</span>}
-              </li>
-            ))}
+            {prueba.avituallamientos.map((a, i) => {
+              const Icono = iconoRutometro(a.icono, a.tipo);
+              return (
+                <li key={`${a.nombre}-${a.km}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-3 text-[15px]" style={{ background: "var(--wp-cream)" }}>
+                  <Icono size={18} strokeWidth={2} aria-hidden="true" className="shrink-0" style={{ color }} />
+                  <span className="min-w-0 flex-1">
+                    <strong style={{ color: "var(--wp-ink)" }}>km {kmTexto(a.km)}</strong> · {a.nombre}
+                    {a.lugar && a.lugar !== a.nombre ? ` · ${a.lugar}` : ""}
+                    {(a.etiqueta || a.control) && (
+                      <span className="block text-sm">
+                        {[a.tipo !== "start" && a.tipo !== "finish" ? a.etiqueta : null, a.control && a.tipo !== "start" && a.tipo !== "finish" ? "control de paso" : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    )}
+                  </span>
+                  {(a.corte || a.pasoPrimero || a.cierreEstimado) && (
+                    <span className="text-sm tabular-nums">
+                      {[a.pasoPrimero && "1º " + a.pasoPrimero, !a.corte && a.cierreEstimado && "cierre " + a.cierreEstimado].filter(Boolean).join(" · ")}
+                      {a.corte && (
+                        <span className="wp-num ml-2 text-[18px]" style={{ color: "var(--wp-red)" }}>
+                          corte {a.corte}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
+          {prueba.avituallamientos.some((a) => a.pasoPrimero || a.cierreEstimado) && (
+            <p className="mt-4 text-sm">
+              Horas estimadas con los ritmos del rutómetro, sin contar el desnivel. Los cortes oficiales mandan.
+            </p>
+          )}
         </Tarjeta>
       ) : null,
   };

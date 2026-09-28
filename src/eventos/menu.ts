@@ -1,4 +1,5 @@
 import type { EventoPublico } from "./tipos";
+import { lugaresDeAcceso } from "./normalizar";
 
 /**
  * Menú de la web de la carrera, construido desde el evento (regla de
@@ -67,7 +68,7 @@ export function construirMenu(evento: EventoPublico, rutas: RutasWeb): GrupoMenu
 
   const ip = evento.infoPractica;
   const info: EnlaceMenu[] = [];
-  if (ip?.comoLlegar) info.push({ href: rutas.ancla("como-llegar"), texto: "Cómo llegar" });
+  if (ip?.comoLlegar || lugaresDeAcceso(evento).length > 0) info.push({ href: rutas.ancla("como-llegar"), texto: "Cómo llegar" });
   if (ip?.alojamiento) info.push({ href: rutas.ancla("alojamiento"), texto: "Alojamiento" });
   if (ip?.espectadores) info.push({ href: rutas.ancla("espectadores"), texto: "Espectadores" });
   if (ip?.faq?.length) info.push({ href: rutas.ancla("faq"), texto: "FAQ" });
@@ -77,6 +78,7 @@ export function construirMenu(evento: EventoPublico, rutas: RutasWeb): GrupoMenu
   if (evento.clasificaciones?.url) mas.push({ href: evento.clasificaciones.url, texto: "Clasificaciones" });
   if (evento.gps?.activo && evento.gps.url) mas.push({ href: evento.gps.url, texto: "GPS en vivo" });
   if (evento.fotos?.url) mas.push({ href: evento.fotos.url, texto: "Galería" });
+  if (evento.clasificaciones?.anteriores?.length) mas.push({ href: rutas.ancla("clasificaciones-anteriores"), texto: "Ediciones anteriores" });
   if (evento.medioAmbiente) mas.push({ href: rutas.ancla("medioambiente"), texto: "Medioambiente" });
   if (evento.beneficiario) mas.push({ href: rutas.ancla("beneficiario"), texto: "Causa solidaria" });
   if (evento.patrocinadores?.length) mas.push({ href: rutas.ancla("patrocinadores"), texto: "Patrocinadores" });

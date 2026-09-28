@@ -521,7 +521,8 @@
   "imagenes": {
     "logo": "/logos/gurriana-trail-icono.svg",
     "montanas": "montanas.svg",
-    "hero": "/fotos/gurriana/portada-valle.webp"
+    "hero": "/fotos/gurriana/portada-hoy.webp",
+    "heroMovil": "/fotos/gurriana/portada-cortafuegos-movil.webp"
   },
   "marca": {
     "colorMarca": "#3F6A12",
@@ -529,7 +530,7 @@
     "colorSecundario": "#1E6FB5",
     "heroTexturaLogo": true,
     "hero": "foto",
-    "heroPosicion": "70% 60%"
+    "heroPosicion": "center 25%"
   },
   "servicios_tecnicos": {
     "proveedor": "UNO · Camberas",
@@ -539,5 +540,21 @@
     "origen": "src/data/race.json del proyecto Lovable",
     "fecha": "2026-09-22"
   },
-  "subtitulo": "Donde el viento helado quiebra la montaña, nace la leyenda de quienes se atreven a desafiarlo"
+  "subtitulo": "Donde el viento helado quiebra la montaña, nace la leyenda de quienes se atreven a desafiarlo",
+  "clasificaciones": {
+    "anteriores": [
+      {
+        "anio": 2018,
+        "url": "https://resultados.uno.es/results.aspx?CId=16479&RId=190"
+      },
+      {
+        "anio": 2017,
+        "url": "https://resultados.uno.es/results.aspx?CId=16479&RId=126"
+      },
+      {
+        "anio": 2016,
+        "url": "https://resultados.uno.es/results.aspx?CId=16479&RId=70"
+      }
+    ]
+  }
 }

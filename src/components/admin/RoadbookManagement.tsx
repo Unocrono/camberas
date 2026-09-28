@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { ICONOS_RUTOMETRO } from "@/lib/iconosRutometro";
+import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, textoARitmo } from "@/lib/ritmos";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 const MapaElegirPunto = lazy(() => import("./MapaElegirPunto").then((m) => ({ default: m.MapaElegirPunto })));
@@ -67,9 +69,8 @@ interface RoadbookManagementProps {
   raceType?: string;
 }
 
-const iconComponents: Record<string, React.ComponentType<{ className?: string }>> = {
-  Flag, MapPin, Droplet, GlassWater, AlertTriangle, Camera, Trophy, Mountain, Coffee, Utensils, Home, Star, CircleDot,
-};
+// Iconos de los tipos: el mapa compartido con el rutómetro público y la web propia
+const iconComponents = ICONOS_RUTOMETRO;
 
 const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPin;
 
@@ -102,7 +103,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const [roadbookFormData, setRoadbookFormData] = useState({
     name: "",
     description: "",
+    // Ritmos en min/km ("5:54"): roadbook_paces con orden 1 y 2 (ver lib/ritmos)
+    ritmoPrimero: "",
+    ritmoCorte: "",
   });
+  const [ritmos, setRitmos] = useState<{ primero?: number; corte?: number }>({});
   // Hora de salida PREVISTA de la ola del recorrido (hora local, tal cual):
   // el rutómetro no tiene hora propia y no usa la oficial de cronometraje
   const [salidaOleada, setSalidaOleada] = useState<string | null>(null);
@@ -125,6 +130,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   
   const { toast } = useToast();
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  // Columnas de hora de paso: solo con salida prevista y algún ritmo
+  const hayHoras = !!salidaOleada && !!(ritmos.primero || ritmos.corte);
 
   useEffect(() => {
     if (distanceId) {
@@ -200,9 +207,13 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       setRoadbook(data);
       
       if (data) {
+        const leidos = await leerRitmos(data.id);
+        setRitmos(leidos);
         setRoadbookFormData({
           name: data.name,
           description: data.description || "",
+          ritmoPrimero: ritmoATexto(leidos.primero),
+          ritmoCorte: ritmoATexto(leidos.corte),
         });
       }
     } catch (error: any) {
@@ -274,8 +285,55 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     }
   };
 
+  const leerRitmos = async (roadbookId: string): Promise<{ primero?: number; corte?: number }> => {
+    const { data } = await supabase.from("roadbook_paces").select("pace_order, pace_minutes_per_km").eq("roadbook_id", roadbookId);
+    const por = (orden: number) => {
+      const fila = (data ?? []).find((r) => r.pace_order === orden);
+      return fila ? Number(fila.pace_minutes_per_km) : undefined;
+    };
+    return { primero: por(RITMO_PRIMERO.orden), corte: por(RITMO_CORTE.orden) };
+  };
+
+  // Los dos ritmos del rutómetro: se crea, cambia o borra cada fila según su campo
+  const guardarRitmos = async (roadbookId: string) => {
+    const { data: actuales, error } = await supabase.from("roadbook_paces").select("id, pace_order").eq("roadbook_id", roadbookId);
+    if (error) throw error;
+    const pares = [
+      [RITMO_PRIMERO, roadbookFormData.ritmoPrimero],
+      [RITMO_CORTE, roadbookFormData.ritmoCorte],
+    ] as const;
+    for (const [ritmo, texto] of pares) {
+      const valor = textoARitmo(texto);
+      const filas = (actuales ?? []).filter((r) => r.pace_order === ritmo.orden);
+      if (valor == null) {
+        if (filas.length) {
+          const { error: e } = await supabase.from("roadbook_paces").delete().in("id", filas.map((f) => f.id));
+          if (e) throw e;
+        }
+      } else if (filas.length) {
+        const { error: e } = await supabase.from("roadbook_paces").update({ pace_name: ritmo.nombre, pace_minutes_per_km: valor }).eq("id", filas[0].id);
+        if (e) throw e;
+      } else {
+        const { error: e } = await supabase
+          .from("roadbook_paces")
+          .insert({ roadbook_id: roadbookId, pace_name: ritmo.nombre, pace_order: ritmo.orden, pace_minutes_per_km: valor });
+        if (e) throw e;
+      }
+    }
+  };
+
   const handleSaveRoadbook = async (e: React.FormEvent) => {
     e.preventDefault();
+    const revisar = [
+      ["del primero", roadbookFormData.ritmoPrimero],
+      ["de corte", roadbookFormData.ritmoCorte],
+    ];
+    for (const [nombre, texto] of revisar) {
+      if (texto.trim() && textoARitmo(texto) == null) {
+        toast({ title: "Ritmo no válido", description: "El ritmo " + nombre + " va en minutos por km, por ejemplo 5:54", variant: "destructive" });
+        return;
+      }
+    }
     try {
       if (roadbook) {
         const { error } = await supabase
@@ -287,6 +345,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           .eq("id", roadbook.id);
 
         if (error) throw error;
+        await guardarRitmos(roadbook.id);
         toast({ title: "Éxito", description: "Rutómetro actualizado" });
         setRoadbookDialogOpen(false);
         fetchRoadbook();
@@ -302,6 +361,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           .single();
 
         if (error) throw error;
+        await guardarRitmos(nuevo.id);
         setRoadbookDialogOpen(false);
         if (distanceInfo?.gpx_file_url) {
           // El recorrido ya tiene GPX: los puntos se generan solos, sin subirlo otra vez
@@ -638,6 +698,16 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
               {roadbook?.description && (
                 <CardDescription>{roadbook.description}</CardDescription>
               )}
+              {roadbook && (ritmos.primero || ritmos.corte) && (
+                <CardDescription>
+                  {[
+                    ritmos.primero && RITMO_PRIMERO.nombre + ": " + ritmoATexto(ritmos.primero) + " min/km",
+                    ritmos.corte && RITMO_CORTE.nombre + ": " + ritmoATexto(ritmos.corte) + " min/km",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </CardDescription>
+              )}
             </div>
             <div className="flex gap-2">
               {roadbook && (
@@ -653,8 +723,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                   // Al abrir, el formulario refleja el rutómetro actual (o un nombre por defecto si es nuevo)
                   setRoadbookFormData(
                     roadbook
-                      ? { name: roadbook.name, description: roadbook.description || "" }
-                      : { name: nombrePorDefecto(), description: "" }
+                      ? { name: roadbook.name, description: roadbook.description || "", ritmoPrimero: ritmoATexto(ritmos.primero), ritmoCorte: ritmoATexto(ritmos.corte) }
+                      : { name: nombrePorDefecto(), description: "", ritmoPrimero: "", ritmoCorte: "" }
                   );
                 }
                 setRoadbookDialogOpen(open);
@@ -686,6 +756,30 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         rows={2}
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Ritmo del primero (min/km)</Label>
+                        <Input
+                          value={roadbookFormData.ritmoPrimero}
+                          onChange={(e) => setRoadbookFormData({ ...roadbookFormData, ritmoPrimero: e.target.value })}
+                          placeholder="5:54"
+                          inputMode="decimal"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ritmo de corte (min/km)</Label>
+                        <Input
+                          value={roadbookFormData.ritmoCorte}
+                          onChange={(e) => setRoadbookFormData({ ...roadbookFormData, ritmoCorte: e.target.value })}
+                          placeholder="11:22"
+                          inputMode="decimal"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Con la hora de salida prevista, el rutómetro calcula a qué hora pasa el primero y a qué hora cierra cada
+                      punto (km × ritmo, sin contar el desnivel). Los cortes oficiales de los puntos de control mandan sobre esta estimación.
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {salidaOleada
                         ? `Hora de salida prevista: ${salidaOleada} (no es la oficial de cronometraje); se cambia en Recorridos.`
@@ -1009,6 +1103,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                     <TableHead className="w-16 text-center" title="Punto de Control">PC</TableHead>
                     <TableHead className="w-16 text-center" title="Destacado">★</TableHead>
                     <TableHead className="w-16">Alt</TableHead>
+                    {hayHoras && <TableHead className="w-16" title="Hora de paso del primero">1º</TableHead>}
+                    {hayHoras && <TableHead className="w-16" title="Cierre por el ritmo de corte">Cierre</TableHead>}
                     <TableHead className="w-20"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1073,6 +1169,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {item.altitude || "-"}
                         </TableCell>
+                        {hayHoras && <TableCell className="font-mono text-xs">{horaDePaso(salidaOleada, item.km_total, ritmos.primero) ?? "-"}</TableCell>}
+                        {hayHoras && <TableCell className="font-mono text-xs">{horaDePaso(salidaOleada, item.km_total, ritmos.corte) ?? "-"}</TableCell>}
                         <TableCell>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenItemDialog(item)}>
