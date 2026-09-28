@@ -1,3 +1,4 @@
+import { COLUMNAS_CAMPO, camposYValoresDeRespuestas, suplementos } from "../_shared/suplementos.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ahoraPared } from "../_shared/horaLocal.ts";
@@ -91,35 +92,22 @@ serve(async (req) => {
     // de esta inscripción (fee_enabled en field_options)
     const { data: respRows } = await supabaseAuth
       .from("registration_responses")
-      .select("field_value, registration_form_fields(field_name, field_type, field_options)")
+      .select(`field_value, registration_form_fields(${COLUMNAS_CAMPO})`)
       .eq("registration_id", registrationId);
+    // Todos los campos del recorrido, no solo los respondidos: una casilla sin
+    // marcar no se guarda y aun así decide si se ve un campo condicional
+    const { data: camposRecorrido } = await supabaseAuth
+      .from("registration_form_fields")
+      .select(COLUMNAS_CAMPO)
+      .eq("race_distance_id", registration.race_distance_id);
 
-    const fieldFee = (f: any, value: unknown): number => {
-      const o = f?.field_options;
-      if (!o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
-      if (Array.isArray(o.options) && Array.isArray(o.fees)) {
-        const idx = o.options.indexOf(String(value));
-        return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;
-      }
-      const feeAmount = Number(o.fee_amount) || 0;
-      if (f.field_type === "number") {
-        const n = parseFloat(String(value));
-        return isNaN(n) ? 0 : feeAmount * n;
-      }
-      const checked = value === true || value === "true" || value === "on" || value === "1";
-      return checked ? feeAmount : 0;
-    };
     // Suplemento total y su parte descontable por cupón: positiva y sin
     // discountable=false (los negativos ya son descuento, no se amplifican)
-    let supplement = 0;
-    let discountableSupplement = 0;
-    for (const r of respRows ?? []) {
-      const fee = fieldFee(r.registration_form_fields, r.field_value);
-      supplement += fee;
-      if (fee > 0 && (r.registration_form_fields as any)?.field_options?.discountable !== false) {
-        discountableSupplement += fee;
-      }
-    }
+    // Solo cuentan los campos a la vista (condicionales incluidos): _shared/suplementos.ts
+    const { campos, valores } = camposYValoresDeRespuestas(camposRecorrido ?? [], respRows ?? []);
+    const sup = suplementos(campos, valores);
+    let supplement = sup.total;
+    const discountableSupplement = sup.descontable;
 
     const basePrice = resolvedPrice ?? 0;
 

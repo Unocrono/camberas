@@ -713,10 +713,10 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
   // select/radio → fees[] paralelo a options; checkbox/number/text → fee_amount
   const buildFieldOptions = (): any => {
     const hasOptions = ["select", "radio"].includes(formData.field_type);
-    // Un campo condicional no puede llevar importe: la base de datos lo
-    // rechaza (el servidor cobra sin mirar condiciones, ver la migración
-    // 20260923120000_campos_condicionales.sql)
-    const conImporte = formData.fee_enabled && !esCondicional;
+    // Un campo condicional también puede llevar importe: el servidor solo lo
+    // cobra si el campo está a la vista con las respuestas dadas
+    // (supabase/functions/_shared/suplementos.ts, 20260928170000)
+    const conImporte = formData.fee_enabled;
     if (!hasOptions && !conImporte) return null;
 
     const out: any = {};
@@ -1188,13 +1188,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && esCondicional && (
-                  <p className="text-xs text-muted-foreground rounded-md border p-3 bg-muted/20">
-                    Un campo condicional no puede modificar el precio de la inscripción.
-                  </p>
-                )}
-
-                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && !esCondicional && (
+                {["select", "radio", "checkbox", "number"].includes(formData.field_type) && (
                   <div className="space-y-2 rounded-md border p-3 bg-muted/20">
                     <div className="flex items-center space-x-2">
                       <Checkbox
@@ -1208,6 +1202,11 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                         Este campo modifica el precio de la inscripción
                       </Label>
                     </div>
+                    {esCondicional && formData.fee_enabled && (
+                      <p className="text-xs text-muted-foreground">
+                        Solo se cobra cuando el campo aparece, es decir, con la respuesta de la condición. Si está oculto no suma ni resta.
+                      </p>
+                    )}
                     {formData.fee_enabled && (
                       <>
                         {["select", "radio"].includes(formData.field_type) ? (

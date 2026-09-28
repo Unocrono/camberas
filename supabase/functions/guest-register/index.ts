@@ -1,3 +1,4 @@
+import { COLUMNAS_CAMPO, camposYValoresDeRespuestas, suplementos } from "../_shared/suplementos.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ahoraPared } from "../_shared/horaLocal.ts";
@@ -159,39 +160,19 @@ serve(async (req) => {
     // Campos del formulario (también se usan luego para guardar respuestas)
     const { data: fields } = await supabase
       .from("registration_form_fields")
-      .select("id, field_name, field_type, field_options")
+      .select(COLUMNAS_CAMPO)
       .eq("race_distance_id", distanceId);
 
     // Suplemento de los campos con importe (fee_enabled en field_options):
     //  - select/radio: fees[] paralelo a options
     //  - number: fee_amount × valor · checkbox/otros: fee_amount si se marca
-    const fieldFee = (f: any, value: unknown): number => {
-      const o = f.field_options;
-      if (!o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
-      if (Array.isArray(o.options) && Array.isArray(o.fees)) {
-        const idx = o.options.indexOf(String(value));
-        return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;
-      }
-      const amount = Number(o.fee_amount) || 0;
-      if (f.field_type === "number") {
-        const n = parseFloat(String(value));
-        return isNaN(n) ? 0 : amount * n;
-      }
-      const checked = value === true || value === "true" || value === "on" || value === "1";
-      return checked ? amount : 0;
-    };
     // Además del suplemento total, se separa la parte descontable por si el
     // cupón aplica sobre el total: positiva y sin discountable=false (los
     // suplementos negativos ya son un descuento y no se amplifican).
-    let supplement = 0;
-    let discountableSupplement = 0;
-    for (const f of fields ?? []) {
-      const fee = fieldFee(f, formData[f.field_name]);
-      supplement += fee;
-      if (fee > 0 && (f.field_options as any)?.discountable !== false) {
-        discountableSupplement += fee;
-      }
-    }
+    // Solo cuentan los campos a la vista (condicionales incluidos): _shared/suplementos.ts
+    const sup = suplementos(fields ?? [], formData);
+    let supplement = sup.total;
+    const discountableSupplement = sup.descontable;
     supplement = Math.round(supplement * 100) / 100;
     const grossPrice = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
 

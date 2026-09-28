@@ -1,3 +1,4 @@
+import { COLUMNAS_CAMPO, camposYValoresDeRespuestas, suplementos } from "../_shared/suplementos.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { ahoraPared } from "../_shared/horaLocal.ts";
@@ -23,21 +24,6 @@ const requestSchema = z.object({
 });
 
 /** Mismo cálculo de suplemento que guest-register / redsys-init-payment */
-function fieldFee(f: any, value: unknown): number {
-  const o = f.field_options;
-  if (!o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
-  if (Array.isArray(o.options) && Array.isArray(o.fees)) {
-    const idx = o.options.indexOf(String(value));
-    return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;
-  }
-  const amount = Number(o.fee_amount) || 0;
-  if (f.field_type === "number") {
-    const n = parseFloat(String(value));
-    return isNaN(n) ? 0 : amount * n;
-  }
-  const checked = value === true || value === "true" || value === "on" || value === "1";
-  return checked ? amount : 0;
-}
 
 /**
  * Descuento del cupón, redondeado a céntimos y nunca mayor que su base:
@@ -151,18 +137,13 @@ serve(async (req) => {
     // discountable=false) por si el cupón aplica sobre el total
     const { data: fields } = await supabase
       .from("registration_form_fields")
-      .select("field_name, field_type, field_options")
+      .select(COLUMNAS_CAMPO)
       .eq("race_distance_id", input.distanceId);
 
-    let supplement = 0;
-    let discountableSupplement = 0;
-    for (const f of fields ?? []) {
-      const fee = fieldFee(f, input.formData?.[f.field_name]);
-      supplement += fee;
-      if (fee > 0 && f.field_options?.discountable !== false) {
-        discountableSupplement += fee;
-      }
-    }
+    // Solo cuentan los campos a la vista (condicionales incluidos): _shared/suplementos.ts
+    const sup = suplementos(fields ?? [], input.formData ?? {});
+    let supplement = sup.total;
+    const discountableSupplement = sup.descontable;
     supplement = Math.round(supplement * 100) / 100;
 
     const grossTotal = Math.max(0, Math.round((basePrice + supplement) * 100) / 100);
