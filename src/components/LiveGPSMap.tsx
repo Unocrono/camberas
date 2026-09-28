@@ -1575,13 +1575,13 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
                 className="h-7 px-2 text-xs"
                 onClick={startGroupPlayback}
                 disabled={groupLoading}
-                title="Repetición del grupo"
+                title="Repetición de todos los corredores"
               >
                 {groupLoading ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
                   <>
-                    <Play className="h-3.5 w-3.5 mr-1" /> Grupo
+                    <Play className="h-3.5 w-3.5 mr-1" /> Repe
                   </>
                 )}
               </Button>
@@ -1859,6 +1859,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
                   <span
                     role="button"
                     className="inline-flex items-center h-7 px-2 text-xs border rounded-md bg-background"
+                    title="Repetición de todos los corredores"
                     onClick={(e) => {
                       e.stopPropagation();
                       startGroupPlayback();
@@ -1868,7 +1869,7 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <>
-                        <Play className="h-3.5 w-3.5 mr-1" /> Grupo
+                        <Play className="h-3.5 w-3.5 mr-1" /> Repe
                       </>
                     )}
                   </span>
