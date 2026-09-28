@@ -101,6 +101,8 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
   const [categoryToDelete, setCategoryToDelete] = useState<EventCategory | null>(null);
   const [editingCategory, setEditingCategory] = useState<EventCategory | null>(null);
   const [raceDate, setRaceDate] = useState<string | null>(null);
+  // Cuándo se cuenta la edad (races.category_age_reference): la misma regla que la base
+  const [referenciaEdad, setReferenciaEdad] = useState<string>("race_date");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [loadingTemplate, setLoadingTemplate] = useState(false);
   const [recalculatingCategories, setRecalculatingCategories] = useState(false);
@@ -207,12 +209,13 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
     try {
       const { data, error } = await supabase
         .from("races")
-        .select("date")
+        .select("date, category_age_reference")
         .eq("id", selectedRaceId)
         .single();
 
       if (error) throw error;
       setRaceDate(data?.date || null);
+      setReferenciaEdad(data?.category_age_reference ?? "race_date");
     } catch (error: any) {
       console.error("Error fetching race date:", error);
     }
@@ -478,7 +481,8 @@ export function CategoriesManagement({ selectedRaceId }: CategoriesManagementPro
         const matchedCategory = calculateCategoryByAge(
           reg.birth_date,
           raceCategoriesForCalc,
-          referenceDate
+          referenceDate,
+          referenciaEdad
         );
 
         if (matchedCategory) {

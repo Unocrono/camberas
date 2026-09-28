@@ -1012,11 +1012,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     // Get race date for age calculation
     const { data: raceData } = await supabase
       .from("races")
-      .select("date")
+      .select("date, category_age_reference")
       .eq("id", raceId)
       .single();
 
     const raceDate = raceData?.date || hoyLocal();
+    const referenciaEdad = raceData?.category_age_reference ?? "race_date";
 
     setBulkActionLoading(true);
     try {
@@ -1064,7 +1065,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           race_distance_id: c.race_distance_id,
         }));
 
-        const matchedCategory = calculateCategoryByAge(birthDate, raceCategoriesForCalc, raceDate);
+        const matchedCategory = calculateCategoryByAge(birthDate, raceCategoriesForCalc, raceDate, referenciaEdad);
         
         if (matchedCategory) {
           // Update race_category_id directly on registrations table

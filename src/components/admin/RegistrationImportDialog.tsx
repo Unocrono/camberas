@@ -658,7 +658,7 @@ export function RegistrationImportDialog({
     // Fetch race date once, used for category calculation
     const { data: raceData } = await supabase
       .from("races")
-      .select("date")
+      .select("date, category_age_reference")
       .eq("id", raceId)
       .single();
 
@@ -837,7 +837,8 @@ export function RegistrationImportDialog({
             importedCategoryName,
             birthDate,
             gender,
-            raceData.date
+            raceData.date,
+            raceData.category_age_reference
           );
 
           if (categoryResult.id) {

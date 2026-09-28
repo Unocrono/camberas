@@ -15,6 +15,28 @@ export interface RaceCategory {
 }
 
 /**
+ * Cuándo se cuenta la edad para la categoría (races.category_age_reference):
+ *   year_end  · a 31 de diciembre del año de la carrera (federadas, licencia
+ *               anual). Es la norma para las carreras nuevas.
+ *   race_date · el día de la carrera (populares).
+ * Las funciones de la base (get_race_category, resolver_race_category_id)
+ * usan la misma regla; la fecha propia de cada categoría
+ * (age_calculation_date) no la mira la base y aquí tampoco, para que el
+ * panel asigne lo mismo que el formulario de inscripción.
+ */
+export type ReferenciaEdad = "year_end" | "race_date";
+
+export const REFERENCIAS_EDAD: { valor: ReferenciaEdad; texto: string; ayuda: string }[] = [
+  { valor: "year_end", texto: "31 de diciembre del año de la carrera", ayuda: "Federadas, licencia anual: la edad que se cumple ese año" },
+  { valor: "race_date", texto: "El día de la carrera", ayuda: "Populares: la edad que se tiene ese día" },
+];
+
+/** Fecha con la que se cuenta la edad: 31-12 del año de la carrera o el día de la carrera */
+export function fechaReferenciaEdad(raceDate: string, referencia: ReferenciaEdad | string | null | undefined): string {
+  return referencia === "year_end" ? `${raceDate.slice(0, 4)}-12-31` : raceDate;
+}
+
+/**
  * Calculates age at a specific date
  */
 export function calculateAge(birthDate: string, referenceDate: string): number {
@@ -91,7 +113,8 @@ export function formatCategoryWithGender(
 export function calculateCategoryByAge(
   birthDate: string,
   categories: RaceCategory[],
-  raceDate: string
+  raceDate: string,
+  referencia: ReferenciaEdad | string | null = "race_date"
 ): RaceCategory | null {
   // Filter only age-dependent categories
   const ageDependentCategories = categories.filter(c => c.age_dependent);
@@ -102,10 +125,10 @@ export function calculateCategoryByAge(
   // específica); a igual rango, el orden de la lista. Así una «Absoluta desde
   // 18» puede ir la primera y aun así un corredor de 45 cae en Veteranos A
   // (40-49): es el modelo FEDME de absoluta + subcategorías.
+  // La edad se cuenta con la referencia de la carrera, como en la base
+  const age = calculateAge(birthDate, fechaReferenciaEdad(raceDate, referencia));
   const candidatas = ageDependentCategories
     .map((category) => {
-      const referenceDate = category.age_calculation_date || raceDate;
-      const age = calculateAge(birthDate, referenceDate);
       const minAge = category.min_age ?? 0;
       const maxAge = category.max_age ?? 999;
       return age >= minAge && age <= maxAge ? { category, rango: maxAge - minAge } : null;
@@ -136,7 +159,8 @@ export async function getOrCreateCategoryId(
   importedCategoryName: string | null,
   birthDate: string | null,
   gender: string | null,
-  raceDate: string
+  raceDate: string,
+  referencia: ReferenciaEdad | string | null = "race_date"
 ): Promise<CategoryResult> {
   // Get existing categories for this event
   const { data: categories } = await supabase
@@ -157,7 +181,7 @@ export async function getOrCreateCategoryId(
   const hasAgeDependentCategories = typedCategories.some(c => c.age_dependent);
   
   if (hasAgeDependentCategories && birthDate) {
-    const matchedCategory = calculateCategoryByAge(birthDate, typedCategories, raceDate);
+    const matchedCategory = calculateCategoryByAge(birthDate, typedCategories, raceDate, referencia);
     if (matchedCategory) {
       return { id: matchedCategory.id, name: matchedCategory.name };
     }

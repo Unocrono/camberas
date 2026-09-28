@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { REFERENCIAS_EDAD, type ReferenciaEdad } from "@/lib/categoryUtils";
 import { Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Upload, Image as ImageIcon, Mountain, Bike, Eye, EyeOff, Link as LinkIcon, User, Wand2, Copy } from "lucide-react";
 import { DuplicarCarreraDialog } from "./DuplicarCarreraDialog";
 import { Switch } from "@/components/ui/switch";
@@ -95,6 +96,8 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
     is_featured: false,
     // Plazas libres en la ficha y en el widget: por defecto no se enseñan
     show_available_places: false,
+    // Edad para la categoría: norma, a 31 de diciembre (ver lib/categoryUtils)
+    category_age_reference: "year_end" as ReferenciaEdad,
     slug: "",
     organizer_id: "" as string,
     organizer_email: "",
@@ -197,6 +200,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_visible: race.is_visible ?? true,
         is_featured: (race as any).is_featured ?? false,
         show_available_places: (race as any).show_available_places ?? false,
+        category_age_reference: ((race as any).category_age_reference ?? "year_end") as ReferenciaEdad,
         slug: race.slug || "",
         organizer_id: race.organizer_id || "",
         organizer_email: (race as any).organizer_email || "",
@@ -219,6 +223,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
         is_visible: true,
         is_featured: false,
         show_available_places: false,
+        category_age_reference: "year_end",
         slug: "",
         organizer_id: "",
         organizer_email: "",
@@ -359,6 +364,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
           is_visible: formData.is_visible,
           is_featured: formData.is_featured,
           organizer_email: formData.organizer_email.trim() || null,
+          category_age_reference: formData.category_age_reference,
           // Solo si la columna ya existe (migración 20260924140000): si se
           // publica antes de ejecutarla, guardar la carrera no debe romperse
           ...(columnaPlazasExiste ? { show_available_places: formData.show_available_places } : {}),
@@ -424,6 +430,7 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
             is_visible: formData.is_visible,
             is_featured: formData.is_featured,
             organizer_email: formData.organizer_email.trim() || null,
+            category_age_reference: formData.category_age_reference,
             ...(columnaPlazasExiste ? { show_available_places: formData.show_available_places } : {}),
           }])
           .select('id')
@@ -944,6 +951,29 @@ export function RaceManagement({ isOrganizer = false }: RaceManagementProps) {
                   />
                 </div>
               )}
+
+              <div className="space-y-2 border-t pt-4">
+                <Label htmlFor="category_age_reference">Edad para las categorías</Label>
+                <Select
+                  value={formData.category_age_reference}
+                  onValueChange={(v) => setFormData({ ...formData, category_age_reference: v as ReferenciaEdad })}
+                >
+                  <SelectTrigger id="category_age_reference">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REFERENCIAS_EDAD.map((r) => (
+                      <SelectItem key={r.valor} value={r.valor}>
+                        {r.texto} ({r.valor === "year_end" ? "federadas, licencia anual" : "populares"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {REFERENCIAS_EDAD.find((r) => r.valor === formData.category_age_reference)?.ayuda}. Cambiarlo no toca las
+                  categorías ya asignadas: recalcúlalas en Categorías si hay inscritos.
+                </p>
+              </div>
 
               {editingRace && (
                 <div className="space-y-2 border-t pt-4">
