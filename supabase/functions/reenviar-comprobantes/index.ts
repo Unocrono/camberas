@@ -199,6 +199,17 @@ const PLANTILLAS_BASE: Record<string, PlantillaEmail> = {
     etiqueta_mensaje: null,
     omitir_uno: true,
   },
+  // La pide el propio corredor desde la web (consultar-inscripcion). Solo de
+  // fábrica, sin fila en plantillas_email: así no sale entre las plantillas
+  // del envío masivo del panel, donde su texto no tendría sentido.
+  copia_inscripcion: {
+    clave: "copia_inscripcion",
+    asunto: "Tu inscripción en {carrera}",
+    titulo: "Copia de tu inscripción",
+    cuerpo: "Hola {nombre},\n\nAquí tienes la copia de tu inscripción en **{carrera}** que has pedido desde la web.\n\n[[resumen_inscripcion]]\n\n[[boton_mi_dorsal]]\n> Es tu código para la **recogida de dorsales**: enséñalo en el móvil.\n\n[[datos_inscripcion]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.\n\n> ¿No la has pedido tú? No tienes que hacer nada: la copia solo se envía al email de la inscripción.",
+    etiqueta_mensaje: null,
+    omitir_uno: false,
+  },
   dorsal: {
     clave: "dorsal",
     asunto: "Tu dorsal {dorsal} para {carrera}",
@@ -466,10 +477,18 @@ serve(async (req: Request): Promise<Response> => {
     const service = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
     // ── Quién llama ────────────────────────────────────────────────────────
+    // Llamada interna con la clave de servicio (solo la tienen las funciones):
+    // consultar-inscripcion, cuando el corredor pide su copia desde la web.
+    // Esa función ya ha comprobado sus datos; aquí vale como admin.
     const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-    const { data: userData, error: userErr } = await service.auth.getUser(jwt);
-    if (userErr || !userData?.user) return json({ error: "No autenticado" }, 401);
-    const uid = userData.user.id;
+    const claveServicio = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const interna = jwt !== "" && jwt === claveServicio;
+    let uid: string | null = null;
+    if (!interna) {
+      const { data: userData, error: userErr } = await service.auth.getUser(jwt);
+      if (userErr || !userData?.user) return json({ error: "No autenticado" }, 401);
+      uid = userData.user.id;
+    }
 
     // ── Qué pide ───────────────────────────────────────────────────────────
     let body: {
@@ -490,6 +509,7 @@ serve(async (req: Request): Promise<Response> => {
     // ── Vista previa del editor de plantillas: datos de ejemplo, no se
     //    envía nada ni se lee ninguna inscripción ──────────────────────────
     if (body.vistaPrevia && typeof body.vistaPrevia === "object") {
+      if (!uid) return json({ error: "Sin permiso" }, 403);
       const { data: rolesVp } = await service.from("user_roles").select("role").eq("user_id", uid);
       const puede = (rolesVp ?? []).some((r: { role: string }) => r.role === "admin" || r.role === "organizer");
       if (!puede) return json({ error: "Sin permiso" }, 403);
@@ -603,11 +623,13 @@ serve(async (req: Request): Promise<Response> => {
 
     const raceIds = [...new Set(regs.map((r: any) => r.race_id as string))];
     const [{ data: roles }, { data: races, error: racesErr }] = await Promise.all([
-      service.from("user_roles").select("role").eq("user_id", uid),
+      uid
+        ? service.from("user_roles").select("role").eq("user_id", uid)
+        : Promise.resolve({ data: [] as { role: string }[] }),
       service.from("races").select("id, name, date, location, organizer_id, slug").in("id", raceIds),
     ]);
     if (racesErr) throw new Error(`races: ${racesErr.message}`);
-    const esAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
+    const esAdmin = interna || (roles ?? []).some((r: { role: string }) => r.role === "admin");
     if (!esAdmin && (races ?? []).some((ra: any) => ra.organizer_id !== uid)) {
       return json({ error: "Sin permiso sobre alguna de las carreras" }, 403);
     }
@@ -1007,7 +1029,7 @@ serve(async (req: Request): Promise<Response> => {
       resultados,
     };
     console.log(
-      `reenviar-comprobantes${dryRun ? " [ENSAYO]" : ""} por ${uid}: ` +
+      `reenviar-comprobantes${dryRun ? " [ENSAYO]" : ""} por ${uid ?? "consulta del corredor"}: ` +
         `${resumen.enviados || resumen.se_enviarian} de ${resumen.total}, ${resumen.omitidos} omitidos, ${resumen.fallidos} fallidos`,
     );
     return json(resumen);

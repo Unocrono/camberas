@@ -96,6 +96,7 @@
     ".oscuro .info{color:" + CREMA + "}" +
     ".btn.sec{background:transparent;color:" + VERDE + ";border:2px solid " + VERDE + "}" +
     ".oscuro .btn.sec{color:" + CREMA + ";border-color:" + CREMA + "}" +
+    ".consulta{display:block;text-align:center;font-size:13px;margin-top:10px;color:inherit;opacity:.85;text-decoration:underline}" +
     ".marca{display:block;text-align:center;font-size:11px;margin-top:10px;opacity:.6;color:inherit;text-decoration:none}" +
     ".cargando{padding:18px;font-size:14px;opacity:.7}";
 
@@ -148,6 +149,12 @@
     return WEB + "/" + encodeURIComponent(slug) +
       "?" + (recorridoId ? "inscribir=" + encodeURIComponent(recorridoId) + "&" : "") +
       "utm_source=widget&utm_medium=web-carrera&utm_campaign=" + encodeURIComponent(slug);
+  }
+
+  /** La consulta de inscripción (?consulta=1): el corredor se busca con su DNI */
+  function enlaceConsulta(slug) {
+    return WEB + "/" + encodeURIComponent(slug) +
+      "?consulta=1&utm_source=widget&utm_medium=web-carrera&utm_campaign=" + encodeURIComponent(slug);
   }
 
   /**
@@ -239,6 +246,11 @@
     btn.target = "_blank";
     btn.rel = "noopener";
     pie.appendChild(btn);
+    var consulta = el("a", "consulta", "¿Ya estás inscrito? Comprueba tu inscripción");
+    consulta.href = enlaceConsulta(datos.slug || datos.id);
+    consulta.target = "_blank";
+    consulta.rel = "noopener";
+    pie.appendChild(consulta);
     var marca = el("a", "marca", "Inscripciones con Camberas");
     marca.href = WEB + "/?utm_source=widget";
     marca.target = "_blank";

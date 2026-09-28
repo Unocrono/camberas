@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { NavLink } from "./NavLink";
-import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Smartphone } from "lucide-react";
+import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy, Calendar, Smartphone, SearchCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,8 +29,9 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {/* Mobile menu button - a la derecha */}
-          <div className="md:hidden">
+          {/* Mobile menu button - a la derecha. Hasta 1280 px: por debajo, las
+              opciones del menú de escritorio no caben en una línea */}
+          <div className="xl:hidden">
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -47,6 +48,11 @@ const Navbar = () => {
                   <NavLink to="/races?filter=past" className="flex items-center gap-2">
                     <Trophy className="h-4 w-4" />
                     Clasificaciones
+                  </NavLink>
+                  {/* DNI + email (o nacimiento): sus inscripciones y una copia */}
+                  <NavLink to="/mi-inscripcion" className="flex items-center gap-2">
+                    <SearchCheck className="h-4 w-4" />
+                    Comprueba tu inscripción
                   </NavLink>
                   {/* La app de seguimiento GPS (Camberas Track): /descargas
                       enseña la tienda que toca según el móvil */}
@@ -95,10 +101,11 @@ const Navbar = () => {
           </div>
 
           {/* Desktop navigation */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden xl:flex items-center gap-5 2xl:gap-6 whitespace-nowrap">
             <NavLink to="/">Inicio</NavLink>
             <NavLink to="/races?filter=upcoming">Inscripciones</NavLink>
             <NavLink to="/races?filter=past">Clasificaciones</NavLink>
+            <NavLink to="/mi-inscripcion">Comprueba tu inscripción</NavLink>
             <NavLink to="/descargas">App Camberas GPS</NavLink>
             <NavLink to="/ayuda">Ayuda</NavLink>
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
@@ -121,7 +128,7 @@ const Navbar = () => {
           </nav>
 
           {/* Desktop auth button */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden xl:flex items-center gap-2">
             {user ? (
               <Button asChild variant="default">
                 <Link to="/profile">

@@ -46,6 +46,7 @@ import CederSolicitar from "./pages/CederSolicitar";
 import PantallaSeguimiento from "./pages/PantallaSeguimiento";
 import RecogidaDorsales from "./pages/RecogidaDorsales";
 import MiDorsal from "./pages/MiDorsal";
+import MiInscripcion from "./pages/MiInscripcion";
 import VueloEmbebido from "./pages/VueloEmbebido";
 import Roadbook from "./pages/Roadbook";
 import BibDesignerPage from "./pages/BibDesignerPage";
@@ -154,6 +155,7 @@ const AppCamberas = () => (
           <Route path="/pantalla/:token" element={<PantallaSeguimiento />} />
           <Route path="/recogida/:token" element={<RecogidaDorsales />} />
           <Route path="/mi-dorsal/:token" element={<MiDorsal />} />
+          <Route path="/mi-inscripcion" element={<MiInscripcion />} />
           {/* Vuelo 3D de un recorrido para incrustar en la web del organizador (widget.js) */}
           <Route path="/vuelo/:distanceId" element={<VueloEmbebido />} />
           <Route path="/ceder" element={<CederSolicitar />} />

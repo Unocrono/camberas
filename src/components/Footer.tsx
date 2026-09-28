@@ -42,6 +42,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/mi-inscripcion" className="text-muted-foreground hover:text-primary transition-colors">
+                  Comprueba tu inscripción
+                </Link>
+              </li>
+              <li>
                 <Link to="/equipos" className="text-muted-foreground hover:text-primary transition-colors">
                   Equipos
                 </Link>

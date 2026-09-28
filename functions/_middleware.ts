@@ -95,7 +95,7 @@ function esHostCamberas(h: string): boolean {
 /** Rutas de camberas.com que nunca son un slug de carrera (ahorra la RPC) */
 const RESERVADAS = new Set([
   "races", "race", "auth", "dashboard", "org", "timing", "admin", "blog", "contact", "contacto", "planes", "pricing",
-  "help", "ayuda", "equipo", "team", "results", "resultados", "live", "gps", "retomar-pago", "mi-dorsal", "widget",
+  "help", "ayuda", "equipo", "team", "results", "resultados", "live", "gps", "retomar-pago", "mi-dorsal", "mi-inscripcion", "widget",
   "assets", "api", "functions", "manifest-selector.js", "sw.js", "robots.txt", "sitemap.xml", "favicon.ico",
 ]);
 

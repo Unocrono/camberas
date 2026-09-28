@@ -46,6 +46,9 @@ export function construirMenu(evento: EventoPublico, rutas: RutasWeb): GrupoMenu
   if (ins.incluye?.length) inscripcion.push({ href: rutas.ancla("inscripcion-incluye"), texto: "Qué incluye" });
   if (ins.devolucion) inscripcion.push({ href: rutas.ancla("inscripcion-devoluciones"), texto: "Bajas y devoluciones" });
   if (ins.modalidades.includes("equipo")) inscripcion.push({ href: rutas.ancla("inscripcion-equipos"), texto: "Equipos" });
+  // La consulta la abre la portada (?consulta=1); la cabecera la abre sin
+  // recargar (ver esConsulta)
+  inscripcion.push({ href: `${rutas.a("/") || "/"}?consulta=1`, texto: "Comprueba tu inscripción" });
   grupos.push({ id: "inscripcion", texto: "Inscripción", items: inscripcion });
 
   const reg = evento.reglamento;
@@ -91,4 +94,9 @@ export function construirMenu(evento: EventoPublico, rutas: RutasWeb): GrupoMenu
 /** true si el href es externo (https://…) o una ruta de Camberas fuera de la web */
 export function esExterno(href: string): boolean {
   return /^https?:\/\//.test(href);
+}
+
+/** true si el enlace abre la consulta de inscripción de la portada */
+export function esConsulta(href: string): boolean {
+  return !esExterno(href) && /[?&]consulta=1(&|#|$)/.test(href);
 }

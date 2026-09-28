@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
 import type { EventoPublico } from "@/eventos/tipos";
 import { InscripcionDialog } from "@/eventos/InscripcionDialog";
+import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
+import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
 import { plantillaDe } from "@/plantillas/registro";
 import { resolverTokens } from "@/plantillas/libroDiseno";
 import { rutasDeWeb, useTenant } from "@/tenant/TenantContext";
@@ -18,12 +20,13 @@ import { AvisoCookies } from "./AvisoCookies";
  * (slug del tenant). Entiende los mismos parámetros que la ficha clásica:
  *   ?inscribir=ID  abre el formulario de ese recorrido (lo usa widget.js)
  *   ?cupon=CODIGO  aplica el cupón al abrir la inscripción
+ *   ?consulta=1    abre la consulta de inscripción (DNI + email o nacimiento)
  */
 export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoPublico }) {
   const { slug: slugUrl } = useParams();
   const { modo, tenant } = useTenant();
   const slug = modo === "propia" ? tenant?.slug : slugUrl;
-  const { data, isLoading, isError } = useEventoPublico(eventoDado ? undefined : slug);
+  const { data, isLoading } = useEventoPublico(eventoDado ? undefined : slug);
   const evento = eventoDado ?? data ?? null;
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -34,6 +37,7 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
 
   const [pruebaId, setPruebaId] = useState<string | null>(null);
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  const consulta = useConsultaInscripcion();
 
   const abrirInscripcion = (id: string) => {
     setPruebaId(id);
@@ -69,7 +73,9 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
 
   if (!slug) return <NoEncontradoWeb />;
   if (isLoading && !evento) return <Cargando />;
-  if (isError || !evento) return <NoEncontradoWeb />;
+  // Solo sin evento: si falla un refresco de fondo se sigue con los datos que
+  // hay (antes la página entera pasaba a "no encontrado" y cerraba lo abierto)
+  if (!evento) return <NoEncontradoWeb />;
 
   const Plantilla = plantilla.componente;
   const prueba = evento.pruebas.find((p) => p.id === pruebaId) ?? null;
@@ -93,6 +99,12 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
           cuponInicial={cuponDeUrl || undefined}
         />
       )}
+      <ConsultaInscripcionDialog
+        carrera={evento.id}
+        nombreCarrera={evento.nombre}
+        open={consulta.abierta}
+        onOpenChange={consulta.onOpenChange}
+      />
     </>
   );
 }

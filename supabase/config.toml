@@ -88,6 +88,12 @@ verify_jwt = false
 [functions.reenviar-comprobantes]
 verify_jwt = true
 
+# Consulta de inscripcion desde la web de la carrera: el corredor no tiene
+# sesion. La funcion exige documento + (email o fecha de nacimiento), limita
+# intentos y la copia solo va al email de la inscripcion.
+[functions.consultar-inscripcion]
+verify_jwt = false
+
 # Lee el cartel o el reglamento para el asistente de creacion de carrera.
 # Solo con sesion; dentro comprueba admin u organizador (has_role).
 [functions.leer-carrera]

@@ -2,6 +2,7 @@ import { Check, Lock } from "lucide-react";
 import type { EventoPublico } from "@/eventos/tipos";
 import { fechaLarga, formatoPrecio, precioVigente } from "@/eventos/useEventoPublico";
 import { useTenant } from "@/tenant/TenantContext";
+import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
 
 interface Props {
   evento: EventoPublico;
@@ -22,6 +23,8 @@ function fechaCorta(iso?: string): string {
  */
 export function Inscripcion({ evento, onInscribirse }: Props) {
   const { urlCamberas } = useTenant();
+  // La consulta la pinta PaginaCarrera (?consulta=1); aquí solo el botón
+  const consulta = useConsultaInscripcion();
   const ins = evento.inscripcion;
   const abierta = evento.estado === "abierta";
   const hayTramos = ins.tarifas.some((t) => t.periodos.length > 1);
@@ -93,6 +96,14 @@ export function Inscripcion({ evento, onInscribirse }: Props) {
               <Lock size={14} strokeWidth={2} aria-hidden="true" />
               Pago seguro con tarjeta{evento.web?.tpvPropio ? " en el TPV del organizador" : ""} · Confirmación inmediata
             </p>
+            <button
+              type="button"
+              onClick={consulta.abrir}
+              className="mt-3 w-full text-center text-[15px] font-semibold underline underline-offset-4"
+              style={{ color: "#fff", minHeight: 44 }}
+            >
+              ¿Ya estás inscrito? Comprueba tu inscripción
+            </button>
           </div>
         </div>
 

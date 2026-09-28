@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronDown, Menu, X } from "lucide-react";
 import type { EventoPublico } from "@/eventos/tipos";
-import { construirMenu, esExterno, type GrupoMenu } from "@/eventos/menu";
+import { construirMenu, esConsulta, esExterno, type GrupoMenu } from "@/eventos/menu";
 import type { RutasWeb } from "@/eventos/menu";
 
 interface Props {
@@ -61,8 +62,22 @@ export function Cabecera({ evento, rutas, compacta = false, onInscribirse }: Pro
     };
   }, []);
 
+  const navigate = useNavigate();
   const Enlace = ({ href, texto, className, onClick }: { href: string; texto: string; className: string; onClick?: () => void }) => (
-    <a href={href} className={className} onClick={onClick} {...(esExterno(href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+    <a
+      href={href}
+      className={className}
+      onClick={(e) => {
+        onClick?.();
+        // "Comprueba tu inscripción": sin recargar, y apilada en el historial
+        // para que cerrarla (o el "atrás" del móvil) vuelva a donde estaba
+        if (esConsulta(href) && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+          e.preventDefault();
+          navigate(href, { state: { consultaAbierta: true } });
+        }
+      }}
+      {...(esExterno(href) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
       {texto}
     </a>
   );

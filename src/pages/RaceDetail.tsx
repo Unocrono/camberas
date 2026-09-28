@@ -4,7 +4,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane, SearchCheck } from "lucide-react";
 import { formatLocalTime, paredAMs, ahoraParedMs, hoyLocal } from "@/lib/timezoneUtils";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +19,8 @@ import { RoutePreviewMap } from "@/components/RoutePreviewMap";
 import { RouteFlightViewer } from "@/components/RouteFlightViewer";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { ContactOrganizerDialog } from "@/components/ContactOrganizerDialog";
+import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
+import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
 
 /**
  * Texto del formulario -> gender_id de la tabla genders (1=M, 2=F, 3=X).
@@ -68,6 +70,8 @@ const RaceDetail = () => {
   // ir directos al formulario sin pasar por la ficha
   const inscribirDeUrl = (searchParams.get("inscribir") ?? "").trim();
   const inscripcionDirectaHecha = useRef(false);
+  // Consulta de inscripción (?consulta=1): el corredor se busca con su DNI
+  const consulta = useConsultaInscripcion();
   const [raceId, setRaceId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -989,6 +993,16 @@ const RaceDetail = () => {
                 <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/regulation`)}>
                   Reglamento
                 </Button>
+                <Button variant="outline" onClick={consulta.abrir}>
+                  <SearchCheck className="h-4 w-4 mr-2" />
+                  Comprueba tu inscripción
+                </Button>
+                <ConsultaInscripcionDialog
+                  carrera={race.id}
+                  nombreCarrera={race.name}
+                  open={consulta.abierta}
+                  onOpenChange={consulta.onOpenChange}
+                />
                 {/* Clasificaciones: desde que arranca el PRIMER evento
                     (en carreras de varios días, no esperar al último) */}
                 {race.distances?.some((d: any) => resultadosVisibles(d)) && (
