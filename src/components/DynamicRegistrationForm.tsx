@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { getGenderCode, getGenderIdFromText } from "@/lib/genderUtils";
 import { computeSupplement, optionLabelWithFee, getFieldFee } from "@/lib/fieldFees";
 import { camposVisibles, estaVacio } from "@/lib/fieldConditions";
+import { categoriaCalculada } from "@/lib/categoriaCalculada";
 interface FormField {
   id: string;
   field_name: string;
@@ -155,7 +156,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
     } else {
       setCalculatedCategory(null);
     }
-  }, [formData.birth_date, formData.gender_id, formData.gender, raceId, modoCategoria]);
+  }, [formData.birth_date, formData.gender_id, formData.gender, raceId, distanceId, modoCategoria]);
 
   // Categoría única: se fija sola para que viaje con la inscripción, igual
   // que viajaría la calculada
@@ -178,13 +179,10 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       const genderCode = resolvedGenderId ? getGenderCode(resolvedGenderId) : null;
       if (!genderCode) return;
 
-      const { data, error } = await supabase.rpc('get_race_category', {
-        p_race_id: raceId,
-        p_birth_date: birthDate,
-        p_gender: genderCode
-      });
-      
-      if (!error && data) {
+      // Con el recorrido: la categoría de ESTE recorrido, no la de otro de la carrera
+      const data = await categoriaCalculada(raceId, distanceId, birthDate, genderCode);
+
+      if (data) {
         setCalculatedCategory(data);
         // Update formData so it gets saved
         onChange('category', data);

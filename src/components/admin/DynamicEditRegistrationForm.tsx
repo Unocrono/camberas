@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { getGenderCode, getGenderIdFromText, fetchGenders, getGenderName } from "@/lib/genderUtils";
 import { camposVisibles } from "@/lib/fieldConditions";
+import { categoriaCalculada } from "@/lib/categoriaCalculada";
 
 interface FormField {
   id: string;
@@ -223,7 +224,7 @@ export function DynamicEditRegistrationForm({
     if (birthDate && (genderId || genderText) && registration.race_id) {
       calculateCategory(birthDate, genderId, genderText);
     }
-  }, [formData.birth_date, formData.gender_id, formData.gender, registration.race_id]);
+  }, [formData.birth_date, formData.gender_id, formData.gender, formData.race_distance_id, registration.race_id]);
 
   const calculateCategory = async (birthDate: string, genderId?: number, genderText?: string) => {
     try {
@@ -235,13 +236,11 @@ export function DynamicEditRegistrationForm({
       const genderCode = resolvedGenderId ? getGenderCode(resolvedGenderId) : null;
       if (!genderCode) return;
 
-      const { data, error } = await supabase.rpc('get_race_category', {
-        p_race_id: registration.race_id,
-        p_birth_date: birthDate,
-        p_gender: genderCode
-      });
-      
-      if (!error && data) {
+      // Con el recorrido (el elegido en el formulario, si se cambia): la categoría de ese recorrido
+      const recorrido = (formData.race_distance_id as string | undefined) || registration.race_distance_id;
+      const data = await categoriaCalculada(registration.race_id, recorrido, birthDate, genderCode);
+
+      if (data) {
         setCalculatedCategory(data);
       }
     } catch (error) {
