@@ -562,31 +562,34 @@ export type Database = {
       consultas_inscripcion: {
         Row: {
           acierto: boolean
+          clave_dato: string | null
           clave_dni: string
           clave_ip: string | null
           created_at: string
           id: number
-          race_id: string
+          race_id: string | null
           registration_id: string | null
           tipo: string
         }
         Insert: {
           acierto?: boolean
+          clave_dato?: string | null
           clave_dni: string
           clave_ip?: string | null
           created_at?: string
           id?: never
-          race_id: string
+          race_id?: string | null
           registration_id?: string | null
           tipo: string
         }
         Update: {
           acierto?: boolean
+          clave_dato?: string | null
           clave_dni?: string
           clave_ip?: string | null
           created_at?: string
           id?: never
-          race_id?: string
+          race_id?: string | null
           registration_id?: string | null
           tipo?: string
         }
@@ -5869,17 +5872,22 @@ export type Database = {
         }
         Returns: {
           bib_number: number
+          carrera: string
           created_at: string
           email_destino: string
+          fecha: string
           first_name: string
           id: string
           last_name: string
           payment_status: string
           race_distance_id: string
+          race_id: string
           recorrido: string
+          slug: string
           source: string
           status: string
           team_id: string
+          ya_dentro: boolean
         }[]
       }
       calculate_race_results: {
@@ -6116,6 +6124,7 @@ export type Database = {
         }
         Returns: Json
       }
+      documento_consulta: { Args: { p_doc: string }; Returns: string }
       dorsal_organizacion: { Args: { p_distance_id: string }; Returns: string }
       duplicar_carrera: {
         Args: {
@@ -6482,6 +6491,17 @@ export type Database = {
       recuperacion_pago_info: { Args: { p_token: string }; Returns: Json }
       registrar_pagos_a_medias: {
         Args: { p_ventana_horas?: number }
+        Returns: number
+      }
+      reservar_consulta_inscripcion: {
+        Args: {
+          p_clave_dato: string
+          p_clave_dni: string
+          p_clave_ip: string
+          p_race_id: string
+          p_registration_id: string
+          p_tipo: string
+        }
         Returns: number
       }
       resolver_inscripcion_previa: {
