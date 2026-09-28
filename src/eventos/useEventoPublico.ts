@@ -7,8 +7,8 @@ import { normalizarEvento } from "./normalizar";
  * El evento entero para la web de la carrera, de la RPC evento_publico(slug).
  *
  * - `null` = la carrera no existe o está oculta (la RPC devuelve NULL).
- * - Se cachea un minuto; si hay pruebas abiertas se refresca cada minuto para
- *   que el estado (abierta/agotada) y las plazas sigan al día sin republicar.
+ * - Se cachea un minuto; si hay pruebas abiertas se refresca cada 5 minutos
+ *   para que el estado (abierta/agotada) y las plazas sigan al día sin republicar.
  * - Hasta regenerar types.ts la RPC no está en los tipos del cliente: se
  *   castea, igual que widget_carrera.
  */
@@ -17,10 +17,17 @@ export function useEventoPublico(slug: string | undefined) {
     queryKey: ["evento-publico", slug],
     enabled: !!slug,
     staleTime: 60_000,
+    // Cada llamada es cara para la base (28-sep: pasaba del límite y los
+    // reintentos y el refresco de cada pestaña abierta la saturaban): un solo
+    // reintento y refresco cada 5 minutos, solo con la pestaña a la vista
+    retry: 1,
+    retryDelay: 1500,
+    refetchOnWindowFocus: false,
     refetchInterval: (query) => {
       const evento = query.state.data;
-      return evento?.pruebas?.some((p) => p.estado === "abierta") ? 60_000 : false;
+      return evento?.pruebas?.some((p) => p.estado === "abierta") ? 5 * 60_000 : false;
     },
+    refetchIntervalInBackground: false,
     queryFn: async () => normalizarEvento((await rpcSinTipos<EventoPublico | null>("evento_publico", { p_slug: slug })) ?? null),
   });
 }
