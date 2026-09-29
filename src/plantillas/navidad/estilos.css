@@ -37,3 +37,50 @@
     height: 132px;
   }
 }
+
+/* Portada: nieve cayendo, suave y detrás del texto. Quieta si el sistema
+   pide reducir el movimiento */
+.wp[data-plantilla="navidad-monte-tejas"] #top > div > div.relative {
+  z-index: 2;
+}
+.wp[data-plantilla="navidad-monte-tejas"] #top > div::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.75;
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, rgba(255, 255, 255, 0.9) 50%, transparent 51%),
+    radial-gradient(3px 3px at 90px 110px, rgba(255, 255, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(2px 2px at 160px 60px, rgba(255, 255, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 230px 150px, rgba(255, 255, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(2.5px 2.5px at 60px 190px, rgba(255, 255, 255, 0.6) 50%, transparent 51%),
+    radial-gradient(2px 2px at 200px 10px, rgba(255, 255, 255, 0.7) 50%, transparent 51%);
+  background-size: 260px 220px;
+  animation: wp-nieve 22s linear infinite;
+}
+@keyframes wp-nieve {
+  from { background-position: 0 0; }
+  to { background-position: 80px 440px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wp[data-plantilla="navidad-monte-tejas"] #top > div::after {
+    animation: none;
+  }
+}
+
+/* Tarjeta de la fecha: ramita de acebo con tres bayas en la esquina */
+.wp[data-plantilla="navidad-monte-tejas"] #top .wp-card {
+  position: relative;
+}
+.wp[data-plantilla="navidad-monte-tejas"] #top .wp-card::after {
+  content: "";
+  position: absolute;
+  top: -22px;
+  right: 16px;
+  width: 72px;
+  height: 54px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 48'%3E%3Cpath fill='%232E7D32' d='M31 27c-6-9-16-8-26-14 3 4 1 9 4 13-3 1-5 3-8 3 6 3 12 6 18 4 4-1 8-3 12-6z'/%3E%3Cpath fill='%231B5E20' d='M33 27c6-9 16-8 26-14-3 4-1 9-4 13 3 1 5 3 8 3-6 3-12 6-18 4-4-1-8-3-12-6z'/%3E%3Ccircle cx='27' cy='31' r='5.5' fill='%23C62828'/%3E%3Ccircle cx='37' cy='31' r='5.5' fill='%23E0201F'/%3E%3Ccircle cx='32' cy='23' r='5.5' fill='%23E53935'/%3E%3Ccircle cx='30' cy='21' r='1.6' fill='%23fff' opacity='.7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
