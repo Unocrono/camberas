@@ -111,17 +111,60 @@ serve(async (req) => {
     }
 
     // Empezó y no llegó a pagar el mismo recorrido: no es un duplicado, es
-    // un pago sin terminar. Se le devuelve la puerta, no el muro.
+    // un pago sin terminar. Sin cupón se le devuelve la puerta, no el muro.
+    // CON cupón, el cupón se aplica a esa inscripción a medias (y si sale a
+    // 0 € queda confirmada aquí mismo): quien se inscribió sin poner el
+    // código no se queda encerrado en «te falta un paso», que no tiene
+    // casilla de cupón (pasó en la Peña Prieta con el cupón del 100 %).
+    let pendienteId: string | null = null;
+    let pendienteBib: number | null = null;
     if (previa?.verdicto === "retomar") {
-      return json(
-        {
-          error: "Ya empezaste esta inscripción y el pago se quedó a medias. Te llevamos a terminarlo.",
-          code: "PENDIENTE",
-          // Ruta relativa a propósito: vale igual en producción y en local
-          retomarPath: `/retomar-pago/${previa.token}`,
-        },
-        409,
-      );
+      const puerta = () =>
+        json(
+          {
+            error: "Ya empezaste esta inscripción y el pago se quedó a medias. Te llevamos a terminarlo.",
+            code: "PENDIENTE",
+            // Ruta relativa a propósito: vale igual en producción y en local
+            retomarPath: `/retomar-pago/${previa.token}`,
+          },
+          409,
+        );
+      if (!couponCode?.trim()) return puerta();
+
+      // La RPC devuelve el token de recuperación, no la inscripción: se
+      // localiza por él y se comprueba que sigue a medias en este recorrido
+      const { data: rp } = await supabase
+        .from("recuperacion_pagos")
+        .select("registration_id")
+        .eq("token", previa.token)
+        .maybeSingle();
+      const { data: pend } = rp?.registration_id
+        ? await supabase
+            .from("registrations")
+            .select("id, dni_passport, first_name, last_name, bib_number")
+            .eq("id", rp.registration_id)
+            .eq("race_distance_id", distanceId)
+            .eq("status", "pending")
+            .eq("payment_status", "pending")
+            .eq("source", "gateway")
+            .maybeSingle()
+        : { data: null };
+      if (!pend) return puerta();
+
+      // La inscripción a medias se encuentra por el email, y el email no se
+      // verifica: solo se rehace si es la MISMA persona (el documento, o sin
+      // documento nombre y apellidos). Si no, la puerta de siempre, sin
+      // tocar los datos de nadie.
+      const normDoc = (v: unknown) => String(v ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const normNombre = (v: unknown) => String(v ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+      const mismaPersona = normDoc(pend.dni_passport)
+        ? normDoc(pend.dni_passport) === normDoc(documentNumber)
+        : normNombre(pend.first_name) === normNombre(firstName) &&
+          normNombre(pend.last_name) === normNombre(lastName);
+      if (!mismaPersona) return puerta();
+
+      pendienteId = pend.id;
+      pendienteBib = pend.bib_number ?? null;
     }
 
     // Aforo, comprobado en servidor (la UI sola no basta: se podría
@@ -130,12 +173,15 @@ serve(async (req) => {
     // mientras se paga); los carritos abandonados no.
     if (distance.max_participants) {
       const holdCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      const { count: taken } = await supabase
+      let aforo = supabase
         .from("registrations")
         .select("id", { count: "exact", head: true })
         .eq("race_distance_id", distanceId)
         .neq("status", "cancelled")
         .or(`payment_status.in.(paid,not_required),created_at.gte.${holdCutoff}`);
+      // La inscripción a medias que se va a rehacer ya es su plaza: no cuenta dos veces
+      if (pendienteId) aforo = aforo.neq("id", pendienteId);
+      const { count: taken } = await aforo;
       if ((taken ?? 0) >= distance.max_participants) {
         return json({ error: "No quedan plazas disponibles en este recorrido" }, 409);
       }
@@ -242,8 +288,9 @@ serve(async (req) => {
     // Dorsal atómico — SOLO para inscripciones gratuitas. Las de pago lo
     // reciben en redsys-webhook al confirmarse el cobro, para no quemar
     // dorsales con inscripciones que nunca llegan a pagar.
-    let bibNumber: number | null = null;
-    if (isFree) {
+    // (una inscripción a medias que ya tuviera dorsal lo conserva)
+    let bibNumber: number | null = pendienteBib;
+    if (isFree && bibNumber === null) {
       const { data, error: bibErr } = await supabase
         .rpc("assign_next_bib", { p_distance_id: distanceId });
       if (bibErr) {
@@ -253,12 +300,9 @@ serve(async (req) => {
       }
     }
 
-    // Crear la inscripción
-    const { data: registration, error: regErr } = await supabase
-      .from("registrations")
-      .insert({
-        race_id: raceId,
-        race_distance_id: distanceId,
+    // Los mismos datos para crear la inscripción o para rehacer la que
+    // estaba a medias (el corredor ha vuelto a rellenar el formulario)
+    const datos = {
         status: isFree ? "confirmed" : "pending",
         payment_status: isFree ? "not_required" : "pending",
         // Origen para facturación: la de pago va por la pasarela
@@ -290,15 +334,41 @@ serve(async (req) => {
         autonomous_community: formData.autonomous_community
           ? String(formData.autonomous_community)
           : null,
-      })
-      .select("id, bib_number")
-      .single();
+    };
+
+    // Crear la inscripción, o aplicar el cupón a la que estaba a medias.
+    // La condición de «sigue a medias» va en el UPDATE: si entretanto se
+    // pagó o se anuló, no se toca y el corredor recibe un error claro.
+    const { data: registration, error: regErr } = pendienteId
+      ? await supabase
+          .from("registrations")
+          // La inscripción efectiva es la de ahora: así sale el correo de
+          // confirmación (send-registration-confirmation solo envía en los 15
+          // min siguientes a created_at) y, si aún hay que pagar, la reserva
+          // de plaza de 30 min vuelve a empezar
+          .update({ ...datos, created_at: new Date().toISOString() })
+          .eq("id", pendienteId)
+          .eq("status", "pending")
+          .eq("payment_status", "pending")
+          .select("id, bib_number")
+          .single()
+      : await supabase
+          .from("registrations")
+          .insert({ race_id: raceId, race_distance_id: distanceId, ...datos })
+          .select("id, bib_number")
+          .single();
     if (regErr || !registration) {
       console.error("Error creating registration:", regErr?.message);
-      return json({ error: "No se pudo crear la inscripción" }, 500);
+      return json(
+        { error: pendienteId ? "No se pudo aplicar el cupón a tu inscripción pendiente. Vuelve a intentarlo." : "No se pudo crear la inscripción" },
+        500,
+      );
     }
 
-    // Guardar todas las respuestas del formulario
+    // Guardar todas las respuestas del formulario. En una inscripción a
+    // medias, las nuevas sustituyen a las antiguas (son las que fijan el
+    // importe): primero se insertan y solo si entran se borran las viejas,
+    // para que nunca se quede sin respuestas
     if (fields && fields.length > 0) {
       const responses = fields
         .filter((f) => formData[f.field_name] !== undefined && formData[f.field_name] !== "" && formData[f.field_name] !== null)
@@ -307,15 +377,24 @@ serve(async (req) => {
           field_id: f.id,
           field_value: String(formData[f.field_name]),
         }));
-      if (responses.length > 0) {
-        const { error: respErr } = await supabase.from("registration_responses").insert(responses);
-        if (respErr) {
-          console.error("Error saving form responses:", respErr.message);
-        }
+      const { data: nuevas, error: respErr } = responses.length > 0
+        ? await supabase.from("registration_responses").insert(responses).select("id")
+        : { data: [] as { id: string }[], error: null };
+      if (respErr) {
+        console.error("Error saving form responses:", respErr.message);
+      } else if (pendienteId) {
+        let viejas = supabase.from("registration_responses").delete().eq("registration_id", registration.id);
+        const ids = (nuevas ?? []).map((r) => r.id);
+        if (ids.length > 0) viejas = viejas.not("id", "in", `(${ids.join(",")})`);
+        const { error: borrarErr } = await viejas;
+        if (borrarErr) console.error("Error replacing form responses:", borrarErr.message);
       }
     }
 
-    console.log(`Guest registration ${registration.id} (${email}) bib=${registration.bib_number} price=${price}`);
+    console.log(
+      `Guest registration ${registration.id} (${email}) bib=${registration.bib_number} price=${price}` +
+        (pendienteId ? " (cupón aplicado a la inscripción que estaba a medias)" : ""),
+    );
 
     return json({
       success: true,
