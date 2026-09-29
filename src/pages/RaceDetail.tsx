@@ -666,16 +666,10 @@ const RaceDetail = () => {
 
         if (profileError) throw profileError;
 
-        // Dorsal atómico en servidor — solo si la inscripción es gratuita.
-        // Las de pago lo reciben en redsys-webhook al confirmarse el cobro,
-        // para no quemar dorsales con inscripciones que nunca pagan.
+        // El dorsal lo pone el servidor: a la gratuita, confirmar-inscripcion-
+        // gratuita; a la de pago, redsys-webhook al confirmarse el cobro (para
+        // no quemar dorsales con inscripciones que nunca pagan)
         const totalToPay = selectedDistance.currentPrice + fieldSupplement - couponDiscount;
-        let assignedBib: number | null = null;
-        if (totalToPay <= 0) {
-          const { data } = await supabase
-            .rpc("assign_next_bib", { p_distance_id: selectedDistance.id });
-          assignedBib = data ?? null;
-        }
 
         // Create registration
         const { data: newRegistration, error: registrationError } = await supabase
@@ -692,7 +686,6 @@ const RaceDetail = () => {
             // servidor; el canje lo registra el trigger al resolverse el pago
             coupon_id: appliedCoupon?.couponId ?? null,
             coupon_discount: appliedCoupon ? couponDiscount : null,
-            bib_number: assignedBib ?? null,
             // Identidad del corredor. Hasta sep-2026 no se guardaba y la
             // inscripción con cuenta quedaba sin email ni nombre: sin
             // comprobante tras pagar y sin aviso de pago a medias. El email
@@ -744,7 +737,33 @@ const RaceDetail = () => {
           return;
         }
 
-        // Free registration - complete immediately
+        // Gratuita: la confirma el servidor, que recalcula el total (precio
+        // vigente, extras y cupón) y pone el dorsal. El navegador ya no puede
+        // confirmar ni marcar pagada una inscripción
+        const { error: confError } = await supabase.functions.invoke("confirmar-inscripcion-gratuita", {
+          body: { registrationId: newRegistration.id },
+        });
+        if (confError) {
+          let body: any = null;
+          try {
+            body = await (confError as any).context?.json?.();
+          } catch { /* usar el mensaje genérico */ }
+          // En servidor no sale gratis (cambió el tramo de precio, el cupón
+          // se agotó): queda como inscripción de pago y se pasa al pago, que
+          // enseña el importe que calcula el servidor
+          if (body?.code === "NO_GRATUITA") {
+            toast({ title: "Falta el pago", description: body.error ?? "La inscripción tiene importe." });
+            setPendingRegistration({
+              ...newRegistration,
+              email: user.email,
+              firstName,
+              lastName,
+            });
+            setRegistrationStep('payment');
+            return;
+          }
+          throw new Error(body?.error || confError.message);
+        }
         await completeRegistration(newRegistration.id, user.email || "", firstName, lastName, false);
       }
     } catch (error: any) {
@@ -772,17 +791,9 @@ const RaceDetail = () => {
     lastName: string,
     isGuest: boolean
   ) => {
-    // Update registration status. "paid" solo si de verdad hubo cobro: con
-    // cupón que deja el total en 0 (o distancia gratuita) es "not_required".
-    const paidSomething =
-      selectedDistance.currentPrice + fieldSupplement - couponDiscount > 0;
-    await supabase
-      .from("registrations")
-      .update({
-        status: "confirmed",
-        payment_status: paidSomething ? "paid" : "not_required"
-      })
-      .eq("id", registrationId);
+    // La inscripción ya viene confirmada del servidor: aquí solo el correo,
+    // el aviso y el cierre. Antes se confirmaba desde aquí (status y
+    // payment_status), y esa misma puerta dejaba marcar pagada una de pago.
 
     // Email de confirmación. Solo el id: la función lee el resto de la base y
     // solo lo manda si la inscripción es gratuita y quedó confirmada
