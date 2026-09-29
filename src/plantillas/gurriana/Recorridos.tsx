@@ -1,4 +1,4 @@
-import { Download, MapPin } from "lucide-react";
+import { Download, MapPin, Plane } from "lucide-react";
 import type { EventoPublico, Prueba } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
@@ -185,6 +185,12 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
           <a href={rutas.a(`/recorrido/${prueba.id}`)} className="inline-flex items-center gap-2 text-[15px] font-semibold no-underline" style={{ color }}>
             <MapPin size={18} strokeWidth={2} aria-hidden="true" />
             Ver recorrido
+          </a>
+        )}
+        {prueba.track?.gpx && (
+          <a href={`${rutas.a(`/recorrido/${prueba.id}`)}#vuelo-3d`} className="inline-flex items-center gap-2 text-[15px] font-semibold no-underline" style={{ color }}>
+            <Plane size={18} strokeWidth={2} aria-hidden="true" />
+            Vuelo 3D
           </a>
         )}
         {prueba.track?.gpx && (

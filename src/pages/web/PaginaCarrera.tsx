@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
+import { useIrAlAncla } from "@/eventos/useIrAlAncla";
 import type { EventoPublico } from "@/eventos/tipos";
 import { InscripcionDialog } from "@/eventos/InscripcionDialog";
 import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
@@ -28,6 +29,8 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
   const slug = modo === "propia" ? tenant?.slug : slugUrl;
   const { data, isLoading } = useEventoPublico(eventoDado ? undefined : slug);
   const evento = eventoDado ?? data ?? null;
+  // Anclas de la portada (#inscripcion…) al llegar desde una página interior
+  useIrAlAncla(!!evento);
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
 

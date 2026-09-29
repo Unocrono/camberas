@@ -2,6 +2,7 @@ import { Suspense, useEffect, useMemo, type ReactNode } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
 import { useEventoFixture } from "@/eventos/fixtures";
+import { useIrAlAncla } from "@/eventos/useIrAlAncla";
 import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { plantillaDe } from "@/plantillas/registro";
@@ -31,6 +32,8 @@ export function PaginaSecundaria({ titulo, children }: { titulo?: string; childr
   const deFixture = useEventoFixture(fixture);
   const evento = fixture ? deFixture ?? undefined : real.data;
   const isLoading = fixture ? deFixture === undefined : real.isLoading;
+  // Enlaces con ancla (#vuelo-3d…) desde otras páginas: bajar al cargar
+  useIrAlAncla(!!evento);
   const plantilla = plantillaDe(evento?.web?.plantilla);
   const tokens = useMemo(() => resolverTokens(plantilla.tokensPorDefecto, evento?.marca), [plantilla, evento?.marca]);
   const rutas = useMemo(() => rutasDeWeb(modo, slug ?? "", false), [modo, slug]);
