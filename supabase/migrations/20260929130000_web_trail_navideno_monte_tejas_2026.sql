@@ -7,28 +7,45 @@
 --    mismo) y 20 gnomos (antes 12). El nombre ya se cambió en el panel a
 --    «II Trail Navideño Monte Tejas»; aquí se alinean la distancia, la web,
 --    el reglamento y la FAQ, que seguían diciendo «Trailvideño».
---    Lo demás (avituallamientos km 5,5 y 10, tramos de asfalto, cierre 14:00)
---    sigue siendo del reglamento de 2025 hasta que llegue el de 2026.
--- 2. Web propia como la de Gurriana (plantilla 'gurriana'), pero con los
---    colores del cartel y el tono de una carrera popular y de fiesta:
+--    El GPX de 2026 mide 16,65 km y unos 860 m D+ (con 1-2 m de umbral), así
+--    que cuadra. Lo demás (tramos de asfalto, cierre 14:00) sigue siendo del
+--    reglamento de 2025 hasta que llegue el de 2026.
+-- 2. Plantilla nueva «Navidad Monte Tejas» ('navidad-monte-tejas', ver
+--    src/plantillas/registro.ts): la estructura de Gurriana con el libro de
+--    diseño sacado del cartel, cinta de bastón de caramelo y abetos al pie de
+--    la portada. Se amplía el CHECK de race_web.plantilla y la web de la
+--    carrera pasa a ella con tema '{}': manda el libro de la plantilla
 --      marca      #0F2A1B  verde casi negro del faldón del cartel
 --      acción     #E0201F  rojo de «NAVIDEÑO»
 --      secundario #2E7D32  verde de las cintas «FECHA / HORA / SALIDA»
---    Pasan los tres avisos de contraste del panel (texto sobre marca 15,4;
---    texto del botón 4,8; botón sobre marca 3,2). Sin «cinta de meta»: es el
---    arcoíris del logo de Gurriana. Premios (gnomos y disfraces) justo
---    después de los recorridos, que es lo que vende esta carrera.
---    Clasificaciones de 2025 (Sportmaniacs) en edicionesAnteriores.
--- 3. Rutómetro base para que la web pueda dar horas de paso: salida,
---    avituallamientos líquidos de la zona ida-vuelta (km de 2025,
---    PROVISIONALES), meta y avituallamiento de meta. Los ritmos del primero y
---    del último (roadbook_paces 1 y 2) van aparte, con los tiempos de 2025.
+--    (sin avisos de contraste: 15,4 · 4,8 · 3,2), Oswald + Montserrat y los
+--    premios (gnomos y disfraces) justo después de los recorridos. Lo que se
+--    toque en el panel (Web propia › Diseño) se guarda encima.
+--    Contenido: relato del recorrido sacado del GPX, clasificaciones de 2025
+--    (Sportmaniacs) en edicionesAnteriores y el cartel en documentos.
+-- 3. Rutómetro con los km y coordenadas del GPX de 2026 (16,65 km medidos,
+--    circular, techo de 482 m en el km 7,8): salida, avituallamientos
+--    líquidos en el cruce por el que se pasa dos veces (km 5,5 y 12,1; donde
+--    estaban en 2025, PROVISIONALES hasta el reglamento), techo, meta y
+--    avituallamiento de meta. Si ya hay rutómetro (creado en el panel), no se
+--    toca. Los ritmos del primero y del último van aparte, con los tiempos de
+--    2025.
+--
+-- El GPX subido el 29-sep es una RUTA (rtept) y los lectores de Camberas solo
+-- leen tracks (trkpt): hay que sustituirlo en el panel por la versión track
+-- (public/gpx/trail-navideno-monte-tejas-2026.gpx, mismos puntos) para que la
+-- web pinte perfil, mapa y vuelo 3D.
 --
 -- No toca funciones ni horas de carrera. Idempotente.
 -- Requiere: 20260925090000 (la carrera) y 20260928140000 (tipos del rutómetro).
 -- Después: poner is_visible = true y activar la web en Web propia › Publicar
 -- cuando se decida; hasta entonces se ve con ?previa=1 (quien la gestiona).
 -- =============================================================================
+
+-- Plantilla nueva en el CHECK (la lista es el registro del cliente)
+ALTER TABLE public.race_web DROP CONSTRAINT IF EXISTS race_web_plantilla_check;
+ALTER TABLE public.race_web ADD CONSTRAINT race_web_plantilla_check
+  CHECK (plantilla IN ('gurriana', 'navidad-monte-tejas'));
 
 DO $seed$
 DECLARE
@@ -53,7 +70,8 @@ BEGIN
     name = 'Trail Navideño 16 km', distance_km = 16, elevation_gain = 860, elevation_loss = 860
   WHERE id = v_dist;
 
-  UPDATE public.race_checkpoints SET distance_km = 16
+  -- Meta de cronometraje a la distancia medida en el GPX (el cartel redondea a 16)
+  UPDATE public.race_checkpoints SET distance_km = 16.65
   WHERE race_id = v_race AND checkpoint_type = 'FINISH';
 
   -- ------------------------------------------------------------- reglamento
@@ -80,39 +98,11 @@ BEGIN
    WHERE race_id = v_race AND question = '¿Qué pasa con los gnomos?';
 
   -- ------------------------------------------------------------- web propia
-  -- Tema completo (como lo guarda el panel). Contenido: solo las claves que
-  -- cambian, fundidas sobre lo que ya hay.
+  -- Plantilla «Navidad Monte Tejas» con tema vacío: manda su libro de diseño.
+  -- Contenido: solo las claves que cambian, fundidas sobre lo que ya hay.
   UPDATE public.race_web SET
-    tema = $tema$
-    {
-      "colorMarca": "#0F2A1B",
-      "colorAccion": "#E0201F",
-      "colorSecundario": "#2E7D32",
-      "fuenteDisplay": "Oswald",
-      "fuenteTexto": "Montserrat",
-      "radio": "20",
-      "hero": "textura",
-      "heroPosicion": "center 50%",
-      "cinta": false,
-      "cuentaAtras": true,
-      "secciones": [
-        {"id": "hero", "activa": true},
-        {"id": "cifras", "activa": true},
-        {"id": "cinta", "activa": false},
-        {"id": "recorridos", "activa": true},
-        {"id": "servicios", "activa": true},
-        {"id": "inscripcion", "activa": true},
-        {"id": "dia", "activa": true},
-        {"id": "reglamento", "activa": true},
-        {"id": "info", "activa": true},
-        {"id": "medioambiente", "activa": true},
-        {"id": "patrocinadores", "activa": true},
-        {"id": "beneficiario", "activa": false},
-        {"id": "premios", "activa": false},
-        {"id": "camiseta", "activa": false}
-      ]
-    }
-    $tema$::jsonb,
+    plantilla = 'navidad-monte-tejas',
+    tema = '{}'::jsonb,
     contenido = COALESCE(contenido, '{}'::jsonb) || $json$
     {
       "nombreCorto": "Trail Navideño Monte Tejas",
@@ -135,7 +125,7 @@ BEGIN
         {"nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida."}
       ],
       "pruebas": [
-        {"id": "b8f4d2e1-5a3c-4d9f-8c7b-2e3f4a5b6c7d", "descripcion": "16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Sales y llegas en la plaza del Ayuntamiento de San Felices de Buelna y, por el camino, hay veinte gnomos escondidos con premio.", "marcaje": "Cintas y banderines naranjas", "color": "#E0201F"}
+        {"id": "b8f4d2e1-5a3c-4d9f-8c7b-2e3f4a5b6c7d", "descripcion": "16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Sales y llegas en la plaza del Ayuntamiento de San Felices de Buelna y, por el camino, hay veinte gnomos escondidos con premio.", "relato": "Sales de la plaza del Ayuntamiento y los primeros kilómetros, por el pueblo y el parque de la Lama, son para calentar: un repecho hasta los 180 m y poco más. Son los mismos que harás al revés para volver a meta.\nEn el km 2,3 empieza el monte de verdad: primera subida hasta los 370 m del km 4,2 y bajada hasta el cruce del km 5,5, la zona de avituallamiento. Por ese mismo cruce volverás a pasar en el km 12.\nLuego viene lo gordo: casi 300 m de desnivel en 2,4 km hasta el techo de la carrera, 482 m en el km 7,8. Desde arriba casi todo es bajar, con dos repechos para que no te duermas (km 10,7 y km 13,3), hasta enganchar el camino de ida y entrar en la plaza por donde saliste.\nY mira bien a los lados: hay veinte gnomos escondidos.", "marcaje": "Cintas y banderines naranjas", "color": "#E0201F"}
       ],
       "edicionesAnteriores": [
         {"anio": 2025, "url": "https://sportmaniacs.com/es/races/trail-navidentildeo-monte-tejas/6947ee3b-d118-426c-ab10-40ffac1f1ba4/results#rankings"}
@@ -169,19 +159,22 @@ BEGIN
   IF v_rb IS NULL THEN
     INSERT INTO public.roadbooks (race_distance_id, name, description)
     VALUES (v_dist, 'Rutómetro Trail Navideño 16 km',
-            'Provisional: los avituallamientos están en los km del reglamento de 2025 hasta tener el reglamento y el GPX de 2026.')
+            'Km y coordenadas del GPX de 2026 (16,65 km medidos). Avituallamientos provisionales hasta el reglamento de 2026.')
     RETURNING id INTO v_rb;
 
     INSERT INTO public.roadbook_items
-      (roadbook_id, item_order, item_type, item_type_id, description, km_total, km_partial, km_remaining, is_checkpoint, is_highlighted, notes)
-    SELECT v_rb, v.orden, v.tipo, t.id, v.descr, v.km, v.parcial, 16 - v.km, false, true, v.nota
+      (roadbook_id, item_order, item_type, item_type_id, description, km_total, km_partial, km_remaining,
+       latitude, longitude, altitude, is_checkpoint, is_highlighted, notes)
+    SELECT v_rb, v.orden, v.tipo, t.id, v.descr, v.km, v.parcial, round(16.65 - v.km, 2),
+           v.lat, v.lon, v.alt, false, true, v.nota
     FROM (VALUES
-      (1, 'start',       'Salida · plaza del Ayuntamiento',                0.0,  0.0, NULL),
-      (2, 'refreshment', 'Avituallamiento líquido · zona ida-vuelta (ida)', 5.5,  5.5, 'Km provisional (reglamento 2025). Lleva tu vaso: no hay vasos.'),
-      (3, 'refreshment', 'Avituallamiento líquido · zona ida-vuelta (vuelta)', 10.0, 4.5, 'Km provisional (reglamento 2025). Lleva tu vaso: no hay vasos.'),
-      (4, 'finish',      'Meta · plaza del Ayuntamiento',                  16.0, 6.0, NULL),
-      (5, 'aid_station', 'Avituallamiento de meta',                        16.0, 0.0, 'Fuera de la zona de meta, con comida y bebida.')
-    ) AS v(orden, tipo, descr, km, parcial, nota)
+      (1, 'start',       'Salida · plaza del Ayuntamiento',          0.00,  0.00, 43.274942, -4.050007, 111, NULL),
+      (2, 'refreshment', 'Avituallamiento líquido · cruce (ida)',    5.50,  5.50, 43.253482, -4.025467, 196, 'Provisional: el cruce por el que se pasa dos veces, donde estaba en 2025. Lleva tu vaso: no hay vasos.'),
+      (3, 'poi',         'Techo del recorrido · 482 m',              7.80,  2.30, 43.239797, -4.025482, 482, 'Final de la subida más larga: casi 300 m de desnivel desde el km 5,5.'),
+      (4, 'refreshment', 'Avituallamiento líquido · cruce (vuelta)', 12.10, 4.30, 43.253630, -4.025292, 188, 'Provisional: el cruce por el que se pasa dos veces, donde estaba en 2025. Lleva tu vaso: no hay vasos.'),
+      (5, 'finish',      'Meta · plaza del Ayuntamiento',            16.65, 4.55, 43.274467, -4.050287, 112, NULL),
+      (6, 'aid_station', 'Avituallamiento de meta',                  16.65, 0.00, 43.274467, -4.050287, 112, 'Fuera de la zona de meta, con comida y bebida.')
+    ) AS v(orden, tipo, descr, km, parcial, lat, lon, alt, nota)
     LEFT JOIN public.roadbook_item_types t ON t.name = v.tipo;
   END IF;
 END
@@ -198,8 +191,8 @@ SELECT 'reglamento' AS donde, s.section_type FROM public.race_regulation_section
 UNION ALL
 SELECT 'web', 'contenido' FROM public.race_web
  WHERE race_id = 'a7e3c1d0-4f2b-4c8e-9b6a-1d2e3f4a5b6c' AND (contenido::text ILIKE '%trailvide%' OR contenido::text LIKE '%15 km%');
-SELECT tema->>'colorMarca' AS marca, tema->>'colorAccion' AS accion, tema->>'fuenteDisplay' AS display, activa FROM public.race_web
+SELECT plantilla, tema, activa FROM public.race_web
  WHERE race_id = 'a7e3c1d0-4f2b-4c8e-9b6a-1d2e3f4a5b6c';
-SELECT i.item_order, i.item_type, i.description, i.km_total FROM public.roadbook_items i
+SELECT i.item_order, i.item_type, i.description, i.km_total, i.latitude, i.longitude FROM public.roadbook_items i
   JOIN public.roadbooks r ON r.id = i.roadbook_id
  WHERE r.race_distance_id = 'b8f4d2e1-5a3c-4d9f-8c7b-2e3f4a5b6c7d' ORDER BY i.item_order;

@@ -19,7 +19,17 @@ import "./estilos.css";
  * el libro de diseño tiene activas, en su orden, y cada una solo si el
  * evento trae datos para ella. Nunca inventa contenido.
  */
-export default function PlantillaGurriana({ evento, tokens, rutas, modo, onInscribirse }: PropsPlantilla) {
+export default function PlantillaGurriana({
+  evento,
+  tokens,
+  rutas,
+  modo,
+  onInscribirse,
+  idPlantilla = "gurriana",
+}: PropsPlantilla & {
+  /** Las plantillas que visten a esta (p. ej. navidad) ponen su id en data-plantilla para su CSS */
+  idPlantilla?: string;
+}) {
   useEffect(() => {
     cargarFuentes(tokens);
   }, [tokens]);
@@ -52,7 +62,7 @@ export default function PlantillaGurriana({ evento, tokens, rutas, modo, onInscr
   };
 
   return (
-    <div className="wp min-h-screen" style={variablesCss(tokens)} data-plantilla="gurriana" data-modo={modo}>
+    <div className="wp min-h-screen" style={variablesCss(tokens)} data-plantilla={idPlantilla} data-modo={modo}>
       <Cabecera evento={evento} rutas={rutas} onInscribirse={inscribirse} />
       <main>
         {tokens.secciones.filter((s) => s.activa).map((s) => (

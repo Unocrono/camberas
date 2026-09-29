@@ -1,0 +1,39 @@
+/*
+ * Plantilla «Navidad Monte Tejas»: lo que cambia sobre Gurriana. Los colores
+ * y las fuentes siguen saliendo de los tokens (--wp-*); aquí solo van los
+ * adornos del cartel del II Trail Navideño Monte Tejas. Todo va bajo
+ * [data-plantilla="navidad-monte-tejas"] para no tocar a las demás webs.
+ */
+
+/* Cinta de meta: bastón de caramelo con el rojo y el verde del libro de
+   diseño, en vez del arcoíris de Gurriana */
+.wp[data-plantilla="navidad-monte-tejas"] .wp-cinta {
+  height: 10px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--wp-accion) 0 14px,
+    #fff 14px 20px,
+    var(--wp-secundario) 20px 34px,
+    #fff 34px 40px
+  );
+}
+
+/* Portada: abetos y montaña al pie, como el faldón del cartel. Máscara con
+   el color secundario, así sigue al libro de diseño si se cambian colores */
+.wp[data-plantilla="navidad-monte-tejas"] #top > div::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 72px;
+  background: var(--wp-secundario);
+  opacity: 0.45;
+  -webkit-mask: url("./abetos.svg") bottom center / auto 100% repeat-x;
+  mask: url("./abetos.svg") bottom center / auto 100% repeat-x;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .wp[data-plantilla="navidad-monte-tejas"] #top > div::before {
+    height: 132px;
+  }
+}
