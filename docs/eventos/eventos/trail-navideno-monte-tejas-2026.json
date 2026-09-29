@@ -78,11 +78,14 @@
       "lugarMeta": "Plaza del Ayuntamiento, San Felices de Buelna",
       "plazas": 200,
       "marcaje": "Cintas y banderines naranjas",
+      "color": "#E0201F",
       "descripcion": "16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Sales y llegas en la plaza del Ayuntamiento de San Felices de Buelna y, por el camino, hay veinte gnomos escondidos con premio.",
+      "relato": "Sales de la plaza del Ayuntamiento y los primeros kilómetros, por el pueblo y el parque de la Lama, son para calentar: un repecho hasta los 180 m y poco más. Son los mismos que harás al revés para volver a meta.\nEn el km 2,3 empieza el monte de verdad: primera subida hasta los 370 m del km 4,2 y bajada hasta el cruce del km 5,5, la zona de avituallamiento. Por ese mismo cruce volverás a pasar en el km 12.\nLuego viene lo gordo: casi 300 m de desnivel en 2,4 km hasta el techo de la carrera, 482 m en el km 7,8. Desde arriba casi todo es bajar, con dos repechos para que no te duermas (km 10,7 y km 13,3), hasta enganchar el camino de ida y entrar en la plaza por donde saliste.\nY mira bien a los lados: hay veinte gnomos escondidos.",
+      "track": { "gpx": "/gpx/trail-navideno-monte-tejas-2026.gpx" },
       "avituallamientos": [
-        { "km": 5.5, "nombre": "Zona de concurrencia (ida)", "tipo": "liquido" },
-        { "km": 10, "nombre": "Zona de concurrencia (vuelta)", "tipo": "liquido" },
-        { "km": 16, "nombre": "Meta", "tipo": "completo", "limite": "3 h 30 min" }
+        { "km": 5.5, "nombre": "Cruce (ida)", "tipo": "liquido" },
+        { "km": 12.1, "nombre": "Cruce (vuelta)", "tipo": "liquido" },
+        { "km": 16.65, "nombre": "Meta", "tipo": "completo", "limite": "3 h 30 min" }
       ]
     }
   ],
@@ -157,33 +160,8 @@
     "telefono": "679 602 812"
   },
   "imagenes": {},
-  "marca": {
-    "colorMarca": "#0F2A1B",
-    "colorAccion": "#E0201F",
-    "colorSecundario": "#2E7D32",
-    "fuenteDisplay": "Oswald",
-    "fuenteTexto": "Montserrat",
-    "radio": "20",
-    "hero": "textura",
-    "cinta": false,
-    "cuentaAtras": true,
-    "secciones": [
-      { "id": "hero", "activa": true },
-      { "id": "cifras", "activa": true },
-      { "id": "cinta", "activa": false },
-      { "id": "recorridos", "activa": true },
-      { "id": "servicios", "activa": true },
-      { "id": "inscripcion", "activa": true },
-      { "id": "dia", "activa": true },
-      { "id": "reglamento", "activa": true },
-      { "id": "info", "activa": true },
-      { "id": "medioambiente", "activa": true },
-      { "id": "patrocinadores", "activa": true },
-      { "id": "beneficiario", "activa": false },
-      { "id": "premios", "activa": false },
-      { "id": "camiseta", "activa": false }
-    ]
-  },
+  "web": { "plantilla": "navidad-monte-tejas", "activa": false },
+  "marca": {},
   "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y centro de carrera" },
   "clasificaciones": {
     "anteriores": [
@@ -195,8 +173,8 @@
     "descripcion": "16 km de trail navideño por el Monte Tejas, con 20 gnomos con premio y premios a los mejores disfraces. Domingo 13 de diciembre de 2026, 10:30 h, plaza del Ayuntamiento de San Felices de Buelna."
   },
   "fuente": {
-    "origen": "Cartel de la II edición (16 km, 860 m D+, 20 gnomos, 13-12-2026 10:30) sobre el reglamento de la I edición (PDF, 21-12-2025): plazo (1 nov – 7 dic), devolución (hasta 2 dic), avituallamientos (km 5,5 y 10) y cierre (14:00) siguen trasladados de 2025 hasta el reglamento de 2026. Colores de la web sacados del cartel.",
+    "origen": "Cartel de la II edición (16 km, 860 m D+, 20 gnomos, 13-12-2026 10:30) y GPX de 2026 (16,65 km, techo 482 m en el km 7,8; cruce ida-vuelta en los km 5,5 y 12,1) sobre el reglamento de la I edición (PDF, 21-12-2025): plazo (1 nov – 7 dic), devolución (hasta 2 dic), avituallamientos en el cruce y cierre (14:00) siguen trasladados de 2025 hasta el reglamento de 2026. Plantilla Navidad Monte Tejas, con los colores del cartel.",
     "fecha": "2026-09-29",
-    "pendiente": ["reglamento 2026", "GPX 2026 y km de los avituallamientos", "tiempos del primero y del último de 2025 (ritmos)", "logo"]
+    "pendiente": ["reglamento 2026 y km de los avituallamientos", "tiempos del primero y del último de 2025 (ritmos)", "logo"]
   }
 }
