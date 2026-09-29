@@ -2,7 +2,7 @@
 
 - `evento.schema.json` — esquema único de evento (JSON Schema 2020-12). Validado contra 9 carreras reales.
 - `eventos/*.json` — las carreras, en el esquema:
-  - **A hacer**: guardia-civil-la-rioja-2025 (popular solidaria), loiu-500-trail-2026 (trail + marcha), san-silvestre-corraliega-la-garita-2026 (trail + marcha, 31 dic), trail-san-felices-2026 (esqueleto, 15 dic)
+  - **A hacer**: guardia-civil-la-rioja-2025 (popular solidaria), loiu-500-trail-2026 (trail + marcha), san-silvestre-corraliega-la-garita-2026 (trail + marcha, 31 dic), trail-navideno-monte-tejas-2026 (II Trail Navideño, 13 dic, popular y de disfraces; sustituye al esqueleto trail-san-felices-2026)
   - **Referencia**: marcha-ademco-2026 (marcha no competitiva), pena-prieta-skyrace-2026 (3 recorridos, ya en Camberas), gurriana-trail-2027 (plantilla base)
   - **Casos de prueba del esquema**: las-arenas-bilbao-2027 (7 periodos de precio), entre-vinedos-2026 (equipos de 10 + infantil con tutor)
 - `api.md` — contrato de API y widget `<camberas-inscripcion>`, con el mapeo desde los formularios de uno.es (Joomla Events Booking).

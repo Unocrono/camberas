@@ -1,10 +1,10 @@
 {
   "slug": "trail-navideno-monte-tejas-2026",
   "tenant": "kilometro-vertical-torrelavega",
-  "nombre": "II Trailvideño Monte Tejas",
-  "nombreCorto": "Trailvideño Monte Tejas",
+  "nombre": "II Trail Navideño Monte Tejas",
+  "nombreCorto": "Trail Navideño Monte Tejas",
   "edicion": 2,
-  "descripcion": "Carrera navideña, pequeña y de fiesta: 15 km por las sendas y caminos mitológicos del Monte Tejas, en San Felices de Buelna. Doce gnomos escondidos en el monte con premio, premios a los mejores disfraces (también en grupo) y música y ambiente en salida y meta.",
+  "descripcion": "La carrera más festiva del año en San Felices de Buelna: 16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Veinte gnomos escondidos con premio, premios a los mejores disfraces (también de grupo) y música y ambiente en salida y meta. Ven disfrazado.",
   "deporte": "trail",
   "competitivo": true,
   "fecha": "2026-12-13",
@@ -27,13 +27,12 @@
     "cierreTexto": "Del 1 de noviembre a las 20:00 al 7 de diciembre, o hasta agotar los 200 dorsales",
     "limiteDorsales": 200,
     "plazasDisponibles": null,
-    "edadMinima": 16,
     "modalidades": ["individual"],
     "tarifas": [
       {
         "id": "15k",
-        "nombre": "Trailvideño 15 km",
-        "pruebas": ["TRAIL15"],
+        "nombre": "Trail Navideño 16 km",
+        "pruebas": ["TRAIL16"],
         "destacada": true,
         "periodos": [{ "precio": 13, "etiqueta": "Precio único" }]
       }
@@ -63,15 +62,15 @@
   },
   "pruebas": [
     {
-      "id": "TRAIL15",
-      "nombre": "Trailvideño 15 km",
+      "id": "TRAIL16",
+      "nombre": "Trail Navideño 16 km",
       "tipo": "carrera",
       "competitiva": true,
       "chip": true,
-      "distancia": 15000,
-      "distanciaTexto": "15 km",
-      "desnivelPos": 730,
-      "desnivelNeg": 724,
+      "distancia": 16000,
+      "distanciaTexto": "16 km",
+      "desnivelPos": 860,
+      "desnivelNeg": 860,
       "salida": "10:30",
       "limite": "3 h 30 min",
       "cierre": "14:00",
@@ -79,16 +78,11 @@
       "lugarMeta": "Plaza del Ayuntamiento, San Felices de Buelna",
       "plazas": 200,
       "marcaje": "Cintas y banderines naranjas",
-      "descripcion": "Recorrido de ida y vuelta por sendas y caminos mitológicos del Monte Tejas. Solo 1,6 km de ida y otros 1,6 de vuelta van por asfalto o zona de pueblo, más 500 m por el parque de la Lama.",
-      "terreno": [
-        ["Sendas y caminos de monte", "≈ 11 km"],
-        ["Asfalto y zona de pueblo", "3,2 km"],
-        ["Parque de la Lama", "0,5 km"]
-      ],
+      "descripcion": "16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Sales y llegas en la plaza del Ayuntamiento de San Felices de Buelna y, por el camino, hay veinte gnomos escondidos con premio.",
       "avituallamientos": [
         { "km": 5.5, "nombre": "Zona de concurrencia (ida)", "tipo": "liquido" },
         { "km": 10, "nombre": "Zona de concurrencia (vuelta)", "tipo": "liquido" },
-        { "km": 15, "nombre": "Meta", "tipo": "completo", "limite": "3 h 30 min" }
+        { "km": 16, "nombre": "Meta", "tipo": "completo", "limite": "3 h 30 min" }
       ]
     }
   ],
@@ -125,7 +119,6 @@
   },
   "programa": [
     { "fecha": "2026-12-13", "hora": "08:30", "horaFin": "10:00", "titulo": "Recogida de dorsales", "lugar": "Plaza del Ayuntamiento, San Felices de Buelna" },
-    { "fecha": "2026-12-13", "hora": "10:30", "titulo": "Salida Trailvideño 15 km", "lugar": "Plaza del Ayuntamiento" },
     { "fecha": "2026-12-13", "hora": "14:00", "titulo": "Cierre de control" },
     { "fecha": "2026-12-13", "hora": "14:15", "titulo": "Entrega de premios y sorteos", "lugar": "Zona de meta" }
   ],
@@ -135,18 +128,17 @@
     "nota": "Imprescindible documento de identidad y, si la tienes, tarjeta federativa. Puede recogerlo otra persona con foto de tu DNI o una autorización con nombre y DNI."
   },
   "premios": [
-    { "categoria": "Gnomos", "premio": "12 premios", "texto": "Doce gnomos escondidos semi-visibles por el recorrido. Quien encuentre uno lo lleva hasta meta (solo uno por persona). El premio de cada gnomo se desvela al darse la salida. Coger dos o más, o cambiarlos de sitio, es eliminación." },
-    { "categoria": "Disfraces", "premio": "3 premios", "texto": "A los tres mejores disfraces de la prueba; el jurado es la organización." },
-    { "categoria": "Disfraz grupal", "premio": "Novedad", "texto": "Al mejor disfraz de grupo: venid varios con una temática común." },
-    { "categoria": "Absoluta masculina y femenina", "premio": "Trofeos", "texto": "Única categoría en la distancia de 15 km." }
+    { "categoria": "Gnomos", "premio": "20 gnomos con premio", "texto": "Escondidos por el monte, medio a la vista. Si encuentras uno, llévalo hasta meta: solo uno por persona. Qué premio tiene cada gnomo se desvela al dar la salida. Coger dos o más, o cambiarlos de sitio, es eliminación." },
+    { "categoria": "Disfraces individuales", "premio": "3 mejores disfraces", "texto": "Premio para los tres mejores. El jurado es la organización." },
+    { "categoria": "Disfraz grupal", "premio": "Mejor disfraz de grupo", "texto": "Venid en cuadrilla con una temática común: hay premio para el mejor grupo." },
+    { "categoria": "Absoluta masculina y femenina", "premio": "Trofeos", "texto": "Para los primeros de la general masculina y femenina." }
   ],
-  "entregaPremios": "En la zona de meta, al terminar la carrera",
   "servicios": [
-    { "nombre": "Comida de llegada", "texto": "Para todos los participantes al terminar la prueba.", "icono": "comida" },
-    { "nombre": "Avituallamiento de meta", "texto": "Fuera de la zona de meta, con comida y bebida.", "icono": "avituallamiento" },
-    { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida.", "icono": "sanitario" },
-    { "nombre": "Sorteos", "texto": "Todos los inscritos optan a los sorteos.", "icono": "regalo" },
-    { "nombre": "Ambiente de fiesta", "texto": "Música y animación en salida y meta. Ven disfrazado: hay premio individual y de grupo.", "icono": "fiesta" }
+    { "nombre": "Ambiente de fiesta", "texto": "Música y animación en salida y meta. Ven disfrazado: hay premio individual y de grupo." },
+    { "nombre": "Comida de llegada", "texto": "Para todos los participantes al terminar la prueba." },
+    { "nombre": "Avituallamiento de meta", "texto": "Fuera de la zona de meta, con comida y bebida." },
+    { "nombre": "Sorteos", "texto": "Todos los inscritos entran en los sorteos." },
+    { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida." }
   ],
   "sanitario": {
     "medios": [["1", "ambulancia SVB con médico"], ["2", "técnicos en emergencias sanitarias"]],
@@ -154,8 +146,7 @@
   },
   "medioAmbiente": {
     "espacio": "Monte Tejas, San Felices de Buelna",
-    "normas": "Prueba eco-sostenible: sin vasos de plástico en los avituallamientos, cubos de basura a la salida de cada uno, prohibido atajar fuera de los caminos. Al terminar se retira todo el marcaje y cualquier residuo.",
-    "adhesion": "Organizada con el Ayuntamiento de San Felices de Buelna para dar a conocer la zona y fomentar el deporte con respeto al medio natural."
+    "normas": "Prueba eco-sostenible: sin vasos de plástico en los avituallamientos, cubos de basura a la salida de cada uno, prohibido atajar fuera de los caminos. Al terminar se retira todo el marcaje y cualquier residuo."
   },
   "patrocinadores": [
     { "nombre": "C.D.E. Kilómetro Vertical de Torrelavega", "nivel": "organiza" },
@@ -167,15 +158,45 @@
   },
   "imagenes": {},
   "marca": {
-    "colorMarca": "#1B4D2E",
-    "colorAccion": "#C8102E",
-    "colorSecundario": "#C99A2E",
+    "colorMarca": "#0F2A1B",
+    "colorAccion": "#E0201F",
+    "colorSecundario": "#2E7D32",
+    "fuenteDisplay": "Oswald",
+    "fuenteTexto": "Montserrat",
+    "radio": "20",
     "hero": "textura",
-    "cinta": true
+    "cinta": false,
+    "cuentaAtras": true,
+    "secciones": [
+      { "id": "hero", "activa": true },
+      { "id": "cifras", "activa": true },
+      { "id": "cinta", "activa": false },
+      { "id": "recorridos", "activa": true },
+      { "id": "servicios", "activa": true },
+      { "id": "inscripcion", "activa": true },
+      { "id": "dia", "activa": true },
+      { "id": "reglamento", "activa": true },
+      { "id": "info", "activa": true },
+      { "id": "medioambiente", "activa": true },
+      { "id": "patrocinadores", "activa": true },
+      { "id": "beneficiario", "activa": false },
+      { "id": "premios", "activa": false },
+      { "id": "camiseta", "activa": false }
+    ]
   },
   "servicios_tecnicos": { "proveedor": "UNO · Camberas", "texto": "Inscripciones, cronometraje y centro de carrera" },
+  "clasificaciones": {
+    "anteriores": [
+      { "anio": 2025, "url": "https://sportmaniacs.com/es/races/trail-navidentildeo-monte-tejas/6947ee3b-d118-426c-ab10-40ffac1f1ba4/results#rankings" }
+    ]
+  },
+  "seo": {
+    "titulo": "II Trail Navideño Monte Tejas · 13 de diciembre · San Felices de Buelna",
+    "descripcion": "16 km de trail navideño por el Monte Tejas, con 20 gnomos con premio y premios a los mejores disfraces. Domingo 13 de diciembre de 2026, 10:30 h, plaza del Ayuntamiento de San Felices de Buelna."
+  },
   "fuente": {
-    "origen": "Reglamento I Trailvideño Monte Tejas (PDF, edición 21-12-2025). Fecha 13-12-2026 confirmada; edición II, plazo (1 nov – 7 dic) y devolución (hasta 2 dic) trasladados de la I edición, pendientes de confirmar.",
-    "fecha": "2026-09-25"
+    "origen": "Cartel de la II edición (16 km, 860 m D+, 20 gnomos, 13-12-2026 10:30) sobre el reglamento de la I edición (PDF, 21-12-2025): plazo (1 nov – 7 dic), devolución (hasta 2 dic), avituallamientos (km 5,5 y 10) y cierre (14:00) siguen trasladados de 2025 hasta el reglamento de 2026. Colores de la web sacados del cartel.",
+    "fecha": "2026-09-29",
+    "pendiente": ["reglamento 2026", "GPX 2026 y km de los avituallamientos", "tiempos del primero y del último de 2025 (ritmos)", "logo"]
   }
 }
