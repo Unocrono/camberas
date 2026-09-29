@@ -85,6 +85,10 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
   const diaSemana = fechaLarga(evento.fecha).split(" ")[0];
   const abierta = evento.estado === "abierta";
   const pruebasConSalida = evento.pruebas.filter((p) => p.salida);
+  // El titular va en mayúsculas y muy apretado (0.92): la tilde de una Ñ o una
+  // vocal acentuada se monta sobre la línea de arriba («NAVIDEÑO» bajo «TRAIL»).
+  // Con tildes se abre a 1.1; sin ellas se queda como está
+  const interlineadoTitular = /[áéíóúüñ]/i.test(evento.nombre) ? 1.1 : 0.92;
 
   return (
     <section id="top" className="pt-[72px]">
@@ -122,7 +126,7 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
                 .filter(Boolean)
                 .join(" · ")}
             </p>
-            <h1 className="mt-4" style={{ fontSize: "clamp(56px, 8vw, 104px)", lineHeight: 0.92, color: foto ? "#fff" : "var(--wp-marca-texto)" }}>
+            <h1 className="mt-4" style={{ fontSize: "clamp(56px, 8vw, 104px)", lineHeight: interlineadoTitular, color: foto ? "#fff" : "var(--wp-marca-texto)" }}>
               {evento.nombre}
             </h1>
             {(evento.subtitulo || evento.descripcion) && (

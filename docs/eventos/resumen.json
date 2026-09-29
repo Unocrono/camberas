@@ -196,25 +196,30 @@
   ]
  },
  {
-  "slug": "trail-san-felices-2026",
-  "nombre": "Trail San Felices",
+  "slug": "trail-navideno-monte-tejas-2026",
+  "nombre": "Trail Navideño Monte Tejas",
   "deporte": "trail",
-  "pruebas": 2,
-  "tarifas": 2,
+  "pruebas": 1,
+  "tarifas": 1,
   "mecanicas": [
-   "marcha"
+   "tutor"
   ],
-  "secciones": [],
-  "estado": "borrador",
-  "pendiente": [
-   "nombre oficial y edición",
-   "organizador",
-   "distancias, desniveles, horarios",
-   "precios y cierre",
+  "secciones": [
    "reglamento",
-   "recorridos/GPX",
-   "cartel y logo",
-   "patrocinadores"
+   "programa",
+   "dorsales",
+   "premios",
+   "servicios",
+   "sanitario",
+   "medioambiente",
+   "clasificaciones"
+  ],
+  "estado": "proximamente",
+  "pendiente": [
+   "reglamento 2026",
+   "GPX 2026 y km de los avituallamientos",
+   "tiempos del primero y del último de 2025 (ritmos)",
+   "logo"
   ]
  }
 ]
