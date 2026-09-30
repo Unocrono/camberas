@@ -58,8 +58,10 @@
 
     <div class="stores" id="stores">
       <h2>Descarga Camberas Track y vuelve a pulsar el botón:</h2>
-      <a class="btn" href="https://github.com/Unocrono/camberas/releases/download/track-v24/camberas-track-v25a.apk">📱&nbsp; ANDROID — DESCARGAR APK</a>
-      <a class="btn secondary" href="https://testflight.apple.com/">&nbsp; iPHONE — TESTFLIGHT (beta)</a>
+      <!-- En las tiendas desde el 25-ago (Google Play) y el 19-ago (App Store);
+           antes eran el APK de GitHub y TestFlight -->
+      <a class="btn" id="tiendaAndroid" href="https://play.google.com/store/apps/details?id=com.unocrono.camberastrack">▶&nbsp; ANDROID — GOOGLE PLAY</a>
+      <a class="btn secondary" id="tiendaIos" href="https://apps.apple.com/es/app/camberas-track/id6792264406">&nbsp; iPHONE — APP STORE</a>
     </div>
 
     <div class="desktop-note" id="desktopNote">
@@ -118,6 +120,15 @@
         '#Intent;scheme=camberas;package=com.unocrono.camberastrack;' +
         'S.browser_fallback_url=' + fallback + ';end';
       if (esAndroid) document.getElementById('openApp').setAttribute('href', intentLink);
+
+      // En iPhone/iPad, la App Store primero y destacada
+      if (!esAndroid) {
+        var ios = document.getElementById('tiendaIos');
+        var android = document.getElementById('tiendaAndroid');
+        ios.className = 'btn';
+        android.className = 'btn secondary';
+        ios.parentNode.insertBefore(ios, android);
+      }
 
       setTimeout(function () {
         window.location.href = esAndroid ? intentLink : deepLink;
