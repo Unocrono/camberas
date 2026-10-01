@@ -262,7 +262,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   
   // Filters
   const [selectedRace, setSelectedRace] = useState<string>("all");
-  const [selectedDistance, setSelectedDistance] = useState<string>("");
+  // Filtro de recorrido: "all" = todos (de entrada, igual para admin y organizador)
+  const [selectedDistance, setSelectedDistance] = useState<string>("all");
+  const distanciaFiltro = selectedDistance !== "all" ? selectedDistance : "";
   // El organizador arranca viendo solo confirmadas: los intentos de
   // inscripción abandonados le ensucian la lista. El admin sigue viendo
   // todo de entrada, que para eso da soporte. Ambos pueden cambiarlo.
@@ -439,6 +441,28 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     });
     return Array.from(genders).sort();
   }, [registrations]);
+
+  // Opciones del filtro de recorrido, iguales para admin y organizador: con
+  // una carrera elegida, sus recorridos; sin carrera, los de las inscripciones
+  // que hay a la vista, con el nombre de la carrera si hay más de una
+  const opcionesRecorrido = useMemo(() => {
+    const fmt = (nombre: string, km?: number | null) => (km != null ? `${nombre} (${km}km)` : nombre);
+    if (selectedRace !== "all") {
+      return distances.map((d) => ({ id: d.id, etiqueta: fmt(d.name, d.distance_km) }));
+    }
+    const vistos = new Map<string, { id: string; carrera: string; nombre: string; km?: number | null }>();
+    for (const r of registrations) {
+      const d = r.race_distance;
+      if (d?.id && !vistos.has(d.id)) {
+        vistos.set(d.id, { id: d.id, carrera: r.race?.name ?? "", nombre: d.name, km: d.distance_km });
+      }
+    }
+    const lista = [...vistos.values()];
+    const variasCarreras = new Set(lista.map((d) => d.carrera)).size > 1;
+    return lista
+      .sort((a, b) => a.carrera.localeCompare(b.carrera, "es") || a.nombre.localeCompare(b.nombre, "es"))
+      .map((d) => ({ id: d.id, etiqueta: variasCarreras ? `${d.carrera} · ${fmt(d.nombre, d.km)}` : fmt(d.nombre, d.km) }));
+  }, [selectedRace, distances, registrations]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -984,7 +1008,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       return;
     }
 
-    if (!selectedDistance) {
+    if (!distanciaFiltro) {
       toast({
         title: "Error",
         description: "Selecciona un recorrido primero",
@@ -997,7 +1021,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     const { data: raceCategories } = await supabase
       .from("race_categories")
       .select("*")
-      .eq("race_distance_id", selectedDistance)
+      .eq("race_distance_id", distanciaFiltro)
       .eq("age_dependent", true);
 
     if (!raceCategories || raceCategories.length === 0) {
@@ -1228,19 +1252,19 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       fetchFormFieldsAndResponses(selectedRace);
     } else {
       setDistances([]);
-      setSelectedDistance("");
+      setSelectedDistance("all");
       setCategories([]);
     }
   }, [selectedRace]);
 
   // Load categories when distance changes
   useEffect(() => {
-    if (selectedDistance) {
-      fetchCategories(selectedDistance);
+    if (distanciaFiltro) {
+      fetchCategories(distanciaFiltro);
     } else {
       setCategories([]);
     }
-  }, [selectedDistance]);
+  }, [distanciaFiltro]);
 
   useEffect(() => {
     if (formData.race_id) {
@@ -1308,10 +1332,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       .eq("race_id", raceId)
       .order("display_order");
     setDistances(data || []);
-    // Auto-select first distance
-    if (data && data.length > 0) {
-      setSelectedDistance(data[0].id);
-    }
+    // De entrada, todos los recorridos de la carrera
+    setSelectedDistance("all");
   };
 
   const fetchFormDistances = async (raceId: string) => {
@@ -1434,8 +1456,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       filtered = filtered.filter((reg) => reg.race.id === selectedRace);
     }
 
-    if (selectedDistance) {
-      filtered = filtered.filter((reg) => reg.race_distance.id === selectedDistance);
+    if (distanciaFiltro) {
+      filtered = filtered.filter((reg) => reg.race_distance.id === distanciaFiltro);
     }
 
     if (selectedStatus !== "all") {
@@ -1966,7 +1988,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         raceId={selectedRaceId || (selectedRace !== "all" ? selectedRace : "")}
-        distanceId={selectedDistance || undefined}
+        distanceId={distanciaFiltro || undefined}
         onImportComplete={fetchData}
       />
 
@@ -1982,14 +2004,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Recorrido</Label>
-              <Select value={selectedDistance} onValueChange={setSelectedDistance} disabled={!selectedRace || selectedRace === "all"}>
+              <Select value={selectedDistance} onValueChange={setSelectedDistance}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un recorrido" />
+                  <SelectValue placeholder="Todos los recorridos" />
                 </SelectTrigger>
                 <SelectContent>
-                  {distances.map((d) => (
+                  <SelectItem value="all">Todos los recorridos</SelectItem>
+                  {opcionesRecorrido.map((d) => (
                     <SelectItem key={d.id} value={d.id}>
-                      {d.name} ({d.distance_km}km)
+                      {d.etiqueta}
                     </SelectItem>
                   ))}
                 </SelectContent>
