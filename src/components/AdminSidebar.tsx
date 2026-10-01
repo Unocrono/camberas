@@ -1,6 +1,7 @@
 import { Home, ChevronDown } from "lucide-react";
 import * as LucideIcons from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +18,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useMenuItems } from "@/hooks/useMenuItems";
+import { useMenuItems, type MenuItem } from "@/hooks/useMenuItems";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type AdminView = string;
@@ -44,6 +45,32 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
 
   const isGroupActive = (items: any[]) => {
     return items.some(item => item.view_name === currentView);
+  };
+
+  // Grupos desplegados. Hasta el primer clic: el primero y el que contiene
+  // la pantalla actual (lo de siempre)
+  const navigate = useNavigate();
+  const [abiertos, setAbiertos] = useState<Set<string> | null>(null);
+  const estaAbierto = (label: string, index: number, items: MenuItem[]) =>
+    abiertos ? abiertos.has(label) : index === 0 || isGroupActive(items);
+
+  // Un clic en el grupo lo despliega Y lleva a su primera opción, que suele
+  // ser la más usada (antes eran dos clics). Si ya estás en una pantalla de
+  // ese grupo no te mueve; al plegarlo tampoco.
+  const cambiarGrupo = (label: string, abrir: boolean, items: MenuItem[]) => {
+    setAbiertos((prev) => {
+      const s = new Set(
+        prev ?? groupedItems.filter((g, i) => estaAbierto(g.label, i, g.items)).map((g) => g.label),
+      );
+      if (abrir) s.add(label);
+      else s.delete(label);
+      return s;
+    });
+    if (!abrir || isGroupActive(items)) return;
+    const primera = items[0];
+    // Sin cerrar el menú en el móvil: así se ven las opciones del grupo
+    if (primera?.view_name) onViewChange(primera.view_name);
+    else if (primera?.route) navigate(primera.route);
   };
 
   if (loading) {
@@ -74,7 +101,8 @@ export function AdminSidebar({ currentView, onViewChange }: AdminSidebarProps) {
             {groupedItems.map((group, groupIndex) => (
               <Collapsible
                 key={group.label}
-                defaultOpen={groupIndex === 0 || isGroupActive(group.items)}
+                open={estaAbierto(group.label, groupIndex, group.items)}
+                onOpenChange={(abrir) => cambiarGrupo(group.label, abrir, group.items)}
                 className="group/collapsible"
               >
                 <CollapsibleTrigger className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
