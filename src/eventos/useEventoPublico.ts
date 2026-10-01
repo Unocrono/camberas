@@ -28,8 +28,22 @@ export function useEventoPublico(slug: string | undefined) {
       return evento?.pruebas?.some((p) => p.estado === "abierta") ? 5 * 60_000 : false;
     },
     refetchIntervalInBackground: false,
-    queryFn: async () => normalizarEvento((await rpcSinTipos<EventoPublico | null>("evento_publico", { p_slug: slug })) ?? null),
+    queryFn: async () => normalizarEvento((await eventoConCopia(slug as string)) ?? null),
   });
+}
+
+/**
+ * Pide la copia guardada (evento_publico_cache, se recalcula como mucho cada
+ * 90 s, 20261001200500): con mucho público, recalcular la web en cada visita
+ * saturaba la base. Si esa función aún no existe (PGRST202), la de siempre.
+ */
+async function eventoConCopia(slug: string): Promise<EventoPublico | null> {
+  try {
+    return await rpcSinTipos<EventoPublico | null>("evento_publico_cache", { p_slug: slug });
+  } catch (e) {
+    if ((e as { code?: string })?.code !== "PGRST202") throw e;
+    return await rpcSinTipos<EventoPublico | null>("evento_publico", { p_slug: slug });
+  }
 }
 
 /** Primer periodo vigente de una tarifa, o su precio calculado. */
