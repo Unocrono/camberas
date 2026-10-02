@@ -126,6 +126,8 @@ export interface Prueba {
   limite?: string;
   lugarSalida?: string;
   lugarMeta?: string;
+  /** URL alternativa de resultados del recorrido (race_distances.results_url); sin ella, clasificaciones.urlCamberas */
+  resultadosUrl?: string;
   color?: string;
   marcaje?: string;
   municipios?: string;
@@ -267,7 +269,11 @@ export interface EventoPublico {
     transporte?: string;
     faq?: { p: string; r: string }[];
   };
-  clasificaciones?: { url?: string; tiempoReal?: boolean; anteriores?: { anio: number; url: string }[] };
+  /**
+   * url: adonde llevan las clasificaciones (la URL alternativa de resultados de
+   * un recorrido, si la hay; si no, Camberas). urlCamberas: siempre Camberas.
+   */
+  clasificaciones?: { url?: string; urlCamberas?: string; tiempoReal?: boolean; anteriores?: { anio: number; url: string }[] };
   /** Clasificaciones de años anteriores (race_web.contenido); normalizar.ts las pasa a clasificaciones.anteriores */
   edicionesAnteriores?: { anio: number; url: string }[];
   gps?: { activo?: boolean; url?: string };

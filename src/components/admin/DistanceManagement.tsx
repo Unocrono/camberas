@@ -15,6 +15,7 @@ import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
+import { urlTecleada } from "@/lib/resultados";
 
 // Format timestamp to local time HH:MM - extract directly from ISO string
 const formatTimeLocal = (isoString: string | null): string => {
@@ -38,6 +39,12 @@ const distanceSchema = z.object({
   cutoff_time: z.string().max(50).optional(),
   start_location: z.string().trim().max(200).optional(),
   finish_location: z.string().trim().max(200).optional(),
+  results_url: z
+    .string()
+    .trim()
+    .max(500, "La URL de resultados es demasiado larga")
+    .refine((v) => !v || urlTecleada(v) !== null, "La URL alternativa de resultados no es una dirección web válida (https://…)")
+    .optional(),
 });
 
 interface PriceRange {
@@ -75,6 +82,9 @@ interface Distance {
   gps_tracking_enabled: boolean | null;
   gps_update_frequency: number | null;
   show_route_map: boolean | null;
+  // URL alternativa de resultados (20261002100000): rellena, los botones de
+  // resultados llevan ahí (RaceTec…); vacía, a los resultados de Camberas
+  results_url?: string | null;
   registration_opens: string | null;
   registration_closes: string | null;
   display_order: number | null;
@@ -147,6 +157,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     gps_tracking_enabled: false,
     gps_update_frequency: "30",
     show_route_map: true,
+    results_url: "",
     registration_opens_date: "",
     registration_opens_time: "",
     registration_closes_date: "",
@@ -330,6 +341,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: distance.gps_tracking_enabled ?? false,
         gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
         show_route_map: distance.show_route_map ?? true,
+        results_url: distance.results_url || "",
         registration_opens_date: regOpens.date,
         registration_opens_time: regOpens.time,
         registration_closes_date: regCloses.date,
@@ -369,6 +381,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: false,
         gps_update_frequency: "30",
         show_route_map: true,
+        results_url: "",
         registration_opens_date: "",
         registration_opens_time: "",
         registration_closes_date: "",
@@ -460,6 +473,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         cutoff_time: formData.cutoff_time || undefined,
         start_location: formData.start_location || undefined,
         finish_location: formData.finish_location || undefined,
+        results_url: formData.results_url || undefined,
       });
 
       // ── Salida prevista (la de aquí) y oficial (start_time, cronometraje) ──
@@ -614,6 +628,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_tracking_enabled: formData.gps_tracking_enabled,
         gps_update_frequency: parseInt(formData.gps_update_frequency) || 30,
         show_route_map: formData.show_route_map,
+        results_url: validatedData.results_url ? urlTecleada(validatedData.results_url) : null,
         registration_opens: registrationOpens,
         registration_closes: registrationCloses,
         display_order: formData.display_order ? parseInt(formData.display_order) : null,
@@ -1259,6 +1274,21 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                         Archivo seleccionado: {gpxFile.name}
                       </p>
                     )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="results_url">URL alternativa de resultados</Label>
+                    <Input
+                      id="results_url"
+                      inputMode="url"
+                      placeholder="https://… (por ejemplo, la de RaceTec)"
+                      value={formData.results_url}
+                      onChange={(e) => setFormData({ ...formData, results_url: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Si la rellenas, los botones «Resultados» y «Clasificaciones» llevan a esa dirección.
+                      Vacía, llevan a los resultados de Camberas.
+                    </p>
                   </div>
 
                   {/* GPS Tracking config */}

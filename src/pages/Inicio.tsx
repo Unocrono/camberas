@@ -10,6 +10,7 @@ import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/com
 import { supabase } from "@/integrations/supabase/client";
 import { rpcSinTipos } from "@/eventos/rpc";
 import { hoyLocal } from "@/lib/timezoneUtils";
+import { resultadosDeCarrera, type EnlaceResultados } from "@/lib/resultados";
 
 /**
  * Pantalla de inicio (camberas.com/): las 3 próximas carreras y las 3 últimas
@@ -43,6 +44,18 @@ interface CarreraInicio {
   estado?: EstadoListado;
   /** Cierre de inscripciones más próximo (carrera o recorrido) */
   cierre: string | null;
+  /** Clasificación: la URL alternativa de sus recorridos (RaceTec…) o la de Camberas */
+  resultados: EnlaceResultados;
+}
+
+// results_url (20261002100000) aún no está en los tipos generados
+interface RecorridoInicio {
+  race_id: string;
+  name: string;
+  price: number | null;
+  registration_closes: string | null;
+  display_order: number | null;
+  results_url: string | null;
 }
 
 // Fechas y cierres son hora local: se leen tal cual, sin pasar por UTC
@@ -71,13 +84,14 @@ async function cargarCarreras(): Promise<CarreraInicio[]> {
   if (ids.length === 0) return [];
 
   // Recorridos de todas las carreras en una sola consulta (nada de N+1)
-  const { data: distancias, error: errDist } = await supabase
+  const { data, error: errDist } = await supabase
     .from("race_distances")
-    .select("race_id, name, price, registration_closes, display_order")
+    .select("race_id, name, price, registration_closes, display_order, results_url" as "*")
     .in("race_id", ids)
     .eq("is_visible", true)
     .order("display_order", { ascending: true });
   if (errDist) throw errDist;
+  const distancias = (data ?? []) as unknown as RecorridoInicio[];
 
   // Estado real de inscripción (RPC estado_carreras). Sin ella, pasada / no pasada.
   let estados: Record<string, EstadoListado> = {};
@@ -90,7 +104,7 @@ async function cargarCarreras(): Promise<CarreraInicio[]> {
 
   const h = hoy();
   return (races ?? []).map((race) => {
-    const dists = (distancias ?? []).filter((d) => d.race_id === race.id);
+    const dists = distancias.filter((d) => d.race_id === race.id);
     const cierres = [race.registration_closes, ...dists.map((d) => d.registration_closes)].filter((c): c is string => !!c).sort();
     return {
       id: race.id,
@@ -109,6 +123,7 @@ async function cargarCarreras(): Promise<CarreraInicio[]> {
       isPast: race.date < h,
       estado: estados[race.id],
       cierre: cierres[0] ?? null,
+      resultados: resultadosDeCarrera(dists, `/race/${race.slug ?? race.id}/results`),
     };
   });
 }
@@ -309,7 +324,7 @@ const Inicio = () => {
                 <Diapositiva icono={<Trophy className="h-5 w-5" />} etiqueta="Ya se ha corrido" titulo="Últimas clasificaciones">
                   {ultimasClasificaciones.length === 0 && !cargando && <p className="text-muted-foreground">Todavía no hay clasificaciones.</p>}
                   {ultimasClasificaciones.map((c) => (
-                    <Fila key={c.id} titulo={c.name} detalle={`${c.date} · ${c.location}`} enlace={`/race/${c.slug ?? c.id}/results`} accion="Ver clasificación" />
+                    <Fila key={c.id} titulo={c.name} detalle={`${c.date} · ${c.location}`} enlace={c.resultados.href} externo={c.resultados.externo} accion="Ver clasificación" />
                   ))}
                 </Diapositiva>
               </CarouselItem>
@@ -353,9 +368,10 @@ function Diapositiva({ icono, etiqueta, titulo, children }: { icono: React.React
   );
 }
 
-function Fila({ titulo, detalle, extra, enlace, accion }: { titulo: string; detalle: string; extra?: string; enlace: string; accion: string }) {
-  return (
-    <Link to={enlace} className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3 hover:shadow-elevated transition-all">
+function Fila({ titulo, detalle, extra, enlace, accion, externo }: { titulo: string; detalle: string; extra?: string; enlace: string; accion: string; externo?: boolean }) {
+  const clase = "group flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3 hover:shadow-elevated transition-all";
+  const contenido = (
+    <>
       <div className="min-w-0">
         <p className="font-bold text-foreground truncate">{titulo}</p>
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><Calendar className="h-3.5 w-3.5 shrink-0" /> {detalle}</p>
@@ -366,7 +382,13 @@ function Fila({ titulo, detalle, extra, enlace, accion }: { titulo: string; deta
           {accion} <ArrowRight className="h-4 w-4" />
         </span>
       </div>
-    </Link>
+    </>
+  );
+  // Fuera de Camberas (URL alternativa de resultados): pestaña nueva
+  return externo ? (
+    <a href={enlace} target="_blank" rel="noopener noreferrer" className={clase}>{contenido}</a>
+  ) : (
+    <Link to={enlace} className={clase}>{contenido}</Link>
   );
 }
 

@@ -2,6 +2,7 @@ import { lazy, Suspense, type CSSProperties, type ReactNode } from "react";
 import { Download, MapPin, Plane, Map as MapaIcono } from "lucide-react";
 import type { EventoPublico, Prueba, Tarifa } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
+import { resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
 import { formatoPrecio, precioVigente } from "@/eventos/useEventoPublico";
 import { useTenant } from "@/tenant/TenantContext";
 import type { LibroDiseno, SeccionEventoId } from "@/plantillas/libroDiseno";
@@ -51,6 +52,13 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
   const gpx = prueba.track?.gpx;
   const estado = prueba.estado ?? evento.estado;
   const abierta = estado === "abierta";
+  // Resultados: la URL alternativa del recorrido (RaceTec…) o los de Camberas.
+  // clasificaciones.url puede ser la alternativa de OTRO recorrido: el que no
+  // tiene la suya va a urlCamberas
+  const resultados = resultadosDeRecorrido(
+    { results_url: prueba.resultadosUrl },
+    evento.clasificaciones?.urlCamberas ?? evento.clasificaciones?.url ?? "",
+  );
   const color = prueba.color ?? "var(--wp-marca)";
   const tarifas: Tarifa[] = evento.inscripcion.tarifas.filter((t) => t.pruebas.includes(prueba.id) || t.id === prueba.id);
   const categorias = prueba.categorias?.length ? prueba.categorias : (evento.categorias ?? []);
@@ -142,8 +150,8 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
 
     botones: () => (
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        {estado === "celebrada" && evento.clasificaciones?.url ? (
-          <a href={evento.clasificaciones.url} className="wp-btn">Ver resultados</a>
+        {estado === "celebrada" && resultados.href ? (
+          <a href={resultados.href} {...atributosEnlace(resultados)} className="wp-btn">Ver resultados</a>
         ) : abierta ? (
           <a href={`${rutas.a("/") || "/"}?inscribir=${prueba.id}`} className="wp-btn">Inscribirme en {prueba.nombre}</a>
         ) : (

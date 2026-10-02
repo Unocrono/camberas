@@ -21,6 +21,7 @@ import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { ContactOrganizerDialog } from "@/components/ContactOrganizerDialog";
 import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
 import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
+import { resultadosDeCarrera, resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
 
 /**
  * Texto del formulario -> gender_id de la tabla genders (1=M, 2=F, 3=X).
@@ -920,6 +921,16 @@ const RaceDetail = () => {
     return hoyLocal() >= dia;
   };
 
+  // Dónde se ven: la URL alternativa del recorrido (RaceTec…) si la tiene;
+  // si no, los resultados de Camberas. Las clasificaciones de la carrera
+  // entera, la primera alternativa de los recorridos ya visibles.
+  const resultadosCamberas = `/${race.slug || raceId}/live`;
+  const enlaceResultados = (distance: { results_url?: string | null }) => resultadosDeRecorrido(distance, resultadosCamberas);
+  const enlaceClasificaciones = resultadosDeCarrera(
+    (race.distances ?? []).filter(resultadosVisibles),
+    resultadosCamberas,
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -1016,12 +1027,20 @@ const RaceDetail = () => {
                 />
                 {/* Clasificaciones: desde que arranca el PRIMER evento
                     (en carreras de varios días, no esperar al último) */}
-                {race.distances?.some((d: any) => resultadosVisibles(d)) && (
-                  <Button variant="outline" onClick={() => navigate(`/${race.slug || raceId}/live`)}>
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Clasificaciones
-                  </Button>
-                )}
+                {race.distances?.some((d: any) => resultadosVisibles(d)) &&
+                  (enlaceClasificaciones.externo ? (
+                    <Button variant="outline" asChild>
+                      <a href={enlaceClasificaciones.href} {...atributosEnlace(enlaceClasificaciones)}>
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Clasificaciones
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => navigate(enlaceClasificaciones.href)}>
+                      <BarChart3 className="h-4 w-4 mr-2" />
+                      Clasificaciones
+                    </Button>
+                  ))}
                 {race.distances?.some((d: any) => d.gps_tracking_enabled) && (
                   <Button variant="outline" onClick={() => navigate(`/race/${race.slug || raceId}/gps`)}>
                     Mapa GPS en Vivo
@@ -1283,7 +1302,7 @@ const RaceDetail = () => {
                               className="w-full"
                               asChild
                             >
-                              <a href={`/${race.slug || raceId}/live`}>
+                              <a href={enlaceResultados(distance).href} {...atributosEnlace(enlaceResultados(distance))}>
                                 <BarChart3 className="h-4 w-4 mr-2" />
                                 Resultados
                               </a>

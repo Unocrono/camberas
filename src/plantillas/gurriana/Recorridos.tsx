@@ -1,6 +1,7 @@
 import { Download, MapPin, Plane } from "lucide-react";
 import type { EventoPublico, Prueba } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
+import { resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
 import { PerfilGpxSvg, usePerfilGpx } from "./PerfilGpx";
 
@@ -78,6 +79,13 @@ function PerfilEsquematico({ prueba }: { prueba: Prueba }) {
 function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueba; evento: EventoPublico; rutas: RutasWeb; onInscribirse: (id: string) => void }) {
   const estado = prueba.estado ?? evento.estado;
   const abierta = estado === "abierta";
+  // Resultados: la URL alternativa del recorrido (RaceTec…) o los de Camberas.
+  // clasificaciones.url puede ser la alternativa de OTRO recorrido: el que no
+  // tiene la suya va a urlCamberas
+  const resultados = resultadosDeRecorrido(
+    { results_url: prueba.resultadosUrl },
+    evento.clasificaciones?.urlCamberas ?? evento.clasificaciones?.url ?? "",
+  );
   const color = prueba.color ?? "var(--wp-marca)";
   const cortes = (prueba.avituallamientos ?? []).filter((a) => a.corte);
   return (
@@ -174,8 +182,8 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
       )}
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        {estado === "celebrada" && evento.clasificaciones?.url ? (
-          <a href={evento.clasificaciones.url} className="wp-btn">Ver resultados</a>
+        {estado === "celebrada" && resultados.href ? (
+          <a href={resultados.href} {...atributosEnlace(resultados)} className="wp-btn">Ver resultados</a>
         ) : (
           <button type="button" className="wp-btn" disabled={!abierta} onClick={() => onInscribirse(prueba.id)}>
             {ESTADO_BOTON[estado] ?? "Inscribirme"}
