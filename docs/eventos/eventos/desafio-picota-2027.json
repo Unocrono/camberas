@@ -1,0 +1,762 @@
+{
+ "slug": "desafio-picota-2027",
+ "tenant": "desafio-picota",
+ "nombre": "I Desafío Picota 2027",
+ "nombreCorto": "Desafío Picota",
+ "edicion": 1,
+ "subtitulo": "Speed trail de 13 km y marcha de 7 km por Costa Quebrada, los Pinares y el Monte Picota · Liencres",
+ "descripcion": "Un speed trail rápido y vistoso desde la Plaza de la Cruz de Liencres: el sendero costero de Costa Quebrada, los Pinares de Liencres y la subida al Monte Picota por el Monte Tolío. Dos pruebas: Trail de 13 km y Andarines de 7 km, más carreras infantiles. Sábado 24 de abril de 2027.",
+ "deporte": "trail",
+ "competitivo": true,
+ "fecha": "2027-04-24",
+ "fechaTexto": "Sábado 24 de abril de 2027",
+ "lugar": {
+  "nombre": "Plaza de la Cruz",
+  "direccion": "Plaza de la Cruz, Liencres",
+  "municipio": "Piélagos",
+  "provincia": "Cantabria",
+  "zona": "Costa Quebrada, Pinares de Liencres y Monte Picota",
+  "municipios": [
+   "Piélagos"
+  ]
+ },
+ "organizador": {
+  "nombre": "Carlos Castañeda Calvo"
+ },
+ "estado": "proximamente",
+ "inscripcion": {
+  "apertura": "2026-11-02T20:00:00+01:00",
+  "cierre": "2027-04-22T23:59:00+02:00",
+  "cierreTexto": "22 de abril de 2027 o al completar los dorsales: 320 en el Trail y 120 en Andarines",
+  "limiteDorsales": 440,
+  "plazasDisponibles": null,
+  "modalidades": [
+   "individual"
+  ],
+  "tarifas": [
+   {
+    "id": "trail",
+    "nombre": "Trail 13K",
+    "pruebas": [
+     "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d"
+    ],
+    "destacada": true,
+    "periodos": [
+     {
+      "precio": 20,
+      "hasta": "2027-03-24",
+      "etiqueta": "Hasta el 24 de marzo"
+     },
+     {
+      "precio": 25,
+      "desde": "2027-03-25",
+      "etiqueta": "Desde el 25 de marzo"
+     }
+    ]
+   },
+   {
+    "id": "andarines",
+    "nombre": "Andarines 7K",
+    "pruebas": [
+     "8b3c0d5e-6f7a-4b2c-8d9e-4f5a6b7c8d9e"
+    ],
+    "periodos": [
+     {
+      "precio": 15,
+      "hasta": "2027-03-24",
+      "etiqueta": "Hasta el 24 de marzo"
+     },
+     {
+      "precio": 20,
+      "desde": "2027-03-25",
+      "etiqueta": "Desde el 25 de marzo"
+     }
+    ]
+   }
+  ],
+  "campos": [
+   {
+    "id": "empadronado_pielagos",
+    "etiqueta": "¿Estás empadronado/a en Piélagos?",
+    "tipo": "si_no",
+    "obligatorio": true
+   },
+   {
+    "id": "menor",
+    "etiqueta": "¿Eres menor de edad?",
+    "tipo": "si_no",
+    "obligatorio": true
+   },
+   {
+    "id": "acepta-reglamento",
+    "etiqueta": "He leído y acepto el reglamento",
+    "tipo": "consentimiento",
+    "obligatorio": true
+   }
+  ],
+  "menores": {
+   "permitido": true,
+   "tutor": true
+  },
+  "devolucion": {
+   "texto": "Las inscripciones son definitivas, personales e intransferibles: no se devuelven. Solo si la organización suspende la prueba por causas ajenas se valora la devolución, y al 100 % si es por falta de permisos o restricciones de tráfico."
+  },
+  "incluye": [
+   "Dorsal con chip",
+   "Bolsa del corredor",
+   "Seguro de accidentes del día",
+   "Avituallamientos",
+   "Servicios de la organización"
+  ],
+  "nota": "Precio hasta el 24 de marzo; desde el 25 de marzo, 5 € más. Los menores participan acompañados de un adulto responsable, con autorización firmada.",
+  "pasarela": {
+   "proveedor": "camberas",
+   "metodos": [
+    "tarjeta"
+   ]
+  }
+ },
+ "pruebas": [
+  {
+   "id": "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d",
+   "nombre": "Trail 13K",
+   "tipo": "carrera",
+   "competitiva": true,
+   "chip": true,
+   "distancia": 13100,
+   "distanciaTexto": "13,1 km",
+   "desnivelPos": 437,
+   "desnivelNeg": 435,
+   "altMax": 233,
+   "altMin": 8,
+   "salida": "10:00",
+   "lugarSalida": "Plaza de la Cruz, Liencres",
+   "lugarMeta": "Plaza de la Cruz, Liencres",
+   "plazas": 320,
+   "precio": 20,
+   "apertura": "2026-11-02T20:00:00+01:00",
+   "cierre": "2027-04-22T23:59:00+02:00",
+   "estado": "proximamente",
+   "color": "#601010",
+   "marcaje": "Carteles, banderines y cintas",
+   "descripcion": "Speed trail de 13 km con 437 m de desnivel: el sendero de Costa Quebrada, los Pinares de Liencres y la subida al Monte Picota por el Monte Tolío. Salida y meta en la Plaza de la Cruz.",
+   "relato": "Sales de la Plaza de la Cruz hacia el norte, a la playa de Somocuevas. En el km 1,8 empieza el sendero de Costa Quebrada: playa del Madero, playa de Pedruquíos y acantilados hasta el km 4,1. Luego los Pinares de Liencres, con el avituallamiento del km 6,15 en el aparcamiento.\nDel km 6,8 al 7,7 un tramo de carretera, abierta al tráfico, hasta el desvío al Monte Tolío. En la bifurcación del km 8,4 coges la izquierda y empieza la subida: 1,1 km de senda hasta el Monte Picota, el techo de la carrera a 233 m. Bajas 10 m, derecha en la bifurcación, pista asfaltada hasta el km 10,1 y otra vez senda por la izquierda hasta el Monte Tolío.\nDesde ahí todo es bajar por el sendero hasta la CA-231 en el km 12,4 y, por ella, de vuelta a la Plaza de la Cruz.",
+   "terreno": [
+    [
+     "Pueblo y playa",
+     "1,8 km"
+    ],
+    [
+     "Sendero costero",
+     "2,3 km"
+    ],
+    [
+     "Pinares",
+     "2,7 km"
+    ],
+    [
+     "Carretera",
+     "1,6 km"
+    ],
+    [
+     "Senda de montaña",
+     "4,1 km"
+    ],
+    [
+     "Pista asfaltada",
+     "0,5 km"
+    ]
+   ],
+   "track": {
+    "gpx": "/gpx/desafio-picota-2027-trail.gpx"
+   },
+   "categorias": [
+    {
+     "id": "sub21",
+     "nombre": "Sub 21",
+     "edadMax": 21
+    },
+    {
+     "id": "abs",
+     "nombre": "Absoluta"
+    },
+    {
+     "id": "vet",
+     "nombre": "Veteranos",
+     "edadMin": 45
+    }
+   ],
+   "rutometro": {
+    "id": "d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a",
+    "nombre": "Rutómetro Trail 13K",
+    "puntos": [
+     {
+      "km": 0.0,
+      "kmParcial": 0.0,
+      "tipo": "start",
+      "lat": 43.460808,
+      "lon": -3.927984,
+      "descripcion": "Salida · Plaza de la Cruz",
+      "altitud": 69,
+      "destacado": true,
+      "notas": "Hacia el norte, a la playa de Somocuevas.",
+      "via": "Pueblo"
+     },
+     {
+      "km": 1.78,
+      "kmParcial": 1.78,
+      "tipo": "poi",
+      "lat": 43.468392,
+      "lon": -3.944545,
+      "descripcion": "Inicio del sendero de Costa Quebrada",
+      "altitud": 40,
+      "destacado": true,
+      "notas": "Playa del Madero y playa de Pedruquíos, siempre por el sendero costero.",
+      "via": "Sendero costero"
+     },
+     {
+      "km": 4.1,
+      "kmParcial": 2.32,
+      "tipo": "poi",
+      "lat": 43.452818,
+      "lon": -3.95838,
+      "descripcion": "Fin del sendero costero · Pinares de Liencres",
+      "altitud": 31,
+      "destacado": true,
+      "via": "Pinares"
+     },
+     {
+      "km": 6.15,
+      "kmParcial": 2.05,
+      "tipo": "aid_station",
+      "lat": 43.448822,
+      "lon": -3.946081,
+      "descripcion": "Avituallamiento · aparcamiento de Los Pinares",
+      "altitud": 84,
+      "destacado": true,
+      "notas": "Sólidos y líquidos. Lleva tu recipiente reutilizable.",
+      "via": "Pinares"
+     },
+     {
+      "km": 6.8,
+      "kmParcial": 0.65,
+      "tipo": "poi",
+      "lat": 43.453689,
+      "lon": -3.943369,
+      "descripcion": "Fin de los Pinares · carretera secundaria",
+      "altitud": 70,
+      "destacado": true,
+      "notas": "Tramo abierto al tráfico: respeta las normas de circulación.",
+      "via": "Carretera"
+     },
+     {
+      "km": 7.54,
+      "kmParcial": 0.74,
+      "tipo": "poi",
+      "lat": 43.453769,
+      "lon": -3.93905,
+      "descripcion": "Carretera CA-231",
+      "altitud": 90,
+      "destacado": true,
+      "notas": "Abierta al tráfico.",
+      "via": "Carretera"
+     },
+     {
+      "km": 7.69,
+      "kmParcial": 0.15,
+      "tipo": "poi",
+      "lat": 43.453594,
+      "lon": -3.939589,
+      "descripcion": "Desvío a la ruta del Monte Tolío",
+      "altitud": 90,
+      "destacado": true,
+      "via": "Camino"
+     },
+     {
+      "km": 8.38,
+      "kmParcial": 0.69,
+      "tipo": "poi",
+      "lat": 43.448515,
+      "lon": -3.943172,
+      "descripcion": "Bifurcación: camino de la izquierda",
+      "altitud": 143,
+      "destacado": true,
+      "notas": "Empieza el sendero de montaña.",
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 9.52,
+      "kmParcial": 1.14,
+      "tipo": "poi",
+      "lat": 43.440089,
+      "lon": -3.944622,
+      "descripcion": "Monte Picota · 233 m",
+      "altitud": 233,
+      "destacado": true,
+      "notas": "Techo del recorrido. Se baja 10 m por el mismo sendero hasta la bifurcación.",
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 9.62,
+      "kmParcial": 0.1,
+      "tipo": "poi",
+      "lat": 43.44047,
+      "lon": -3.944735,
+      "descripcion": "Bifurcación: camino de la derecha",
+      "altitud": 224,
+      "destacado": true,
+      "notas": "Pista forestal asfaltada.",
+      "via": "Pista asfaltada"
+     },
+     {
+      "km": 10.14,
+      "kmParcial": 0.52,
+      "tipo": "poi",
+      "lat": 43.442263,
+      "lon": -3.9417,
+      "descripcion": "Sendero de montaña de la izquierda",
+      "altitud": 148,
+      "destacado": true,
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 10.84,
+      "kmParcial": 0.7,
+      "tipo": "poi",
+      "lat": 43.447083,
+      "lon": -3.941744,
+      "descripcion": "Monte Tolío",
+      "altitud": 225,
+      "destacado": true,
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 12.39,
+      "kmParcial": 1.55,
+      "tipo": "poi",
+      "lat": 43.456582,
+      "lon": -3.932272,
+      "descripcion": "Incorporación a la CA-231 dirección Santander",
+      "altitud": 89,
+      "destacado": true,
+      "notas": "Abierta al tráfico, hasta la Plaza de la Cruz.",
+      "via": "Carretera"
+     },
+     {
+      "km": 14.11,
+      "kmParcial": 1.72,
+      "tipo": "finish",
+      "lat": 43.460769,
+      "lon": -3.927949,
+      "descripcion": "Meta · Plaza de la Cruz",
+      "altitud": 69,
+      "destacado": true,
+      "notas": "Avituallamiento de sólidos y líquidos en meta.",
+      "via": "Pueblo"
+     }
+    ]
+   },
+   "avituallamientos": [
+    {
+     "km": 14.11,
+     "nombre": "Meta",
+     "tipo": "finish"
+    }
+   ]
+  },
+  {
+   "id": "8b3c0d5e-6f7a-4b2c-8d9e-4f5a6b7c8d9e",
+   "nombre": "Andarines 7K",
+   "tipo": "marcha",
+   "competitiva": false,
+   "chip": true,
+   "distancia": 7100,
+   "distanciaTexto": "7,1 km",
+   "desnivelPos": 291,
+   "desnivelNeg": 289,
+   "altMax": 235,
+   "altMin": 54,
+   "salida": "10:05",
+   "lugarSalida": "Plaza de la Cruz, Liencres",
+   "lugarMeta": "Plaza de la Cruz, Liencres",
+   "plazas": 120,
+   "precio": 15,
+   "apertura": "2026-11-02T20:00:00+01:00",
+   "cierre": "2027-04-22T23:59:00+02:00",
+   "estado": "proximamente",
+   "color": "#408080",
+   "marcaje": "Carteles, banderines y cintas",
+   "descripcion": "Marcha a pie de 7 km, no competitiva, hasta el Monte Picota y el Monte Tolío. Para caminar, con animales atados si quieres, y con menores acompañados.",
+   "relato": "Desde la Plaza de la Cruz, carretera del barrio de Las Reigadas hacia el oeste hasta la bifurcación del km 0,5, y por la cambera marcada hasta la CA-231. En el km 1,65 empieza el desvío al Monte Tolío; en la bifurcación del km 2,35 se coge la izquierda y la senda sube hasta el Monte Picota, en el km 3,5, a 235 m.\nSe baja 10 m, derecha en la bifurcación, pista asfaltada hasta el km 4,1 y senda por la izquierda hasta el Monte Tolío en el km 4,8. El mismo sendero baja hasta la CA-231 en el km 6,4 y, por ella, de vuelta a la plaza.",
+   "terreno": [
+    [
+     "Carretera y cambera",
+     "1,65 km"
+    ],
+    [
+     "Senda de montaña",
+     "4 km"
+    ],
+    [
+     "Pista asfaltada",
+     "0,5 km"
+    ],
+    [
+     "Carretera",
+     "0,7 km"
+    ]
+   ],
+   "track": {
+    "gpx": "/gpx/desafio-picota-2027-andarines.gpx"
+   },
+   "rutometro": {
+    "id": "e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6b",
+    "nombre": "Rutómetro Andarines 7K",
+    "puntos": [
+     {
+      "km": 0.0,
+      "kmParcial": 0.0,
+      "tipo": "start",
+      "lat": 43.460902,
+      "lon": -3.928147,
+      "descripcion": "Salida · Plaza de la Cruz",
+      "altitud": 68,
+      "destacado": true,
+      "notas": "Avituallamiento de sólidos y líquidos en salida y llegada.",
+      "via": "Carretera"
+     },
+     {
+      "km": 0.52,
+      "kmParcial": 0.52,
+      "tipo": "poi",
+      "lat": 43.459418,
+      "lon": -3.933147,
+      "descripcion": "Bifurcación en Las Reigadas · cambera",
+      "altitud": 60,
+      "destacado": true,
+      "notas": "Por la cambera marcada.",
+      "via": "Cambera"
+     },
+     {
+      "km": 1.38,
+      "kmParcial": 0.86,
+      "tipo": "poi",
+      "lat": 43.454541,
+      "lon": -3.936481,
+      "descripcion": "Carretera CA-231",
+      "altitud": 88,
+      "destacado": true,
+      "notas": "Abierta al tráfico.",
+      "via": "Carretera"
+     },
+     {
+      "km": 1.65,
+      "kmParcial": 0.27,
+      "tipo": "poi",
+      "lat": 43.453594,
+      "lon": -3.939589,
+      "descripcion": "Desvío a la ruta del Monte Tolío",
+      "altitud": 90,
+      "destacado": true,
+      "via": "Camino"
+     },
+     {
+      "km": 2.35,
+      "kmParcial": 0.7,
+      "tipo": "poi",
+      "lat": 43.448515,
+      "lon": -3.943172,
+      "descripcion": "Bifurcación: camino de la izquierda",
+      "altitud": 150,
+      "destacado": true,
+      "notas": "Empieza el sendero de montaña.",
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 3.49,
+      "kmParcial": 1.14,
+      "tipo": "poi",
+      "lat": 43.440089,
+      "lon": -3.944622,
+      "descripcion": "Monte Picota · 235 m",
+      "altitud": 233,
+      "destacado": true,
+      "notas": "Techo del recorrido. Se baja 10 m hasta la bifurcación.",
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 3.59,
+      "kmParcial": 0.1,
+      "tipo": "poi",
+      "lat": 43.44047,
+      "lon": -3.944735,
+      "descripcion": "Bifurcación: camino de la derecha",
+      "altitud": 224,
+      "destacado": true,
+      "notas": "Pista forestal asfaltada.",
+      "via": "Pista asfaltada"
+     },
+     {
+      "km": 4.09,
+      "kmParcial": 0.5,
+      "tipo": "poi",
+      "lat": 43.442263,
+      "lon": -3.9417,
+      "descripcion": "Sendero de montaña de la izquierda",
+      "altitud": 148,
+      "destacado": true,
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 4.8,
+      "kmParcial": 0.71,
+      "tipo": "poi",
+      "lat": 43.447083,
+      "lon": -3.941744,
+      "descripcion": "Monte Tolío",
+      "altitud": 225,
+      "destacado": true,
+      "via": "Senda de montaña"
+     },
+     {
+      "km": 6.39,
+      "kmParcial": 1.59,
+      "tipo": "poi",
+      "lat": 43.456582,
+      "lon": -3.932272,
+      "descripcion": "Incorporación a la CA-231 dirección Santander",
+      "altitud": 89,
+      "destacado": true,
+      "notas": "Abierta al tráfico, hasta la Plaza de la Cruz.",
+      "via": "Carretera"
+     },
+     {
+      "km": 7.06,
+      "kmParcial": 0.67,
+      "tipo": "finish",
+      "lat": 43.460905,
+      "lon": -3.92815,
+      "descripcion": "Meta · Plaza de la Cruz",
+      "altitud": 68,
+      "destacado": true,
+      "notas": "Avituallamiento de sólidos y líquidos en meta.",
+      "via": "Carretera"
+     }
+    ]
+   },
+   "avituallamientos": [
+    {
+     "km": 7.06,
+     "nombre": "Meta",
+     "tipo": "finish"
+    }
+   ]
+  }
+ ],
+ "categorias": [
+  {
+   "id": "sub21",
+   "nombre": "Sub 21",
+   "edadMax": 21
+  },
+  {
+   "id": "abs",
+   "nombre": "Absoluta"
+  },
+  {
+   "id": "vet",
+   "nombre": "Veteranos +45",
+   "edadMin": 45
+  }
+ ],
+ "reglamento": {
+  "marcaje": [
+   "Carteles indicadores, banderines y cintas de balizamiento bien visibles, colocados los días anteriores.",
+   "En las zonas boscosas el balizamiento es reversible y no daña el medio natural.",
+   "Algunos tramos van por carretera abierta al tráfico: se respetan las normas de circulación."
+  ],
+  "normas": [
+   "Dorsal siempre visible. Prohibido correr sin camiseta ni pantalón.",
+   "Trail: no se permite participar con animales. Andarines: sí, atados y sin molestar.",
+   "Andarines es una marcha a pie: no se puede correr."
+  ],
+  "url": "/desafio-picota-2027/reglamento"
+ },
+ "programa": [
+  {
+   "fecha": "2027-04-23",
+   "hora": "17:00",
+   "horaFin": "20:00",
+   "titulo": "Recogida de dorsales",
+   "lugar": "Arco de salida, Plaza de la Cruz"
+  },
+  {
+   "fecha": "2027-04-24",
+   "hora": "07:00",
+   "horaFin": "09:45",
+   "titulo": "Recogida de dorsales",
+   "lugar": "Arco de salida, Plaza de la Cruz"
+  },
+  {
+   "fecha": "2027-04-24",
+   "hora": "09:00",
+   "titulo": "Carreras infantiles (inscripción en el arco de salida)",
+   "lugar": "Plaza de la Cruz"
+  },
+  {
+   "fecha": "2027-04-24",
+   "hora": "10:00",
+   "titulo": "Salida Trail 13K"
+  },
+  {
+   "fecha": "2027-04-24",
+   "hora": "10:05",
+   "titulo": "Salida Andarines 7K"
+  }
+ ],
+ "dorsales": {
+  "lugar": "Arco de salida, Plaza de la Cruz",
+  "horarios": [
+   [
+    "Viernes 23 de abril",
+    "17:00–20:00"
+   ],
+   [
+    "Sábado 24 de abril",
+    "07:00–09:45"
+   ]
+  ],
+  "nota": "Los menores entregan la autorización firmada por el adulto responsable."
+ },
+ "premios": [
+  {
+   "pruebas": [
+    "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d"
+   ],
+   "categoria": "Absoluta masculina y femenina",
+   "premio": "Tres primeros puestos"
+  },
+  {
+   "pruebas": [
+    "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d"
+   ],
+   "categoria": "Sub 21 masculino y femenino",
+   "premio": "Tres primeros puestos",
+   "texto": "Quienes como máximo cumplan 21 años el 31 de diciembre de 2027."
+  },
+  {
+   "pruebas": [
+    "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d"
+   ],
+   "categoria": "Veteranos +45 masculino y femenino",
+   "premio": "Tres primeros puestos",
+   "texto": "Quienes tengan 45 años cumplidos el 31 de diciembre de 2027."
+  },
+  {
+   "pruebas": [
+    "7a2b9c4d-5e6f-4a1b-9c8d-3e4f5a6b7c8d"
+   ],
+   "categoria": "Mejor de Piélagos",
+   "premio": "Primer hombre y primera mujer empadronados en Piélagos"
+  }
+ ],
+ "servicios": [
+  {
+   "nombre": "Carreras infantiles",
+   "texto": "De 3 a 16 años, por edades y no competitivas. Inscripción en el arco de salida minutos antes de las 09:00."
+  },
+  {
+   "nombre": "Avituallamiento de meta",
+   "texto": "Sólidos y líquidos para los participantes con dorsal."
+  },
+  {
+   "nombre": "Tablón de anuncios",
+   "texto": "El día del evento: tiempos, posiciones, reglamento y colaboraciones."
+  }
+ ],
+ "sanitario": {
+  "medios": [
+   [
+    "1",
+    "ambulancia"
+   ],
+   [
+    "2",
+    "auxiliares sanitarios"
+   ]
+  ],
+  "nota": "Vehículos todoterreno para el primer auxilio en el recorrido y traslado al centro de salud de Liencres. Habrá un teléfono de asistencia para emergencias."
+ },
+ "medioAmbiente": {
+  "espacio": "Costa Quebrada y Pinares de Liencres",
+  "normas": "Contenedores hasta 100 m después de cada avituallamiento. Tirar residuos fuera es descalificación. Balizamiento reversible y grupo de cierre que recoge y limpia tras el último participante."
+ },
+ "patrocinadores": [
+  {
+   "nombre": "Carlos Castañeda Calvo",
+   "nivel": "organiza"
+  }
+ ],
+ "contacto": {},
+ "infoPractica": {
+  "faq": [
+   {
+    "p": "¿Puedo ir con mi perro?",
+    "r": "En Andarines sí, siempre atado y sin molestar al resto. En el Trail no se permite participar con animales."
+   },
+   {
+    "p": "¿Pueden participar menores?",
+    "r": "Sí, en las dos pruebas, acompañados de un adulto que se responsabilice de ellos y con una autorización firmada que se entrega al recoger el dorsal."
+   },
+   {
+    "p": "¿Cómo se apuntan los niños a las carreras infantiles?",
+    "r": "En el arco de salida, minutos antes de empezar, hacia las 09:00. Son para niños y niñas de 3 a 16 años, por edades, y no son competitivas."
+   },
+   {
+    "p": "¿Qué es el premio Mejor de Piélagos?",
+    "r": "Un reconocimiento al primer hombre y a la primera mujer empadronados en Piélagos que lleguen a meta en el Trail."
+   },
+   {
+    "p": "¿Hay vasos en los avituallamientos?",
+    "r": "Se ruega llevar un recipiente reutilizable para evitar residuos plásticos."
+   },
+   {
+    "p": "¿Puedo recuperar el dinero si no puedo ir?",
+    "r": "No: las inscripciones son definitivas, personales e intransferibles. Solo se devuelve si la organización suspende la prueba por causas ajenas."
+   }
+  ]
+ },
+ "imagenes": {
+  "logo": "/logos/desafio-picota.webp"
+ },
+ "marca": {
+  "colorMarca": "#601010",
+  "colorAccion": "#D06070",
+  "colorSecundario": "#408080",
+  "hero": "textura",
+  "cinta": true,
+  "cuentaAtras": true
+ },
+ "web": {
+  "plantilla": "gurriana",
+  "activa": true
+ },
+ "seo": {
+  "titulo": "I Desafío Picota 2027 · 24 de abril · Liencres",
+  "descripcion": "Speed trail de 13 km por Costa Quebrada, los Pinares y el Monte Picota, y marcha de 7 km. Sábado 24 de abril de 2027 desde la Plaza de la Cruz de Liencres (Piélagos)."
+ },
+ "servicios_tecnicos": {
+  "proveedor": "UNO · Camberas",
+  "texto": "Inscripciones, cronometraje y centro de carrera"
+ },
+ "fuente": {
+  "origen": "Reglamento I DESAFÍO PICOTA 2027 (PDF del organizador) y GPX de las dos pruebas (14,11 y 7,06 km medidos). Sin cartel: portada con el logo como textura.",
+  "fecha": "2026-10-05",
+  "pendiente": [
+   "apertura y cierre de inscripciones",
+   "email y teléfono del organizador",
+   "12 km del título vs 13,1 del reglamento vs 14,1 del GPX",
+   "patrocinadores y ayuntamiento"
+  ]
+ }
+}
