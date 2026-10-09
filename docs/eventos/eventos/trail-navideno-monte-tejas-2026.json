@@ -34,7 +34,7 @@
         "nombre": "Trail Navideño 16 km",
         "pruebas": ["TRAIL16"],
         "destacada": true,
-        "periodos": [{ "precio": 13, "etiqueta": "Precio único" }]
+        "periodos": [{ "precio": 14, "etiqueta": "Precio único" }]
       }
     ],
     "campos": [
