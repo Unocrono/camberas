@@ -966,6 +966,24 @@ export type Database = {
           },
         ]
       }
+      evento_publico_cache: {
+        Row: {
+          datos: Json | null
+          generado: string
+          slug: string
+        }
+        Insert: {
+          datos?: Json | null
+          generado?: string
+          slug: string
+        }
+        Update: {
+          datos?: Json | null
+          generado?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       finish_photos: {
         Row: {
           athlete_name: string | null
@@ -3034,6 +3052,7 @@ export type Database = {
           race_id: string
           registration_closes: string | null
           registration_opens: string | null
+          results_url: string | null
           show_route_map: boolean | null
           start_location: string | null
           updated_at: string
@@ -3066,6 +3085,7 @@ export type Database = {
           race_id: string
           registration_closes?: string | null
           registration_opens?: string | null
+          results_url?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
@@ -3098,6 +3118,7 @@ export type Database = {
           race_id?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          results_url?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
           updated_at?: string
@@ -4841,6 +4862,60 @@ export type Database = {
           },
         ]
       }
+      respaldo_gps_positions_pena_prieta_20261003: {
+        Row: {
+          accuracy: number | null
+          altitude: number | null
+          battery: number | null
+          bib_number: string | null
+          created_at: string
+          device_id: string | null
+          event_id: string | null
+          heading: number | null
+          id: string
+          lat: number
+          lng: number
+          speed: number | null
+          timestamp: string
+          token_id: string | null
+          uploaded_at: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          bib_number?: string | null
+          created_at?: string
+          device_id?: string | null
+          event_id?: string | null
+          heading?: number | null
+          id?: string
+          lat: number
+          lng: number
+          speed?: number | null
+          timestamp: string
+          token_id?: string | null
+          uploaded_at?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          altitude?: number | null
+          battery?: number | null
+          bib_number?: string | null
+          created_at?: string
+          device_id?: string | null
+          event_id?: string | null
+          heading?: number | null
+          id?: string
+          lat?: number
+          lng?: number
+          speed?: number | null
+          timestamp?: string
+          token_id?: string | null
+          uploaded_at?: string | null
+        }
+        Relationships: []
+      }
       roadbook_item_types: {
         Row: {
           created_at: string
@@ -6153,6 +6228,7 @@ export type Database = {
         Returns: Json
       }
       evento_publico: { Args: { p_slug: string }; Returns: Json }
+      evento_publico_cache: { Args: { p_slug: string }; Returns: Json }
       generar_token_corredor: {
         Args: {
           p_bib: string
@@ -6520,6 +6596,10 @@ export type Database = {
           p_race_distance_id: string
         }
         Returns: string
+      }
+      respuestas_editables_por_corredor: {
+        Args: { p_registration_id: string }
+        Returns: boolean
       }
       resumen_cesiones: {
         Args: { p_race_id: string }
