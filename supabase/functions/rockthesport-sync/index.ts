@@ -103,6 +103,15 @@ interface FilaRts {
 
 type Estado = { status: string; payment_status: string } | "anulada" | "sin_terminar" | null;
 
+// Una persona de una inscripción de RockTheSport, para cruzarla con las de Camberas
+interface Identidad {
+  dni: string | null;
+  email: string | null;
+  nombre: string | null;
+  fecha: string | null;
+  quien: string | null;
+}
+
 const num = (v: unknown): number | null => {
   if (v === null || v === undefined || v === "") return null;
   const n = Number(v);
@@ -152,6 +161,10 @@ const primerApellido = (apellidos: string | null): string | null => {
 };
 
 const dniNorm = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+// Primera palabra del nombre, sin tildes ni mayúsculas: "JOSÉ Luis" → "jose"
+const nombrePila = (s: string | null | undefined) =>
+  ((s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().split(/\s+/)[0]) ?? "";
 
 // Fecha de caducidad del token (exp del JWT), para avisar con tiempo
 const caducidadToken = (token: string): Date | null => {
@@ -383,7 +396,7 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
     // Nacidas en Camberas: para avisar si alguien se apunta en las dos
     const nativas = await todas(
       () => service.from("registrations")
-        .select("id, dni_passport, email")
+        .select("id, dni_passport, email, first_name, birth_date")
         .eq("race_id", race_id)
         .is("external_id", null)
         .neq("status", "cancelled")
@@ -391,9 +404,17 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       "registrations nativas",
     );
     const dnisCamberas = new Set(nativas.map((r: Record<string, unknown>) => dniNorm(r.dni_passport as string | null)).filter(Boolean));
-    const emailsCamberas = new Set(
-      nativas.map((r: Record<string, unknown>) => String(r.email ?? "").toLowerCase().trim()).filter(Boolean),
-    );
+    // El email solo no basta (padres e hijos comparten correo): por email se
+    // avisa si además coincide el nombre de pila o la fecha de nacimiento
+    const porEmailCamberas = new Map<string, { nombre: string; fecha: string | null }[]>();
+    for (const r of nativas) {
+      const email = String(r.email ?? "").toLowerCase().trim();
+      if (!email) continue;
+      porEmailCamberas.set(email, [
+        ...(porEmailCamberas.get(email) ?? []),
+        { nombre: nombrePila(r.first_name as string | null), fecha: (r.birth_date as string | null) ?? null },
+      ]);
+    }
 
     let nuevos = 0, actualizados = 0, sinCambios = 0, omitidos = 0, cancelados = 0;
     const inserciones: Record<string, unknown>[] = [];
@@ -407,7 +428,7 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       team: string | null,
       // Las personas de esta inscripción (en un relevo, los dos), para el
       // aviso de duplicado; independiente de lo que se escribe en la fila
-      identidades: { dni: string | null; email: string | null; quien: string | null }[],
+      identidades: Identidad[],
     ) => {
       const distanceId = mapaTarifas.get(String(num(f.idTarifa)));
       if (!distanceId) {
@@ -446,8 +467,12 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
           const dni = dniNorm(id.dni);
           const email = (id.email ?? "").toLowerCase().trim();
           const porDni = !!dni && dnisCamberas.has(dni);
-          if (porDni || (!!email && emailsCamberas.has(email))) {
-            avisos.push(`${etiqueta}: ${id.quien ? id.quien + " " : ""}también inscrito en Camberas (mismo ${porDni ? "DNI" : "email"}) — revisar duplicado`);
+          const nombre = nombrePila(id.nombre);
+          const porEmail = !porDni && !!email && (porEmailCamberas.get(email) ?? []).some(
+            (c: { nombre: string; fecha: string | null }) => (!!id.fecha && c.fecha === id.fecha) || (!!nombre && c.nombre === nombre),
+          );
+          if (porDni || porEmail) {
+            avisos.push(`${etiqueta}: ${id.quien ? id.quien + " " : ""}también inscrito en Camberas (mismo ${porDni ? "DNI" : "email y nombre"}) — revisar duplicado`);
           }
         }
       }
@@ -517,7 +542,9 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         city: txt(f.poblacion),
         province: txt(f.nombreProvincia),
         country: txt(f.nombrePais),
-      }, txt(f.club), null, [{ dni: txt(f.documento), email: txt(f.email), quien: null }]);
+      }, txt(f.club), null, [{
+        dni: txt(f.documento), email: txt(f.email), nombre: txt(f.nombre), fecha: fecha(f.fechaNacimiento), quien: null,
+      }]);
     }
 
     // ── Relevos: una inscripción por pareja ───────────────────────────────
@@ -582,9 +609,11 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         city: txt(m1?.poblacion),
         province: txt(m1?.nombreProvincia),
         country: txt(m1?.nombrePais),
-      }, txt(m1?.club) ?? txt(m2?.club), nombreEquipo, miembros.map((m: FilaRts) => ({
+      }, txt(m1?.club) ?? txt(m2?.club), nombreEquipo, miembros.map((m: FilaRts): Identidad => ({
         dni: txt(m.documento),
         email: txt(m.email),
+        nombre: txt(m.nombre),
+        fecha: fecha(m.fechaNacimiento),
         quien: `${txt(m.nombre) ?? ""} ${txt(m.apellidos) ?? ""}`.trim() || null,
       })));
     }
@@ -644,8 +673,9 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       if (errorDorsal) break;
       if (sinNumeracion.has(reg.race_distance_id)) continue;
       let bib: number | null = null;
+      const saltados: number[] = [];
       // Cada vuelta avanza next_bib: termina al agotar el rango (NULL) o al
-      // dar con uno libre; el tope solo protege de un recorrido sin bib_end
+      // dar con uno libre; el tope corta una racha enorme de ocupados
       for (let intento = 0; intento < 2000; intento++) {
         const { data, error } = await service.rpc("assign_next_bib", { p_distance_id: reg.race_distance_id });
         if (error) {
@@ -655,9 +685,21 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         }
         bib = data === null || data === undefined ? null : Number(data);
         if (bib === null || !ocupados.has(bib)) break;
-        avisos.push(`Dorsal ${bib} ya estaba puesto en la carrera: se salta`);
+        saltados.push(bib);
+      }
+      // Un solo aviso por tanda, no uno por número
+      if (saltados.length) {
+        avisos.push(`Dorsales ya puestos en la carrera, saltados (${saltados.length}): ${saltados.slice(0, 10).join(", ")}${saltados.length > 10 ? ", …" : ""}`);
       }
       if (errorDorsal) break;
+      // Tope agotado sin dar con uno libre: bib es el último OCUPADO, no se
+      // escribe (la pasada siguiente sigue desde el next_bib ya avanzado)
+      if (bib !== null && ocupados.has(bib)) {
+        sinNumeracion.add(reg.race_distance_id);
+        const rec = recorridos.get(reg.race_distance_id.toLowerCase());
+        avisos.push(`${rec?.name ?? "Recorrido"}: 2000 dorsales seguidos ya estaban puestos — no se numera; revisa su «siguiente dorsal»`);
+        continue;
+      }
       if (bib === null) {
         sinNumeracion.add(reg.race_distance_id);
         const rec = recorridos.get(reg.race_distance_id.toLowerCase());
