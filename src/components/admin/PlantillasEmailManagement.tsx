@@ -498,7 +498,7 @@ export function PlantillasEmailManagement() {
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <Label htmlFor="pe-uno" className="font-normal leading-snug">
-                        No mandarla a las importadas de uno.es salvo que se pida
+                        No mandarla a las importadas de otras plataformas (uno.es, RockTheSport) salvo que se pida
                       </Label>
                       <Switch id="pe-uno" checked={borrador.omitir_uno}
                         onCheckedChange={(v) => set("omitir_uno", v)} />

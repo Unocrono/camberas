@@ -55,6 +55,8 @@ interface Registration {
   race_id: string;
   race_distance_id: string;
   source: string | null;
+  /** Clave en la plataforma de origen: 'rts-…' RockTheSport, número EventBooking */
+  external_id?: string | null;
   race: {
     id: string;
     name: string;
@@ -147,13 +149,18 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
 const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "origen", "status", "payment", "actions"];
 
 // De dónde viene cada inscripción: pasarela de Camberas, alta manual del
-// organizador, gratuita, o sincronizada desde EventBooking (UNO.es).
+// organizador, gratuita, o sincronizada desde EventBooking (UNO.es) o
+// RockTheSport (las dos son source 'external'; las de RockTheSport llevan
+// external_id 'rts-…').
 const ORIGEN_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
   gateway: { label: "Camberas", variant: "default" },
   manual: { label: "Manual", variant: "secondary" },
   free: { label: "Gratuita", variant: "secondary" },
   external: { label: "UNO", variant: "outline" },
 };
+const ORIGEN_RTS = { label: "RockTheSport", variant: "outline" as const };
+const origenDe = (reg: { source: string | null; external_id?: string | null }) =>
+  reg.source === "external" && reg.external_id?.startsWith("rts-") ? ORIGEN_RTS : ORIGEN_LABELS[reg.source ?? ""];
 
 // Respuesta de la función reenviar-comprobantes (sumada si hay varios lotes)
 interface ResultadoReenvio {
@@ -199,7 +206,7 @@ const MOTIVOS_OMISION: Record<string, string> = {
   pendiente_de_confirmar: "gratuitas pendientes de confirmar",
   cancelada: "canceladas",
   reembolsada: "reembolsadas",
-  importada_de_uno_es: "importadas de uno.es (ya recibieron el suyo)",
+  importada_de_uno_es: "importadas de otra plataforma (uno.es, RockTheSport): ya recibieron el suyo",
   sin_email: "sin email",
   sin_dorsal: "sin dorsal asignado (asígnalo primero)",
   sin_gps_en_recorrido: "de un recorrido sin seguimiento GPS",
@@ -300,6 +307,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // carrera seleccionada tiene fila en eventbooking_sync.
   const [ebConfigurado, setEbConfigurado] = useState(false);
   const [ebSincronizando, setEbSincronizando] = useState(false);
+  // Lo mismo para RockTheSport (fila en rockthesport_sync)
+  const [rtsConfigurado, setRtsConfigurado] = useState(false);
+  const [rtsSincronizando, setRtsSincronizando] = useState(false);
+  // Última pasada (del robot o del botón): si falla o el token caduca, que se vea
+  const [rtsUltima, setRtsUltima] = useState<{ last_sync_at: string | null; last_result: any } | null>(null);
   
   // Row selection
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -1289,6 +1301,59 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       .then(({ data }) => setEbConfigurado(!!data));
   }, [carreraActualId]);
 
+  useEffect(() => {
+    if (!carreraActualId) {
+      setRtsConfigurado(false);
+      setRtsUltima(null);
+      return;
+    }
+    supabase
+      .from("rockthesport_sync" as never)
+      .select("race_id, last_sync_at, last_result")
+      .eq("race_id", carreraActualId)
+      .eq("enabled" as never, true as never)
+      .maybeSingle()
+      .then(({ data }) => {
+        setRtsConfigurado(!!data);
+        setRtsUltima(data ? (data as any) : null);
+      });
+  }, [carreraActualId, rtsSincronizando]);
+
+  const sincronizarRockthesport = async () => {
+    setRtsSincronizando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("rockthesport-sync", {
+        body: { race_id: carreraActualId },
+      });
+      if (error) {
+        let detalle = error.message;
+        try {
+          const cuerpo = await (error as any).context?.json();
+          if (cuerpo?.error) detalle = cuerpo.error;
+        } catch { /* sin cuerpo legible */ }
+        throw new Error(detalle);
+      }
+      if (data?.error) throw new Error(data.error);
+      const partes = [`${data.nuevos} nuevos`, `${data.actualizados} actualizados`, `${data.sin_cambios} sin cambios`];
+      if (data.cancelados) partes.push(`${data.cancelados} cancelados`);
+      if (data.omitidos_sin_terminar) partes.push(`${data.omitidos_sin_terminar} sin terminar omitidos`);
+      if (data.dorsales_asignados) partes.push(`${data.dorsales_asignados} dorsales asignados`);
+      if (data.avisos?.length) partes.push(`ATENCIÓN: ${data.avisos.slice(0, 3).join("; ")}`);
+      toast({
+        title: "Sincronizado con RockTheSport",
+        description:
+          partes.join(", ") +
+          (data.errores?.length ? `. ${data.errores.length} con error: ${data.errores.slice(0, 3).join("; ")}` : ""),
+        variant: data.errores?.length ? "destructive" : "default",
+      });
+      fetchData();
+    } catch (e: any) {
+      toast({ title: "Error al sincronizar", description: e.message, variant: "destructive" });
+    } finally {
+      setRtsSincronizando(false);
+    }
+  };
+
   const sincronizarEventbooking = async () => {
     setEbSincronizando(true);
     try {
@@ -1396,6 +1461,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           race_id,
           race_distance_id,
           source,
+          external_id,
           race:races!registrations_race_id_fkey (
             id,
             name,
@@ -1827,7 +1893,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               })
             : "";
         case "type": return reg.user_id ? "Registrado" : "Invitado";
-        case "origen": return ORIGEN_LABELS[reg.source ?? ""]?.label ?? "";
+        case "origen": return origenDe(reg)?.label ?? "";
         case "distance": return `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`;
         case "status": return ESTADO_CSV[reg.status] ?? reg.status;
         case "payment": return PAGO_CSV[reg.payment_status] ?? reg.payment_status;
@@ -1954,6 +2020,17 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
               {ebSincronizando ? "Sincronizando..." : "Sincronizar EventBooking"}
             </Button>
           )}
+          {rtsConfigurado && (
+            <Button
+              onClick={sincronizarRockthesport}
+              variant="outline"
+              className="gap-2"
+              disabled={rtsSincronizando}
+            >
+              <RefreshCw className={`h-4 w-4 ${rtsSincronizando ? "animate-spin" : ""}`} />
+              {rtsSincronizando ? "Sincronizando..." : "Sincronizar RockTheSport"}
+            </Button>
+          )}
           <Button onClick={exportToCSV} variant="outline" className="gap-2" disabled={filteredRegistrations.length === 0}>
             <Download className="h-4 w-4" />
             Exportar CSV
@@ -1964,6 +2041,29 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           </Button>
         </div>
       </div>
+
+      {/* RockTheSport: cuándo fue la última pasada y si algo va mal (token caducado o a punto) */}
+      {rtsConfigurado && rtsUltima && (() => {
+        const r = rtsUltima.last_result ?? {};
+        const problema: string | undefined =
+          r.error ?? (r.avisos as string[] | undefined)?.find((a) => /caduca/.test(a)) ??
+          (r.errores?.length ? `${r.errores.length} inscripción(es) no se pudieron importar: ${r.errores.slice(0, 2).join("; ")}` : undefined);
+        return (
+          <div
+            className={`flex flex-wrap items-start gap-2 text-sm ${problema ? "rounded-md border border-amber-500 p-3" : "text-muted-foreground"}`}
+            role="status"
+          >
+            {problema && <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
+            <span className="flex-1 min-w-0">
+              RockTheSport:{" "}
+              {rtsUltima.last_sync_at
+                ? `última sincronización ${new Date(rtsUltima.last_sync_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}`
+                : "aún no se ha sincronizado"}
+              {problema && <> — <strong>{problema}</strong></>}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Devoluciones sin confirmar (solo admin, de todas las carreras): pudieron mover dinero */}
       {!isOrganizer && devolucionesSinConfirmar.length > 0 && (
@@ -2457,7 +2557,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                         {visibleColumns.has("origen") && (
                           <TableCell>
                             {(() => {
-                              const o = ORIGEN_LABELS[reg.source ?? ""] ?? { label: "—", variant: "outline" as const };
+                              const o = origenDe(reg) ?? { label: "—", variant: "outline" as const };
                               return <Badge variant={o.variant}>{o.label}</Badge>;
                             })()}
                           </TableCell>
@@ -3124,7 +3224,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       }}
                     />
                     <Label htmlFor="reenvio-externas" className="font-normal leading-snug">
-                      Incluir también las importadas de uno.es
+                      Incluir también las importadas de otras plataformas (uno.es, RockTheSport)
                     </Label>
                   </div>
                 )}
