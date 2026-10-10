@@ -5157,6 +5157,47 @@ export type Database = {
           },
         ]
       }
+      rockthesport_sync: {
+        Row: {
+          en_curso: string | null
+          enabled: boolean
+          event_id: number
+          last_result: Json | null
+          last_sync_at: string | null
+          race_id: string
+          tarifa_map: Json
+          token_secreto: string
+        }
+        Insert: {
+          en_curso?: string | null
+          enabled?: boolean
+          event_id: number
+          last_result?: Json | null
+          last_sync_at?: string | null
+          race_id: string
+          tarifa_map?: Json
+          token_secreto?: string
+        }
+        Update: {
+          en_curso?: string | null
+          enabled?: boolean
+          event_id?: number
+          last_result?: Json | null
+          last_sync_at?: string | null
+          race_id?: string
+          tarifa_map?: Json
+          token_secreto?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rockthesport_sync_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: true
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       split_times: {
         Row: {
           category_position: number | null
@@ -6628,6 +6669,7 @@ export type Database = {
         Returns: undefined
       }
       revocar_token_pantalla: { Args: { p_id: string }; Returns: undefined }
+      rockthesport_token: { Args: { p_nombre: string }; Returns: string }
       seed_default_registration_fields: {
         Args: { p_race_id: string }
         Returns: undefined
