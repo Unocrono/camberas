@@ -132,16 +132,23 @@ const instante = (v: string | null): string | null => {
 // Hoy en Madrid (las fechas de carrera son días de pared)
 const hoyMadrid = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
 
-// Primer apellido, respetando partículas: "de la Fuente Gómez" → "de la Fuente"
-const PARTICULAS = new Set(["de", "del", "la", "las", "los", "san", "santa", "da", "das", "do", "dos", "van", "von"]);
+// Primer apellido, respetando partículas. Al principio: "de la Fuente Gómez"
+// → "de la Fuente". En medio, la partícula une con la palabra siguiente solo
+// si aún queda un 2.º apellido detrás: "Ruiz De Oña Crespo" → "Ruiz De Oña",
+// pero "Amorrortu De Mesones" → "Amorrortu" y "Gómez de la Fuente" → "Gómez"
+// (ahí la partícula abre el 2.º apellido)
+const PARTICULAS = new Set(["de", "del", "la", "las", "los", "san", "santa", "da", "das", "do", "dos", "van", "von", "der", "den"]);
 const primerApellido = (apellidos: string | null): string | null => {
-  const palabras = (apellidos ?? "").trim().split(/\s+/).filter(Boolean);
-  const salida: string[] = [];
-  for (const p of palabras) {
-    salida.push(p);
-    if (!PARTICULAS.has(p.toLowerCase())) break;
-  }
-  return salida.length ? salida.join(" ") : null;
+  const p = (apellidos ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return null;
+  const esParticula = (w: string) => PARTICULAS.has(w.toLowerCase());
+  let i = 0;
+  while (i < p.length && esParticula(p[i])) i++; // partículas iniciales
+  i++; // la primera palabra de verdad
+  let j = i;
+  while (j < p.length && esParticula(p[j])) j++; // partículas interiores
+  if (j > i && j + 1 < p.length) i = j + 1; // une solo si queda 2.º apellido
+  return p.slice(0, Math.min(i, p.length)).join(" ");
 };
 
 const dniNorm = (s: string | null | undefined) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -244,7 +251,9 @@ serve(async (req: Request): Promise<Response> => {
     const { race_id } = await req.json().catch(() => ({} as Record<string, unknown>));
     if (!race_id) return json({ error: "Falta race_id" }, 400);
 
-    const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+    const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    // Sin credencial no hay nada que comprobar: fuera antes de llamar a GoTrue
+    if (!jwt) return json({ error: "No autenticado" }, 401);
     const { data: userData, error: userErr } = await service.auth.getUser(jwt);
     if (userErr || !userData?.user) return json({ error: "No autenticado" }, 401);
     const uid = userData.user.id;
@@ -396,6 +405,9 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       deseadoBase: Record<string, unknown>,
       club: string | null,
       team: string | null,
+      // Las personas de esta inscripción (en un relevo, los dos), para el
+      // aviso de duplicado; independiente de lo que se escribe en la fila
+      identidades: { dni: string | null; email: string | null; quien: string | null }[],
     ) => {
       const distanceId = mapaTarifas.get(String(num(f.idTarifa)));
       if (!distanceId) {
@@ -425,12 +437,22 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       }
 
       const deseado: Record<string, unknown> = { ...deseadoBase, race_distance_id: distanceId, ...estado };
-      if (!existente) {
-        const dni = dniNorm(deseado.dni_passport as string | null);
-        const email = String(deseado.email ?? "").toLowerCase().trim();
-        if ((dni && dnisCamberas.has(dni)) || (email && emailsCamberas.has(email))) {
-          avisos.push(`${etiqueta}: también inscrito en Camberas (mismo ${dni && dnisCamberas.has(dni) ? "DNI" : "email"}) — revisar duplicado`);
+
+      // ¿Alguien de esta inscripción se apuntó también directamente en
+      // Camberas? Se mira en cada pasada (no solo al dar de alta) para que el
+      // aviso siga en el panel mientras el duplicado exista
+      if (existente?.status !== "cancelled") {
+        for (const id of identidades) {
+          const dni = dniNorm(id.dni);
+          const email = (id.email ?? "").toLowerCase().trim();
+          const porDni = !!dni && dnisCamberas.has(dni);
+          if (porDni || (!!email && emailsCamberas.has(email))) {
+            avisos.push(`${etiqueta}: ${id.quien ? id.quien + " " : ""}también inscrito en Camberas (mismo ${porDni ? "DNI" : "email"}) — revisar duplicado`);
+          }
         }
+      }
+
+      if (!existente) {
         inserciones.push({
           ...deseado,
           club,
@@ -495,7 +517,7 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         city: txt(f.poblacion),
         province: txt(f.nombreProvincia),
         country: txt(f.nombrePais),
-      }, txt(f.club), null);
+      }, txt(f.club), null, [{ dni: txt(f.documento), email: txt(f.email), quien: null }]);
     }
 
     // ── Relevos: una inscripción por pareja ───────────────────────────────
@@ -560,7 +582,11 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         city: txt(m1?.poblacion),
         province: txt(m1?.nombreProvincia),
         country: txt(m1?.nombrePais),
-      }, txt(m1?.club) ?? txt(m2?.club), nombreEquipo);
+      }, txt(m1?.club) ?? txt(m2?.club), nombreEquipo, miembros.map((m: FilaRts) => ({
+        dni: txt(m.documento),
+        email: txt(m.email),
+        quien: `${txt(m.nombre) ?? ""} ${txt(m.apellidos) ?? ""}`.trim() || null,
+      })));
     }
 
     // Deportistas de un equipo que no ha venido en la lista
@@ -595,16 +621,44 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       "registrations sin dorsal",
     );
 
+    // Números ya puestos en la carrera (también a mano en el panel, que no
+    // mueve next_bib): assign_next_bib no los mira, así que se saltan aquí
+    // para no repetir dorsal
+    const ocupados = new Set<number>();
+    if (pendientesDorsal.length) {
+      const conNumero = await todas(
+        () => service.from("registrations")
+          .select("id, bib_number")
+          .eq("race_id", race_id)
+          .not("bib_number", "is", null)
+          .order("id", { ascending: true }),
+        "registrations con dorsal",
+      );
+      for (const r of conNumero) ocupados.add(Number(r.bib_number));
+    }
+
     let dorsales = 0;
+    let errorDorsal = false;
     const sinNumeracion = new Set<string>();
     for (const reg of pendientesDorsal as { id: string; race_distance_id: string }[]) {
+      if (errorDorsal) break;
       if (sinNumeracion.has(reg.race_distance_id)) continue;
-      const { data: bib, error } = await service.rpc("assign_next_bib", { p_distance_id: reg.race_distance_id });
-      if (error) {
-        errores.push(`Al asignar dorsal: ${error.message}`);
-        break;
+      let bib: number | null = null;
+      // Cada vuelta avanza next_bib: termina al agotar el rango (NULL) o al
+      // dar con uno libre; el tope solo protege de un recorrido sin bib_end
+      for (let intento = 0; intento < 2000; intento++) {
+        const { data, error } = await service.rpc("assign_next_bib", { p_distance_id: reg.race_distance_id });
+        if (error) {
+          errores.push(`Al asignar dorsal: ${error.message}`);
+          errorDorsal = true;
+          break;
+        }
+        bib = data === null || data === undefined ? null : Number(data);
+        if (bib === null || !ocupados.has(bib)) break;
+        avisos.push(`Dorsal ${bib} ya estaba puesto en la carrera: se salta`);
       }
-      if (bib === null || bib === undefined) {
+      if (errorDorsal) break;
+      if (bib === null) {
         sinNumeracion.add(reg.race_distance_id);
         const rec = recorridos.get(reg.race_distance_id.toLowerCase());
         // Con rango configurado, NULL es que se ha agotado
@@ -621,7 +675,10 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
         .select("id");
       if (errUpd) errores.push(`Dorsal ${bib}: ${errUpd.message}`);
       else if (!puesto || (puesto as unknown[]).length === 0) avisos.push(`Dorsal ${bib} sin usar: la inscripción ya tenía número`);
-      else dorsales++;
+      else {
+        dorsales++;
+        ocupados.add(bib);
+      }
     }
 
     return await cerrar({

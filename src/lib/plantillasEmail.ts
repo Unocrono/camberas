@@ -32,7 +32,7 @@ export const PLANTILLAS_BASE: PlantillaEmail[] = [
   {
     clave: "comprobante",
     nombre: "Comprobante de inscripción",
-    descripcion: "Sus datos, su dorsal (si lo tiene), el importe pagado y el enlace «Ver mi dorsal». No se manda a las importadas de uno.es salvo que se pida.",
+    descripcion: "Sus datos, su dorsal (si lo tiene), el importe pagado y el enlace «Ver mi dorsal». No se manda a las importadas de otras plataformas (uno.es, RockTheSport) salvo que se pida.",
     asunto: "Comprobante de inscripción: {carrera}",
     titulo: "Comprobante de inscripción",
     cuerpo: "Hola {nombre},\n\nTe reenviamos, a petición de la organización, el comprobante de tu inscripción en **{carrera}**.\n\n[[resumen_inscripcion]]\n\n[[boton_mi_dorsal]]\n> Es tu código para la **recogida de dorsales**: enséñalo en el móvil.\n\n[[datos_inscripcion]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",

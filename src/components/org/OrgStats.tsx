@@ -23,6 +23,8 @@ const SOURCE_LABEL: Record<string, string> = {
   gateway: "Pasarela",
   manual: "Alta manual",
   free: "Gratuitas",
+  // uno.es o RockTheSport: el resumen del RPC las agrupa juntas
+  external: "Otra plataforma",
 };
 
 /** Origen de la inscripción, para facturación */

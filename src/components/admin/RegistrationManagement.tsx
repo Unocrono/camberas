@@ -2042,16 +2042,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         </div>
       </div>
 
-      {/* RockTheSport: cuándo fue la última pasada y si algo va mal (token caducado o a punto) */}
+      {/* RockTheSport: cuándo fue la última pasada y todo lo que el robot dejó
+          dicho (error, token a punto de caducar, filas que no entraron, avisos
+          como dorsales agotados o posibles duplicados): la pasada horaria no
+          tiene toast, así que es el único sitio donde se ve */}
       {rtsConfigurado && rtsUltima && (() => {
         const r = rtsUltima.last_result ?? {};
-        const problema: string | undefined =
-          r.error ?? (r.avisos as string[] | undefined)?.find((a) => /caduca/.test(a)) ??
-          (r.errores?.length ? `${r.errores.length} inscripción(es) no se pudieron importar: ${r.errores.slice(0, 2).join("; ")}` : undefined);
+        const errores = (r.errores as string[] | undefined) ?? [];
+        const avisos = (r.avisos as string[] | undefined) ?? [];
+        const partes: string[] = [];
+        if (r.error) partes.push(String(r.error));
+        if (errores.length) partes.push(`${errores.length} inscripción(es) no se pudieron importar: ${errores.slice(0, 2).join("; ")}${errores.length > 2 ? "; …" : ""}`);
+        if (avisos.length) partes.push(`${avisos.length} aviso(s): ${avisos.slice(0, 2).join("; ")}${avisos.length > 2 ? "; …" : ""}`);
+        const problema: string | undefined = partes.length ? partes.join(" · ") : undefined;
         return (
           <div
             className={`flex flex-wrap items-start gap-2 text-sm ${problema ? "rounded-md border border-amber-500 p-3" : "text-muted-foreground"}`}
             role="status"
+            title={[...errores, ...avisos].join("\n") || undefined}
           >
             {problema && <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-amber-600" />}
             <span className="flex-1 min-w-0">

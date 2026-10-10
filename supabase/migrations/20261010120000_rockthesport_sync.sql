@@ -43,7 +43,9 @@ COMMENT ON TABLE public.rockthesport_sync IS
   'Sincronización horaria de inscritos desde RockTheSport (edge function rockthesport-sync). Mapeo tarifa→recorrido explícito; el token va en el Vault (token_secreto).';
 
 ALTER TABLE public.rockthesport_sync ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.rockthesport_sync FROM anon, PUBLIC;
+-- authenticated incluido: los privilegios por defecto de Supabase le dan ALL
+-- (y TRUNCATE no pasa por RLS); solo lectura para el panel
+REVOKE ALL ON public.rockthesport_sync FROM anon, authenticated, PUBLIC;
 GRANT SELECT ON public.rockthesport_sync TO authenticated;
 GRANT ALL ON public.rockthesport_sync TO service_role;
 

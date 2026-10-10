@@ -34,6 +34,7 @@ interface RegistrationRow {
   tshirt_size: string | null;
   club: string | null;
   source: string | null;
+  external_id: string | null;
   created_at: string;
 }
 
@@ -52,7 +53,15 @@ const SOURCE_LABEL: Record<string, string> = {
   gateway: "Pasarela",
   manual: "Alta manual",
   free: "Gratuita",
+  external: "UNO",
 };
+
+/** Mismo criterio que origenDe() del panel de admin: las de RockTheSport
+ *  son 'external' con external_id 'rts-…'; el resto de 'external', uno.es */
+const origenLabel = (r: RegistrationRow) =>
+  r.source === "external" && r.external_id?.startsWith("rts-")
+    ? "RockTheSport"
+    : SOURCE_LABEL[r.source ?? ""] ?? r.source ?? "—";
 
 /** Pagada o gratuita = pago resuelto (mismo criterio que los informes) */
 const isPaid = (r: RegistrationRow) =>
@@ -82,7 +91,7 @@ export const OrgRegistrations = ({ raceId }: Props) => {
       const { data, error: err } = await supabase
         .from("registrations")
         .select(
-          "id, first_name, last_name, email, phone, dni_passport, bib_number, payment_status, status, race_distance_id, tshirt_size, club, source, created_at",
+          "id, first_name, last_name, email, phone, dni_passport, bib_number, payment_status, status, race_distance_id, tshirt_size, club, source, external_id, created_at",
         )
         .eq("race_id", raceId)
         .neq("status", "cancelled")
@@ -269,7 +278,7 @@ export const OrgRegistrations = ({ raceId }: Props) => {
                       {r.tshirt_size && <p>Talla: <span className="text-foreground">{r.tshirt_size}</span></p>}
                       {r.club && <p>Club: <span className="text-foreground">{r.club}</span></p>}
                       <p>
-                        Origen: <span className="text-foreground">{SOURCE_LABEL[r.source ?? ""] ?? r.source ?? "—"}</span>
+                        Origen: <span className="text-foreground">{origenLabel(r)}</span>
                         {" · "}
                         {new Date(r.created_at).toLocaleDateString("es-ES")}
                       </p>

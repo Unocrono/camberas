@@ -18,8 +18,9 @@
 //  - gratuita (not_required) y confirmada → comprobante sin bloque de pago.
 //  - pendiente de pago, gratuita sin confirmar, cancelada o reembolsada →
 //    no hay comprobante que mandar: se omite y se dice por qué.
-//  - importada de uno.es (EventBooking) → se omite salvo que se pida: uno.es
-//    ya les mandó el suyo.
+//  - importada de otra plataforma (uno.es EventBooking, RockTheSport; source
+//    'external') → se omite salvo que se pida: esa plataforma ya les mandó
+//    el suyo.
 //  - sin email → se omite. El email sale de la inscripción; si está vacío
 //    (las inscripciones hechas con cuenta se guardan sin él), del usuario o
 //    de su perfil.

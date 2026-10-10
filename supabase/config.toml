@@ -78,6 +78,14 @@ verify_jwt = false
 [functions.recuperar-pagos]
 verify_jwt = false
 
+# Mismo modelo que recuperar-pagos: el robot horario llega desde pg_cron con
+# x-cron-key (clave_cron_valida) y el boton del panel con la sesion del admin
+# u organizador (has_role / organizer_id, validado dentro). Sin ninguna de
+# las dos responde 401/403 antes de tocar RockTheSport. Asi esta desplegada
+# (comprobado el 10-oct-2026): lo escrito coincide con lo desplegado.
+[functions.rockthesport-sync]
+verify_jwt = false
+
 # El cedente sin cuenta pide su enlace por email: no hay sesion que valga.
 # La funcion nunca devuelve el enlace en la respuesta, solo lo manda al correo.
 [functions.cesion-solicitar-enlace]
