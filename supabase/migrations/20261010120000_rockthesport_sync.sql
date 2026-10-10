@@ -88,8 +88,8 @@ BEGIN
 END
 $clave$;
 
--- ── 4. El robot: cada hora en el minuto 37 (EventBooking va en el 7 y
---      recuperar-pagos en el 0) ─────────────────────────────────────────────
+-- ── 4. El robot: cada hora en punto (petición del usuario, 10-oct-2026;
+--      EventBooking va en el 7) ──────────────────────────────────────────────
 DO $cron$
 BEGIN
   IF EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'rockthesport-sync-cada-hora') THEN
@@ -97,7 +97,7 @@ BEGIN
   END IF;
   PERFORM cron.schedule(
     'rockthesport-sync-cada-hora',
-    '37 * * * *',
+    '0 * * * *',
     $cmd$
     SELECT net.http_post(
       url := 'https://rsahtxjpisnldxnsmupk.supabase.co/functions/v1/rockthesport-sync',
