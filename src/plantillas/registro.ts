@@ -71,7 +71,7 @@ export const PLANTILLAS: Record<string, Plantilla> = {
       cuentaAtras: true,
       // Carrera de fiesta: los premios (gnomos, disfraces) justo después de los recorridos
       secciones: (
-        ["hero", "cifras", "cinta", "recorridos", "servicios", "inscripcion", "dia", "reglamento", "info", "medioambiente", "patrocinadores", "beneficiario", "premios", "camiseta"] as SeccionId[]
+        ["hero", "cifras", "cinta", "recorridos", "servicios", "inscripcion", "dia", "reglamento", "info", "medioambiente", "instagram", "patrocinadores", "beneficiario", "premios", "camiseta"] as SeccionId[]
       ).map((id) => ({ id, activa: true })),
       seccionesEvento: SECCIONES_EVENTO_IDS.map((id) => ({ id, activa: true })),
     },

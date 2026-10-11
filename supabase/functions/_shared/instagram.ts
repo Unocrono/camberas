@@ -194,3 +194,62 @@ export async function publicar(
     .catch(() => ({} as { permalink?: string }));
   return { mediaId: pub.id, permalink: info.permalink ?? null };
 }
+
+// ── Leer otra cuenta (Business Discovery) ─────────────────────────────
+
+export interface MediaAjena {
+  id: string;
+  caption?: string;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
+  /** No viene en vídeos con música con derechos: entonces vale la miniatura */
+  media_url?: string;
+  /** Solo en vídeos */
+  thumbnail_url?: string;
+  permalink: string;
+  timestamp: string;
+}
+
+export interface CuentaAjena {
+  username: string;
+  name?: string;
+  profile_picture_url?: string;
+  followers_count?: number;
+  media_count?: number;
+  media?: { data: MediaAjena[] };
+}
+
+const USUARIO = /^[A-Za-z0-9._]{1,30}$/;
+// Rutas de instagram.com que no son un perfil
+const NO_PERFIL = new Set(["p", "reel", "reels", "tv", "stories", "explore", "accounts", "direct"]);
+
+/**
+ * El @ de una URL de perfil ('https://www.instagram.com/clubsarrio/',
+ * 'instagram.com/clubsarrio?igsh=…') o de un '@clubsarrio' suelto. null si
+ * no es un perfil.
+ */
+export function usuarioDeUrl(texto: string | null | undefined): string | null {
+  const t = (texto ?? "").trim();
+  const m = t.match(/instagram\.com\/([^/?#\s]+)/i) ?? t.match(/^@?([^/?#\s]+)$/);
+  const u = m?.[1];
+  if (!u || !USUARIO.test(u) || NO_PERFIL.has(u.toLowerCase())) return null;
+  return u;
+}
+
+/**
+ * Perfil y últimas publicaciones de OTRA cuenta, leídos desde la de Camberas.
+ * La otra cuenta no autoriza nada, pero tiene que ser profesional (Empresa o
+ * Creador): de una personal Meta no da nada. Gasta cupo de llamadas de la
+ * cuenta de Camberas: quien la use, que guarde caché.
+ */
+export async function descubrir(c: Credenciales, usuario: string, cuantas = 6): Promise<CuentaAjena> {
+  // El @ va dentro de la expresión de campos: nada que no sea un usuario válido
+  if (!USUARIO.test(usuario)) throw new Error("Usuario de Instagram no válido");
+  const campos = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp";
+  const r = await graph<{ business_discovery?: CuentaAjena }>(c, "GET", c.igUserId, {
+    fields:
+      `business_discovery.username(${usuario})` +
+      `{username,name,profile_picture_url,followers_count,media_count,media.limit(${cuantas}){${campos}}}`,
+  });
+  if (!r.business_discovery) throw new Error(`@${usuario} no devuelve datos`);
+  return r.business_discovery;
+}

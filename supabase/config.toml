@@ -120,3 +120,9 @@ verify_jwt = true
 # docs/instagram-alta-meta.md.
 [functions.instagram-publicar]
 verify_jwt = true
+
+# Instagram del club en su web propia: la llama la plantilla sin sesion (y
+# desde dominios propios). Solo acepta el slug de una carrera, no un @ suelto,
+# y guarda caché de 1 h. Ver docs/instagram-alta-meta.md.
+[functions.instagram-feed]
+verify_jwt = false

@@ -267,7 +267,7 @@ export function ContenidoWebEditor({ slug, contenido, guardando, onGuardar }: Pr
                 <Texto etiqueta="Email de protección de datos" valor={c.contacto?.emailDatos} onChange={(v) => patch("contacto", { emailDatos: v })} />
                 <Texto etiqueta="Teléfono" valor={c.contacto?.telefono} onChange={(v) => patch("contacto", { telefono: v })} />
                 <Texto etiqueta="Dirección" valor={c.contacto?.direccion} onChange={(v) => patch("contacto", { direccion: v })} />
-                <Texto etiqueta="Instagram (URL)" valor={c.contacto?.redes?.instagram} onChange={(v) => patch("contacto", { redes: { ...(c.contacto?.redes ?? {}), instagram: v } })} />
+                <Texto etiqueta="Instagram (URL)" valor={c.contacto?.redes?.instagram} onChange={(v) => patch("contacto", { redes: { ...(c.contacto?.redes ?? {}), instagram: v } })} ayuda="Si la cuenta es profesional (Empresa o Creador), la web enseña sus últimas publicaciones (sección «Instagram del club» del libro de diseño)." />
                 <Texto etiqueta="Facebook (URL)" valor={c.contacto?.redes?.facebook} onChange={(v) => patch("contacto", { redes: { ...(c.contacto?.redes ?? {}), facebook: v } })} />
               </div>
               <ListaEditable

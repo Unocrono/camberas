@@ -26,6 +26,7 @@ const NOMBRES_SECCION: Record<SeccionId, string> = {
   camiseta: "Camiseta (dentro de servicios)",
   info: "Info práctica",
   medioambiente: "Medioambiente",
+  instagram: "Instagram del club",
   patrocinadores: "Patrocinadores",
 };
 

@@ -5,6 +5,8 @@
  *   y enseña el cupo de publicaciones del día.
  * - Carteles de grupetta: el admin ve las de todos los capos (el capo solo
  *   las suyas, en /grupetta/capo) y puede publicar su cartel.
+ * - Webs propias: el Instagram de cada club leído para su web (caché de
+ *   instagram-feed), con el motivo cuando Meta no lo da.
  * - Historial: todo lo publicado, con el error de Meta cuando falla.
  *
  * Alta en Meta: docs/instagram-alta-meta.md.
@@ -59,6 +61,7 @@ export function InstagramManagement() {
       </div>
       <Conexion />
       <CartelesGrupetta />
+      <WebsPropias />
       <Historial />
     </div>
   );
@@ -202,6 +205,67 @@ function CartelesGrupetta() {
           )}
         </DialogContent>
       </Dialog>
+    </Card>
+  );
+}
+
+// ── Webs propias ──────────────────────────────────────────────────────
+
+interface FeedCache {
+  usuario: string;
+  datos: { publicaciones?: unknown[] } | null;
+  error: string | null;
+  generado: string;
+}
+
+function WebsPropias() {
+  const [filas, setFilas] = useState<FeedCache[] | null>(null);
+
+  useEffect(() => {
+    tablaSinTipos("instagram_feed_cache")
+      .select("usuario, datos, error, generado")
+      .order("generado", { ascending: false })
+      .limit(50)
+      .then(({ data }: { data: FeedCache[] | null }) => setFilas(data ?? []));
+  }, []);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Webs propias</CardTitle>
+        <CardDescription>
+          El Instagram de cada club, leído para su web con la cuenta de Camberas (se refresca cada hora,
+          cuando alguien la visita). Sale el de las carreras que tienen su URL en Web propia › Contenido.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {filas?.length === 0 && (
+          <p className="text-sm text-muted-foreground">Ninguna web propia ha pedido todavía su Instagram.</p>
+        )}
+        <ul className="divide-y">
+          {filas?.map((f) => (
+            <li key={f.usuario} className="py-2 text-sm flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <a
+                  href={`https://www.instagram.com/${f.usuario}/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  @{f.usuario}
+                </a>
+                {f.error && <p className="text-xs text-destructive break-words">{f.error}</p>}
+              </div>
+              <div className="text-right shrink-0">
+                <Badge variant={f.error ? "destructive" : "default"}>
+                  {f.error ? "no se ve" : `${f.datos?.publicaciones?.length ?? 0} publicaciones`}
+                </Badge>
+                <p className="text-xs text-muted-foreground mt-1">{formatFechaHoraInstante(f.generado)}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
     </Card>
   );
 }

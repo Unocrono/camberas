@@ -9,6 +9,7 @@ import { Reglamento } from "./Reglamento";
 import { DiaCarrera, PremiosServiciosCamiseta } from "./DiaCarrera";
 import { InfoPractica, Medioambiente, Beneficiario, Patrocinadores } from "./InfoPractica";
 import { Pie } from "./Pie";
+import { Instagram } from "./Instagram";
 import { ElegirRecorrido } from "./ElegirRecorrido";
 import "./estilos.css";
 
@@ -58,6 +59,7 @@ export default function PlantillaGurriana({
     camiseta: () => null,
     info: () => <InfoPractica evento={evento} />,
     medioambiente: () => <Medioambiente evento={evento} />,
+    instagram: () => <Instagram evento={evento} />,
     patrocinadores: () => <Patrocinadores evento={evento} />,
   };
 

@@ -41,6 +41,7 @@ export const SECCIONES_IDS = [
   "camiseta",
   "info",
   "medioambiente",
+  "instagram",
   "patrocinadores",
 ] as const;
 export type SeccionId = (typeof SECCIONES_IDS)[number];

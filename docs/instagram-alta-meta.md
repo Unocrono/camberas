@@ -133,3 +133,24 @@ Límites de Meta que conviene saber:
 - Pie de hasta **2.200** caracteres y 30 hashtags. Los enlaces del pie no se pueden pulsar.
 - Entre 50 y 100 publicaciones por API cada 24 h, según la cuenta (el panel enseña el cupo).
 - Sin filtros, sin música, sin etiquetas de producto.
+
+## 8. Fase 2 — el Instagram del club en su web propia
+
+En la web propia sale una sección **«Instagram del club»** con las 6 últimas
+publicaciones de la cuenta que el organizador pone en Web propia › Contenido ›
+Instagram (URL). El club no tiene que autorizar nada: se lee desde la cuenta de
+Camberas con Business Discovery.
+
+- **La cuenta del club tiene que ser profesional** (Empresa o Creador). De una
+  personal Meta no da nada, y la sección simplemente no sale.
+- La sección está en el libro de diseño (se puede mover o apagar). En las webs
+  ya creadas aparece al final, antes del pie; si no hay publicaciones, no se pinta.
+- Caché de **1 hora** por cuenta (`instagram_feed_cache`), también de los
+  errores. Panel › Instagram › **Webs propias** enseña cada cuenta leída y, si
+  no se ve, el motivo que dio Meta.
+- La función `instagram-feed` es pública (`verify_jwt = false`) pero solo
+  acepta el slug de una carrera, nunca un @ suelto: nadie puede gastar el cupo
+  de llamadas de Camberas leyendo cuentas ajenas.
+
+Puesta en marcha: aplicar `20261011130000_instagram_feed_web_propia.sql` y
+desplegar `instagram-feed`. Usa los mismos secrets que la fase 1.
