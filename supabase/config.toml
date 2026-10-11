@@ -126,3 +126,9 @@ verify_jwt = true
 # y guarda caché de 1 h. Ver docs/instagram-alta-meta.md.
 [functions.instagram-feed]
 verify_jwt = false
+
+# Historias en directo: el robot de cada minuto llega desde pg_cron con
+# x-cron-key (clave_cron_valida), no con JWT; el panel llega con la sesion del
+# admin (has_role, validado dentro). Sin una de las dos responde 401/403.
+[functions.instagram-directo]
+verify_jwt = false

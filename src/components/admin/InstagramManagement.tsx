@@ -5,6 +5,8 @@
  *   y enseña el cupo de publicaciones del día.
  * - Carteles de grupetta: el admin ve las de todos los capos (el capo solo
  *   las suyas, en /grupetta/capo) y puede publicar su cartel.
+ * - Historias en directo: el cronometraje publica solo «primero en meta» y
+ *   «podio provisional» (DirectoInstagram).
  * - Webs propias: el Instagram de cada club leído para su web (caché de
  *   instagram-feed), con el motivo cuando Meta no lo da.
  * - Historial: todo lo publicado, con el error de Meta cuando falla.
@@ -21,6 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { rpcSinTipos, tablaSinTipos } from "@/eventos/rpc";
 import { formatFechaHoraInstante } from "@/lib/timezoneUtils";
 import { estadoInstagram, fechaLarga, pieGrupetta, type EstadoCuenta, type Publicacion } from "@/lib/instagram";
+import { DirectoInstagram } from "@/components/admin/instagram/DirectoInstagram";
 
 const CartelRuta = lazy(() => import("@/components/CartelRuta").then((m) => ({ default: m.CartelRuta })));
 
@@ -61,6 +64,7 @@ export function InstagramManagement() {
       </div>
       <Conexion />
       <CartelesGrupetta />
+      <DirectoInstagram />
       <WebsPropias />
       <Historial />
     </div>

@@ -154,3 +154,43 @@ Camberas con Business Discovery.
 
 Puesta en marcha: aplicar `20261011130000_instagram_feed_web_propia.sql` y
 desplegar `instagram-feed`. Usa los mismos secrets que la fase 1.
+
+## 9. Fase 3 — historias en directo
+
+El día de la carrera, el cronometraje publica **solo** en las historias de
+Camberas dos momentos por recorrido y sexo: **«primero en meta»** y **«podio
+provisional»** (cuando hay tres en meta). Se dibujan en el servidor
+(1080×1920, con la paleta y la mosca de la casa).
+
+Se maneja en Panel › Instagram › **Historias en directo**:
+
+1. Elige la carrera y marca qué momentos quieres y cuántos minutos espera
+   cada uno **sin cambios** (3 por defecto). Si en ese rato corriges una
+   lectura o retiras a alguien, la historia sale con el dato bueno, o no sale.
+2. Si un recorrido se cronometra con **RaceTec**, pon su EID: sus podios
+   salen de `racetec_results`. Sin EID salen de las **lecturas de meta de
+   Camberas** (el punto de cronometraje del control FINISH, menos la salida
+   oficial de la ola), no de `race_results`, que solo se rehace al pulsar
+   «Procesar».
+3. **Vista previa** dibuja la historia sin publicar nada (con datos de
+   ejemplo si aún no hay llegadas) y enseña los momentos que se ven ahora.
+4. Enciende el **directo** y guarda (pide confirmación). Desde ese momento
+   el robot lo repasa **cada minuto**. Cada momento detectado aparece en la
+   lista, con **Descartar** (no se publicará) y **Reintentar** (tras un error).
+
+Reglas que conviene saber:
+
+- Solo se publica **el día de la carrera y el siguiente** (para las que acaban
+  pasada la medianoche): un directo olvidado encendido no publica nada días
+  después. Aun así, **apágalo al terminar**.
+- Como mucho 4 historias por minuto; el resto, al minuto siguiente.
+- Las historias por API **solo van en cuentas de Empresa**, y sin stickers
+  (ni enlace ni encuesta): el enlace a los resultados va escrito en la imagen.
+- La foto de fondo es la portada de la carrera si es JPEG o PNG; si es WebP,
+  sale el degradado de la casa.
+- Las fuentes (Archivo Black y Barlow Semi Condensed) se descargan del
+  repositorio oficial de Google Fonts en GitHub, y la mosca de camberas.com.
+
+Puesta en marcha: aplicar `20261011140000_instagram_directo.sql` (crea la clave
+del robot en el Vault y el trabajo de pg_cron, que solo llama a la función si
+hay algún directo encendido) y desplegar `instagram-directo`.

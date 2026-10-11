@@ -68,12 +68,15 @@ export async function subirImagenes(imagenes: Blob[], tipo: TipoPublicacion): Pr
 }
 
 /**
- * Llama a instagram-publicar. La función contesta {error} con el motivo (de
- * Meta o suyo); supabase-js lo esconde en error.context cuando el estado no
- * es 2xx, así que se saca de ahí.
+ * Llama a instagram-publicar (u otra función de Instagram). Contestan {error}
+ * con el motivo (de Meta o suyo); supabase-js lo esconde en error.context
+ * cuando el estado no es 2xx, así que se saca de ahí.
  */
-export async function llamarInstagram<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("instagram-publicar", { body });
+export async function llamarInstagram<T>(
+  body: Record<string, unknown>,
+  funcion = "instagram-publicar",
+): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(funcion, { body });
   if (error) {
     let mensaje = error.message;
     try {
