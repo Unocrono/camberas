@@ -61,10 +61,9 @@ serve(async (req) => {
     return json({ error: "Solo los administradores publican en Instagram" }, 403);
   }
 
-  // deno-lint-ignore no-explicit-any
-  let cuerpo: any;
+  let cuerpo: Record<string, unknown>;
   try {
-    cuerpo = await req.json();
+    cuerpo = (await req.json()) ?? {};
   } catch {
     return json({ error: "JSON no válido" }, 400);
   }

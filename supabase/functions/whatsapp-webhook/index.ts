@@ -18,8 +18,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMessages, type IncomingMessage, sendText, verifySignature } from "./graph.ts";
-import { getConfig } from "./data.ts";
-import { PRIVACY_NOTICE, resolve } from "./intents.ts";
+import { getConfig } from "../_shared/asistente/data.ts";
+import { PRIVACY_NOTICE, resolve } from "../_shared/asistente/intents.ts";
 
 const RATE_LIMIT_REPLY =
   "Has hecho muchas consultas seguidas 😅 Espera un momento y vuelve a escribirme.";

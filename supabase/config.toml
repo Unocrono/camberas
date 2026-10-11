@@ -132,3 +132,9 @@ verify_jwt = false
 # admin (has_role, validado dentro). Sin una de las dos responde 401/403.
 [functions.instagram-directo]
 verify_jwt = false
+
+# Meta no manda el JWT de Supabase: el webhook de mensajes directos se
+# autentica con la firma X-Hub-Signature-256 (_shared/meta.ts), como el de
+# WhatsApp.
+[functions.instagram-webhook]
+verify_jwt = false

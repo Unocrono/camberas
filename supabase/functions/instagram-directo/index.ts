@@ -308,10 +308,9 @@ serve(async (req) => {
   const service = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  // deno-lint-ignore no-explicit-any
-  let cuerpo: any = {};
+  let cuerpo: Record<string, unknown> = {};
   try {
-    cuerpo = await req.json();
+    cuerpo = (await req.json()) ?? {};
   } catch {
     // el robot manda '{}'; un cuerpo vacío vale lo mismo
   }

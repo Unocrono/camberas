@@ -1,5 +1,6 @@
 /**
- * Consultas a las tablas del bridge de RaceTec.
+ * Consultas a las tablas del bridge de RaceTec. Las usan el asistente de
+ * WhatsApp y el de mensajes directos de Instagram.
  *
  * Regla dura: aquí NO se inventa nada. Si no hay dato, se devuelve null y el
  * formateador lo dice. Un tiempo inventado en una carrera es peor que un
@@ -20,6 +21,8 @@ export interface BotConfig {
   race_info: string;
   position_mode: "split" | "off";
   rate_limit_hour: number;
+  /** El asistente contesta también por Instagram (20261011150000) */
+  instagram_enabled?: boolean;
 }
 
 export async function getConfig(sb: SupabaseClient): Promise<BotConfig | null> {

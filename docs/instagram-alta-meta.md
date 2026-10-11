@@ -65,7 +65,7 @@ la suya a mano.
    | `instagram_content_publish` | Publicar (fases 1 y 3) |
    | `pages_show_list`, `pages_read_engagement` | Llegar de la página a la cuenta de Instagram; Business Discovery (fase 2) |
    | `business_management` | Activos de la cartera |
-   | `instagram_manage_messages`, `pages_manage_metadata` | Solo fase 4 (mensajes y suscripción del webhook) |
+   | `instagram_manage_messages`, `pages_messaging`, `pages_manage_metadata` | Solo fase 4 (leer y contestar mensajes, suscribir la página al webhook) |
    | `whatsapp_business_messaging`, `whatsapp_business_management` | Si los marcas, el mismo token vale también como `WHATSAPP_TOKEN` |
 
 4. Copia el token: **se enseña una sola vez**.
@@ -194,3 +194,66 @@ Reglas que conviene saber:
 Puesta en marcha: aplicar `20261011140000_instagram_directo.sql` (crea la clave
 del robot en el Vault y el trabajo de pg_cron, que solo llama a la función si
 hay algún directo encendido) y desplegar `instagram-directo`.
+
+## 10. Fase 4 — mensajes directos
+
+El **asistente de carrera de WhatsApp** contesta también por Instagram (dorsal,
+clasificación, mapa, info), con las mismas consultas (`_shared/asistente/`) y la
+misma carrera en directo (`wa_bot_config`). Dos diferencias a propósito, porque
+el buzón de Instagram de Camberas lo atienden personas:
+
+- Solo contesta con **«Contestar también por Instagram»** encendido (Panel ›
+  Instagram › Mensajes directos) **y** una carrera en directo (`enabled` y
+  `active_eid`, como para WhatsApp: [`whatsapp-alta-waba.md`](whatsapp-alta-waba.md) §7).
+  Fuera de eso no contesta ni guarda nada.
+- **Nunca contesta a lo que no entiende**, ni a fotos o audios: se queda en el
+  buzón para una persona.
+
+Además: Instagram no pinta `*negritas*` ni `_cursivas_` (se quitan), corta en
+1.000 bytes, y el aviso de privacidad habla de «tu usuario», no de «tu número».
+Los mensajes se guardan 30 días en `ig_mensajes` y se purgan solos cada noche
+(junto con los de WhatsApp, cuya purga no estaba programada).
+
+### Lo que hay que hacer en Meta
+
+1. **Token**: genera otra vez el del usuario del sistema (§3) añadiendo
+   `instagram_manage_messages`, `pages_messaging` y `pages_manage_metadata`, y
+   cambia `INSTAGRAM_TOKEN`.
+2. **En la app de Instagram**, con la cuenta de Camberas: Configuración →
+   Mensajes y respuestas a historias → Herramientas conectadas → **Permitir
+   acceso a los mensajes**. Sin esto la API no ve ningún mensaje.
+3. **Secrets** en Lovable:
+   - `INSTAGRAM_PAGE_ID` — el `id` de la página que sale en el curl del §4
+   - `INSTAGRAM_VERIFY_TOKEN` — una cadena larga que inventes
+   - `META_APP_SECRET` — el App Secret (§2.4). Si ya está `WHATSAPP_APP_SECRET`,
+     vale ese: es la misma app.
+4. **Migración** `20261011150000_instagram_mensajes.sql` y **desplegar**
+   `instagram-webhook` (`verify_jwt = false`: Meta no manda el JWT de Supabase,
+   se autentica con la firma `X-Hub-Signature-256`).
+5. **Webhook** en la app de Meta → Instagram → Webhooks → objeto **Instagram**:
+   - URL: `https://rsahtxjpisnldxnsmupk.supabase.co/functions/v1/instagram-webhook`
+   - Token de verificación: el `INSTAGRAM_VERIFY_TOKEN`.
+   - Meta hace un `GET` y debe salir «Verificado». Después, suscribir el campo **`messages`**.
+6. **Suscribir la página a la app** (sin esto no llega nada):
+
+   ```sh
+   # el token de la página, con el del usuario del sistema
+   curl -s "https://graph.facebook.com/v26.0/PAGE_ID?fields=access_token" \
+     -H "Authorization: Bearer EL_TOKEN"
+   # y con ese token de página:
+   curl -s -X POST "https://graph.facebook.com/v26.0/PAGE_ID/subscribed_apps?subscribed_fields=messages" \
+     -H "Authorization: Bearer TOKEN_DE_PAGINA"
+   ```
+
+7. **Probar en modo Desarrollo**: solo llegan mensajes de cuentas con rol en la
+   app. Añádete como tester, pon una carrera en directo, enciende Instagram en
+   el panel y escribe un dorsal desde tu cuenta.
+8. **Abrirlo al público**: app en modo **Activo** y **acceso avanzado** a
+   `instagram_manage_messages` y `pages_messaging`. Eso pide la **verificación
+   del negocio** y la **revisión de la app**, con un vídeo por permiso: alguien
+   escribe un dorsal por Instagram y el asistente contesta con su paso por el
+   último control. Cuenta con semanas: hazlo con tiempo antes de la carrera.
+
+> El código del asistente de WhatsApp se ha movido a `_shared/asistente/` y
+> `_shared/meta.ts` (y usa ya la v26.0 de la Graph API). No cambia lo que hace,
+> pero el próximo despliegue de `whatsapp-webhook` tiene que llevar esas rutas.

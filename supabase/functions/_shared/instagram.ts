@@ -12,9 +12,8 @@
  * Meta las descarga de ahí (usamos el bucket «instagram»).
  */
 
-// Una sola versión para todo lo de Meta. La v21.0 del bot de WhatsApp caduca
-// antes; al tocarlo, que importe esta.
-export const GRAPH_VERSION = "v26.0";
+import { GRAPH_VERSION } from "./meta.ts";
+
 const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 // Meta tarda segundos en descargar una imagen; más de esto es que algo va mal
@@ -49,8 +48,15 @@ export function credenciales(): Credenciales {
   return { token, igUserId };
 }
 
+interface ErrorMeta {
+  code?: number;
+  error_subcode?: number;
+  error_user_msg?: string;
+  message?: string;
+}
+
 /** Traduce los errores que sabemos qué significan; el resto, tal cual los da Meta. */
-function mensajeDeError(status: number, e: Record<string, any>): string {
+function mensajeDeError(status: number, e: ErrorMeta): string {
   const codigo = e.code ?? null;
   const sub = e.error_subcode ?? null;
   const original = e.error_user_msg || e.message || `Graph API ${status}`;
