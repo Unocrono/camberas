@@ -114,3 +114,9 @@ verify_jwt = true
 
 [functions.verificar-dominio]
 verify_jwt = true
+
+# Publica en el Instagram de Camberas desde el panel: solo con sesion, y
+# dentro comprueba que quien llama es admin (has_role). Ver
+# docs/instagram-alta-meta.md.
+[functions.instagram-publicar]
+verify_jwt = true

@@ -1,0 +1,135 @@
+# Instagram — alta en Meta y puesta en marcha
+
+Guía de la parte que **tienes que hacer tú** en Meta (yo no puedo crear cuentas
+ni introducir credenciales) y de cómo se enchufa a lo ya escrito.
+
+**Una sola app de Meta para WhatsApp e Instagram.** La del asistente de
+WhatsApp aún no existe: créala con esta guía y después añádele WhatsApp
+siguiendo [`whatsapp-alta-waba.md`](whatsapp-alta-waba.md) desde el paso 2 de su §2.
+
+Código: [`supabase/functions/_shared/instagram.ts`](../supabase/functions/_shared/instagram.ts)
+(cliente de la Graph API) y las funciones de cada fase.
+
+---
+
+## 0. Qué hay y qué pide cada cosa
+
+Camberas entra por el camino **«Facebook Login»**: su cuenta de Instagram es
+profesional y está vinculada a la página de Facebook. Eso permite un token que
+**no caduca** (el de un usuario del sistema, como el de WhatsApp) y leer otras
+cuentas (Business Discovery), que el camino «Instagram Login» no da.
+
+| Fase | Qué hace | Qué pide en Meta |
+|---|---|---|
+| 1. Publicar | Carteles de grupetta y resultados en la cuenta de Camberas, desde el panel | App + usuario del sistema. **Sin revisión de Meta.** |
+| 2. Web propia | Las últimas publicaciones del club en la web de su carrera | Lo mismo |
+| 3. Historias en directo | El cronometraje publica solo «primero en meta» y podios | Lo mismo |
+| 4. Mensajes directos | El asistente de WhatsApp, por Instagram | Acceso avanzado a `instagram_manage_messages`: verificación del negocio y revisión de la app |
+
+Las fases 1 a 3 solo tocan cuentas de Camberas, así que basta el **acceso
+estándar**: Meta no revisa nada. Publicar en la cuenta de cada organizador o
+capo sería otra historia (acceso avanzado, semanas): por eso el cartel de
+resultados también se puede **descargar**, para que el organizador lo suba a
+la suya a mano.
+
+## 1. Requisitos previos
+
+| Cosa | Detalle |
+|---|---|
+| Cartera comercial de Meta | La de Camberas en [business.facebook.com](https://business.facebook.com), dueña de la página y de la cuenta de Instagram. |
+| Página de Facebook | La de Camberas, dentro de esa cartera. |
+| Cuenta de Instagram | Profesional de tipo **Empresa** (las historias por API no van en cuentas de Creador), vinculada a la página y añadida a la cartera: Configuración del negocio → Cuentas → Cuentas de Instagram. |
+| Verificación del negocio | No hace falta para las fases 1 a 3. Sí para WhatsApp en producción y para la fase 4: si vas a hacerla, empieza ya, que tarda de días a 2 semanas. |
+
+## 2. Crear la app (una para todo)
+
+1. [developers.facebook.com](https://developers.facebook.com) → **Mis apps** → **Crear app** → tipo **Empresa**, vinculada a la cartera de Camberas.
+2. Casos de uso: el de **Instagram** (contenido y mensajes) y, para el bot, el de **WhatsApp**.
+   Si pregunta por qué camino configurar la API de Instagram, elige **Facebook Login** (no «Instagram Login»).
+3. **Configuración → Básica**: URL de la política de privacidad, icono y categoría. Sin la política no se puede pasar la app a modo Activo (Live).
+4. Anota el **App Secret** (Configuración → Básica → Mostrar). Es el mismo para WhatsApp e Instagram; lo usarán los webhooks (el de WhatsApp y el de la fase 4).
+
+> Meta cambia los nombres de los menús a menudo. Si algo no se llama así, lo que
+> manda son los **permisos del §3**: con ellos el token sirve, se llegue por
+> donde se llegue.
+
+## 3. Usuario del sistema y token que no caduca
+
+1. Cartera → Configuración del negocio → **Usuarios → Usuarios del sistema** → Añadir: «Camberas robot», rol **Administrador**.
+2. **Asignar activos** con control total: la **app**, la **página de Facebook** y la **cuenta de Instagram** (y la WABA cuando exista).
+3. **Generar nuevo token** → app = la de Camberas → caducidad: **nunca** → permisos:
+
+   | Permiso | Para qué |
+   |---|---|
+   | `instagram_basic` | Leer la cuenta (todas las fases) |
+   | `instagram_content_publish` | Publicar (fases 1 y 3) |
+   | `pages_show_list`, `pages_read_engagement` | Llegar de la página a la cuenta de Instagram; Business Discovery (fase 2) |
+   | `business_management` | Activos de la cartera |
+   | `instagram_manage_messages`, `pages_manage_metadata` | Solo fase 4 (mensajes y suscripción del webhook) |
+   | `whatsapp_business_messaging`, `whatsapp_business_management` | Si los marcas, el mismo token vale también como `WHATSAPP_TOKEN` |
+
+4. Copia el token: **se enseña una sola vez**.
+
+> Si al publicar sale un error de permisos (`#10` o `#200`) con todo lo de arriba
+> marcado, genera el token otra vez añadiendo `ads_read`: Meta lo exige cuando el
+> acceso a la página llega por la cartera, como es el caso del usuario del sistema.
+
+## 4. Sacar el id de la cuenta de Instagram
+
+No es el @: es un número largo. Con el token del §3:
+
+```sh
+curl -s "https://graph.facebook.com/v26.0/me/accounts?fields=id,name,instagram_business_account{id,username}" \
+  -H "Authorization: Bearer EL_TOKEN"
+```
+
+Sale la página y, dentro, `instagram_business_account.id` → ese es
+`INSTAGRAM_USER_ID`. Si `data` viene vacío, la página no está asignada al
+usuario del sistema (§3.2); si viene la página sin `instagram_business_account`,
+la cuenta de Instagram no está vinculada a ella.
+
+## 5. Secrets, migración y funciones
+
+1. **Secrets en Lovable Cloud** (y solo ahí: no van en las copias de seguridad):
+   - `INSTAGRAM_TOKEN` — el token del §3
+   - `INSTAGRAM_USER_ID` — el id del §4
+2. **Migración** (panel de Supabase → SQL): `20261011120000_instagram_publicaciones.sql`.
+3. **Desplegar** la edge function `instagram-publicar` (`verify_jwt = true`, ya en
+   `supabase/config.toml`). Un push a GitHub no despliega las funciones: hay que
+   pedirlas expresamente.
+
+## 6. Comprobar
+
+Panel de administración → **Instagram** → **Comprobar conexión**. Tiene que salir
+@ de Camberas con sus seguidores y el cupo de publicaciones del día. Si no:
+
+| Sale | Es |
+|---|---|
+| «El token de Instagram no vale» | Token mal copiado, revocado o generado sin caducidad «nunca» |
+| «Al token le falta un permiso» | Falta alguno del §3 (o `ads_read`, ver la nota) |
+| `Unsupported get request` / `[100]` | `INSTAGRAM_USER_ID` equivocado: pusiste el de la página o el @ |
+| «sin configurar» | Faltan los secrets, o la función se desplegó antes de ponerlos |
+
+## 7. Fase 1 — publicar
+
+Solo los **admins** publican, y siempre en la cuenta de Camberas. Cada
+publicación queda en el historial del panel (con el error, si falla).
+
+- **Cartel de grupetta**: Panel › Instagram › Carteles de grupetta (las de
+  todos los capos). **Publicar en Instagram** sube perfil y mapa como carrusel,
+  con un pie que se puede corregir antes. El capo sigue teniendo su cartel en
+  /grupetta/capo, solo para descargar.
+- **Resultados**: Resultados › **Cartel para redes**. Una pieza por recorrido
+  competitivo con el podio de cada sexo, en carrusel. Lo descarga cualquiera
+  que gestione la carrera (también el organizador, para subirlo a su cuenta);
+  publicar, solo el admin. Sale de `race_results` con estado FIN: primero hay
+  que procesar los tiempos. Una carrera cronometrada con RaceTec no tiene ahí
+  sus resultados.
+
+Límites de Meta que conviene saber:
+
+- Solo **JPEG**, entre 4:5 y 1,91:1. Los carteles salen en 1080×1350 (4:5).
+- Carrusel de **10** piezas como mucho; Instagram recorta todas al formato de la primera.
+- Pie de hasta **2.200** caracteres y 30 hashtags. Los enlaces del pie no se pueden pulsar.
+- Entre 50 y 100 publicaciones por API cada 24 h, según la cuenta (el panel enseña el cupo).
+- Sin filtros, sin música, sin etiquetas de producto.
