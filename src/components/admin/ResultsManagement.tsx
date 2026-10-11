@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import jsPDF from "jspdf";
 import { getGenderCode } from "@/lib/genderUtils";
 import { hoyLocal } from "@/lib/timezoneUtils";
+import { CartelResultados } from "@/components/CartelResultados";
 
 interface RaceResult {
   id: string;
@@ -82,6 +83,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     resultCount?: number;
   }>({ step: 'idle', message: '' });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [cartelAbierto, setCartelAbierto] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<RaceResult | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -1157,6 +1159,16 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                 </Button>
 
                 <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setCartelAbierto(true)}
+                  disabled={!selectedRace}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  Cartel para redes
+                </Button>
+
+                <Button
                   variant="ghost"
                   size="icon"
                   className={realtimeEnabled ? "text-green-500" : "text-muted-foreground"}
@@ -1639,6 +1651,21 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={cartelAbierto} onOpenChange={setCartelAbierto}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cartel de resultados</DialogTitle>
+            <DialogDescription>
+              Una pieza por recorrido con el podio de cada sexo, lista para redes.
+            </DialogDescription>
+          </DialogHeader>
+          {/* Publicar va a la cuenta de Camberas: solo desde el panel de admin */}
+          {cartelAbierto && selectedRace && (
+            <CartelResultados raceId={selectedRace} instagram={!isOrganizer} />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,7 +3,9 @@
 Guía de la parte que **tienes que hacer tú** en Meta (yo no puedo crear cuentas
 ni introducir credenciales) y de cómo enchufarla al webhook ya escrito.
 
-Código: [`supabase/functions/whatsapp-webhook/`](../supabase/functions/whatsapp-webhook/)
+Código: [`supabase/functions/whatsapp-webhook/`](../supabase/functions/whatsapp-webhook/); las consultas
+(`findRunner`, `getTop`, el router) están en [`_shared/asistente/`](../supabase/functions/_shared/asistente/),
+compartidas con el asistente de Instagram ([`instagram-alta-meta.md`](instagram-alta-meta.md) §10).
 Migración: `supabase/migrations/20260804170000_whatsapp_bot.sql`
 
 ---

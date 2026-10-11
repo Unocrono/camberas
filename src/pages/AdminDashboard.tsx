@@ -13,6 +13,7 @@ import { DistanceManagement } from "@/components/admin/DistanceManagement";
 import { RegistrationManagement } from "@/components/admin/RegistrationManagement";
 import { MesasRecogidaManagement } from "@/components/admin/MesasRecogidaManagement";
 import { PlantillasEmailManagement } from "@/components/admin/PlantillasEmailManagement";
+import { InstagramManagement } from "@/components/admin/InstagramManagement";
 import { WidgetInscripcionManagement } from "@/components/admin/WidgetInscripcionManagement";
 import { WebPropiaManagement } from "@/components/admin/WebPropiaManagement";
 import { CouponsManagement } from "@/components/admin/CouponsManagement";
@@ -158,7 +159,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "instagram"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -296,6 +297,7 @@ const AdminDashboard = () => {
             {/* Equipos: no depende de la carrera seleccionada — son de la plataforma */}
             {currentView === "teams" && <TeamsManagement />}
             {currentView === "plantillas-email" && <PlantillasEmailManagement />}
+            {currentView === "instagram" && <InstagramManagement />}
             {currentView === "widget-inscripcion" && <WidgetInscripcionManagement selectedRaceId={selectedRaceId} />}
             {currentView === "web-propia" && (
               selectedRaceId ? (

@@ -172,3 +172,14 @@ export function formatHoraGps(
     hourCycle: 'h23',
   });
 }
+
+/** Igual que formatHoraGps pero con el día: «12 oct, 18:03» (sellos now() de un historial) */
+export function formatFechaHoraInstante(instante: string | number | Date): string {
+  const d = instante instanceof Date ? instante : new Date(instante);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('es-ES', {
+    timeZone: ZONA_CARRERAS,
+    day: 'numeric', month: 'short',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  });
+}

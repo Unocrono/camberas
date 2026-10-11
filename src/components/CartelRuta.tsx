@@ -13,6 +13,7 @@ import { parseGpxFile, getAllTrackPoints } from '@/lib/gpxParser';
 import { construirPerfil, type PerfilRuta } from '@/lib/perfilRuta';
 import { Button } from '@/components/ui/button';
 import { Loader2, Download, Image as ImageIcon } from 'lucide-react';
+import { PublicarInstagram } from '@/components/instagram/PublicarInstagram';
 
 // ── Paleta Camberas (docs/paleta-camberas.md) ──────────────────────
 const TINTA = '#0E2419';
@@ -39,6 +40,8 @@ interface CartelRutaProps {
   lugar?: string | null;
   gpxUrl: string;
   imagenUrl?: string | null;
+  /** Solo desde el panel de admin: añade «Publicar en Instagram» (cuenta de Camberas) */
+  instagram?: { raceId: string; pie: string };
 }
 
 const formatoFecha = (iso: string): string => {
@@ -64,7 +67,7 @@ const cargarImagen = (url: string): Promise<HTMLImageElement | null> =>
     img.src = url;
   });
 
-export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: CartelRutaProps) {
+export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl, instagram }: CartelRutaProps) {
   const [perfil, setPerfil] = useState<PerfilRuta | null>(null);
   const [traza, setTraza] = useState<{ lat: number; lon: number }[]>([]);
   const [imagen, setImagen] = useState<HTMLImageElement | null>(null);
@@ -486,6 +489,16 @@ export function CartelRuta({ nombre, fecha, hora, lugar, gpxUrl, imagenUrl }: Ca
             ? `${perfil.puertos.length} puerto(s) detectado(s).`
             : 'Sin puertos: se marca el punto más alto.'}
       </p>
+
+      {instagram && (
+        <PublicarInstagram
+          tipo="cartel_grupetta"
+          raceId={instagram.raceId}
+          pieInicial={instagram.pie}
+          // Sin altitudes no se dibuja el perfil: solo va el mapa
+          lienzos={() => (perfil.sinAltitud ? [canvasMapa.current] : [canvasPerfil.current, canvasMapa.current])}
+        />
+      )}
     </div>
   );
 }

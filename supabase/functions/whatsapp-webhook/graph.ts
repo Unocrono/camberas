@@ -2,40 +2,10 @@
  * Cloud API de Meta: firma del webhook y envío de mensajes.
  */
 
-const GRAPH_VERSION = "v21.0";
+import { GRAPH_VERSION } from "../_shared/meta.ts";
 
-/**
- * Valida X-Hub-Signature-256. Sin esto cualquiera puede disparar el bot
- * (y consumir tu cuota) haciendo POST a la URL pública de la función.
- */
-export async function verifySignature(
-  rawBody: string,
-  header: string | null,
-  appSecret: string,
-): Promise<boolean> {
-  if (!header || !header.startsWith("sha256=")) return false;
-
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(appSecret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
-  const expected = [...new Uint8Array(mac)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  const given = header.slice(7);
-
-  // Comparación en tiempo constante
-  if (given.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < expected.length; i++) {
-    diff |= expected.charCodeAt(i) ^ given.charCodeAt(i);
-  }
-  return diff === 0;
-}
+// La firma es la misma para WhatsApp e Instagram (una sola app de Meta)
+export { verifySignature } from "../_shared/meta.ts";
 
 /**
  * Mensaje de texto dentro de la ventana de 24h (service message, no se factura).
