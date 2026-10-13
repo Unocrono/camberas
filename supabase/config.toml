@@ -24,9 +24,6 @@ verify_jwt = true
 [functions.admin-update-user]
 verify_jwt = true
 
-[functions.process-gps-geofence]
-verify_jwt = false
-
 [functions.send-race-created-notification]
 verify_jwt = false
 
