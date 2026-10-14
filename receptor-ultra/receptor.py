@@ -149,6 +149,7 @@ class Destinos:
         self.cerrojo = threading.Lock()
         self.cache = os.path.join(cfg["carpeta"], "destinos.json")
         self.lista = cfg["destinos"]
+        self.al_dejar_de_contestar = None    # (clave) → al quitarle a uno el «contesta»
         if cfg["clave_receptor"]:            # la última que dio la pantalla, por si no hay internet
             try:
                 with open(self.cache, encoding="utf-8") as f:
@@ -171,6 +172,13 @@ class Destinos:
         with self.cerrojo:
             if nuevos == self.lista:
                 return
+            antes = next((d for d in self.lista if d["contesta"]), None)
+        despues = next((d for d in nuevos if d["contesta"]), None)
+        if antes and self.al_dejar_de_contestar and (
+                not despues or clave_destino(antes) != clave_destino(despues)):
+            # ANTES de cambiar la lista: lo guardado hasta aquí ya se lo pasó en directo
+            self.al_dejar_de_contestar(clave_destino(antes))
+        with self.cerrojo:
             self.lista = nuevos
         log("Destinos:", describir(nuevos))
         try:
@@ -377,6 +385,32 @@ class Almacen:
         _, dias = self.dias_copia(pos)
         return sum(contar_lineas(self.fichero_dia(d), pos["dias"].get(d, 0)) for d in dias)
 
+    def ruta_pos_copia(self, clave):
+        return os.path.join(self.carpeta, "copias", clave + ".json")
+
+    def cargar_pos_copia(self, clave):
+        try:
+            with open(self.ruta_pos_copia(clave), encoding="utf-8") as f:
+                pos = json.load(f)
+            return {"desde": str(pos["desde"]), "dias": {str(k): int(v) for k, v in pos["dias"].items()}}
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            # Copia nueva: recibe lo de hoy desde el principio
+            return {"desde": hoy_local().isoformat(), "dias": {}}
+
+    def guardar_pos_copia(self, clave, pos):
+        ruta = self.ruta_pos_copia(clave)
+        with open(ruta + ".tmp", "w", encoding="utf-8") as f:
+            json.dump(pos, f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(ruta + ".tmp", ruta)
+
+    def pos_al_final(self):
+        """Posición de quien ya lo tiene todo (el que contestaba, que lo recibió en directo)."""
+        hoy = hoy_local().isoformat()
+        with self.cerrojo:
+            return {"desde": hoy, "dias": {d: os.path.getsize(self.fichero_dia(d)) for d in self.dias() if d >= hoy}}
+
 
 def contar_lineas(ruta, desde):
     try:
@@ -538,28 +572,10 @@ class Copia(threading.Thread):
         self.d, self.clave = destino, clave_destino(destino)
         self.almacen, self.vivo = almacen, vivo
         self.parar = threading.Event()
-        self.ruta_pos = os.path.join(almacen.carpeta, "copias", self.clave + ".json")
         self.conexiones = {}    # lector → {"s", "buf", "oks", "estado_n", "usada"}
 
     def nombre(self):
         return f"{self.d['nombre']} ({self.d['host']}:{self.d['puerto']})"
-
-    def cargar_pos(self):
-        try:
-            with open(self.ruta_pos, encoding="utf-8") as f:
-                pos = json.load(f)
-            return {"desde": str(pos["desde"]), "dias": {str(k): int(v) for k, v in pos["dias"].items()}}
-        except (OSError, ValueError, KeyError, TypeError, AttributeError):
-            # Copia nueva: recibe lo de hoy desde el principio
-            return {"desde": hoy_local().isoformat(), "dias": {}}
-
-    def guardar_pos(self, pos):
-        tmp = self.ruta_pos + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(pos, f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, self.ruta_pos)
 
     def conexion(self, lector):
         c = self.conexiones.get(lector)
@@ -614,7 +630,7 @@ class Copia(threading.Thread):
             self.vivo.destino(self.clave, conectado=False)
 
     def run(self):
-        pos, espera, contado = self.cargar_pos(), 2, 0.0
+        pos, espera, contado = self.almacen.cargar_pos_copia(self.clave), 2, 0.0
         log(f"Copia {self.nombre()}: en marcha")
         while not self.parar.is_set():
             try:
@@ -638,7 +654,7 @@ class Copia(threading.Thread):
                         self.vivo.destino(self.clave, ultimo_ok=instante(), error=None)
                 if nueva is not pos and not self.parar.is_set():
                     pos = nueva
-                    self.guardar_pos(pos)
+                    self.almacen.guardar_pos_copia(self.clave, pos)
                     contado, espera = 0.0, 2
                     continue
                 self.mantener()
@@ -671,7 +687,7 @@ def hilo_copias(destinos, almacen, vivo):
             else:
                 activas[clave] = Copia(d, almacen, vivo)
                 activas[clave].start()
-        time.sleep(2)
+        time.sleep(0.5)
 
 
 # ── Conexión con el Ultra ────────────────────────────────────────────────────
@@ -809,6 +825,15 @@ def servir(cfg):
     global ARRANQUE
     ARRANQUE = instante()
     almacen, vivo, destinos = Almacen(cfg["carpeta"]), Vivo(), Destinos(cfg)
+
+    def al_dejar_de_contestar(clave):
+        # Lo recibió todo en directo: si pasa a copia, que no se le repita lo de hoy
+        try:
+            almacen.guardar_pos_copia(clave, almacen.pos_al_final())
+        except OSError as e:
+            log(f"No se ha podido guardar la posición de {clave}: {e}")
+    destinos.al_dejar_de_contestar = al_dejar_de_contestar
+
     threading.Thread(target=hilo_subida, args=(cfg, almacen, vivo), daemon=True).start()
     threading.Thread(target=hilo_copias, args=(destinos, almacen, vivo), daemon=True).start()
     if cfg["clave_receptor"]:
