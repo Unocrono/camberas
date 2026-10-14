@@ -67,11 +67,17 @@ CREATE TABLE IF NOT EXISTS public.ultra_lectores (
   id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   receptor_id    uuid        NOT NULL REFERENCES public.ultra_receptores(id) ON DELETE CASCADE,
   lector         integer     NOT NULL CHECK (lector BETWEEN 0 AND 255),
-  identificador  text        NOT NULL CHECK (identificador ~ '^[A-Za-z0-9_-]{1,20}$'),
-  timer_name     text        NOT NULL DEFAULT '' CHECK (length(timer_name) <= 50),
+  -- identificador: nombre de fichero en Windows (sin CON, NUL, COM1…); timer_name: una sola línea
+  identificador  text        NOT NULL CHECK (identificador ~ '^[A-Za-z0-9_-]{1,20}$'
+                                             AND upper(identificador) !~ '^(CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$'),
+  timer_name     text        NOT NULL DEFAULT '' CHECK (length(timer_name) <= 50 AND timer_name !~ E'[\t\r\n]'),
   updated_at     timestamptz NOT NULL DEFAULT now(),
   UNIQUE (receptor_id, lector)
 );
+
+-- Dos Ultras del mismo receptor no escriben en el mismo fichero
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_ultra_lectores_identificador
+  ON public.ultra_lectores (receptor_id, lower(identificador));
 
 -- Marcar uno como «contesta» se lo quita a los demás (la pantalla hace un solo update)
 CREATE OR REPLACE FUNCTION public.ultra_destinos_uno_contesta()

@@ -167,7 +167,7 @@ def lector_normal(l):
     """{"lector", "identificador", "timer_name"} con sus tipos; None si no vale."""
     try:
         lector, ident = int(l["lector"]), str(l.get("identificador") or "").strip()
-        timer = str(l.get("timer_name") or "").strip()[:50]
+        timer = " ".join(str(l.get("timer_name") or "").split())[:50]   # sin tabuladores ni saltos: va en una línea
     except (KeyError, TypeError, ValueError, AttributeError):
         return None
     if not 0 <= lector <= 255 or not IDENT_RE.fullmatch(ident):
@@ -218,6 +218,7 @@ class Destinos:
         self.nombre = "receptor"
         self.cruda = None                    # lo último tal cual llegó de la pantalla
         self.al_dejar_de_contestar = None    # (clave) → al quitarle a uno el «contesta»
+        self.listo = threading.Event()       # ya se sabe de los lectores (caché o primera sincronización)
         if cfg["clave_receptor"]:            # lo último que dio la pantalla, por si no hay internet
             try:
                 with open(self.cache, encoding="utf-8") as f:
@@ -225,10 +226,14 @@ class Destinos:
                 if isinstance(guardado, list):           # formato de antes: solo destinos
                     guardado = {"destinos": guardado}
                 self.lista = limpiar_destinos(guardado.get("destinos"))
-                self.lectores = limpiar_lectores(guardado.get("lectores"))
-                self.nombre = str(guardado.get("nombre") or self.nombre)
+                if "lectores" in guardado:
+                    self.lectores = limpiar_lectores(guardado.get("lectores"))
+                    self.listo.set()
+                self.nombre = " ".join(str(guardado.get("nombre") or self.nombre).split())
             except (OSError, ValueError, AttributeError):
                 pass
+        else:
+            self.listo.set()
 
     def todos(self):
         with self.cerrojo:
@@ -240,11 +245,12 @@ class Destinos:
 
     def poner_lectores(self, crudos, nombre=None):
         nuevos = limpiar_lectores(crudos)
+        nombre = " ".join(str(nombre or "").split())
         with self.cerrojo:
             cambio = nuevos != self.lectores or (nombre and nombre != self.nombre)
             self.lectores = nuevos
             if nombre:
-                self.nombre = str(nombre)
+                self.nombre = nombre
         if cambio:
             log("Lectores:", "; ".join(f"{l['lector']} = {l['identificador']} ({l['timer_name'] or 'sin timer name'})"
                                        for l in nuevos) or "ninguno")
@@ -443,7 +449,7 @@ class Almacen:
         Si no hay nada, devuelve la misma `pos`."""
         minimo, dias = self.dias_copia(pos)
         for dia in dias:
-            desde = pos["dias"].get(dia, 0)
+            desde = self.posicion_valida(dia, pos["dias"].get(dia, 0))
             ruta = self.fichero_dia(dia)
             lector, trozo, fin = None, [], desde
             try:
@@ -478,9 +484,20 @@ class Almacen:
                 return lector, trozo, {"desde": pos["desde"], "dias": nuevos}
         return None, [], pos
 
+    def posicion_valida(self, dia, desde):
+        """Una posición más allá del fichero no es de este fichero (se recreó la
+        carpeta, otro VPS…): se empieza desde el principio, repetir es mejor que perder."""
+        try:
+            if desde > os.path.getsize(self.fichero_dia(dia)):
+                log(f"Posición {desde} más allá del fichero del {dia}: se reenvía desde el principio")
+                return 0
+        except OSError:
+            pass
+        return desde
+
     def pendientes_copia(self, pos):
         _, dias = self.dias_copia(pos)
-        return sum(contar_lineas(self.fichero_dia(d), pos["dias"].get(d, 0)) for d in dias)
+        return sum(contar_lineas(self.fichero_dia(d), self.posicion_valida(d, pos["dias"].get(d, 0))) for d in dias)
 
     def lecturas_desde(self, pos, maximo):
         """Siguientes lecturas para un PC, con el cursor que deja cada una:
@@ -488,7 +505,7 @@ class Almacen:
         Si no hay nada, devuelve la misma `pos`."""
         minimo, dias = self.dias_copia(pos)
         for dia in dias:
-            desde = pos["dias"].get(dia, 0)
+            desde = self.posicion_valida(dia, pos["dias"].get(dia, 0))
             ruta = self.fichero_dia(dia)
             salida, fin = [], desde
             try:
@@ -700,6 +717,7 @@ def hilo_sincronizar(cfg, destinos, vivo):
             if str(e) != fallo:
                 log(f"Pantalla: no se ha podido sincronizar ({e}); sigo con los destinos que tenía")
             fallo = str(e)
+        destinos.listo.set()                       # con o sin éxito: el PC no espera más
         time.sleep(SINCRONIZAR)
 
 
@@ -1012,12 +1030,12 @@ def normalizar_pos(c):
     hoy = hoy_local().isoformat()
     try:
         desde = str(c.get("desde") or hoy)
-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", desde):
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", desde) or desde > hoy:   # una fecha futura lo dejaría mudo
             desde = hoy
         dias = {str(k): int(v) for k, v in (c.get("dias") or {}).items()
-                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(k)) and int(v) >= 0}
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(k)) and 0 <= int(v) < 1 << 40}
         return {"desde": desde, "dias": dias}
-    except (AttributeError, TypeError, ValueError):
+    except (AttributeError, TypeError, ValueError, OverflowError):
         return {"desde": hoy, "dias": {}}
 
 
@@ -1039,7 +1057,8 @@ def atender_pc(cfg, almacen, vivo, destinos, conn, direccion):
     try:
         conn.settimeout(10)
         partes = leer_linea(conn).split(" ", 2)
-        if len(partes) < 2 or partes[0] != "HOLA" or not hmac.compare_digest(partes[1], cfg["clave_receptor"]):
+        if len(partes) < 2 or partes[0] != "HOLA" or not hmac.compare_digest(
+                partes[1].encode("utf-8"), str(cfg["clave_receptor"]).encode("utf-8")):
             conn.sendall(b"ADIOS\tclave no valida\n")
             log(f"{quien}: clave no válida")
             return
@@ -1062,6 +1081,7 @@ def atender_pc(cfg, almacen, vivo, destinos, conn, direccion):
             vivo.avisar()
         threading.Thread(target=vigilar, daemon=True).start()
 
+        destinos.listo.wait(20)                      # que el primer LECTOR sea el bueno, no el de config.json
         conn.sendall(f"HOLA\t{destinos.nombre}\t{json.dumps(pos)}\n".encode("utf-8"))
         lectores_enviados, ultimo_estado = None, 0.0
         while not fin.is_set():
@@ -1083,6 +1103,8 @@ def atender_pc(cfg, almacen, vivo, destinos, conn, direccion):
             vivo.esperar(1)
     except (OSError, ValueError) as e:
         log(f"{quien}: conexión cortada ({e})")
+    except Exception as e:                         # un HOLA raro no debe dejar tracebacks ni colgar al PC
+        log(f"{quien}: fallo atendiendo ({e!r})")
     finally:
         with vivo.cerrojo:
             vivo.pcs.pop(quien, None)

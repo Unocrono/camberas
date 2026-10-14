@@ -17,6 +17,14 @@ param([string]$Config = "")
 
 $ErrorActionPreference = "Stop"
 $Carpeta = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Solo uno a la vez en este PC: dos abiertos escribirían cada lectura dos veces
+$Candado = New-Object System.Threading.Mutex($false, "Global\CamberasRaceTec")
+if (-not $Candado.WaitOne(0)) {
+    Write-Host "Ya hay otro RaceTec.ps1 abierto en este PC. Cierra esta ventana." -ForegroundColor Red
+    Start-Sleep -Seconds 5
+    exit 1
+}
 if (-not $Config) { $Config = Join-Path $Carpeta "RaceTec.json" }
 $RutaCursor = Join-Path $Carpeta "cursor.json"
 $Invariante = [System.Globalization.CultureInfo]::InvariantCulture
@@ -42,7 +50,7 @@ if (-not (Test-Path $Config)) {
 $cfg = Get-Content -Raw -Encoding UTF8 $Config | ConvertFrom-Json
 $Vps             = Valor $cfg "vps" ""
 $Puerto          = [int](Valor $cfg "puerto" 23024)
-$Clave           = Valor $cfg "clave" ""
+$Clave           = ("" + (Valor $cfg "clave" "")).Trim()   # Trim quita también el espacio raro que a veces se pega
 $CarpetaFicheros = Valor $cfg "carpeta_ficheros" $Carpeta
 $FormatoHora     = Valor $cfg "formato_hora" "dd/MM/yyyy HH:mm:ss"
 $LectorYAntena   = [bool](Valor $cfg "lector_y_antena" $false)
@@ -57,22 +65,36 @@ if (-not (Test-Path $CarpetaFicheros)) { New-Item -ItemType Directory -Path $Car
 # ── Cursor: por dónde vamos ──────────────────────────────────────────────────
 $Cursor = @{ desde = ""; dias = @{} }
 if (Test-Path $RutaCursor) {
-    try {
-        $c = Get-Content -Raw -Encoding UTF8 $RutaCursor | ConvertFrom-Json
+    $c = $null
+    try { $c = Get-Content -Raw -Encoding UTF8 $RutaCursor | ConvertFrom-Json } catch { $c = $null }
+    if ($null -eq $c -or -not (Valor $c "desde" "")) {
+        Aviso "cursor.json está vacío o roto: se vuelven a recibir las lecturas de hoy (repetidas, con la misma hora y chip)."
+    } elseif ((Valor $c "vps" $Vps) -ne $Vps) {
+        Aviso "cursor.json era de otro receptor ($(Valor $c 'vps' '')): se empieza desde hoy."
+    } else {
         $Cursor.desde = "" + (Valor $c "desde" "")
         $d = Valor $c "dias" $null
         if ($d) { foreach ($p in $d.PSObject.Properties) { $Cursor.dias[$p.Name] = [long]$p.Value } }
-    } catch {
-        Aviso "cursor.json no se puede leer: se empieza desde hoy."
-        $Cursor = @{ desde = ""; dias = @{} }
     }
 }
 function GuardarCursor {
     $dias = @{}                                          # solo los dos últimos días
     foreach ($k in @($Cursor.dias.Keys | Sort-Object | Select-Object -Last 2)) { $dias[$k] = $Cursor.dias[$k] }
     $Cursor.dias = $dias
-    $json = @{ desde = $Cursor.desde; dias = $Cursor.dias } | ConvertTo-Json -Compress -Depth 5
-    [System.IO.File]::WriteAllText($RutaCursor, $json, $Ascii)
+    $json = @{ vps = $Vps; desde = $Cursor.desde; dias = $Cursor.dias } | ConvertTo-Json -Compress -Depth 5
+    $tmp = $RutaCursor + ".tmp"                          # se escribe aparte y se cambia de golpe: un corte de luz no lo deja vacío
+    [System.IO.File]::WriteAllText($tmp, $json, $Ascii)
+    if (Test-Path $RutaCursor) { [System.IO.File]::Replace($tmp, $RutaCursor, [NullString]::Value) }
+    else                       { [System.IO.File]::Move($tmp, $RutaCursor) }
+}
+function AdoptarCursor([string]$json) {
+    # El receptor devuelve el cursor saneado (p. ej. una posición más allá del fichero vuelve a 0)
+    $c = $json | ConvertFrom-Json
+    $Cursor.desde = "" + (Valor $c "desde" "")
+    $Cursor.dias = @{}
+    $d = Valor $c "dias" $null
+    if ($d) { foreach ($p in $d.PSObject.Properties) { $Cursor.dias[$p.Name] = [long]$p.Value } }
+    GuardarCursor
 }
 function CursorJson {
     if ($Cursor.desde) { return (@{ desde = $Cursor.desde; dias = $Cursor.dias } | ConvertTo-Json -Compress -Depth 5) }
@@ -126,12 +148,7 @@ function Procesar($p) {
         }
     }
 
-    # 1) El fichero, como Outreach: antena,chip,chip,"hora"[,lector,antena]
-    $linea = '{0},{1},{1},"{2}"' -f $antena, $chip, $hora.ToString($FormatoHora, $Invariante)
-    if ($LectorYAntena) { $linea += ",1,$antena" }
-    [System.IO.File]::AppendAllText((Join-Path $CarpetaFicheros "$ident.txt"), $linea + "`r`n", $Ascii)
-
-    # 2) SQL Server, hasta que entre (la lectura no se pierde: el cursor no avanza)
+    # 1) SQL Server, hasta que entre (la lectura no se pierde: el cursor no avanza)
     if ($Sql) {
         $espera = 2
         while ($true) {
@@ -143,6 +160,20 @@ function Procesar($p) {
                 Start-Sleep -Seconds $espera
                 $espera = [Math]::Min($espera * 2, 30)
             }
+        }
+    }
+
+    # 2) El fichero, como Outreach: antena,chip,chip,"hora"[,lector,antena]
+    #    (si otro programa lo tiene cogido un momento, se reintenta antes de rendirse)
+    $linea = '{0},{1},{1},"{2}"' -f $antena, $chip, $hora.ToString($FormatoHora, $Invariante)
+    if ($LectorYAntena) { $linea += ",1,$antena" }
+    $ruta = Join-Path $CarpetaFicheros "$ident.txt"
+    for ($intento = 1; ; $intento++) {
+        try { [System.IO.File]::AppendAllText($ruta, $linea + "`r`n", $Ascii); break }
+        catch {
+            if ($intento -ge 5) { throw "no se puede escribir en ${ruta}: $($_.Exception.Message)" }
+            Aviso "No se puede escribir en ${ruta}: $($_.Exception.Message) Reintento $intento de 5."
+            Start-Sleep -Seconds 1
         }
     }
 
@@ -195,10 +226,7 @@ while ($true) {
             switch ($p[0]) {
                 "HOLA" {
                     Log "Conectado al receptor «$($p[1])»."
-                    if (-not $Cursor.desde -and $p.Count -gt 2) {
-                        $Cursor.desde = "" + (($p[2] | ConvertFrom-Json).desde)
-                        GuardarCursor
-                    }
+                    if ($p.Count -gt 2) { AdoptarCursor $p[2] }
                     $espera = 2
                 }
                 "LECTOR" {

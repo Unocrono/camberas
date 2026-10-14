@@ -33,12 +33,14 @@ Es un fichero de PowerShell: no hay que instalar nada en Windows.
 
 ## Cómo funciona
 
-- Guarda por dónde va en `cursor.json`, lectura a lectura, después de escribir
-  el fichero y de que SQL Server la acepte. Si se cierra o se corta la
-  conexión, al volver sigue donde se quedó: ni repite ni pierde.
+- Guarda por dónde va en `cursor.json`, lectura a lectura, después de que SQL
+  Server la acepte y de escribir el fichero. Si se cierra o se corta la
+  conexión, al volver sigue donde se quedó: no pierde nada y, como mucho,
+  repite la última lectura (misma hora y chip: a RaceTec no le afecta).
 - Sin conexión con el VPS reintenta sola (2 s, 4 s… hasta 30 s). Si SQL Server
   no responde, la lectura espera y se reintenta hasta que entra; mientras,
   nada avanza.
+- Solo puede haber uno abierto en el PC: el segundo avisa y se cierra.
 - La primera vez recibe las lecturas de hoy desde el principio. Después,
   si estuvo apagado, recupera lo de hoy y lo de ayer.
 - Cada lectura va a `<identificador>.txt` del Ultra que la hizo.

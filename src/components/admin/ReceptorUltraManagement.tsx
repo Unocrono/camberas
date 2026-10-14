@@ -251,8 +251,15 @@ const lectorSchema = z.object({
     .string()
     .trim()
     .min(1, "Falta el identificador")
-    .regex(IDENT_RE, "Solo letras, cifras, guion y guion bajo, máximo 20"),
-  timer_name: z.string().trim().max(50, "Máximo 50 caracteres"),
+    .regex(IDENT_RE, "Solo letras, cifras, guion y guion bajo, máximo 20")
+    // Es el nombre de un fichero del PC (U137.txt): Windows no deja crear CON.txt, NUL.txt…
+    .refine((s) => !/^(con|prn|aux|nul|com[0-9]|lpt[0-9])$/i.test(s), "Ese nombre está reservado en Windows"),
+  // Tabuladores y saltos de línea se funden en un espacio: así lo guardado es lo que viaja al receptor
+  timer_name: z
+    .string()
+    .trim()
+    .transform((s) => s.replace(/\s+/g, " "))
+    .pipe(z.string().max(50, "Máximo 50 caracteres")),
 });
 
 type ErroresLector = Partial<Record<"identificador" | "timer_name", string>>;
@@ -260,6 +267,7 @@ type ErroresLector = Partial<Record<"identificador" | "timer_name", string>>;
 const LECTOR_VACIO = { identificador: "", timer_name: "" };
 
 const mensajeErrorLector = (err: { code?: string; message: string }) => {
+  if (err.code === "23505") return "Otro Ultra de este receptor ya usa ese identificador.";
   if (err.code === "23514")
     return "Los datos no cumplen las reglas: identificador de 1 a 20 letras, cifras, guion o guion bajo; timer name de hasta 50.";
   if (err.code === "23503") return "Ese receptor ya no existe. Recarga la pantalla.";
@@ -531,6 +539,19 @@ export function ReceptorUltraManagement() {
         if (!e[campo]) e[campo] = issue.message;
       }
       setErroresLector(e);
+      return;
+    }
+    // Dos Ultras del mismo receptor no pueden compartir identificador (sería el mismo
+    // fichero en el PC). Se avisa aquí sin esperar al índice único de la BD.
+    const ident = r.data.identificador.toLowerCase();
+    const choque = lectores.find(
+      (l) =>
+        l.receptor_id === lectorEdit.receptor_id &&
+        l.lector !== lectorEdit.lector &&
+        l.identificador.toLowerCase() === ident,
+    );
+    if (choque) {
+      setErroresLector({ identificador: `Ya lo tiene el Ultra ${choque.lector}` });
       return;
     }
     setErroresLector({});
