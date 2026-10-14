@@ -6,5 +6,6 @@
   "tokens": {
     "137": "PEGA_AQUI_EL_TOKEN_DEL_PUNTO (lo de detrás de /timing?t= en el QR del punto de cronometraje)"
   },
+  "clave_receptor": "PEGA_AQUI_LA_CLAVE (pantalla Receptor Ultra › Configuración del VPS)",
   "outreach": ["82.113.145.105", 11111]
 }
