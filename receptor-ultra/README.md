@@ -16,14 +16,17 @@ Ultra ──TCP──► receptor.py (VPS) ──┼─► COPIAS (otros servido
 
 - **El que contesta** (como mucho uno): recibe el tráfico del Ultra tal cual y
   es quien le confirma las lecturas, como hacía Outreach. Así RaceTec sigue
-  igual. Si no responde o se cae, contesta el receptor y lo vuelve a intentar
-  cada 30 s; lo que llegue mientras tanto no le llega a él (sí a Camberas y a
-  las copias).
+  igual. Si no responde, se cae o se queda colgado (10 s sin contestar nada),
+  contesta el receptor y lo vuelve a intentar cada 30 s. Lo que llegue
+  mientras tanto no le llega a él (sí a Camberas y a las copias), pero queda
+  apuntado desde dónde: si después se le pasa a copia, lo recibe todo.
 - **Copias**: el receptor les manda cada lectura desde el disco, tal cual la
   mandó el Ultra, y apunta lo que confirma cada una (`OK` + número) en
   `copias/<servidor>.json`. Si una está caída, al volver recibe lo pendiente
   (de hoy y de ayer). Una copia nueva recibe lo de hoy desde el principio.
   Mientras el Ultra está conectado, les pasa también sus mensajes de estado.
+  Al cambiar un servidor de papel puede recibir alguna lectura repetida
+  (mismo número, chip y hora): no hace daño.
 - **Ninguno**: contesta el receptor (`OK` + número de la última lectura) y
   solo después de guardarla en disco.
 

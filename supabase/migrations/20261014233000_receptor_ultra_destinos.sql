@@ -41,7 +41,9 @@ CREATE TABLE IF NOT EXISTS public.ultra_destinos (
   id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   receptor_id  uuid        NOT NULL REFERENCES public.ultra_receptores(id) ON DELETE CASCADE,
   nombre       text        NOT NULL CHECK (length(btrim(nombre)) BETWEEN 1 AND 80),
-  host         text        NOT NULL CHECK (host ~ '^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$'),
+  -- IP o nombre: etiquetas de 1–63 (letras, cifras, guiones) separadas por un punto, sin «..»
+  host         text        NOT NULL CHECK (length(host) <= 253 AND
+                                           host ~ '^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'),
   puerto       integer     NOT NULL CHECK (puerto BETWEEN 1 AND 65535),
   contesta     boolean     NOT NULL DEFAULT false,
   activo       boolean     NOT NULL DEFAULT true,

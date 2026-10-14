@@ -90,6 +90,7 @@ interface EstadoUltra {
   ip?: string | null;
   conectado?: boolean | null;
   desde?: string | null;
+  hasta?: string | null;
   ultima_num?: number | null;
   ultima_hora?: string | null;
   lecturas?: number | null;
@@ -177,7 +178,8 @@ const enLinea = (r: Receptor, ahora: number) => {
 // Formulario
 
 // Igual que los CHECK de ultra_destinos
-const HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/;
+/** Igual que el CHECK de ultra_destinos.host: etiquetas de 1–63, separadas por un punto, sin «..» */
+const HOST_RE = /^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/;
 
 const destinoSchema = z.object({
   nombre: z.string().trim().min(1, "Ponle un nombre").max(80, "Máximo 80 caracteres"),
@@ -185,6 +187,7 @@ const destinoSchema = z.object({
     .string()
     .trim()
     .min(1, "Falta la IP o el nombre del servidor")
+    .max(253, "Nombre demasiado largo")
     .regex(HOST_RE, "Solo la IP o el nombre, sin http:// ni puerto (p. ej. 82.113.145.105)"),
   puerto: z.coerce
     .number({ invalid_type_error: "El puerto es un número" })
@@ -375,10 +378,12 @@ export function ReceptorUltraManagement() {
     setDialogOpen(true);
   };
 
-  /** Si pegan «82.113.145.105:11111» en el host, se separa solo en host y puerto. */
-  const cambiarHost = (valor: string) => {
-    const m = valor.trim().match(/^([^:\s/]+):(\d{1,5})$/);
-    setForm((f) => (m ? { ...f, host: m[1], puerto: m[2] } : { ...f, host: valor }));
+  /** Si PEGAN «82.113.145.105:11111» en el host, se separa en host y puerto (al teclear no se toca). */
+  const pegarHost = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const m = e.clipboardData.getData("text").trim().match(/^([^:\s/]+):(\d{1,5})$/);
+    if (!m) return;
+    e.preventDefault();
+    setForm((f) => ({ ...f, host: m[1], puerto: m[2] }));
   };
 
   const guardar = async () => {
@@ -593,7 +598,8 @@ export function ReceptorUltraManagement() {
                       </TableHeader>
                       <TableBody>
                         {estado.ultras.map((u, i) => {
-                          const desde = hace(u.desde, ahora);
+                          // Conectado: desde cuándo. Desconectado: desde cuándo se fue (hasta)
+                          const desde = hace(u.conectado ? u.desde : u.hasta, ahora);
                           const hora = horaPared(u.ultima_hora);
                           return (
                             <TableRow key={`${u.lector ?? "?"}-${i}`}>
@@ -625,7 +631,7 @@ export function ReceptorUltraManagement() {
                               </TableCell>
                               <TableCell className="text-right tabular-nums">{u.lecturas ?? "—"}</TableCell>
                               <TableCell className="text-sm">
-                                {!u.contesta ? (
+                                {!u.contesta || !u.conectado ? (
                                   <span className="text-muted-foreground">—</span>
                                 ) : u.contesta === "receptor" ? (
                                   "El receptor"
@@ -794,7 +800,8 @@ export function ReceptorUltraManagement() {
                 <Input
                   id="ud-host"
                   value={form.host}
-                  onChange={(e) => cambiarHost(e.target.value)}
+                  onChange={(e) => setForm((f) => ({ ...f, host: e.target.value }))}
+                  onPaste={pegarHost}
                   placeholder="82.113.145.105"
                   className="font-mono"
                   autoCapitalize="off"

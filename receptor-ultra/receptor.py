@@ -57,11 +57,14 @@ except Exception:                          # Python viejo o sin zonas: vale el d
 EPOCA = datetime.datetime(1980, 1, 1)      # el Ultra cuenta segundos desde 1980, en hora local
 RESPUESTA_ESTADO = b"\x03\x00\x06\x03\r\n"  # lo que contesta Outreach a cada mensaje de estado
 OK_RE = re.compile(rb"OK(\d{1,10})\r\n")   # y a las lecturas: «OK» + número de la última
+# IP o nombre de servidor: etiquetas de 1–63 (letras, cifras, guiones), sin «..» (como el CHECK de la BD)
+HOST_RE = re.compile(r"[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*")
 LOTE = 500                                 # lecturas por llamada a Camberas
 TROZO = 100                                # lecturas por envío a una copia
 ESPERA_OK = 15                             # s que se espera el «OK» de una copia
 SINCRONIZAR = 15                           # s entre sincronizaciones con la pantalla
 REINTENTO_CONTESTA = 30                    # s entre intentos con el que contesta, si está caído
+SIN_RESPUESTA = 10                         # s sin contestar nada al Ultra = el que contesta está colgado
 ARRANQUE = None
 
 
@@ -83,6 +86,34 @@ def log(*partes):
     print(ahora(), *partes, flush=True)
 
 
+def endurecer(s):
+    """Que un servidor colgado o una red caída sin aviso no nos bloqueen: envío con
+    tope de 5 s y conexión por muerta a los ~20 s sin respuesta (o ~60 s en
+    silencio, por keepalive). Un fallo aquí lanza OSError, que ya se trata."""
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO, struct.pack("ll", 5, 0))
+    for nombre, valor in (("TCP_USER_TIMEOUT", 20000), ("TCP_KEEPIDLE", 30), ("TCP_KEEPINTVL", 10), ("TCP_KEEPCNT", 3)):
+        if hasattr(socket, nombre):
+            try:
+                s.setsockopt(socket.IPPROTO_TCP, getattr(socket, nombre), valor)
+            except OSError:
+                pass
+
+
+def anadir(ruta, texto):
+    """Añade al final del fichero (con fsync). Si la última línea quedó a medias
+    (corte de luz), la cierra antes para que no se funda con la nueva."""
+    with open(ruta, "ab") as f:
+        if f.tell() > 0:
+            with open(ruta, "rb") as g:
+                g.seek(-1, os.SEEK_END)
+                if g.read(1) != b"\n":
+                    f.write(b"\n")
+        f.write(texto.encode("utf-8"))
+        f.flush()
+        os.fsync(f.fileno())
+
+
 # ── Configuración y destinos ─────────────────────────────────────────────────
 def destino_normal(d):
     """{"id", "nombre", "host", "puerto", "contesta"} con sus tipos; None si no vale."""
@@ -90,7 +121,8 @@ def destino_normal(d):
         host, puerto = str(d["host"]).strip(), int(d["puerto"])
     except (KeyError, TypeError, ValueError):
         return None
-    if not host or not 0 < puerto < 65536:
+    if len(host) > 253 or not HOST_RE.fullmatch(host) or not 0 < puerto < 65536:
+        log(f"Destino con servidor o puerto no válidos, se ignora: {host!r}:{puerto}")
         return None
     return {"id": d.get("id"), "nombre": str(d.get("nombre") or f"{host}:{puerto}"),
             "host": host, "puerto": puerto, "contesta": bool(d.get("contesta"))}
@@ -149,6 +181,7 @@ class Destinos:
         self.cerrojo = threading.Lock()
         self.cache = os.path.join(cfg["carpeta"], "destinos.json")
         self.lista = cfg["destinos"]
+        self.cruda = None                    # la última lista tal cual llegó de la pantalla
         self.al_dejar_de_contestar = None    # (clave) → al quitarle a uno el «contesta»
         if cfg["clave_receptor"]:            # la última que dio la pantalla, por si no hay internet
             try:
@@ -167,8 +200,11 @@ class Destinos:
     def copias(self):
         return [d for d in self.todos() if not d["contesta"]]
 
-    def poner(self, nuevos):
-        nuevos = limpiar_destinos(nuevos)
+    def poner(self, crudos):
+        if crudos == self.cruda:
+            return
+        self.cruda = crudos
+        nuevos = limpiar_destinos(crudos)       # avisa de los que no valen, una vez por cambio
         with self.cerrojo:
             if nuevos == self.lista:
                 return
@@ -265,9 +301,11 @@ class Almacen:
             with open(self.fichero_dia(dia), encoding="utf-8") as f:
                 for linea in f:
                     p = linea.rstrip("\n").split("\t")
-                    if len(p) >= 4:
+                    try:
                         yield {"chip": int(p[0]), "hora": p[1], "num": int(p[2]), "lector": int(p[3]),
                                "raw": p[4] if len(p) >= 5 and p[4] else None}
+                    except (IndexError, ValueError):
+                        continue                    # línea rota (corte de luz): se salta
         except FileNotFoundError:
             return
 
@@ -281,14 +319,9 @@ class Almacen:
             for l in nuevas:
                 por_dia.setdefault(l["hora"][:10], []).append(l)
             for dia, ls in por_dia.items():
-                with open(self.fichero_dia(dia), "a", encoding="utf-8") as f:
-                    f.writelines(f"{l['chip']}\t{l['hora']}\t{l['num']}\t{l['lector']}\t{l['raw']}\n" for l in ls)
-                    f.flush()
-                    os.fsync(f.fileno())
-            with open(self.cola, "a", encoding="utf-8") as f:
-                f.writelines(json.dumps({k: v for k, v in l.items() if k != "raw"}) + "\n" for l in nuevas)
-                f.flush()
-                os.fsync(f.fileno())
+                anadir(self.fichero_dia(dia),
+                       "".join(f"{l['chip']}\t{l['hora']}\t{l['num']}\t{l['lector']}\t{l['raw']}\n" for l in ls))
+            anadir(self.cola, "".join(json.dumps({k: v for k, v in l.items() if k != "raw"}) + "\n" for l in nuevas))
             for l in nuevas:
                 self.vistas.add((l["lector"], l["num"], l["hora"]))
             return len(nuevas)
@@ -363,6 +396,9 @@ class Almacen:
                         try:
                             p = linea.rstrip(b"\n").split(b"\t")
                             este, num, bloque = int(p[3]), int(p[2]), bytes.fromhex(p[4].decode())
+                            if not (len(bloque) == 31 and bloque[:3] == b"\x02\x1c\x01" and bloque[-1] == 3
+                                    and struct.unpack_from("<I", bloque, 3)[0] == num):
+                                raise ValueError("bloque")
                         except (IndexError, ValueError):
                             este = None                 # de antes (sin bloque) o rota: no se puede reenviar
                         if este is not None and lector is not None and este != lector:
@@ -429,8 +465,9 @@ class Vivo:
         self.estados = {}       # lector → (último bloque de estado, nº de orden, monotonic)
         self.n_estado = 0
         self.camberas = {"pendientes": 0, "ultimo_ok": None, "error": None}
-        self.destinos = {}      # clave del destino → {"conectado", "pendientes", "ultimo_ok", "error"}
+        self.destinos = {}      # clave del destino → {"conectado" (como copia), "pendientes", "ultimo_ok", "error"}
         self.abiertas = {}      # clave del que contesta → conexiones abiertas (una por Ultra)
+        self.huecos = set()     # claves del que contesta con un hueco apuntado (estuvo caído)
 
     def avisar(self):
         with self.cerrojo:
@@ -462,23 +499,28 @@ class Vivo:
     def abrir_cerrar(self, clave, delta):
         """El que contesta tiene una conexión por Ultra: está conectado si queda alguna."""
         with self.cerrojo:
-            n = self.abiertas[clave] = max(0, self.abiertas.get(clave, 0) + delta)
-            self.destinos.setdefault(clave, {})["conectado"] = n > 0
+            self.abiertas[clave] = max(0, self.abiertas.get(clave, 0) + delta)
 
     def foto(self, destinos):
         """El estado que se manda a la pantalla."""
         with self.cerrojo:
-            limite = time.monotonic() - 3600     # los Ultras que se fueron hace más de una hora, fuera
-            for k in [k for k, u in self.ultras.items() if not u.get("conectado") and u.get("_fin", 0) < limite]:
+            # Los Ultras que se fueron: como mucho los 10 últimos, y de hace menos de una hora
+            limite = time.monotonic() - 3600
+            idos = sorted((k for k, u in self.ultras.items() if not u.get("conectado")),
+                          key=lambda k: self.ultras[k].get("_fin", 0))
+            for k in idos[:-10] + [k for k in idos[-10:] if self.ultras[k].get("_fin", 0) < limite]:
                 del self.ultras[k]
             ultras = [{k: v for k, v in u.items() if not k.startswith("_")} for u in self.ultras.values()]
             camberas = dict(self.camberas)
             vivos = {k: dict(v) for k, v in self.destinos.items()}
+            abiertas = dict(self.abiertas)
         lista = []
         for d in destinos.todos():
-            e = vivos.get(clave_destino(d), {})
+            clave = clave_destino(d)
+            e = vivos.get(clave, {})
             lista.append({"id": d["id"], "nombre": d["nombre"], "host": d["host"], "puerto": d["puerto"],
-                          "contesta": d["contesta"], "conectado": bool(e.get("conectado")),
+                          "contesta": d["contesta"],
+                          "conectado": abiertas.get(clave, 0) > 0 if d["contesta"] else bool(e.get("conectado")),
                           "pendientes": None if d["contesta"] else e.get("pendientes"),
                           "ultimo_ok": e.get("ultimo_ok"), "error": e.get("error")})
         return {"version": 2, "enviado": instante(), "arranque": ARRANQUE,
@@ -582,7 +624,7 @@ class Copia(threading.Thread):
         if c:
             return c
         s = socket.create_connection((self.d["host"], self.d["puerto"]), timeout=10)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        endurecer(s)
         c = self.conexiones[lector] = {"s": s, "buf": b"", "oks": set(), "estado_n": 0, "usada": time.monotonic()}
         self.vivo.destino(self.clave, conectado=True, error=None)
         log(f"Copia {self.nombre()}: conectada (lector {lector})")
@@ -631,6 +673,11 @@ class Copia(threading.Thread):
 
     def run(self):
         pos, espera, contado = self.almacen.cargar_pos_copia(self.clave), 2, 0.0
+        if not os.path.exists(self.almacen.ruta_pos_copia(self.clave)):
+            try:
+                self.almacen.guardar_pos_copia(self.clave, pos)    # que el día del alta sobreviva a un reinicio
+            except OSError as e:
+                log(f"Copia {self.nombre()}: no se ha podido guardar la posición ({e})")
         log(f"Copia {self.nombre()}: en marcha")
         while not self.parar.is_set():
             try:
@@ -677,10 +724,20 @@ def hilo_copias(destinos, almacen, vivo):
     activas = {}
     while True:
         deseadas = {clave_destino(d): d for d in destinos.copias()}
+        p = destinos.principal()
         for clave, copia in list(activas.items()):
             if clave not in deseadas:
                 copia.parar.set()
                 del activas[clave]
+                if p and clave_destino(p) == clave:
+                    # Pasa a contestar. Si estaba al día, olvida su posición de copia: así,
+                    # cuando deje de contestar, no se le repite lo que recibió en directo
+                    copia.join(20)
+                    try:
+                        if not copia.is_alive() and almacen.pendientes_copia(almacen.cargar_pos_copia(clave)) == 0:
+                            os.remove(almacen.ruta_pos_copia(clave))
+                    except OSError:
+                        pass
         for clave, d in deseadas.items():
             if clave in activas:
                 activas[clave].d = d               # el nombre puede cambiar; el servidor no
@@ -694,7 +751,8 @@ def hilo_copias(destinos, almacen, vivo):
 def atender(destinos, almacen, vivo, ultra, direccion):
     quien = f"{direccion[0]}:{direccion[1]}"
     escribir = threading.Lock()                   # al Ultra le escriben dos hilos
-    p = {"d": None, "s": None, "intento": -1e9}   # el que contesta y su conexión
+    # El que contesta y su conexión; "espera": desde cuándo le hemos pasado algo sin respuesta
+    p = {"d": None, "s": None, "intento": -1e9, "espera": None}
 
     def al_ultra(datos):
         with escribir:
@@ -707,6 +765,7 @@ def atender(destinos, almacen, vivo, ultra, direccion):
                 datos = s.recv(4096)
                 if not datos:
                     break
+                p["espera"] = None
                 al_ultra(datos)
                 vivo.destino(clave, ultimo_ok=instante(), error=None)
         except OSError:
@@ -723,12 +782,27 @@ def atender(destinos, almacen, vivo, ultra, direccion):
             pass
 
     def cerrar_principal():
-        s, p["s"] = p["s"], None
+        s, p["s"], p["espera"] = p["s"], None, None
         if s:
             try:
                 s.shutdown(socket.SHUT_RDWR)       # su hilo lo ve y descuenta la conexión
             except OSError:
                 pass
+
+    def abrir_hueco(d):
+        """El que contesta está caído: lo que llega ahora no le llega. Se apunta
+        desde dónde, para que lo reciba como copia cuando el admin lo pase a copia.
+        Si ya tenía posición de copia, se respeta (es anterior)."""
+        clave = clave_destino(d)
+        with vivo.cerrojo:
+            if clave in vivo.huecos:
+                return
+            vivo.huecos.add(clave)
+        if not os.path.exists(almacen.ruta_pos_copia(clave)):
+            try:
+                almacen.guardar_pos_copia(clave, almacen.pos_al_final())
+            except OSError as e:
+                log(f"No se ha podido apuntar el hueco de {d['nombre']}: {e}")
 
     def revisar_principal(pendiente):
         """Cambios en la pantalla y reintentos. `pendiente`: lo que el Ultra ya
@@ -751,10 +825,10 @@ def atender(destinos, almacen, vivo, ultra, direccion):
             try:
                 s = socket.create_connection((d["host"], d["puerto"]), timeout=5)
                 s.settimeout(None)
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                endurecer(s)
                 if pendiente:
                     s.sendall(pendiente)
-            except OSError as e:
+            except (OSError, ValueError) as e:        # ValueError: nombre de servidor imposible
                 vivo.destino(clave, error=str(e)[:300])
                 vivo.ultra(quien, contesta="receptor")
                 log(f"{quien}: {d['nombre']} no responde ({e}): contesta el receptor")
@@ -768,9 +842,9 @@ def atender(destinos, almacen, vivo, ultra, direccion):
 
     log("Conecta el Ultra", quien)
     vivo.ultra(quien, ip=direccion[0], conectado=True, desde=instante(), lecturas=0, contesta="receptor")
-    revisar_principal(b"")
-    buf, lector = b"", None
+    buf, lector, ultimo_num = b"", None, None
     try:
+        revisar_principal(b"")
         while True:
             datos = ultra.recv(4096)
             if not datos:
@@ -780,20 +854,30 @@ def atender(destinos, almacen, vivo, ultra, direccion):
             if s:
                 try:
                     s.sendall(datos)
-                except OSError:
+                    if p["espera"] is None:
+                        p["espera"] = time.monotonic()
+                    elif time.monotonic() - p["espera"] > SIN_RESPUESTA:
+                        raise TimeoutError(f"lleva {SIN_RESPUESTA} s sin contestar")   # colgado
+                except OSError as e:
                     if p["s"] is s:
                         cerrar_principal()
+                        p["intento"] = time.monotonic()                # no volver a probar enseguida
+                        vivo.destino(clave_destino(p["d"]), error=str(e)[:300] or "se ha cortado")
                         vivo.ultra(quien, contesta="receptor")
-                        log(f"{quien}: se ha cortado {p['d']['nombre']}, contesta el receptor")
+                        log(f"{quien}: {p['d']['nombre']} {e or 'se ha cortado'}: contesta el receptor")
+                        if ultimo_num is not None:                     # lo que él dejó sin confirmar
+                            al_ultra(b"OK%07d\r\n" % ultimo_num)
             lecturas, estados, buf = leer_bloques(buf + datos)
             if len(buf) > 65536:                   # basura que no es del Ultra
                 buf = b""
             contesta_receptor = p["s"] is None
             if lecturas:
+                if p["d"] and contesta_receptor:
+                    abrir_hueco(p["d"])                # el que contesta no las va a recibir
                 nuevas = almacen.guardar(lecturas)     # primero a disco…
                 if contesta_receptor:                  # …y luego el «recibido»
                     al_ultra(b"OK%07d\r\n" % lecturas[-1]["num"])
-                lector = lecturas[-1]["lector"]
+                lector, ultimo_num = lecturas[-1]["lector"], lecturas[-1]["num"]
                 with vivo.cerrojo:
                     u = vivo.ultras.setdefault(quien, {})
                     u.update(lector=lector, ultima_num=lecturas[-1]["num"], ultima_hora=lecturas[-1]["hora"],
@@ -809,8 +893,8 @@ def atender(destinos, almacen, vivo, ultra, direccion):
                     vivo.nuevo_estado(este, bloque)
                     if lector is None:
                         vivo.ultra(quien, lector=este)
-    except OSError as e:
-        log(f"{quien}: conexión cortada ({e})")
+    except Exception as e:                         # cortada, o un fallo que no debe dejar colgado al Ultra
+        log(f"{quien}: conexión cortada ({e!r})")
     finally:
         log("Se va el Ultra", quien)
         vivo.ultra(quien, conectado=False, hasta=instante(), _fin=time.monotonic())
@@ -827,11 +911,16 @@ def servir(cfg):
     almacen, vivo, destinos = Almacen(cfg["carpeta"]), Vivo(), Destinos(cfg)
 
     def al_dejar_de_contestar(clave):
-        # Lo recibió todo en directo: si pasa a copia, que no se le repita lo de hoy
-        try:
-            almacen.guardar_pos_copia(clave, almacen.pos_al_final())
-        except OSError as e:
-            log(f"No se ha podido guardar la posición de {clave}: {e}")
+        """Pasa a copia (o se va). Si lo recibió todo en directo, su copia empieza en
+        el final de hoy. Si hubo un hueco (estuvo caído) o ya tenía posición de
+        copia, se respeta: se le reenvía desde ahí, y repetir no hace daño."""
+        with vivo.cerrojo:
+            vivo.huecos.discard(clave)
+        if not os.path.exists(almacen.ruta_pos_copia(clave)):
+            try:
+                almacen.guardar_pos_copia(clave, almacen.pos_al_final())
+            except OSError as e:
+                log(f"No se ha podido guardar la posición de {clave}: {e}")
     destinos.al_dejar_de_contestar = al_dejar_de_contestar
 
     threading.Thread(target=hilo_subida, args=(cfg, almacen, vivo), daemon=True).start()
@@ -847,7 +936,7 @@ def servir(cfg):
         "(los manda la pantalla «Receptor Ultra»)" if cfg["clave_receptor"] else "(de config.json)")
     while True:
         conexion, direccion = servidor.accept()
-        conexion.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        endurecer(conexion)
         threading.Thread(target=atender, args=(destinos, almacen, vivo, conexion, direccion), daemon=True).start()
 
 
