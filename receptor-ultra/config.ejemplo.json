@@ -1,0 +1,10 @@
+{
+  "puerto": 23023,
+  "carpeta": "/root/ultra",
+  "camberas_url": "https://rsahtxjpisnldxnsmupk.supabase.co",
+  "clave_publica": "PEGA_AQUI_LA_CLAVE_PUBLICA (VITE_SUPABASE_PUBLISHABLE_KEY del .env de la web)",
+  "tokens": {
+    "137": "PEGA_AQUI_EL_TOKEN_DEL_PUNTO (lo de detrás de /timing?t= en el QR del punto de cronometraje)"
+  },
+  "outreach": ["82.113.145.105", 11111]
+}
