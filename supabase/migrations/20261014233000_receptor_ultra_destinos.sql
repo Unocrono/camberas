@@ -15,6 +15,10 @@
 --     y lleva la cuenta de lo que cada una ha confirmado; si una está caída,
 --     al volver recibe lo pendiente.
 --   · si ninguno contesta, contesta el propio receptor.
+-- ultra_lectores: cada Ultra con su identificador (nombre del fichero que
+--   escribe el programa del PC para RaceTec) y su timer name (el punto de
+--   RaceTec: CP1, CP2, Finish). Lo lee el programa del PC a través del
+--   receptor.
 --
 -- Horas: visto_en es un instante real («ahora»: now()); las horas de las
 -- lecturas que vengan en `estado` son de pared y la pantalla las enseña tal
@@ -56,6 +60,19 @@ CREATE TABLE IF NOT EXISTS public.ultra_destinos (
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_ultra_destinos_contesta
   ON public.ultra_destinos (receptor_id) WHERE contesta;
 
+-- Cada Ultra (lector), para el programa del PC que alimenta RaceTec:
+--   identificador = nombre del equipo y de su fichero de lecturas (U137 → U137.txt)
+--   timer_name    = el punto de RaceTec (CP1, CP2, Finish): el @Location de spInsertTime
+CREATE TABLE IF NOT EXISTS public.ultra_lectores (
+  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  receptor_id    uuid        NOT NULL REFERENCES public.ultra_receptores(id) ON DELETE CASCADE,
+  lector         integer     NOT NULL CHECK (lector BETWEEN 0 AND 255),
+  identificador  text        NOT NULL CHECK (identificador ~ '^[A-Za-z0-9_-]{1,20}$'),
+  timer_name     text        NOT NULL DEFAULT '' CHECK (length(timer_name) <= 50),
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (receptor_id, lector)
+);
+
 -- Marcar uno como «contesta» se lo quita a los demás (la pantalla hace un solo update)
 CREATE OR REPLACE FUNCTION public.ultra_destinos_uno_contesta()
 RETURNS trigger
@@ -77,14 +94,38 @@ CREATE TRIGGER ultra_destinos_uno_contesta
   BEFORE INSERT OR UPDATE ON public.ultra_destinos
   FOR EACH ROW EXECUTE FUNCTION public.ultra_destinos_uno_contesta();
 
--- La función del trigger no la llama nadie a mano
+CREATE OR REPLACE FUNCTION public.ultra_lectores_updated_at()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $fn$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END
+$fn$;
+
+DROP TRIGGER IF EXISTS ultra_lectores_updated_at ON public.ultra_lectores;
+CREATE TRIGGER ultra_lectores_updated_at
+  BEFORE UPDATE ON public.ultra_lectores
+  FOR EACH ROW EXECUTE FUNCTION public.ultra_lectores_updated_at();
+
+-- Las funciones de los triggers no las llama nadie a mano
 REVOKE EXECUTE ON FUNCTION public.ultra_destinos_uno_contesta() FROM anon, authenticated, PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.ultra_lectores_updated_at()   FROM anon, authenticated, PUBLIC;
 
 -- Solo admin (la clave del receptor es secreta)
 ALTER TABLE public.ultra_receptores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ultra_destinos   ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.ultra_receptores, public.ultra_destinos FROM anon, PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.ultra_receptores, public.ultra_destinos TO authenticated;
+ALTER TABLE public.ultra_lectores   ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.ultra_receptores, public.ultra_destinos, public.ultra_lectores FROM anon, PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.ultra_receptores, public.ultra_destinos, public.ultra_lectores TO authenticated;
+
+DROP POLICY IF EXISTS "Solo admin gestiona lectores Ultra" ON public.ultra_lectores;
+CREATE POLICY "Solo admin gestiona lectores Ultra" ON public.ultra_lectores
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'::app_role))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'::app_role));
 
 DROP POLICY IF EXISTS "Solo admin gestiona receptores Ultra" ON public.ultra_receptores;
 CREATE POLICY "Solo admin gestiona receptores Ultra" ON public.ultra_receptores
@@ -133,7 +174,13 @@ BEGIN
                                           'puerto', d.puerto, 'contesta', d.contesta)
                        ORDER BY d.contesta DESC, d.created_at)
         FROM ultra_destinos d
-       WHERE d.receptor_id = v_id AND d.activo), '[]'::jsonb));
+       WHERE d.receptor_id = v_id AND d.activo), '[]'::jsonb),
+    'lectores', coalesce((
+      SELECT jsonb_agg(jsonb_build_object('lector', l.lector, 'identificador', l.identificador,
+                                          'timer_name', l.timer_name)
+                       ORDER BY l.lector)
+        FROM ultra_lectores l
+       WHERE l.receptor_id = v_id), '[]'::jsonb));
 END
 $fn$;
 
@@ -149,6 +196,14 @@ INSERT INTO public.ultra_destinos (receptor_id, nombre, host, puerto, contesta)
 SELECT r.id, 'RFID Timing (Outreach)', '82.113.145.105', 11111, true
   FROM public.ultra_receptores r
  WHERE NOT EXISTS (SELECT 1 FROM public.ultra_destinos)
+ ORDER BY r.created_at
+ LIMIT 1;
+
+-- El Ultra 137 de hoy (el timer name se pone en la pantalla antes de cada carrera)
+INSERT INTO public.ultra_lectores (receptor_id, lector, identificador)
+SELECT r.id, 137, 'U137'
+  FROM public.ultra_receptores r
+ WHERE NOT EXISTS (SELECT 1 FROM public.ultra_lectores)
  ORDER BY r.created_at
  LIMIT 1;
 
@@ -178,10 +233,12 @@ BEGIN
     RAISE EXCEPTION 'anon puede ejecutar ultra_destinos_uno_contesta';
   END IF;
   IF has_table_privilege('anon', 'public.ultra_receptores', 'SELECT')
-     OR has_table_privilege('anon', 'public.ultra_destinos', 'SELECT') THEN
+     OR has_table_privilege('anon', 'public.ultra_destinos', 'SELECT')
+     OR has_table_privilege('anon', 'public.ultra_lectores', 'SELECT') THEN
     RAISE EXCEPTION 'anon puede leer las tablas del receptor Ultra';
   END IF;
   IF NOT has_table_privilege('authenticated', 'public.ultra_destinos', 'SELECT,INSERT,UPDATE,DELETE')
+     OR NOT has_table_privilege('authenticated', 'public.ultra_lectores', 'SELECT,INSERT,UPDATE,DELETE')
      OR NOT has_table_privilege('authenticated', 'public.ultra_receptores', 'SELECT') THEN
     RAISE EXCEPTION 'La pantalla (authenticated) no podría leer o editar los destinos';
   END IF;
@@ -200,8 +257,10 @@ NOTIFY pgrst, 'reload schema';
 
 COMMIT;
 
--- Comprobación: el receptor sembrado (su clave va en config.json) y sus destinos
-SELECT r.nombre AS receptor, r.clave, d.nombre AS destino, d.host, d.puerto, d.contesta, d.activo
+-- Comprobación: el receptor sembrado (su clave va en config.json), sus destinos y sus lectores
+SELECT r.nombre AS receptor, r.clave, d.nombre AS destino, d.host, d.puerto, d.contesta, d.activo,
+       l.lector, l.identificador
   FROM public.ultra_receptores r
   LEFT JOIN public.ultra_destinos d ON d.receptor_id = r.id
- ORDER BY r.created_at, d.contesta DESC, d.created_at;
+  LEFT JOIN public.ultra_lectores l ON l.receptor_id = r.id
+ ORDER BY r.created_at, d.contesta DESC, d.created_at, l.lector;

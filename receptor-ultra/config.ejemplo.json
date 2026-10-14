@@ -1,5 +1,6 @@
 {
   "puerto": 23023,
+  "puerto_pc": 23024,
   "carpeta": "/root/ultra",
   "camberas_url": "https://rsahtxjpisnldxnsmupk.supabase.co",
   "clave_publica": "PEGA_AQUI_LA_CLAVE_PUBLICA (VITE_SUPABASE_PUBLISHABLE_KEY del .env de la web)",

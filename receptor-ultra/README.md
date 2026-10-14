@@ -8,7 +8,8 @@ instalar.
 ```
                                    ┌─► el que CONTESTA (p. ej. Outreach ─► RaceTec), en directo
 Ultra ──TCP──► receptor.py (VPS) ──┼─► COPIAS (otros servidores), desde el disco
-                    │              └─► Camberas (ultra_registrar_lecturas)
+                    │              ├─► Camberas (ultra_registrar_lecturas)
+                    │              └─► el PC de cronometraje (pc/RaceTec.ps1: U137.txt y SQL Server de RaceTec)
                     └─ /root/ultra/lecturas/AAAA-MM-DD.txt  (todo, pase lo que pase)
 ```
 
@@ -40,6 +41,14 @@ Sin `clave_receptor`, los destinos salen de `config.json`: `destinos`
 (`[{"nombre", "host", "puerto", "contesta"}]`) o, como antes, `outreach`
 (`["82.113.145.105", 11111]` = Outreach contesta; `null` = contesta el
 receptor).
+
+## El PC de cronometraje (RaceTec)
+
+El receptor abre un segundo puerto (`puerto_pc`, 23024) para el programa
+`pc/RaceTec.ps1`, que hace en el PC lo que hacía Outreach: el fichero
+`<identificador>.txt` y la llamada a `spInsertTime` en SQL Server. El
+identificador y el timer name de cada Ultra se ponen en la pantalla Receptor
+Ultra. Todo en `pc/README.md`.
 
 ## Camberas
 
@@ -78,7 +87,8 @@ receptor).
    systemctl daemon-reload && systemctl enable --now receptor-ultra
    journalctl -u receptor-ultra -f
    ```
-4. Puerto abierto en el cortafuegos de IONOS (TCP 23023).
+4. Puertos abiertos en el cortafuegos de IONOS: TCP 23023 (el Ultra) y
+   TCP 23024 (el PC de RaceTec).
 5. En el Ultra, Settings › Remote: LAN, URL = IP del VPS, Port = 23023,
    «Send data to remote server» marcado.
 

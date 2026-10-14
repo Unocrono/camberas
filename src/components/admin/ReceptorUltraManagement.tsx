@@ -11,6 +11,11 @@
  *   `estado` es el JSON que manda el receptor cada ~15 s.
  * - ultra_destinos: los servidores. Como mucho uno contesta al Ultra por
  *   receptor (un trigger quita `contesta` a los demás al marcar uno).
+ * - ultra_lectores: cada Ultra (por número de lector) con lo que necesita el
+ *   programa del PC que alimenta RaceTec: `identificador` (nombre del equipo y
+ *   de su fichero de lecturas, U137 → U137.txt) y `timer_name` (el punto de
+ *   RaceTec: CP1, CP2, Finish; cambia de una carrera a otra). La tabla de
+ *   Ultras es la UNIÓN de lo que cuenta el receptor y lo guardado aquí.
  *
  * HORAS: `ultima_hora` de cada Ultra es hora de PARED del lector y se enseña
  * tal cual (texto). Los ISO con zona (visto_en, enviado, desde, ultimo_ok…)
@@ -84,6 +89,16 @@ interface Destino {
   updated_at: string | null;
 }
 
+/** Lo que el programa del PC necesita de cada Ultra (ultra_lectores) */
+interface Lector {
+  id: string;
+  receptor_id: string;
+  lector: number;
+  identificador: string;
+  timer_name: string;
+  updated_at: string | null;
+}
+
 /** Lo que manda el receptor. Todo opcional: un receptor antiguo o recién arrancado manda menos. */
 interface EstadoUltra {
   lector?: number | string | null;
@@ -137,6 +152,21 @@ const leerEstado = (crudo: unknown): EstadoReceptor | null => {
     destinos: lista<EstadoDestino>(crudo.destinos),
   };
 };
+
+/** Número de lector del estado (137 o «137») → 137; null si no es un lector válido (0–255, como el CHECK). */
+const numLector = (x: EstadoUltra["lector"]): number | null => {
+  if (x === null || x === undefined || x === "") return null;
+  const n = Number(x);
+  return Number.isInteger(n) && n >= 0 && n <= 255 ? n : null;
+};
+
+/** Fila de la tabla de Ultras: lo que cuenta el receptor (u) y/o lo guardado en BD (l). Al menos uno. */
+interface FilaUltra {
+  key: string;
+  lector: number | null;
+  u: EstadoUltra | null;
+  l: Lector | null;
+}
 
 // ---------------------------------------------------------------------------
 // Horas
@@ -209,6 +239,30 @@ const mensajeError = (err: { code?: string; message: string }) => {
   if (choqueContesta(err)) return "Ya hay otro servidor que contesta al Ultra. Vuelve a intentarlo.";
   if (err.code === "23505") return "Ese servidor (misma IP o nombre y mismo puerto) ya está en la lista de este receptor.";
   if (err.code === "23514") return "Los datos no cumplen las reglas: nombre de 1 a 80 letras, IP o nombre válido y puerto de 1 a 65535.";
+  if (err.code === "42501") return "Solo un administrador puede cambiar esto.";
+  return err.message;
+};
+
+/** Igual que el CHECK de ultra_lectores.identificador */
+const IDENT_RE = /^[A-Za-z0-9_-]{1,20}$/;
+
+const lectorSchema = z.object({
+  identificador: z
+    .string()
+    .trim()
+    .min(1, "Falta el identificador")
+    .regex(IDENT_RE, "Solo letras, cifras, guion y guion bajo, máximo 20"),
+  timer_name: z.string().trim().max(50, "Máximo 50 caracteres"),
+});
+
+type ErroresLector = Partial<Record<"identificador" | "timer_name", string>>;
+
+const LECTOR_VACIO = { identificador: "", timer_name: "" };
+
+const mensajeErrorLector = (err: { code?: string; message: string }) => {
+  if (err.code === "23514")
+    return "Los datos no cumplen las reglas: identificador de 1 a 20 letras, cifras, guion o guion bajo; timer name de hasta 50.";
+  if (err.code === "23503") return "Ese receptor ya no existe. Recarga la pantalla.";
   if (err.code === "42501") return "Solo un administrador puede cambiar esto.";
   return err.message;
 };
@@ -309,6 +363,14 @@ export function ReceptorUltraManagement() {
   const [saving, setSaving] = useState(false);
   const [borrar, setBorrar] = useState<Destino | null>(null);
 
+  // Identificador y timer name de un Ultra (ultra_lectores)
+  const [lectores, setLectores] = useState<Lector[]>([]);
+  const [lectorOpen, setLectorOpen] = useState(false);
+  const [lectorEdit, setLectorEdit] = useState<{ receptor_id: string; lector: number; existente: Lector | null } | null>(null);
+  const [formLector, setFormLector] = useState(LECTOR_VACIO);
+  const [erroresLector, setErroresLector] = useState<ErroresLector>({});
+  const [savingLector, setSavingLector] = useState(false);
+
   const vivo = useRef(true);
   const leyendo = useRef(false);
   const otraVez = useRef(false);
@@ -321,7 +383,7 @@ export function ReceptorUltraManagement() {
       return;
     }
     leyendo.current = true;
-    const [rRes, dRes] = await Promise.all([
+    const [rRes, dRes, lRes] = await Promise.all([
       db
         .from("ultra_receptores")
         .select("id, nombre, clave, visto_en, estado, created_at")
@@ -330,22 +392,27 @@ export function ReceptorUltraManagement() {
         .from("ultra_destinos")
         .select("id, receptor_id, nombre, host, puerto, contesta, activo, created_at, updated_at")
         .order("created_at"),
+      db
+        .from("ultra_lectores")
+        .select("id, receptor_id, lector, identificador, timer_name, updated_at")
+        .order("lector"),
     ]);
     leyendo.current = false;
     if (!vivo.current) return;
 
-    const err = rRes.error || dRes.error;
+    const err = rRes.error || dRes.error || lRes.error;
     if (err) {
       // PGRST205 / 42P01: la tabla no existe (migración sin aplicar)
       setError(
         err.code === "PGRST205" || err.code === "42P01"
-          ? "No están las tablas del receptor: falta aplicar la migración de ultra_receptores / ultra_destinos."
+          ? "No están las tablas del receptor: falta aplicar la migración de ultra_receptores / ultra_destinos / ultra_lectores."
           : err.message,
       );
     } else {
       setError(null);
       setReceptores((rRes.data || []) as Receptor[]);
       setDestinos((dRes.data || []) as Destino[]);
+      setLectores((lRes.data || []) as Lector[]);
     }
     setAhora(Date.now());
     setLoading(false);
@@ -440,6 +507,53 @@ export function ReceptorUltraManagement() {
     cargar();
   };
 
+  // --- Identificador y timer name de un Ultra ---------------------------------
+
+  const abrirLector = (receptor_id: string, lector: number, existente: Lector | null) => {
+    setLectorEdit({ receptor_id, lector, existente });
+    setErroresLector({});
+    // Sin fila guardada se propone U<lector>, que es lo que el PC usa por defecto
+    setFormLector(
+      existente
+        ? { identificador: existente.identificador, timer_name: existente.timer_name }
+        : { identificador: `U${lector}`, timer_name: "" },
+    );
+    setLectorOpen(true);
+  };
+
+  const guardarLector = async () => {
+    if (!lectorEdit) return;
+    const r = lectorSchema.safeParse(formLector);
+    if (!r.success) {
+      const e: ErroresLector = {};
+      for (const issue of r.error.issues) {
+        const campo = issue.path[0] as keyof ErroresLector;
+        if (!e[campo]) e[campo] = issue.message;
+      }
+      setErroresLector(e);
+      return;
+    }
+    setErroresLector({});
+    setSavingLector(true);
+    const { error: err } = await db.from("ultra_lectores").upsert(
+      {
+        receptor_id: lectorEdit.receptor_id,
+        lector: lectorEdit.lector,
+        identificador: r.data.identificador,
+        timer_name: r.data.timer_name,
+      },
+      { onConflict: "receptor_id,lector" },
+    );
+    setSavingLector(false);
+    if (err) {
+      toast({ title: "No se pudo guardar", description: mensajeErrorLector(err), variant: "destructive" });
+      return;
+    }
+    setLectorOpen(false);
+    toast({ title: `Ultra ${lectorEdit.lector} guardado`, description: "El receptor lo recogerá en menos de 30 s." });
+    cargar();
+  };
+
   const copiarClave = (clave: string) => {
     const linea = `"clave_receptor": "${clave}",`;
     if (!navigator.clipboard) {
@@ -524,6 +638,23 @@ export function ReceptorUltraManagement() {
         const filas = susDestinos.map((d) => ({ d, e: estadoDe(d) }));
         const sueltos = (estado?.destinos ?? []).filter((x) => !usados.has(x));
 
+        // Ultras: lo que cuenta el receptor (en su orden) ∪ lo guardado en ultra_lectores, por número de lector
+        const susLectores = lectores.filter((l) => l.receptor_id === r.id);
+        const vistos = new Set<number>();
+        const filasUltra: FilaUltra[] = (estado?.ultras ?? []).map((u, i) => {
+          const n = numLector(u.lector);
+          if (n !== null) vistos.add(n);
+          return {
+            key: `estado-${n ?? "?"}-${i}`,
+            lector: n,
+            u,
+            l: n === null ? null : (susLectores.find((l) => l.lector === n) ?? null),
+          };
+        });
+        for (const l of susLectores) {
+          if (!vistos.has(l.lector)) filasUltra.push({ key: `bd-${l.id}`, lector: l.lector, u: null, l });
+        }
+
         return (
           <Card key={r.id}>
             <CardHeader className="space-y-2">
@@ -581,32 +712,66 @@ export function ReceptorUltraManagement() {
               {/* Ultras */}
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold">Ultras conectados</h3>
-                {!estado || estado.ultras.length === 0 ? (
+                {filasUltra.length === 0 ? (
                   <p className="text-sm text-muted-foreground">Ningún Ultra ha conectado con el receptor.</p>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-border">
-                    <Table className="min-w-[640px]">
+                    <Table className="min-w-[960px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>Lector</TableHead>
+                          <TableHead>Identificador</TableHead>
+                          <TableHead>Timer name (RaceTec)</TableHead>
                           <TableHead>IP</TableHead>
                           <TableHead>Conexión</TableHead>
                           <TableHead>Última lectura</TableHead>
                           <TableHead className="text-right">Lecturas</TableHead>
                           <TableHead>Le contesta</TableHead>
+                          <TableHead className="w-[48px]"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {estado.ultras.map((u, i) => {
+                        {filasUltra.map(({ key, lector, u, l }) => {
                           // Conectado: desde cuándo. Desconectado: desde cuándo se fue (hasta)
-                          const desde = hace(u.conectado ? u.desde : u.hasta, ahora);
-                          const hora = horaPared(u.ultima_hora);
+                          const desde = u ? hace(u.conectado ? u.desde : u.hasta, ahora) : null;
+                          const hora = horaPared(u?.ultima_hora);
+                          const timer = l?.timer_name.trim() ?? "";
                           return (
-                            <TableRow key={`${u.lector ?? "?"}-${i}`}>
-                              <TableCell className="font-medium">{u.lector ?? "—"}</TableCell>
-                              <TableCell className="font-mono text-xs">{u.ip || "—"}</TableCell>
+                            <TableRow key={key} className={u ? "" : "opacity-60"}>
+                              <TableCell className="font-medium">{lector ?? u?.lector ?? "—"}</TableCell>
+                              <TableCell className="font-mono text-sm">
+                                {l ? (
+                                  l.identificador
+                                ) : lector !== null ? (
+                                  <span className="text-muted-foreground" title="Sugerido: aún no está guardado">
+                                    U{lector}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
                               <TableCell>
-                                {u.conectado ? (
+                                {timer ? (
+                                  <span className="font-mono text-sm">{timer}</span>
+                                ) : (
+                                  <>
+                                    <span className="text-muted-foreground">—</span>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      Sin timer name: el PC usará el identificador
+                                    </p>
+                                  </>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-mono text-xs">{u?.ip || "—"}</TableCell>
+                              <TableCell>
+                                {!u ? (
+                                  <>
+                                    <Badge variant="outline" className="text-muted-foreground">
+                                      Sin noticias
+                                    </Badge>
+                                    <p className="mt-1 text-xs text-muted-foreground">el receptor no lo ha visto</p>
+                                  </>
+                                ) : u.conectado ? (
                                   <Badge variant="default">Conectado</Badge>
                                 ) : (
                                   <Badge variant="outline" className="text-muted-foreground">
@@ -616,7 +781,7 @@ export function ReceptorUltraManagement() {
                                 {desde && <p className="mt-1 text-xs text-muted-foreground">desde {desde}</p>}
                               </TableCell>
                               <TableCell>
-                                {u.ultima_num != null || hora ? (
+                                {u && (u.ultima_num != null || hora) ? (
                                   <>
                                     <span className="font-medium">{u.ultima_num != null ? `nº ${u.ultima_num}` : "—"}</span>
                                     {hora && (
@@ -629,14 +794,28 @@ export function ReceptorUltraManagement() {
                                   <span className="text-muted-foreground">—</span>
                                 )}
                               </TableCell>
-                              <TableCell className="text-right tabular-nums">{u.lecturas ?? "—"}</TableCell>
+                              <TableCell className="text-right tabular-nums">{u?.lecturas ?? "—"}</TableCell>
                               <TableCell className="text-sm">
-                                {!u.contesta || !u.conectado ? (
+                                {!u || !u.contesta || !u.conectado ? (
                                   <span className="text-muted-foreground">—</span>
                                 ) : u.contesta === "receptor" ? (
                                   "El receptor"
                                 ) : (
                                   u.contesta
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {lector !== null && (
+                                  <div className="flex justify-end">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      title="Identificador y timer name"
+                                      onClick={() => abrirLector(r.id, lector, l)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -646,6 +825,10 @@ export function ReceptorUltraManagement() {
                     </Table>
                   </div>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  El identificador da nombre al fichero de lecturas del PC (U137.txt). El timer name es el punto
+                  de RaceTec (CP1, CP2, Finish): cámbialo antes de cada carrera.
+                </p>
               </section>
 
               {/* Destinos */}
@@ -858,6 +1041,71 @@ export function ReceptorUltraManagement() {
             </Button>
             <Button onClick={guardar} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Identificador y timer name de un Ultra */}
+      <Dialog open={lectorOpen} onOpenChange={setLectorOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ultra {lectorEdit?.lector}</DialogTitle>
+            <DialogDescription>Lo que el programa del PC necesita para alimentar RaceTec.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="ul-identificador">Identificador *</Label>
+              <Input
+                id="ul-identificador"
+                value={formLector.identificador}
+                maxLength={20}
+                onChange={(e) => setFormLector((f) => ({ ...f, identificador: e.target.value }))}
+                placeholder={`U${lectorEdit?.lector ?? ""}`}
+                className="font-mono"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              {erroresLector.identificador ? (
+                <p className="mt-1 text-xs text-destructive">{erroresLector.identificador}</p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Nombre del equipo y de su fichero de lecturas (U137 → U137.txt).
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="ul-timer">Timer name (RaceTec)</Label>
+              <Input
+                id="ul-timer"
+                value={formLector.timer_name}
+                maxLength={50}
+                onChange={(e) => setFormLector((f) => ({ ...f, timer_name: e.target.value }))}
+                placeholder="CP1, CP2, Finish…"
+                className="font-mono"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              {erroresLector.timer_name ? (
+                <p className="mt-1 text-xs text-destructive">{erroresLector.timer_name}</p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  El punto de RaceTec al que van sus lecturas. Si lo dejas vacío, el PC usará el identificador.
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLectorOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={guardarLector} disabled={savingLector}>
+              {savingLector && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar
             </Button>
           </DialogFooter>

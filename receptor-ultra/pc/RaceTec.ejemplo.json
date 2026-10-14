@@ -1,0 +1,10 @@
+{
+  "vps": "212.227.159.123",
+  "puerto": 23024,
+  "clave": "PEGA_AQUI_LA_CLAVE (pantalla Receptor Ultra › Configuración del VPS)",
+  "carpeta_ficheros": "C:\\Users\\UNO\\Dropbox\\Carreras\\Remoto\\Lecturas",
+  "formato_hora": "dd/MM/yyyy HH:mm:ss",
+  "lector_y_antena": false,
+  "mostrar_lecturas": true,
+  "sql": { "servidor": "Crono1", "base": "Racetec", "usuario": "", "clave": "" }
+}

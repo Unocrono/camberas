@@ -22,9 +22,15 @@ y la reparte:
 
 Los destinos se eligen en la pantalla «Receptor Ultra» del panel de Camberas
 (solo admin) si config.json trae "clave_receptor": cada 15 s el receptor deja
-allí su estado y se lleva los destinos, y guarda la última lista en
-destinos.json por si arranca sin internet. Sin clave, salen de config.json
-("destinos", o el antiguo "outreach").
+allí su estado y se lleva los destinos y los lectores (identificador y timer
+name de RaceTec de cada Ultra), y guarda la última lista en destinos.json por
+si arranca sin internet. Sin clave, salen de config.json ("destinos", o el
+antiguo "outreach").
+
+Puerto para el PC ("puerto_pc", 23024): el programa pc/RaceTec.ps1 se conecta
+con la clave del receptor y recibe las lecturas en líneas de texto, desde
+donde se quedó (cursor), para escribir los ficheros de RaceTec y llamar a
+spInsertTime en su SQL Server. Protocolo en pc/README.md.
 
 Solo usa la biblioteca estándar de Python 3.
 
@@ -36,6 +42,7 @@ Uso:
                                                 dorsal)
 """
 import datetime
+import hmac
 import json
 import os
 import re
@@ -65,6 +72,9 @@ ESPERA_OK = 15                             # s que se espera el «OK» de una co
 SINCRONIZAR = 15                           # s entre sincronizaciones con la pantalla
 REINTENTO_CONTESTA = 30                    # s entre intentos con el que contesta, si está caído
 SIN_RESPUESTA = 10                         # s sin contestar nada al Ultra = el que contesta está colgado
+LOTE_PC = 200                              # lecturas por envío al PC
+ESTADO_PC = 5                              # s entre estados al PC (le sirve de latido)
+IDENT_RE = re.compile(r"[A-Za-z0-9_-]{1,20}")  # identificador de un Ultra (nombre del fichero), como el CHECK
 ARRANQUE = None
 
 
@@ -153,10 +163,32 @@ def describir(lista):
                      for d in lista)
 
 
+def lector_normal(l):
+    """{"lector", "identificador", "timer_name"} con sus tipos; None si no vale."""
+    try:
+        lector, ident = int(l["lector"]), str(l.get("identificador") or "").strip()
+        timer = str(l.get("timer_name") or "").strip()[:50]
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+    if not 0 <= lector <= 255 or not IDENT_RE.fullmatch(ident):
+        return None
+    return {"lector": lector, "identificador": ident, "timer_name": timer}
+
+
+def limpiar_lectores(lista):
+    salida, vistos = [], set()
+    for l in filter(None, map(lector_normal, lista or [])):
+        if l["lector"] not in vistos:
+            vistos.add(l["lector"])
+            salida.append(l)
+    return sorted(salida, key=lambda l: l["lector"])
+
+
 def cargar_config(ruta):
     with open(ruta, encoding="utf-8") as f:
         cfg = json.load(f)
     cfg.setdefault("puerto", 23023)
+    cfg.setdefault("puerto_pc", 23024)
     cfg.setdefault("carpeta", "/root/ultra")
     cfg["tokens"] = {int(k): v for k, v in cfg.get("tokens", {}).items()}
     if cfg.get("destinos") is not None:
@@ -175,24 +207,59 @@ def cargar_config(ruta):
 
 
 class Destinos:
-    """La lista viva de destinos: la de la pantalla (o la de config.json)."""
+    """Lo que manda la pantalla: la lista viva de destinos (o la de config.json),
+    los lectores (identificador y timer name de cada Ultra) y el nombre del receptor."""
 
     def __init__(self, cfg):
         self.cerrojo = threading.Lock()
         self.cache = os.path.join(cfg["carpeta"], "destinos.json")
         self.lista = cfg["destinos"]
-        self.cruda = None                    # la última lista tal cual llegó de la pantalla
+        self.lectores = limpiar_lectores(cfg.get("lectores"))
+        self.nombre = "receptor"
+        self.cruda = None                    # lo último tal cual llegó de la pantalla
         self.al_dejar_de_contestar = None    # (clave) → al quitarle a uno el «contesta»
-        if cfg["clave_receptor"]:            # la última que dio la pantalla, por si no hay internet
+        if cfg["clave_receptor"]:            # lo último que dio la pantalla, por si no hay internet
             try:
                 with open(self.cache, encoding="utf-8") as f:
-                    self.lista = limpiar_destinos(json.load(f))
-            except (OSError, ValueError):
+                    guardado = json.load(f)
+                if isinstance(guardado, list):           # formato de antes: solo destinos
+                    guardado = {"destinos": guardado}
+                self.lista = limpiar_destinos(guardado.get("destinos"))
+                self.lectores = limpiar_lectores(guardado.get("lectores"))
+                self.nombre = str(guardado.get("nombre") or self.nombre)
+            except (OSError, ValueError, AttributeError):
                 pass
 
     def todos(self):
         with self.cerrojo:
             return [dict(d) for d in self.lista]
+
+    def lectores_lista(self):
+        with self.cerrojo:
+            return [dict(l) for l in self.lectores]
+
+    def poner_lectores(self, crudos, nombre=None):
+        nuevos = limpiar_lectores(crudos)
+        with self.cerrojo:
+            cambio = nuevos != self.lectores or (nombre and nombre != self.nombre)
+            self.lectores = nuevos
+            if nombre:
+                self.nombre = str(nombre)
+        if cambio:
+            log("Lectores:", "; ".join(f"{l['lector']} = {l['identificador']} ({l['timer_name'] or 'sin timer name'})"
+                                       for l in nuevos) or "ninguno")
+            self.guardar_cache()
+
+    def guardar_cache(self):
+        with self.cerrojo:
+            datos = {"destinos": self.lista, "lectores": self.lectores, "nombre": self.nombre}
+        try:
+            tmp = self.cache + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(datos, f, ensure_ascii=False)
+            os.replace(tmp, self.cache)
+        except OSError as e:
+            log(f"No se ha podido guardar {self.cache}: {e}")
 
     def principal(self):
         return next((d for d in self.todos() if d["contesta"]), None)
@@ -217,13 +284,7 @@ class Destinos:
         with self.cerrojo:
             self.lista = nuevos
         log("Destinos:", describir(nuevos))
-        try:
-            tmp = self.cache + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
-                json.dump(nuevos, f, ensure_ascii=False)
-            os.replace(tmp, self.cache)
-        except OSError as e:
-            log(f"No se ha podido guardar {self.cache}: {e}")
+        self.guardar_cache()
 
 
 # ── Protocolo del Ultra ──────────────────────────────────────────────────────
@@ -421,6 +482,42 @@ class Almacen:
         _, dias = self.dias_copia(pos)
         return sum(contar_lineas(self.fichero_dia(d), pos["dias"].get(d, 0)) for d in dias)
 
+    def lecturas_desde(self, pos, maximo):
+        """Siguientes lecturas para un PC, con el cursor que deja cada una:
+        ([{lector, num, chip, hora, antena, dia, offset}], posición nueva).
+        Si no hay nada, devuelve la misma `pos`."""
+        minimo, dias = self.dias_copia(pos)
+        for dia in dias:
+            desde = pos["dias"].get(dia, 0)
+            ruta = self.fichero_dia(dia)
+            salida, fin = [], desde
+            try:
+                if os.path.getsize(ruta) <= desde:
+                    continue
+                with open(ruta, "rb") as f:
+                    f.seek(desde)
+                    for linea in f:
+                        if not linea.endswith(b"\n"):
+                            break                       # a medio escribir
+                        fin += len(linea)
+                        try:
+                            p = linea.rstrip(b"\n").decode("utf-8").split("\t")
+                            raw = p[4] if len(p) > 4 else ""
+                            salida.append({"lector": int(p[3]), "num": int(p[2]), "chip": int(p[0]), "hora": p[1],
+                                           "antena": int(raw[58:60], 16) if len(raw) == 62 else 0,  # byte 29 del bloque
+                                           "dia": dia, "offset": fin})
+                        except (IndexError, ValueError, UnicodeDecodeError):
+                            continue                    # línea rota: se salta
+                        if len(salida) >= maximo:
+                            break
+            except OSError:
+                continue
+            if fin != desde:
+                nuevos = {d: o for d, o in pos["dias"].items() if d >= minimo}
+                nuevos[dia] = fin
+                return salida, {"desde": pos["desde"], "dias": nuevos}
+        return [], pos
+
     def ruta_pos_copia(self, clave):
         return os.path.join(self.carpeta, "copias", clave + ".json")
 
@@ -468,6 +565,7 @@ class Vivo:
         self.destinos = {}      # clave del destino → {"conectado" (como copia), "pendientes", "ultimo_ok", "error"}
         self.abiertas = {}      # clave del que contesta → conexiones abiertas (una por Ultra)
         self.huecos = set()     # claves del que contesta con un hueco apuntado (estuvo caído)
+        self.pcs = {}           # "ip:puerto" de cada PC conectado → {"ip", "desde"}
 
     def avisar(self):
         with self.cerrojo:
@@ -514,6 +612,7 @@ class Vivo:
             camberas = dict(self.camberas)
             vivos = {k: dict(v) for k, v in self.destinos.items()}
             abiertas = dict(self.abiertas)
+            pcs = [dict(v) for v in self.pcs.values()]
         lista = []
         for d in destinos.todos():
             clave = clave_destino(d)
@@ -524,7 +623,7 @@ class Vivo:
                           "pendientes": None if d["contesta"] else e.get("pendientes"),
                           "ultimo_ok": e.get("ultimo_ok"), "error": e.get("error")})
         return {"version": 2, "enviado": instante(), "arranque": ARRANQUE,
-                "ultras": ultras, "camberas": camberas, "destinos": lista}
+                "ultras": ultras, "camberas": camberas, "destinos": lista, "pcs": pcs}
 
 
 # ── Camberas ─────────────────────────────────────────────────────────────────
@@ -593,6 +692,7 @@ def hilo_sincronizar(cfg, destinos, vivo):
             res = llamar_rpc(cfg, "ultra_receptor_sincronizar",
                              {"p_clave": cfg["clave_receptor"], "p_estado": vivo.foto(destinos)})
             destinos.poner(res.get("destinos") or [])
+            destinos.poner_lectores(res.get("lectores") or [], res.get("nombre"))
             if fallo:
                 log("Pantalla: sincronizado otra vez")
             fallo = None
@@ -905,6 +1005,106 @@ def atender(destinos, almacen, vivo, ultra, direccion):
             pass
 
 
+# ── El PC (RaceTec) ──────────────────────────────────────────────────────────
+def normalizar_pos(c):
+    """El cursor que manda el PC ({"desde": "AAAA-MM-DD", "dias": {"AAAA-MM-DD": bytes}}),
+    saneado. Vacío o roto: desde hoy."""
+    hoy = hoy_local().isoformat()
+    try:
+        desde = str(c.get("desde") or hoy)
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", desde):
+            desde = hoy
+        dias = {str(k): int(v) for k, v in (c.get("dias") or {}).items()
+                if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(k)) and int(v) >= 0}
+        return {"desde": desde, "dias": dias}
+    except (AttributeError, TypeError, ValueError):
+        return {"desde": hoy, "dias": {}}
+
+
+def leer_linea(conn, limite=4096):
+    datos = b""
+    while not datos.endswith(b"\n") and len(datos) < limite:
+        trozo = conn.recv(1)
+        if not trozo:
+            break
+        datos += trozo
+    return datos.decode("utf-8", "replace").strip()
+
+
+def atender_pc(cfg, almacen, vivo, destinos, conn, direccion):
+    """Un PC: «HOLA clave cursor» y, desde ahí, las lecturas según llegan (y las
+    de antes que le falten), los lectores y un estado cada 5 s de latido."""
+    quien = f"PC {direccion[0]}:{direccion[1]}"
+    fin = threading.Event()
+    try:
+        conn.settimeout(10)
+        partes = leer_linea(conn).split(" ", 2)
+        if len(partes) < 2 or partes[0] != "HOLA" or not hmac.compare_digest(partes[1], cfg["clave_receptor"]):
+            conn.sendall(b"ADIOS\tclave no valida\n")
+            log(f"{quien}: clave no válida")
+            return
+        try:
+            pos = normalizar_pos(json.loads(partes[2]) if len(partes) > 2 else {})
+        except ValueError:
+            pos = normalizar_pos({})
+        conn.settimeout(None)
+        log(f"Conecta el {quien} (desde {pos['desde']}, {almacen.pendientes_copia(pos)} lecturas pendientes)")
+        with vivo.cerrojo:
+            vivo.pcs[quien] = {"ip": direccion[0], "desde": instante()}
+
+        def vigilar():                               # el PC no manda nada más: solo vemos si se va
+            try:
+                while conn.recv(4096):
+                    pass
+            except OSError:
+                pass
+            fin.set()
+            vivo.avisar()
+        threading.Thread(target=vigilar, daemon=True).start()
+
+        conn.sendall(f"HOLA\t{destinos.nombre}\t{json.dumps(pos)}\n".encode("utf-8"))
+        lectores_enviados, ultimo_estado = None, 0.0
+        while not fin.is_set():
+            lectores = destinos.lectores_lista()
+            if lectores != lectores_enviados:
+                conn.sendall("".join(f"LECTOR\t{l['lector']}\t{l['identificador']}\t{l['timer_name']}\n"
+                                     for l in lectores).encode("utf-8") or b"LECTOR\n")
+                lectores_enviados = lectores
+            lecturas, nueva = almacen.lecturas_desde(pos, LOTE_PC)
+            if lecturas:
+                conn.sendall("".join(f"LECTURA\t{l['lector']}\t{l['num']}\t{l['chip']}\t{l['hora']}\t{l['antena']}"
+                                     f"\t{l['dia']}\t{l['offset']}\n" for l in lecturas).encode("utf-8"))
+            if nueva is not pos:
+                pos = nueva
+                continue
+            if time.monotonic() - ultimo_estado > ESTADO_PC:
+                conn.sendall(b"ESTADO\t" + json.dumps(vivo.foto(destinos)).encode("utf-8") + b"\n")
+                ultimo_estado = time.monotonic()
+            vivo.esperar(1)
+    except (OSError, ValueError) as e:
+        log(f"{quien}: conexión cortada ({e})")
+    finally:
+        with vivo.cerrojo:
+            vivo.pcs.pop(quien, None)
+        try:
+            conn.close()
+        except OSError:
+            pass
+        log(f"Se va el {quien}")
+
+
+def servir_pc(cfg, almacen, vivo, destinos):
+    servidor = socket.socket()
+    servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    servidor.bind(("0.0.0.0", cfg["puerto_pc"]))
+    servidor.listen()
+    log(f"Puerto para el PC (RaceTec): {cfg['puerto_pc']}")
+    while True:
+        conexion, direccion = servidor.accept()
+        endurecer(conexion)
+        threading.Thread(target=atender_pc, args=(cfg, almacen, vivo, destinos, conexion, direccion), daemon=True).start()
+
+
 def servir(cfg):
     global ARRANQUE
     ARRANQUE = instante()
@@ -927,6 +1127,8 @@ def servir(cfg):
     threading.Thread(target=hilo_copias, args=(destinos, almacen, vivo), daemon=True).start()
     if cfg["clave_receptor"]:
         threading.Thread(target=hilo_sincronizar, args=(cfg, destinos, vivo), daemon=True).start()
+        if cfg["puerto_pc"]:
+            threading.Thread(target=servir_pc, args=(cfg, almacen, vivo, destinos), daemon=True).start()
     servidor = socket.socket()
     servidor.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     servidor.bind(("0.0.0.0", cfg["puerto"]))
