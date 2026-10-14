@@ -49,6 +49,7 @@ import { PantallasManagement } from "@/components/admin/PantallasManagement";
 import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
 import { PuestosManagement } from "@/components/admin/PuestosManagement";
 import { TiposPuestoManagement } from "@/components/admin/TiposPuestoManagement";
+import { ReceptorUltraManagement } from "@/components/admin/ReceptorUltraManagement";
 
 import { MotoMapViewer } from "@/components/admin/MotoMapViewer";
 import GPSPositionsDeletion from "@/components/admin/GPSPositionsDeletion";
@@ -158,7 +159,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "receptor-ultra"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -323,6 +324,7 @@ const AdminDashboard = () => {
             {currentView === "gps-readings" && <GPSTrackingViewer selectedRaceId={selectedRaceId} />}
             {currentView === "tshirt-sizes" && <TshirtSizesSummary selectedRaceId={selectedRaceId} />}
             {currentView === "timer-assignments" && <TimerAssignmentsManagement selectedRaceId={selectedRaceId} />}
+            {currentView === "receptor-ultra" && <ReceptorUltraManagement />}
             {currentView === "bib-chips" && (
               selectedRaceId ? (
                 <BibChipsManagement selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />
