@@ -35,12 +35,13 @@ import { OrgResults } from "@/components/org/OrgResults";
 import { OrgLastRegistrations } from "@/components/org/OrgLastRegistrations";
 import { OrgProfile } from "@/components/org/OrgProfile";
 import { OrgDocuments } from "@/components/org/OrgDocuments";
+import { OrgMarcarPuntos } from "@/components/org/OrgMarcarPuntos";
 import { CamberasTrackMap, type TrackMapKind } from "@/components/CamberasTrackMap";
 import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
-  Bike, ShieldCheck, Timer, TicketPercent, Ticket } from "lucide-react";
+  Bike, ShieldCheck, Timer, TicketPercent, Ticket, LocateFixed } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 import { asegurarManifest } from "@/lib/instalarPwa";
@@ -184,7 +185,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "recogidos";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "recogidos" | "marcar";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -207,6 +208,9 @@ const ORG_MENU: OrgMenuGroup[] = [
       // Pantalla nativa: resumen de solo lectura (km, desnivel, salida,
       // plazas). Para EDITAR recorridos: panel de escritorio.
       { id: "distances-summary", title: "Resumen de eventos", icon: RouteIcon, screen: "recorridos" },
+      // Sobre el terreno: con Track grabando, marcar avituallamientos,
+      // controles… en el rutómetro del recorrido (GPS del móvil)
+      { id: "marcar-puntos", title: "Marcar puntos en campo", icon: LocateFixed, screen: "marcar" },
     ],
   },
   {
@@ -700,6 +704,8 @@ const OrganizerApp = () => {
               </div>
               {openScreen?.screen === "recorridos" ? (
                 <OrgDistancesSummary raceId={raceId} byDistance={summary?.by_distance ?? []} />
+              ) : openScreen?.screen === "marcar" ? (
+                <OrgMarcarPuntos raceId={raceId} />
               ) : openScreen?.screen === "voluntarios" ? (
                 <OrgVolunteers raceId={raceId} />
               ) : openScreen?.screen === "invitado" ? (

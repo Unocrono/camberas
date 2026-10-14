@@ -45,6 +45,8 @@ interface RoadbookItem {
   notes: string | null;
   is_highlighted: boolean;
   is_checkpoint: boolean;
+  /** gpx = del GPX (lo borra «Regenerar»); panel = a mano; campo = marcado en campo desde Camberas Org */
+  origen?: string;
 }
 
 interface RoadbookItemType {
@@ -378,8 +380,9 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
 
   const nombrePorDefecto = () => `${distanceInfo?.race_name || "Carrera"} - ${distanceInfo?.name || ""}`.trim();
 
-  // Genera (o regenera) los puntos desde el texto de un GPX: borra los que
-  // hubiera e inserta el track y los waypoints (ver lib/rutometro)
+  // Genera (o regenera) los puntos desde el texto de un GPX: borra SOLO los
+  // que vinieron del GPX (origen 'gpx') e inserta el track y los waypoints
+  // (ver lib/rutometro). Lo añadido a mano o marcado en campo se conserva.
   const generarPuntos = async (gpxText: string, roadbookId: string): Promise<ResultadoRutometro> => {
     if (!distanceInfo) throw new Error("No hay datos del recorrido");
     let tipos = itemTypes;
@@ -394,7 +397,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     const resultado = construirPuntosRutometro(gpxText, distanceInfo.distance_km, new Set(idPorTipo.keys()));
     if (resultado.puntos.length === 0) throw new Error("El GPX no tiene track ni waypoints");
 
-    const { error: errorBorrar } = await supabase.from("roadbook_items").delete().eq("roadbook_id", roadbookId);
+    const { error: errorBorrar } = await supabase
+      .from("roadbook_items")
+      .delete()
+      .eq("roadbook_id", roadbookId)
+      .eq("origen", "gpx");
     if (errorBorrar) throw errorBorrar;
 
     const filas = resultado.puntos.map((p) => ({
@@ -635,7 +642,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       } else {
         const { error } = await supabase
           .from("roadbook_items")
-          .insert({ ...itemData, item_order: totalItems });
+          .insert({ ...itemData, item_order: totalItems, origen: "panel" });
         if (error) throw error;
         toast({ title: "Éxito", description: "Ítem creado" });
       }
@@ -1149,6 +1156,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                         </TableCell>
                         <TableCell className="max-w-[200px]">
                           <span className="text-sm truncate block" title={item.description}>
+                            {item.origen === "campo" && (
+                              <span className="mr-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary" title="Marcado en campo desde Camberas Org">
+                                📍 campo
+                              </span>
+                            )}
                             {item.description}
                           </span>
                         </TableCell>
@@ -1223,8 +1235,9 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
           <AlertDialogHeader>
             <AlertDialogTitle>¿Regenerar los puntos desde el GPX?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se borran los {totalItems} puntos actuales, también los añadidos o corregidos a mano, y se vuelven a
-              crear desde el GPX del recorrido.
+              Se renuevan el trazado y los puntos que vienen del GPX. Los añadidos a mano en el panel y los
+              marcados en campo desde Camberas Org se conservan (los que ya existían antes del 14-oct-2026 cuentan
+              como del GPX).
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

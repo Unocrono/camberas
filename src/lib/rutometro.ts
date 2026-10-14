@@ -24,6 +24,8 @@ export interface PuntoRutometro {
   longitude: number;
   is_highlighted: boolean;
   is_checkpoint: boolean;
+  /** De dónde sale el punto: lo generado aquí es 'gpx' (y es lo único que borra «Regenerar») */
+  origen: "gpx" | "panel" | "campo";
 }
 
 export interface ResultadoRutometro {
@@ -138,9 +140,10 @@ export function construirPuntosRutometro(
 
   const puntos: PuntoRutometro[] = [];
   let kmAnterior = 0;
-  const añade = (p: Omit<PuntoRutometro, "item_order" | "km_partial" | "km_remaining">) => {
+  const añade = (p: Omit<PuntoRutometro, "item_order" | "km_partial" | "km_remaining" | "origen">) => {
     puntos.push({
       ...p,
+      origen: "gpx",
       item_order: puntos.length,
       km_partial: redondea3(Math.max(0, p.km_total - kmAnterior)),
       km_remaining: redondea3(Math.max(0, total - p.km_total)),

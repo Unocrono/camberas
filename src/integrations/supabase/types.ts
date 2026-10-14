@@ -4973,6 +4973,7 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           notes: string | null
+          origen: string
           photo_16_9_url: string | null
           photo_9_16_url: string | null
           roadbook_id: string
@@ -4996,6 +4997,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           notes?: string | null
+          origen?: string
           photo_16_9_url?: string | null
           photo_9_16_url?: string | null
           roadbook_id: string
@@ -5019,6 +5021,7 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           notes?: string | null
+          origen?: string
           photo_16_9_url?: string | null
           photo_9_16_url?: string | null
           roadbook_id?: string
@@ -6464,6 +6467,21 @@ export type Database = {
       marcar_aviso_pago: {
         Args: { p_id: string; p_importe?: number; p_ronda: number }
         Returns: undefined
+      }
+      marcar_punto_rutometro: {
+        Args: {
+          p_altitud?: number
+          p_distance_id: string
+          p_id?: string
+          p_km?: number
+          p_lat: number
+          p_lng: number
+          p_marcado_en?: string
+          p_nota?: string
+          p_precision_m?: number
+          p_tipo: string
+        }
+        Returns: Json
       }
       marcar_gallo: {
         Args: {
