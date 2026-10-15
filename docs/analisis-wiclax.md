@@ -358,6 +358,21 @@ cierre de meta que ya existe (`race_distances.cutoff_time`), y que el motor **pr
 quien llega después del cierre y DNS a quien no tiene ninguna lectura, sin aplicarlos solo.
 `FUERA_CONTROL` en el puesto `/timing` deja de hacer falta.
 
+**15-oct, pregunta 7.** «Sí, claro. Las parejas, en una clasificación aparte, como un recorrido
+más, contando como un solo dorsal y con "Nombre participante 1 / Nombre participante 2" en vez
+de nombre y apellidos. Las clasificaciones por equipos generalmente son por tiempos; también
+hay suma de puestos o suma de puntos. Locales o federados: sí, muy importante; siempre hay
+locales, es un atributo del corredor. Puede haber de 1 a 3 atributos de clasificación, tipo
+local / regional / militar.» Consecuencia para 8.10: (a) **parejas** = un recorrido propio
+con un dorsal por pareja y dos nombres en la inscripción (sin motor nuevo); (b) **equipos** =
+clasificación derivada de la individual con tres criterios a elegir por carrera: suma de
+tiempos de los N primeros, suma de puestos o suma de puntos (ya existen `teams`,
+`team_members` y `registrations.team_id` desde `20260807100000`); (c) **atributos de
+clasificación**: de 1 a 3 por carrera, definidos por el organizador (local, regional,
+militar…), marcados por corredor en la inscripción, y cada uno da una clasificación filtrada
+sobre la general. En la base no hay hoy ningún atributo «local» fijo; si alguna carrera lo
+recoge, es como campo personalizado del formulario, que no sirve para clasificar.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
