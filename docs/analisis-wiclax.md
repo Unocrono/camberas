@@ -352,6 +352,12 @@ lo que falta es que el cronometraje lo siga: conservar las lecturas, recalcular 
 del recorrido nuevo y avisar en Resultados cuando un dorsal del largo solo pisa controles o
 meta del corto. Sin reglas automáticas de asignación.
 
+**15-oct, pregunta 6.** «Barreras horarias por control, no; solo en meta, y el cierre de
+control ya lo tenemos.» Consecuencia: de 8.7 se cae `hora_cierre` por control; queda solo el
+cierre de meta que ya existe (`race_distances.cutoff_time`), y que el motor **proponga** CUT a
+quien llega después del cierre y DNS a quien no tiene ninguna lectura, sin aplicarlos solo.
+`FUERA_CONTROL` en el puesto `/timing` deja de hacer falta.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
