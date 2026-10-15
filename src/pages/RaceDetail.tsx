@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane, SearchCheck } from "lucide-react";
 import { formatLocalTime, paredAMs, ahoraParedMs, hoyLocal } from "@/lib/timezoneUtils";
+import { formatearTiempoLimite } from "@/lib/tiempoLimite";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -1169,7 +1170,7 @@ const RaceDetail = () => {
                           {distance.cutoff_time && (
                             <div className="flex items-center gap-2 text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              <span className="text-sm">Límite: {distance.cutoff_time}</span>
+                              <span className="text-sm">Tiempo límite: {formatearTiempoLimite(distance.cutoff_time)} desde la salida</span>
                             </div>
                           )}
                           {/* Plazas libres: solo si el organizador lo activa en la

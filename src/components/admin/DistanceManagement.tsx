@@ -15,6 +15,7 @@ import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
+import { horaCierre, formatearTiempoLimite, tiempoLimiteValido } from "@/lib/tiempoLimite";
 import { urlTecleada } from "@/lib/resultados";
 
 // Format timestamp to local time HH:MM - extract directly from ISO string
@@ -36,7 +37,9 @@ const distanceSchema = z.object({
   elevation_gain: z.number().positive("El desnivel debe ser positivo").optional(),
   price: z.number().min(0, "El precio no puede ser negativo"),
   max_participants: z.number().positive().optional(),
-  cutoff_time: z.string().max(50).optional(),
+  // Horas de carrera desde la salida oficial («7:00», «7 h»), lo mismo que entiende la base
+  cutoff_time: z.string().max(50).optional()
+    .refine((v) => tiempoLimiteValido(v), "Tiempo límite: horas de carrera, como «7:00» o «7 h»"),
   start_location: z.string().trim().max(200).optional(),
   finish_location: z.string().trim().max(200).optional(),
   results_url: z
@@ -1382,18 +1385,34 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="cutoff_time">Tiempo Límite (HH:MM:SS)</Label>
+                    <Label htmlFor="cutoff_time">Tiempo límite (horas de carrera desde la salida oficial)</Label>
                     <Input
                       id="cutoff_time"
-                      type="time"
-                      step="1"
-                      placeholder="HH:MM:SS"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="7:00"
                       value={formData.cutoff_time}
                       onChange={(e) => setFormData({ ...formData, cutoff_time: e.target.value })}
+                      className={formData.cutoff_time && !tiempoLimiteValido(formData.cutoff_time) ? "border-destructive" : undefined}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Tiempo máximo permitido para completar el recorrido
+                      Se cuenta desde la salida oficial: «7:00» son siete horas de carrera, no las siete de la
+                      tarde. Si la salida se retrasa, el cierre se mueve con ella. Vacío: 12 h.
                     </p>
+                    {formData.cutoff_time && !tiempoLimiteValido(formData.cutoff_time) && (
+                      <p className="text-xs text-destructive">No se entiende. Escribe horas de carrera: «7:00», «7 h» o «7,5 h».</p>
+                    )}
+                    {tiempoLimiteValido(formData.cutoff_time) && formData.cutoff_time && (
+                      <p className="text-xs text-muted-foreground">
+                        Tiempo límite: <span className="font-medium">{formatearTiempoLimite(formData.cutoff_time)} de carrera</span>
+                        {horaCierre(formData.start_time_value, formData.cutoff_time) && (
+                          <>
+                            {" "}· con la salida prevista a las {formData.start_time_value.slice(0, 5)}, el cierre
+                            sería a las <span className="font-medium">{horaCierre(formData.start_time_value, formData.cutoff_time)}</span>
+                          </>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </TabsContent>
 
