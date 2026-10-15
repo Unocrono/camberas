@@ -361,6 +361,13 @@ cierre de meta que ya existe (`race_distances.cutoff_time`), y que el motor **pr
 quien llega después del cierre y DNS a quien no tiene ninguna lectura, sin aplicarlos solo.
 `FUERA_CONTROL` en el puesto `/timing` deja de hacer falta.
 
+**15-oct, sobre el fuera de control.** «Podemos poner un tanto por ciento respecto del primero;
+en trail generalmente el último tarda el doble que el primero. Eso en ciclismo está bien definido,
+pero en trail generalmente son horas de carrera. Hay que ponerlo más claro: actualmente no se sabe
+si son horas de más respecto de la salida o una hora de reloj.» Consecuencia: tiempo límite por
+recorrido en dos modos (horas desde la salida oficial, o % sobre el primero), nunca hora de reloj,
+y la pantalla de Recorridos lo dice claro.
+
 **15-oct, pregunta 7.** «Sí, claro. Las parejas, en una clasificación aparte, como un recorrido
 más, contando como un solo dorsal y con "Nombre participante 1 / Nombre participante 2" en vez
 de nombre y apellidos. Las clasificaciones por equipos generalmente son por tiempos; también
