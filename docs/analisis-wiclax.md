@@ -384,13 +384,13 @@ contrarreloj.» Consecuencia: 8.14 queda fuera del todo. Las vueltas sencillas d
 (n-ésimo paso por la misma alfombra) se quedan porque ya están hechas y no estorban, pero no
 se amplían.
 
-**15-oct, pregunta 11.** «El Ultra se sincroniza con una app que se llama RFIDServer.» (La
-hora del Ultra se pone desde el PC, con el programa RFIDServer de RFID Timing, antes de la
-carrera; no consta que haya habido carreras con el Ultra a +1 h.) Consecuencia para 8.3: el
-offset por lector pasa a ser un seguro, no una urgencia; se mantiene la deriva de reloj visible
-en el puesto `/timing` y en la pantalla Receptor Ultra (la hora que manda el Ultra en su
-mensaje de estado frente a la del servidor), que es lo que avisaría antes de la salida si un
-día el Ultra va mal.
+**15-oct, pregunta 11.** «El Ultra se sincroniza con una app que se llama RFIDServer. El Ultra
+no cambia con el horario de verano, pero como hay que sincronizar antes de cada carrera no es
+problema. El offset es bueno tenerlo, pero no esencial.» Consecuencia para 8.3: el offset por
+lector pasa a ser un seguro de segunda fila; lo que se hace es la deriva de reloj visible en el
+puesto `/timing` y en la pantalla Receptor Ultra (la hora que manda el Ultra en su mensaje de
+estado frente a la del servidor), que es lo que avisaría antes de la salida si un día se olvida
+la sincronización.
 
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
