@@ -326,7 +326,8 @@ Consecuencias para el diseño:
   si cae internet, que ya está; o (b) seguir clasificando en vivo sin internet, que es la
   copia local.
 
-**15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube.»
+**15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube; todo el
+cronometraje es web.»
 Consecuencia: Camberas no tiene que imitar a Wiclax; lo complejo (contrarreloj, etapas,
 relevos, olas con condiciones) ya lo cubre la app de Javi. Camberas se queda con el
 cronometraje sencillo bien hecho y con lo que Wiclax y la app de Javi no son: inscripciones,
