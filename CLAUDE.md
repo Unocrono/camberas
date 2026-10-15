@@ -214,6 +214,10 @@ Consúltala antes de rehacer análisis:
   inscritos y pagos). Los secrets y el Storage no van en el export.
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
+- **`docs/libro-cronometraje.md`** — **la fuente de verdad de cómo cronometra Camberas**: alcance,
+  vocabulario (con la tabla de cada término), cómo entran las lecturas, reglas marcadas [PROD] /
+  [PR #11] / [PENDIENTE], el día de carrera paso a paso, clasificaciones, respaldo, plan de trabajo
+  y las decisiones del dueño con fecha. Antes de tocar cronometraje, léelo y mantenlo al día.
 - **`docs/camberas-app.md`** — la idea de Camberas.app: cinco apps (inscripciones, seguimiento,
   cronometraje y resultados, grafismo, carreras y organización) separadas y unidas. Qué hay hoy de
   cada una, qué las une (tokens, RPC, receptor) y qué se decide cuando se dé el paso.
