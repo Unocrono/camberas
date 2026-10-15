@@ -330,6 +330,13 @@ Consecuencias para el diseño:
 relacionados con un dorsal. Es demasiado sencillo.» Consecuencia: se queda el modelo de
 `bib_chips` (N chips por dorsal). La regla «chip = dorsal por patrón» no se hace.
 
+**15-oct, pregunta 3.** «Entre 1 y 10 puntos por carrera; más de 10 no es cronometraje para
+Camberas. De esos 10, las pistolas (puestos manuales con móvil) pueden ser de 1 a 9; yo no las
+uso mucho, pero con Camberas sí van a tener uso.» Consecuencia: el puesto manual `/timing` es
+un punto de cronometraje de primera, no un respaldo: 8.6 (modo «tiempos» y dorsales por orden,
+`FUERA_CONTROL` en el puesto) y la deriva de reloj por puesto de 8.3 suben de peso; todo lo que
+se diseñe debe funcionar con hasta 10 puntos mezclando alfombras y móviles.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
