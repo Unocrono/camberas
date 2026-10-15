@@ -379,6 +379,11 @@ Ultra se conservan en las lecturas pero no se muestran. Exportaciones a hacer, p
 Excel/CSV de la general y por categorías (hoy solo PDF y CSV básico), ITRA y el formato de la
 federación cuando toque, todas con el tiempo en `hh:mm:ss`.
 
+**15-oct, pregunta 9.** «De momento, Camberas no cronometra pruebas por vueltas ni
+contrarreloj.» Consecuencia: 8.14 queda fuera del todo. Las vueltas sencillas del PR #11
+(n-ésimo paso por la misma alfombra) se quedan porque ya están hechas y no estorban, pero no
+se amplían.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
