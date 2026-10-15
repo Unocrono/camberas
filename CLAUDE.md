@@ -214,6 +214,9 @@ Consúltala antes de rehacer análisis:
   inscritos y pagos). Los secrets y el Storage no van en el export.
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
+- **`docs/analisis-wiclax.md`** — cómo cronometra Wiclax (modelo, reglas, tipos de prueba, día de
+  carrera) frente a Camberas, con las recomendaciones y el orden para reestructurar el cronometraje
+  y las preguntas al dueño. Léelo antes de tocar el motor o el modelo de lecturas/salidas.
 - **`receptor-ultra/README.md`** — lecturas del RFID Ultra sin Outreach: un programa Python en el
   VPS del streaming (212.227.159.123:23023) que guarda, sube a Camberas (`ultra_registrar_lecturas`)
   y replica a otros servidores (pantalla admin «Receptor Ultra», `ultra_receptor_sincronizar`).
