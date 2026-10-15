@@ -332,7 +332,14 @@ relacionados con un dorsal. Es demasiado sencillo.» Consecuencia: se queda el m
 por carrera. La regla «chip = dorsal por patrón» no se hace.
 
 **15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube; todo el
-cronometraje es web.»
+cronometraje es web. Lee las lecturas como Wiclax: define un equipo conectado por red local
+TCP/IP, o las toma de su propio servidor, que sube las lecturas (sobre todo de Feibot), como las
+que subíamos nosotros a Outreach y ahora están en nuestro servidor.» Tres formas de unirla al
+receptor del Ultra, de menos a más trabajo: (a) si su servidor admite que un Ultra le mande
+lecturas como el de RFID Timing, se añade como destino en la pantalla Receptor Ultra y recibe
+copia de todo; (b) su app se conecta al puerto del PC del receptor (23024) y lee las lecturas en
+líneas de texto (`receptor-ultra/pc/README.md`); (c) si su servidor tiene una URL para recibir
+lecturas, el receptor añade un destino «web» que se las manda.
 Consecuencia: Camberas no tiene que imitar a Wiclax; lo complejo (contrarreloj, etapas,
 relevos, olas con condiciones) ya lo cubre la app de Javi. Camberas se queda con el
 cronometraje sencillo bien hecho y con lo que Wiclax y la app de Javi no son: inscripciones,
