@@ -364,9 +364,9 @@ quien llega después del cierre y DNS a quien no tiene ninguna lectura, sin apli
 **15-oct, sobre el fuera de control.** «Podemos poner un tanto por ciento respecto del primero;
 en trail generalmente el último tarda el doble que el primero. Eso en ciclismo está bien definido,
 pero en trail generalmente son horas de carrera. Hay que ponerlo más claro: actualmente no se sabe
-si son horas de más respecto de la salida o una hora de reloj.» Consecuencia: tiempo límite por
-recorrido en dos modos (horas desde la salida oficial, o % sobre el primero), nunca hora de reloj,
-y la pantalla de Recorridos lo dice claro.
+si son horas de más respecto de la salida o una hora de reloj.» Después: «solo lo primero, nada de %». Consecuencia: tiempo
+límite = horas de carrera desde la salida oficial, nunca hora de reloj ni tanto por ciento, y la
+pantalla de Recorridos lo dice claro.
 
 **15-oct, pregunta 7.** «Sí, claro. Las parejas, en una clasificación aparte, como un recorrido
 más, contando como un solo dorsal y con "Nombre participante 1 / Nombre participante 2" en vez
