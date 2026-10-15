@@ -326,6 +326,11 @@ Consecuencias para el diseño:
   si cae internet, que ya está; o (b) seguir clasificando en vivo sin internet, que es la
   copia local.
 
+**15-oct, pregunta 2.** «El tipo de chip no es importante: es un chip, o varios, asignados y
+relacionados con un dorsal. Es demasiado sencillo.» Consecuencia: se queda el modelo de
+`bib_chips` (N chips por dorsal); de 8.2 se hace solo el dorsal único por carrera y `bib_chips`
+por carrera. La regla «chip = dorsal por patrón» no se hace.
+
 **15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube; todo el
 cronometraje es web.»
 Consecuencia: Camberas no tiene que imitar a Wiclax; lo complejo (contrarreloj, etapas,
