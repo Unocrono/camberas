@@ -344,6 +344,14 @@ punto es arreglar `cronometrador_contexto` para que el puesto `/timing` muestre 
 recorrido del dorsal y no la primera ola de la carrera, que ya falla con dos recorridos a horas
 distintas.
 
+**15-oct, pregunta 5.** «Cambiar de recorrido: lo normal es que sí. Si se cambian a uno
+superior, la solución más sencilla es un pago manual y cambiarlo a mano por el incremento de
+precio del recorrido más largo.» Consecuencia: 8.8 se queda, en su versión mínima: el cambio
+de recorrido se hace desde Inscripciones (como hoy, con su pago manual si sube de precio) y
+lo que falta es que el cronometraje lo siga: conservar las lecturas, recalcular con la salida
+del recorrido nuevo y avisar en Resultados cuando un dorsal del largo solo pisa controles o
+meta del corto. Sin reglas automáticas de asignación.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
