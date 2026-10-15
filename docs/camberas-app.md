@@ -36,6 +36,15 @@ para vivir separado y seguir unido:
 - **Las horas**: todas las de carrera son hora de pared y no se convierten nunca
   (`CLAUDE.md`). Cualquier app nueva hereda esa norma.
 
+## Decisiones ya tomadas
+
+- **15-oct-2026, Inscripciones.** «La web de inscripciones ha de ser independiente de las
+  carreras: su base de datos, su código y su herramienta para conectar con la carrera y con
+  las clasificaciones.» Es decir: Inscripciones es una app aparte, con base propia, y lo que
+  la une a las demás es una herramienta de conexión (lo que da a la carrera: inscritos,
+  dorsales, chips, atributos de clasificación; lo que recibe de ella: resultados para
+  enseñárselos al inscrito). La estructura de datos está en `docs/camberas-app-datos.md`.
+
 ## Qué hay que decidir cuando se dé el paso
 
 - Si cada app tiene su base o todas comparten una, y en ese caso cómo se reparte el acceso.
