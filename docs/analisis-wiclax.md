@@ -328,8 +328,17 @@ Consecuencias para el diseño:
 
 **15-oct, pregunta 2.** «El tipo de chip no es importante: es un chip, o varios, asignados y
 relacionados con un dorsal. Es demasiado sencillo.» Consecuencia: se queda el modelo de
-`bib_chips` (N chips por dorsal); de 8.2 se hace solo el dorsal único por carrera y `bib_chips`
-por carrera. La regla «chip = dorsal por patrón» no se hace.
+`bib_chips` (N chips por dorsal). La regla «chip = dorsal por patrón» no se hace.
+
+**15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
+tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
+volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
+Camberas `race_distances` (el recorrido). En la práctica el dorsal ya es único por carrera
+gracias a los rangos `bib_start`/`bib_end` de cada recorrido, siempre que no se solapen. En la
+base no hay candado que lo garantice (solo `bib_chips UNIQUE(race_distance_id, bib_number)`, por
+recorrido, y `assign_next_bib` por recorrido), así que de 8.2 queda únicamente ese candado: un
+índice único en `registrations (race_id, bib_number)` para inscripciones no canceladas y un
+aviso en Recorridos si dos rangos se solapan. Nada más.
 
 **15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube; todo el
 cronometraje es web. Lee las lecturas como Wiclax: define un equipo conectado por red local
