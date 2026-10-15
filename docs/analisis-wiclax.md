@@ -326,6 +326,14 @@ Consecuencias para el diseño:
   si cae internet, que ya está; o (b) seguir clasificando en vivo sin internet, que es la
   copia local.
 
+**15-oct, pregunta 10.** «La app de Javi es un calco de Wiclax, en local y en la nube.»
+Consecuencia: Camberas no tiene que imitar a Wiclax; lo complejo (contrarreloj, etapas,
+relevos, olas con condiciones) ya lo cubre la app de Javi. Camberas se queda con el
+cronometraje sencillo bien hecho y con lo que Wiclax y la app de Javi no son: inscripciones,
+web de la carrera, seguimiento GPS y grafismo. El receptor del Ultra puede alimentar también
+a la app de Javi como un destino más (copia o en directo) si admite el protocolo del Ultra o
+un fichero de lecturas, igual que hoy alimenta a RaceTec.
+
 ### Orden propuesto
 
 1. Aplicar el PR #11 (`20261013180000`), que ya está escrito; el Ultra en directo y el Receptor Ultra ya están aplicados.
