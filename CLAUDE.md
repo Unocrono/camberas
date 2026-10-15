@@ -214,6 +214,10 @@ Consúltala antes de rehacer análisis:
   inscritos y pagos). Los secrets y el Storage no van en el export.
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
+- **`receptor-ultra/README.md`** — lecturas del RFID Ultra sin Outreach: un programa Python en el
+  VPS del streaming (212.227.159.123:23023) que guarda, sube a Camberas (`ultra_registrar_lecturas`)
+  y replica a otros servidores (pantalla admin «Receptor Ultra», `ultra_receptor_sincronizar`).
+  Protocolo binario del Ultra documentado ahí. No está en Lovable: se despliega a mano en el VPS.
 
 ## Repos hermanos
 
