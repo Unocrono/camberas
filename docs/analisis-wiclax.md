@@ -299,6 +299,33 @@ Motor de vueltas completo (fin por duración + n vueltas, ilimitado, Backyard co
 11. ¿Cómo se cuadra hoy la hora del Ultra (GPS o manual) y la de los móviles antes de la salida? ¿Ha habido carreras con el Ultra a +1 h por horario de verano?
 12. ¿Se puede obtener el export de dos o tres carreras pasadas (lecturas Ultra brutas + resultados oficiales de RaceTec) para contrastar cualquier motor nuevo?
 
+### Respuestas del dueño
+
+**15-oct, pregunta 1.** «RaceTec y Wiclax son programas complejos y con muchas opciones.
+Camberas es una plataforma que PUEDE CRONOMETRAR carreras sencillas de trail: salida, puntos
+intermedios y meta. La idea es que Camberas cronometre, pero sin grandes pretensiones. Vamos a
+seguir siendo nube, e incluso se puede hacer un respaldo en local y seguir cronometrando con
+localhost si hiciera falta, o al revés: cronometrar con localhost y hacer un respaldo en la nube.»
+
+Consecuencias para el diseño:
+
+- **Alcance cerrado**: salida en masa, controles intermedios y meta, con vueltas sencillas
+  (2–4 sobre la misma alfombra, lo que ya hace el PR #11). Quedan fuera contrarreloj, etapas,
+  campeonatos, relevos, torneos, Backyard y la lista de salidas con condiciones (8.12 solo si
+  algún día hay olas de verdad). 8.14 queda fuera del todo.
+- **Camberas cronometra**: no publica lo de otro. Hace falta todo lo de 8.1–8.9; RaceTec
+  y Outreach siguen en paralelo como red de seguridad mientras se afina, gracias al receptor
+  del Ultra (`receptor-ultra/`), que ya replica cada lectura a los dos sitios.
+- **Nube con respaldo local**: hoy ya ninguna lectura depende de la nube (el VPS las guarda
+  en disco y confirma al Ultra desde ahí; el PC las recibe por el puerto 23024). Lo que no
+  existe es **clasificar sin internet**: para eso haría falta una copia de Camberas en el PC
+  (Supabase local con Docker, la misma web apuntando a `localhost` y el receptor del PC
+  insertando en esa copia con la misma RPC `ultra_registrar_lecturas`) y una sincronización
+  con la nube en los dos sentidos. Es un proyecto aparte, posterior a 8.1–8.9, y conviene
+  decidir antes qué se necesita de verdad: (a) no perder lecturas y poder clasificar después
+  si cae internet, que ya está; o (b) seguir clasificando en vivo sin internet, que es la
+  copia local.
+
 ### Orden propuesto
 
 1. Aplicar el PR #11 (`20261013180000`), que ya está escrito; el Ultra en directo y el Receptor Ultra ya están aplicados.
