@@ -337,6 +337,13 @@ un punto de cronometraje de primera, no un respaldo: 8.6 (modo «tiempos» y dor
 `FUERA_CONTROL` en el puesto) y la deriva de reloj por puesto de 8.3 suben de peso; todo lo que
 se diseñe debe funcionar con hasta 10 puntos mezclando alfombras y móviles.
 
+**15-oct, pregunta 4.** «Para Camberas, una salida por evento (recorrido). Claro que puede
+haber olas, pero eso es de eventos grandes.» Consecuencia: 8.12 (salidas como lista de filas)
+queda fuera; `race_waves` 1:1 con el recorrido se mantiene. Lo único que sigue en pie de ese
+punto es arreglar `cronometrador_contexto` para que el puesto `/timing` muestre la salida del
+recorrido del dorsal y no la primera ola de la carrera, que ya falla con dos recorridos a horas
+distintas.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
