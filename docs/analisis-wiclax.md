@@ -373,6 +373,12 @@ militar…), marcados por corredor en la inscripción, y cada uno da una clasifi
 sobre la general. En la base no hay hoy ningún atributo «local» fijo; si alguna carrera lo
 recoge, es como campo personalizado del formulario, que no sirve para clasificar.
 
+**15-oct, pregunta 8.** «Están bien esas exportaciones (ITRA, federación, Excel del
+organizador), en hh:mm:ss.» Consecuencia: se publica y exporta al segundo; las milésimas del
+Ultra se conservan en las lecturas pero no se muestran. Exportaciones a hacer, por este orden:
+Excel/CSV de la general y por categorías (hoy solo PDF y CSV básico), ITRA y el formato de la
+federación cuando toque, todas con el tiempo en `hh:mm:ss`.
+
 **15-oct, sobre 8.2.** «Wiclax llama carrera a lo que nosotros llamamos evento/recorrido; por
 tanto es lógico que el dorsal sea único por evento, y eso ya lo tenemos.» Terminología, para no
 volver a cruzarla: Wiclax *evento* = Camberas `races` (la carrera del panel); Wiclax *carrera* =
