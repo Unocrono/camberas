@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft, RefreshCw, Upload, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Filter, Search, Download, CheckSquare, ArrowRightLeft, Upload, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RFIDImportDialog } from "./RFIDImportDialog";
 
@@ -111,13 +111,6 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
   const [isChangeTimingPointDialogOpen, setIsChangeTimingPointDialogOpen] = useState(false);
   const [newTimingPointId, setNewTimingPointId] = useState<string>("");
   
-  // Reimport GPS state
-  const [isReimportDialogOpen, setIsReimportDialogOpen] = useState(false);
-  const [reimportDate, setReimportDate] = useState(hoyLocal());
-  const [reimportStartTime, setReimportStartTime] = useState("00:00");
-  const [reimportEndTime, setReimportEndTime] = useState("23:59");
-  const [reimporting, setReimporting] = useState(false);
-  const [waveInfo, setWaveInfo] = useState<{ date: string; time: string } | null>(null);
   
   // RFID Import state
   const [isRFIDImportDialogOpen, setIsRFIDImportDialogOpen] = useState(false);
@@ -698,155 +691,6 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
     }
   };
 
-  const handleOpenReimportDialog = async () => {
-    if (!filterRaceId) return;
-    
-    // Get the wave start time for the selected distance (or first distance if "all")
-    const distanceId = filterDistanceId && filterDistanceId !== "all" ? filterDistanceId : distances[0]?.id;
-    
-    if (distanceId) {
-      try {
-        const { data: wave, error } = await supabase
-          .from("race_waves")
-          .select("start_time")
-          .eq("race_distance_id", distanceId)
-          .maybeSingle();
-        
-        if (!error && wave?.start_time) {
-          const datePart = wave.start_time.slice(0, 10);
-          const timePart = wave.start_time.slice(11, 19);
-          
-          setReimportDate(datePart);
-          setReimportStartTime(timePart);
-          setReimportEndTime("23:59:59");
-          setWaveInfo({ date: datePart, time: timePart });
-        } else {
-          const today = hoyLocal();
-          setReimportDate(today);
-          setReimportStartTime("00:00:00");
-          setReimportEndTime("23:59:59");
-          setWaveInfo(null);
-        }
-      } catch (err) {
-        console.error("Error fetching wave:", err);
-        const today = hoyLocal();
-        setReimportDate(today);
-        setReimportStartTime("00:00:00");
-        setReimportEndTime("23:59:59");
-        setWaveInfo(null);
-      }
-    } else {
-      const today = hoyLocal();
-      setReimportDate(today);
-      setReimportStartTime("00:00:00");
-      setReimportEndTime("23:59:59");
-      setWaveInfo(null);
-    }
-    
-    setIsReimportDialogOpen(true);
-  };
-
-  const handleReimportGPS = async () => {
-    if (!filterRaceId) {
-      toast({
-        title: "Selecciona una carrera",
-        description: "Debes seleccionar una carrera para reimportar las lecturas GPS",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setReimporting(true);
-    try {
-      // Validar que tenemos todos los valores necesarios
-      if (!reimportDate || !reimportStartTime || !reimportEndTime) {
-        throw new Error("Debes completar la fecha y las horas de inicio y fin");
-      }
-
-      // Normalizar formato de tiempo: si ya tiene segundos no añadir más
-      const normalizeTime = (time: string) => {
-        const parts = time.split(':');
-        if (parts.length === 2) {
-          return `${time}:00`; // HH:MM → HH:MM:SS
-        }
-        return time; // Ya tiene HH:MM:SS
-      };
-
-      // Construir timestamps en formato local (sin conversión a UTC)
-      // Los GPS se almacenan en hora local, así que comparamos directamente
-      const startTimestamp = `${reimportDate}T${normalizeTime(reimportStartTime)}`;
-      const endTimestamp = `${reimportDate}T${normalizeTime(reimportEndTime)}`;
-      
-      console.log(`Reimporting GPS readings:`);
-      console.log(`  Time range: ${startTimestamp} to ${endTimestamp}`);
-      
-      // PASO 1: Obtener los IDs de GPS en el rango (como hace el trigger)
-      const { data: gpsData, error: gpsError } = await supabase
-        .from('gps_tracking')
-        .select('id')
-        .eq('race_id', filterRaceId)
-        .gte('timestamp', startTimestamp)
-        .lte('timestamp', endTimestamp)
-        .order('timestamp', { ascending: true });
-      
-      if (gpsError) throw gpsError;
-      
-      if (!gpsData || gpsData.length === 0) {
-        toast({
-          title: "Sin lecturas GPS",
-          description: "No se encontraron lecturas GPS en el rango especificado",
-          variant: "destructive",
-        });
-        setReimporting(false);
-        return;
-      }
-      
-      const gpsIds = gpsData.map(g => g.id);
-      console.log(`Found ${gpsIds.length} GPS readings to reimport`);
-      
-      // PASO 2: Enviar los IDs a la edge function (mismo flujo que el trigger)
-      const { data, error } = await supabase.functions.invoke("process-gps-geofence", {
-        body: { 
-          race_id: filterRaceId,
-          gps_ids: gpsIds,
-          force_reprocess: true
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Reimportación completada",
-        description: `Procesadas ${data?.processed || 0} lecturas GPS, creadas ${data?.created || 0} nuevas lecturas`,
-      });
-
-      setIsReimportDialogOpen(false);
-      fetchReadings();
-    } catch (error: any) {
-      console.error("Error reimporting GPS:", error);
-      toast({
-        title: "Error",
-        description: error.message || "No se pudo reimportar las lecturas GPS",
-        variant: "destructive",
-      });
-    } finally {
-      setReimporting(false);
-    }
-  };
-
-  const handleTimeChange = (value: string, setter: (v: string) => void) => {
-    let cleaned = value.replace(/[^\d:]/g, '');
-    const digits = cleaned.replace(/:/g, '');
-    if (digits.length <= 2) {
-      cleaned = digits;
-    } else if (digits.length <= 4) {
-      cleaned = `${digits.slice(0, 2)}:${digits.slice(2)}`;
-    } else {
-      cleaned = `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4, 6)}`;
-    }
-    setter(cleaned);
-  };
-
   const handleExportCSV = () => {
     if (readings.length === 0) {
       toast({
@@ -935,10 +779,6 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
               </Button>
             </>
           )}
-          <Button onClick={handleOpenReimportDialog} variant="outline" disabled={!filterRaceId}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reimportar GPS
-          </Button>
           <Button onClick={() => setIsRFIDImportDialogOpen(true)} variant="outline" disabled={!filterRaceId}>
             <Upload className="h-4 w-4 mr-2" />
             Importar RFID
@@ -1538,7 +1378,7 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             </div>
             <p className="text-sm text-muted-foreground">
               Esto asignará el punto de cronometraje seleccionado a todas las lecturas marcadas. 
-              Útil para corregir lecturas GPS que fueron asignadas incorrectamente.
+              Útil para corregir lecturas importadas en el punto equivocado.
             </p>
           </div>
           <DialogFooter>
@@ -1548,67 +1388,6 @@ export function TimingReadingsManagement({ isOrganizer = false, selectedRaceId }
             <Button onClick={handleConfirmChangeTimingPoint} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Cambiar Punto
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reimport GPS Dialog */}
-      <Dialog open={isReimportDialogOpen} onOpenChange={setIsReimportDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Reimportar Lecturas GPS</DialogTitle>
-            <DialogDescription>
-              Reprocesa las lecturas GPS de la carrera para un rango de tiempo específico.
-              Esto eliminará las lecturas GPS existentes y las volverá a generar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {waveInfo && (
-              <div className="p-3 bg-muted rounded-md text-sm">
-                <p><strong>Hora de salida configurada:</strong> {waveInfo.date} a las {waveInfo.time}</p>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label>Fecha</Label>
-              <Input
-                type="date"
-                value={reimportDate}
-                onChange={(e) => setReimportDate(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Hora Inicio</Label>
-                <Input
-                  type="text"
-                  placeholder="HH:MM:SS"
-                  value={reimportStartTime}
-                  onChange={(e) => handleTimeChange(e.target.value, setReimportStartTime)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora Fin</Label>
-                <Input
-                  type="text"
-                  placeholder="HH:MM:SS"
-                  value={reimportEndTime}
-                  onChange={(e) => handleTimeChange(e.target.value, setReimportEndTime)}
-                />
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Se procesarán todas las lecturas GPS dentro del rango de tiempo especificado 
-              y se crearán lecturas de cronometraje cuando un corredor pase por un checkpoint con geofence.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsReimportDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleReimportGPS} disabled={reimporting || !reimportDate}>
-              {reimporting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Reimportar
             </Button>
           </DialogFooter>
         </DialogContent>
