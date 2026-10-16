@@ -400,7 +400,8 @@ Ningún hallazgo se refutó entero. Estas afirmaciones sí cayeron:
 1. **La clasificación oficial publicada** de las tres pruebas. Sin ella solo comparamos con la primera lectura cruda.
 2. **Respondida (16-oct): Trail y Marcha salieron juntos a las 09:30:00.** Queda saber si RaceTec publicó con 09:28:23.
 3. **J83 y J200**: los dos en CP4 (dueño, 16-oct); J200 calló de 09:55 a 14:01, probablemente por la batería (H6). Falta qué reloj es el bueno.
-4. **El U479**: ¿salida y meta en el mismo sitio? En producción, ¿un solo punto? ¿Vale exigir `min_lap_time` en META?
+4. **El U479**: salida y meta en el mismo sitio (dueño, 16-oct); no hay fichero de texto, las lecturas salen de RaceTec. Con
+   el receptor entraría como **un solo punto** (un token por lector): H3 es el caso real. Falta: ¿vale exigir `min_lap_time` en META?
 5. **El 70 y las etiquetas**: quién llevaba la pistola y qué es el 70. Qué son 269, 151, 167, 64, 880761 y 895755.
 6. **Los 13 chips sin dorsal**: ¿segundos chips (7293453 del 26, 1544082 del 46) o gente sin inscribir?
 7. **El estado real** de Sky 28, 30, 34 y 43 y de Marcha 542 y 555. **307 y 308**: ¿una persona con dos dorsales?
