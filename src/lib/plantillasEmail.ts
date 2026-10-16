@@ -43,10 +43,10 @@ export const PLANTILLAS_BASE: PlantillaEmail[] = [
   {
     clave: "dorsal",
     nombre: "Tu dorsal y QR para la recogida",
-    descripcion: "El dorsal en grande y el enlace «Ver mi dorsal» con el QR que se escanea en la mesa de recogida. Solo a inscritos con dorsal.",
+    descripcion: "El dorsal en grande y, debajo, el QR que se escanea en la mesa de recogida, ya dentro del correo. Solo a inscritos con dorsal.",
     asunto: "Tu dorsal {dorsal} para {carrera}",
     titulo: "Tu dorsal para la carrera",
-    cuerpo: "Hola {nombre},\n\nYa tienes dorsal para **{carrera}**.\n\n[[tarjeta_dorsal]]\n\n[[boton_mi_dorsal]]\n> Al pulsar verás tu dorsal y un **código QR**. Enséñalo en el móvil en la **mesa de recogida de dorsales** y te atienden en segundos. Guarda este correo.\n\n[[mensaje]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
+    cuerpo: "Hola {nombre},\n\nYa tienes dorsal para **{carrera}**.\n\n[[tarjeta_dorsal]]\n\n[[qr_dorsal]]\n> Enseña este **código QR** en el móvil en la **mesa de recogida de dorsales** y te atienden en segundos. Guarda este correo.\n\n[[mensaje]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
     etiqueta_mensaje: "Recogida de dorsales",
     omitir_uno: false,
     orden: 20,
@@ -87,6 +87,7 @@ export const VARIABLES_EMAIL: { clave: string; descripcion: string }[] = [
 
 export const BLOQUES_EMAIL: { clave: string; descripcion: string; requisito?: string }[] = [
   { clave: "tarjeta_dorsal", descripcion: "El dorsal en grande, con recorrido, fecha y lugar", requisito: "Solo a inscritos con dorsal" },
+  { clave: "qr_dorsal", descripcion: "El QR para la mesa de recogida, dentro del propio correo (sin pulsar nada), con un enlace de respaldo por si no se ven las imágenes" },
   { clave: "boton_mi_dorsal", descripcion: "Botón «Ver mi dorsal»: la página con el QR para la mesa de recogida" },
   { clave: "resumen_inscripcion", descripcion: "Tabla del comprobante: carrera, recorrido, fecha, estado, importe y referencia" },
   { clave: "datos_inscripcion", descripcion: "Datos de su inscripción: documento, club, talla y preguntas de la carrera" },

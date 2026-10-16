@@ -86,6 +86,12 @@ verify_jwt = false
 [functions.rockthesport-sync]
 verify_jwt = false
 
+# La imagen del QR de la recogida que va dentro de los correos: la pide el
+# cliente de correo (o el proxy de imágenes de Gmail), que no manda
+# credenciales. Solo dibuja SITE_URL/mi-dorsal/<uuid> y no lee la base de datos
+[functions.qr-dorsal]
+verify_jwt = false
+
 # El cedente sin cuenta pide su enlace por email: no hay sesion que valga.
 # La funcion nunca devuelve el enlace en la respuesta, solo lo manda al correo.
 [functions.cesion-solicitar-enlace]

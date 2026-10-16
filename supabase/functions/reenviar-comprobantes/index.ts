@@ -171,6 +171,8 @@ interface Datos {
   importe: number | null;
   referencia: string | null;
   miDorsalUrl: string | null;
+  /** Imagen PNG del QR de la recogida (edge function qr-dorsal), para verlo en el propio correo */
+  qrUrl: string | null;
   /** Mapa público en directo centrado en este dorsal (para familia y amigos) */
   seguirUrl: string | null;
   /** Datos de la inscripción (columnas, al día) + preguntas propias de la carrera */
@@ -215,7 +217,7 @@ const PLANTILLAS_BASE: Record<string, PlantillaEmail> = {
     clave: "dorsal",
     asunto: "Tu dorsal {dorsal} para {carrera}",
     titulo: "Tu dorsal para la carrera",
-    cuerpo: "Hola {nombre},\n\nYa tienes dorsal para **{carrera}**.\n\n[[tarjeta_dorsal]]\n\n[[boton_mi_dorsal]]\n> Al pulsar verás tu dorsal y un **código QR**. Enséñalo en el móvil en la **mesa de recogida de dorsales** y te atienden en segundos. Guarda este correo.\n\n[[mensaje]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
+    cuerpo: "Hola {nombre},\n\nYa tienes dorsal para **{carrera}**.\n\n[[tarjeta_dorsal]]\n\n[[qr_dorsal]]\n> Enseña este **código QR** en el móvil en la **mesa de recogida de dorsales** y te atienden en segundos. Guarda este correo.\n\n[[mensaje]]\n\n> Si algún dato no es correcto, ponte en contacto con la organización de la carrera.",
     etiqueta_mensaje: "Recogida de dorsales",
     omitir_uno: false,
   },
@@ -319,6 +321,21 @@ function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
     }
     case "boton_mi_dorsal":
       return d.miDorsalUrl ? boton(d.miDorsalUrl, "Ver mi dorsal") : "";
+    case "qr_dorsal":
+      // El QR en el propio correo, sin pulsar nada: va como imagen (el correo
+      // no dibuja el canvas de la web). Si el cliente bloquea las imágenes,
+      // queda el enlace a la página con el mismo QR
+      return d.qrUrl
+        ? `<div style="text-align: center; margin: 24px 0 8px;">
+            <div style="display: inline-block; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px;">
+              <img src="${esc(d.qrUrl)}" width="220" height="220" alt="Código QR para la recogida de dorsales"
+                   style="display: block; width: 220px; height: 220px; border: 0;">
+            </div>
+            ${d.miDorsalUrl
+              ? `<p style="margin: 10px 0 0; color: #6b7280; font-size: 13px; line-height: 1.5;">¿No ves el código? <a href="${esc(d.miDorsalUrl)}" style="color: ${VERDE}; font-weight: bold;">Ábrelo aquí</a></p>`
+              : ""}
+          </div>`
+        : "";
     case "resumen_inscripcion": {
       const estado = d.plantilla === "pagada" ? "Pagada" : "Confirmada (inscripción gratuita)";
       const filas = [
@@ -540,6 +557,7 @@ serve(async (req: Request): Promise<Response> => {
         importe: 25,
         referencia: "260923123456",
         miDorsalUrl: `${SITE_URL}/mi-dorsal/${cero}`,
+        qrUrl: `${SUPABASE_URL}/functions/v1/qr-dorsal?t=${cero}`,
         seguirUrl: `${SITE_URL}/carrera-de-ejemplo/gps?dorsal=123`,
         respuestas: [
           { label: "Documento", value: "12345678Z" },
@@ -947,6 +965,7 @@ serve(async (req: Request): Promise<Response> => {
         importe: importe != null && Number.isFinite(importe) ? importe : null,
         referencia: pago?.order ?? null,
         miDorsalUrl: r.token_inscripcion ? `${SITE_URL}/mi-dorsal/${r.token_inscripcion}` : null,
+        qrUrl: r.token_inscripcion ? `${SUPABASE_URL}/functions/v1/qr-dorsal?t=${r.token_inscripcion}` : null,
         seguirUrl:
           carrera?.slug && r.bib_number != null
             ? `${SITE_URL}/${carrera.slug}/gps?dorsal=${r.bib_number}&recorrido=${r.race_distance_id}`
