@@ -503,62 +503,6 @@ export type Database = {
           },
         ]
       }
-      chat_conversations: {
-        Row: {
-          created_at: string
-          id: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          title?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      chat_messages: {
-        Row: {
-          content: string
-          conversation_id: string
-          created_at: string
-          id: string
-          role: string
-        }
-        Insert: {
-          content: string
-          conversation_id: string
-          created_at?: string
-          id?: string
-          role: string
-        }
-        Update: {
-          content?: string
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          role?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "chat_conversations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       consultas_inscripcion: {
         Row: {
           acierto: boolean
@@ -5677,50 +5621,6 @@ export type Database = {
             columns: ["timing_point_id"]
             isOneToOne: false
             referencedRelation: "timing_points"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      training_plans: {
-        Row: {
-          created_at: string
-          fitness_level: string
-          goal: string
-          id: string
-          plan_content: string
-          race_id: string | null
-          updated_at: string
-          user_id: string
-          weeks_until_race: number
-        }
-        Insert: {
-          created_at?: string
-          fitness_level: string
-          goal: string
-          id?: string
-          plan_content: string
-          race_id?: string | null
-          updated_at?: string
-          user_id: string
-          weeks_until_race: number
-        }
-        Update: {
-          created_at?: string
-          fitness_level?: string
-          goal?: string
-          id?: string
-          plan_content?: string
-          race_id?: string | null
-          updated_at?: string
-          user_id?: string
-          weeks_until_race?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "training_plans_race_id_fkey"
-            columns: ["race_id"]
-            isOneToOne: false
-            referencedRelation: "races"
             referencedColumns: ["id"]
           },
         ]

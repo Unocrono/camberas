@@ -8,6 +8,13 @@
       "when": 1790500796600,
       "tag": "0000_mapa_vivo_rapido",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792136463782,
+      "tag": "0001_eliminar_tablas_asistente_y_planes",
+      "breakpoints": true
     }
   ]
 }
