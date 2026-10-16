@@ -260,7 +260,11 @@ Las 482 lecturas sin dorsal son de 55 chips: otro día (01/10), 15 chips y 27 le
 - **Evidencia.** 19 dorsales leídos por los dos, todos después de las 14:01. Última de J200 − última de J83: mediana 70,4 s
   (68,1–72,8), sin depender de la velocidad: es reloj, no distancia; cuál es el bueno, lo dirá el dueño. El 23: J83 a las
   15:06:20,5; J200 de 15:06:33,7 a 15:07:31,4 (corregido, de 15:05:23 a 15:06:21). J200 calla de 09:54:55 a 14:01:41: no vio al
-  8K ni a los 15 primeros de la Sky. Solo J83 lee al 34 y al 1544082; solo J200, al 26. La 167 no sirve de testigo.
+  8K ni a los 15 primeros de la Sky. Solo J83 lee al 34 y al 1544082; solo J200, al 26.
+- **El dueño (16-oct)** cree que J200 estaba en CP4 y que, al acabarse su batería, pusieron J83. Los datos lo dan al revés.
+  La etiqueta 167 la leen los dos a la vez a las 09:53:4x y a las 14:19:52,8 (J200 corregido −70,4 s): estaban juntos
+  desde la mañana. J83 lee todo el día (786 lecturas de corredores entre 09:55 y 14:01). El que se para es J200: calla a
+  las 09:54:55 y vuelve a las 14:01:41 con una pasada de la 167, como quien lo enciende y lo prueba. Encaja con su batería.
 - **Motor.** Primera lectura en hora bruta: J83 gana en los 19 dobles. Solo el 26 sale de J200 (14:16:36, 20.º;
   corregido, 14:15:25,8 y 19.º). En producción J200 iría en otro punto, y el 26 daría «CP3, CP4».
 - **Debería** (filas 8 y 16). J200 corregido por la mediana de los pares, solo para quien falte y con aviso. Aviso si
@@ -395,7 +399,7 @@ Ningún hallazgo se refutó entero. Estas afirmaciones sí cayeron:
 ## 6. Qué falta del dueño
 1. **La clasificación oficial publicada** de las tres pruebas. Sin ella solo comparamos con la primera lectura cruda.
 2. **Respondida (16-oct): Trail y Marcha salieron juntos a las 09:30:00.** Queda saber si RaceTec publicó con 09:28:23.
-3. **J83 y J200**: dónde están, cuál va antes y qué reloj es el bueno. ¿Por qué J200 calló de 09:55 a 14:01?
+3. **J83 y J200**: los dos en CP4 (dueño, 16-oct); J200 calló de 09:55 a 14:01, probablemente por la batería (H6). Falta qué reloj es el bueno.
 4. **El U479**: ¿salida y meta en el mismo sitio? En producción, ¿un solo punto? ¿Vale exigir `min_lap_time` en META?
 5. **El 70 y las etiquetas**: quién llevaba la pistola y qué es el 70. Qué son 269, 151, 167, 64, 880761 y 895755.
 6. **Los 13 chips sin dorsal**: ¿segundos chips (7293453 del 26, 1544082 del 46) o gente sin inscribir?
