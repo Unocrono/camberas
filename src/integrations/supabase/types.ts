@@ -5725,6 +5725,112 @@ export type Database = {
           },
         ]
       }
+      ultra_destinos: {
+        Row: {
+          activo: boolean
+          contesta: boolean
+          created_at: string
+          host: string
+          id: string
+          nombre: string
+          puerto: number
+          receptor_id: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          contesta?: boolean
+          created_at?: string
+          host: string
+          id?: string
+          nombre: string
+          puerto: number
+          receptor_id: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          contesta?: boolean
+          created_at?: string
+          host?: string
+          id?: string
+          nombre?: string
+          puerto?: number
+          receptor_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultra_destinos_receptor_id_fkey"
+            columns: ["receptor_id"]
+            isOneToOne: false
+            referencedRelation: "ultra_receptores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultra_lectores: {
+        Row: {
+          id: string
+          identificador: string
+          lector: number
+          receptor_id: string
+          timer_name: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          identificador: string
+          lector: number
+          receptor_id: string
+          timer_name?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          identificador?: string
+          lector?: number
+          receptor_id?: string
+          timer_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ultra_lectores_receptor_id_fkey"
+            columns: ["receptor_id"]
+            isOneToOne: false
+            referencedRelation: "ultra_receptores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ultra_receptores: {
+        Row: {
+          clave: string
+          created_at: string
+          estado: Json | null
+          id: string
+          nombre: string
+          visto_en: string | null
+        }
+        Insert: {
+          clave?: string
+          created_at?: string
+          estado?: Json | null
+          id?: string
+          nombre: string
+          visto_en?: string | null
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          estado?: Json | null
+          id?: string
+          nombre?: string
+          visto_en?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -6468,6 +6574,14 @@ export type Database = {
         Args: { p_id: string; p_importe?: number; p_ronda: number }
         Returns: undefined
       }
+      marcar_gallo: {
+        Args: {
+          p_intervalo?: number
+          p_name_tv?: string
+          p_token_row_id: string
+        }
+        Returns: undefined
+      }
       marcar_punto_rutometro: {
         Args: {
           p_altitud?: number
@@ -6482,14 +6596,6 @@ export type Database = {
           p_tipo: string
         }
         Returns: Json
-      }
-      marcar_gallo: {
-        Args: {
-          p_intervalo?: number
-          p_name_tv?: string
-          p_token_row_id: string
-        }
-        Returns: undefined
       }
       mesas_recogida_carrera: {
         Args: { p_race_id: string }
@@ -6763,6 +6869,14 @@ export type Database = {
           p_terminal: string
           p_titular?: string
         }
+        Returns: Json
+      }
+      ultra_receptor_sincronizar: {
+        Args: { p_clave: string; p_estado?: Json }
+        Returns: Json
+      }
+      ultra_registrar_lecturas: {
+        Args: { p_lector: number; p_lecturas: Json; p_token: string }
         Returns: Json
       }
       unirse_grupetta:
