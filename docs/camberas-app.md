@@ -54,9 +54,12 @@ para vivir separado y seguir unido:
   móvil por Expo).
 - El orden: lo natural es separar primero lo que ya tiene vida propia (grafismo, seguimiento,
   receptor) y dejar inscripciones y carreras para el final, porque son las que más comparten.
+  Ojo: `docs/camberas-app-datos.md` (§2 y §7) propone lo contrario, adelantar Inscripciones por la
+  decisión del 15-oct. Está pendiente de que el dueño elija.
 
 ## Dónde está lo demás
 
+- `docs/camberas-app-datos.md`: la estructura de datos de las cinco apps y la conexión de Inscripciones.
 - `docs/libro-cronometraje.md`: cómo cronometra Camberas (decisiones del 15-oct).
 - `docs/analisis-wiclax.md`: Wiclax como referencia y las respuestas del dueño.
 - `receptor-ultra/README.md` y `receptor-ultra/pc/README.md`: el Ultra, el VPS y RaceTec.

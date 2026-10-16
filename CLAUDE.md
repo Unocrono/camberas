@@ -221,6 +221,9 @@ Consúltala antes de rehacer análisis:
 - **`docs/camberas-app.md`** — la idea de Camberas.app: cinco apps (inscripciones, seguimiento,
   cronometraje y resultados, grafismo, carreras y organización) separadas y unidas. Qué hay hoy de
   cada una, qué las une (tokens, RPC, receptor) y qué se decide cuando se dé el paso.
+- **`docs/camberas-app-datos.md`** — la estructura de datos de Camberas.app: de qué app es cada tabla, el
+  núcleo común, la herramienta de conexión de Inscripciones (base y código propios), las reglas para que las
+  apps sigan unidas, el camino desde hoy y las decisiones pendientes del dueño. Léelo antes de mover tablas.
 - **`docs/analisis-wiclax.md`** — cómo cronometra Wiclax (modelo, reglas, tipos de prueba, día de
   carrera) frente a Camberas, con las recomendaciones y el orden para reestructurar el cronometraje
   y las preguntas al dueño. Léelo antes de tocar el motor o el modelo de lecturas/salidas.
