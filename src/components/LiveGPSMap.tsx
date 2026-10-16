@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { X, User, MapPin, Bell, ChevronUp, ChevronDown, Users, Play, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatLocalTime, formatHoraGps } from '@/lib/timezoneUtils';
+import { formatHoraGps } from '@/lib/timezoneUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MapControls } from '@/components/MapControls';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -413,10 +413,8 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     limpiarCorredores();
     fetchInitialPositions();
     const cleanupGPS = setupRealtimeSubscription();
-    const cleanupTimings = setupTimingReadingsSubscription();
     return () => {
       cleanupGPS();
-      cleanupTimings();
     };
   }, [raceId, distanceId, mapReady]);
 
@@ -1117,63 +1115,6 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   }, [sosAlerts, mapReady]);
 
   // Setup realtime subscription for timing readings (checkpoint passes)
-  const setupTimingReadingsSubscription = () => {
-    const channel = supabase
-      .channel('timing_readings_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'timing_readings',
-          filter: `race_id=eq.${raceId}`,
-        },
-        async (payload) => {
-          const newReading = payload.new as any;
-          
-          // Only show notification for geofence readings
-          if (newReading.reading_type !== 'gps_geofence') return;
-          
-          // Get checkpoint name
-          let checkpointName = 'Checkpoint';
-          if (newReading.checkpoint_id) {
-            const { data: checkpoint } = await supabase
-              .from('race_checkpoints')
-              .select('name')
-              .eq('id', newReading.checkpoint_id)
-              .single();
-            
-            if (checkpoint) {
-              checkpointName = checkpoint.name;
-            }
-          }
-          
-          // Get runner name
-          let runnerName = `Dorsal #${newReading.bib_number}`;
-          if (newReading.registration_id) {
-            const runner = runnerPositions.find(r => r.registration_id === newReading.registration_id);
-            if (runner) {
-              runnerName = runner.runner_name;
-            }
-          }
-          
-          // Show toast notification
-          toast.success(
-            `🏃 ${runnerName} pasó por ${checkpointName}`,
-            {
-              description: `Dorsal #${newReading.bib_number} - ${formatLocalTime(newReading.timing_timestamp)}`,
-              duration: 5000,
-            }
-          );
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  };
-
   const updateMarkers = (positions: RunnerPosition[]) => {
     if (!map.current) return;
 

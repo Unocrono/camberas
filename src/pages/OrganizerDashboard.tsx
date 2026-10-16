@@ -24,7 +24,6 @@ import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement"
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
-import { GPSReadingsManagement } from "@/components/admin/GPSReadingsManagement";
 import { BibChipsManagement } from "@/components/admin/BibChipsManagement";
 import { MotosManagement } from "@/components/admin/MotosManagement";
 import { VoluntariadoManagement } from "@/components/admin/VoluntariadoManagement";
@@ -292,7 +291,6 @@ const OrganizerDashboard = () => {
             {currentView === "results" && <ResultsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "splits" && <SplitTimesManagement isOrganizer={true} selectedRaceId={selectedRaceId} selectedDistanceId={selectedDistanceId} />}
             {currentView === "timing-readings" && <TimingReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
-            {currentView === "gps-readings" && <GPSReadingsManagement isOrganizer={true} selectedRaceId={selectedRaceId} />}
             {currentView === "motos" && (
               selectedRaceId ? (
                 <MotosManagement selectedRaceId={selectedRaceId} />
