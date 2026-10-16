@@ -8,7 +8,8 @@ aplicar), en copias locales; nada de producción. Marcas y vocabulario, los del 
   acaba igual que por lotes. Es idempotente y respeta las correcciones.
 - Falla en lo que da por bueno: una salida oficial mal puesta menos de 15 min pasa sin aviso, en cualquier sentido (en modo
   chip, adelantada, nunca avisa). Si va tarde, el chip copia el error; si va adelantada más de ~5 min, el chip se pierde o sale
-  del corral. La del 8K ya va 1:38 por delante de la alfombra.
+  del corral. La del 8K se cargó a las 09:28:23 y fue a las **09:30:00** (lo confirma el dueño, 16-oct): 1:37 de error que
+  el motor publicó sin decir nada.
 - Falla en los parciales: no miran el estado. El 70, una etiqueta, va 1.º en CP2 de 11:06 a 17:00, y el DSQ no lo quita.
 - Con el U479 como un solo punto, la Marcha la gana una retirada; con la oficial 20 min adelantada, una que no salió.
 - En vivo salen 55 «en carrera» antes de su pistola. Fuera del motor, `/race/:id/results` sale vacía siempre.
@@ -20,8 +21,11 @@ Peña Prieta 2026 (Maratón Logroño SkyRace), 3-oct-2026. Tres pruebas de un re
 | Prueba (RaceTec) | En Camberas | Salida oficial | Dorsales | Puntos de control |
 |---|---|---|---|---|
 | SKY RACE 36K | Sky | 09:02:23 | 1–70 | Salida, CP1, CP2, CP3, CP4, Meta |
-| SKY RACE 8K | Trail | 09:28:23 | 301–350 | Salida, CP4, Meta |
-| MARCHA 8K | Marcha | 09:28:23 | 501–570 | Salida, CP4, Meta |
+| SKY RACE 8K | Trail | 09:28:23 en la carga; la real, 09:30:00 | 301–350 | Salida, CP4, Meta |
+| MARCHA 8K | Marcha | 09:28:23 en la carga; la real, 09:30:00 | 501–570 | Salida, CP4, Meta |
+
+El contraste se hizo con 09:28:23, la hora que se tenía. El 16-oct el dueño confirmó que Trail y Marcha salieron a las
+09:30:00: lo que se cuenta del 8K es, por tanto, lo que hace el motor con una salida mal puesta en una carrera real (H1).
 
 - **Lectores.** Salida y Meta, el mismo U479 (`U479_Salida.txt` y `U479_Meta.txt`, convertidos de los exports de
   RaceTec). CP1 J81, CP2 la pistola (vale su hora de texto), CP3 J82, CP4 J83 y J200 (el 8K solo J83). Horas de pared.
@@ -30,7 +34,7 @@ Peña Prieta 2026 (Maratón Logroño SkyRace), 3-oct-2026. Tres pruebas de un re
   tabla de chips; 117 con nombre, H14). Km de CP1–CP4 inventados (meta: 36 y 8, reales). Sin sexo ni categoría.
 - 5.996 lecturas. Entran las 5.514 con dorsal; **las 482 sin dorsal no**, como en producción (Salida 66, J81 105,
   pistola 69, J82 80, J83 77, J200 44, meta 41). Ganadores: Sky 50 (3:47:06,140), Trail 339 (0:42:35,970), Marcha 526
-  (1:18:47,597). Único aviso, en la Sky: `meta_sin_paso` «23: CP3, 26: CP3, 48: CP2».
+  (1:18:47,597); con la salida real, 0:40:58,970 y 1:17:10,597. Único aviso, en la Sky: `meta_sin_paso` «23: CP3, 26: CP3, 48: CP2».
 - **Segunda vuelta**: cinco pruebas con el motor real (mismo md5 que el PR), cada una en su copia: pp_t1, U479 único;
   pp_t2, retiradas, correcciones y web; pp_t3, modo chip y salidas mal puestas; pp_t4, el día en vivo, cada 2 min de
   07:30 a 17:00; pp_t5, chips sin dorsal, 117 inscritos y 307/308. Scripts fuera del repo, en `motor/v2/`.
@@ -67,7 +71,7 @@ PR antes de aplicarlo. **[PENDIENTE]**: regla nueva para el libro.
 
 | # | Hallazgo | Gravedad | Marca |
 |---|---|---|---|
-| H1 | Salidas oficiales mal puestas pasan sin aviso; la del 8K va 1:38 por delante | alta | [PR #11] + dueño |
+| H1 | Salidas oficiales mal puestas pasan sin aviso; la del 8K estaba 1:37 adelantada | alta | [PR #11] |
 | H2 | Sky 70, una etiqueta junto a la pistola, sale «en carrera» y 1.º en CP2 todo el día | alta | [PR #11] |
 | H3 | Con el U479 como un solo punto, la Marcha 555 gana en 0:28:28,980 | alta (si se monta así) | [PR #11] |
 | H16 | Con alfombra compartida, el seguro no ve una oficial adelantada | alta (si se monta así) | [PR #11] |
@@ -89,14 +93,17 @@ PR antes de aplicarlo. **[PENDIENTE]**: regla nueva para el libro.
 | H13 | Líneas repetidas y fuera de orden en los ficheros | baja | [PENDIENTE] |
 | H15 | Chips de la Marcha fuera de la fórmula; la meta subió con retraso | baja | datos |
 
-### H1. Salidas oficiales mal puestas pasan sin aviso; la del 8K va 1:38 por delante · alta · [PR #11] + dueño
+### H1. Salidas oficiales mal puestas pasan sin aviso; la del 8K estaba 1:37 adelantada · alta · [PR #11]
+- **Confirmado por el dueño (16-oct): Trail y Marcha salieron a las 09:30:00, no a las 09:28:23.** Recalculado con
+  09:30:00 (copia `pp_0930`): los 78 FIN bajan 1:37,000 justos, sin cambiar estado, puesto ni chip. Oficial − chip queda en
+  1,1–4,8 s (Trail) y 6,2–27,7 s (Marcha), como en la Sky. Si RaceTec publicó con 09:28:23, sus tiempos del 8K llevan 1:37 de más.
 - **El 8K.** Última pisada en la alfombra de salida: Sky, 35 de 36 entre 09:02:23,3 y 09:02:28,9 (+0,3 a +5,9 s: es el
   testigo). Trail, los 30 entre 09:30:01,1 y 09:30:04,8 (+98 a +102 s). Marcha, 48 de 50 entre 09:30:06,2 y 09:30:27,7 (+103 a
   +125 s). p10: Trail +1:38,2, Marcha +1:44,4. Fuera, el 51 (se va 1 min antes), la 542 y la 555 (H3).
 - El 339 pisa la alfombra desde las 09:28:07,6 (93 lecturas seguidas) y la deja a las 09:30:01,1. De 09:28:23 a
   09:29:23 hay 575 lecturas de 23 dorsales del Trail quietos. El reloj del U479 no salta. 09:28:23 es 09:02:23 + 26:00.
-- **Efecto.** Oficial − chip: Sky 0–5,9 s, Trail 1:38,1–1:41,8, Marcha 1:43,2–2:04,7. Con el 8K a 09:30:01, los 78 FIN
-  bajan 1:38,000 justos, sin cambiar orden ni chip (el ritmo del 339 en CP4, de 7:18 a 6:53/km). **Por chip**, la Marcha
+- **Efecto.** Oficial − chip: Sky 0–5,9 s, Trail 1:38,1–1:41,8, Marcha 1:43,2–2:04,7. Con el 8K a 09:30:00, los 78 FIN
+  bajan 1:37,000 justos, sin cambiar orden ni chip (el ritmo del 339 en CP4 pasa de 7:18 a 6:54/km). **Por chip**, la Marcha
   cambia 14 puestos (11 pares; el 509, de 12.º a 15.º) y el Trail, ninguno. Los parciales siguen en la oficial (H17).
 
 | Oficial mal puesta (pp_t3; «tarde»: después de la salida real) | Seguro | Qué publica |
@@ -387,7 +394,7 @@ Ningún hallazgo se refutó entero. Estas afirmaciones sí cayeron:
 
 ## 6. Qué falta del dueño
 1. **La clasificación oficial publicada** de las tres pruebas. Sin ella solo comparamos con la primera lectura cruda.
-2. **La hora real de la pistola del 8K**: ¿09:28:23 o hacia las 09:30:00? ¿Es la prevista? ¿Trail y Marcha juntos?
+2. **Respondida (16-oct): Trail y Marcha salieron juntos a las 09:30:00.** Queda saber si RaceTec publicó con 09:28:23.
 3. **J83 y J200**: dónde están, cuál va antes y qué reloj es el bueno. ¿Por qué J200 calló de 09:55 a 14:01?
 4. **El U479**: ¿salida y meta en el mismo sitio? En producción, ¿un solo punto? ¿Vale exigir `min_lap_time` en META?
 5. **El 70 y las etiquetas**: quién llevaba la pistola y qué es el 70. Qué son 269, 151, 167, 64, 880761 y 895755.
