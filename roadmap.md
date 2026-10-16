@@ -7,6 +7,6 @@
 - [x] Quitar las referencias a `training_plans`, `chat_messages` y `chat_conversations` de `admin-delete-user`.
 - [x] Retirar la ruta, la página y los enlaces del asistente IA, incluida la consulta de su activación desde Navbar.
 - [x] Obtener nueva confirmación individual para borrar `chat_messages` y `chat_conversations` tras quitar sus referencias de `admin-delete-user`.
-- [ ] Eliminar `chat_messages` y `chat_conversations`: pendiente de permitir «Execute backward incompatible database migrations» en las preferencias de herramientas de Lovable Cloud.
+- [x] Eliminar `chat_messages` y `chat_conversations` tras confirmación individual de Bernardo.
 - [x] Desplegar la limpieza de `admin-delete-user` antes de eliminar las tablas relacionadas.
-- [ ] Eliminar `training_plans`: pendiente de permitir «Execute backward incompatible database migrations» en las preferencias de herramientas de Lovable Cloud; no modificar RLS, permisos de la base de datos ni cron.
+- [x] Eliminar `training_plans` y su plan guardado tras confirmación individual de Bernardo; sin cambios adicionales de permisos ni cron.
