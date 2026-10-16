@@ -126,23 +126,6 @@ serve(async (req) => {
     // Delete user_roles
     await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
     
-    // Delete training_plans
-    await supabaseAdmin.from("training_plans").delete().eq("user_id", userId);
-    
-    // Delete chat_messages through conversations
-    const { data: conversations } = await supabaseAdmin
-      .from("chat_conversations")
-      .select("id")
-      .eq("user_id", userId);
-    
-    if (conversations && conversations.length > 0) {
-      const conversationIds = conversations.map(c => c.id);
-      await supabaseAdmin.from("chat_messages").delete().in("conversation_id", conversationIds);
-    }
-    
-    // Delete chat_conversations
-    await supabaseAdmin.from("chat_conversations").delete().eq("user_id", userId);
-    
     // Delete profiles
     await supabaseAdmin.from("profiles").delete().eq("id", userId);
 
