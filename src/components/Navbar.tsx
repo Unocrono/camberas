@@ -4,14 +4,12 @@ import { Menu, User, Shield, Briefcase, Mail, MessageSquare, HelpCircle, Trophy,
 import { Button } from "./ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
-import { useIsFunctionEnabled } from "@/hooks/useEdgeFunctionFlags";
 import { CamberasLogo } from "@/components/CamberasLogo";
 import { useTenant } from "@/tenant/TenantContext";
 import { CabeceraPropia } from "@/plantillas/gurriana/MarcoPropio";
 
 const Navbar = () => {
   const { user, isAdmin, isOrganizer, isCapo } = useAuth();
-  const isSupportChatEnabled = useIsFunctionEnabled("support-chat");
   const { modo } = useTenant();
 
   // Bajo el dominio propio de una carrera, la cabecera es la de la carrera
@@ -69,7 +67,6 @@ const Navbar = () => {
                     <Mail className="h-4 w-4" />
                     Contacto
                   </NavLink>
-                  {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
                   {isCapo && <NavLink to="/grupetta/capo">Capo</NavLink>}
                   {isOrganizer && (
                     <NavLink to="/organizer" className="flex items-center gap-2">
@@ -111,7 +108,6 @@ const Navbar = () => {
             {isOrganizer && <NavLink to="/faqs">FAQs</NavLink>}
             <NavLink to="/contact">Contacto</NavLink>
 
-            {isSupportChatEnabled && <NavLink to="/support-chat">Asistente IA</NavLink>}
             {isCapo && <NavLink to="/grupetta/capo">Capo</NavLink>}
             {isOrganizer && (
               <NavLink to="/organizer" className="flex items-center gap-1">
