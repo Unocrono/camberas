@@ -40,7 +40,8 @@ android/
 ios/
 
 # Configuracion local de Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
 
 # Copias de seguridad de la base de datos: data.sql lleva datos personales de
 # inscritos y pagos. Van a %USERPROFILE%\Backups\camberas, nunca aqui.
