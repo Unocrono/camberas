@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trazado · II Trail Navideño Monte Tejas 2026</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Montserrat:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Documento oficial, a una columna, pensado para imprimir en A4 (Ctrl+P › Guardar como PDF). */
+:root{
+  --marca:#0F2A1B; --accion:#E0201F; --monte:#2E7D32; --papel:#FFFFFF; --tinta:#1B2420; --tinta2:#5A6660;
+  --linea:#D9DED6; --suave:#F2F5F0;
+  --display:"Oswald","Arial Narrow",sans-serif; --texto:"Montserrat","Segoe UI",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--papel);color:var(--tinta);font-family:var(--texto);font-size:14px;line-height:1.5}
+.pagina{max-width:1000px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{border-bottom:3px solid var(--marca);padding-bottom:12px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between}
+h1{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.1;margin:0;color:var(--marca);text-wrap:balance}
+.sub{font-size:13px;color:var(--tinta2);margin:4px 0 0}
+.sello{font-family:var(--display);font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tinta2);text-align:right}
+h2{font-family:var(--display);font-weight:500;font-size:19px;letter-spacing:.02em;text-transform:uppercase;color:var(--marca);margin:28px 0 10px;border-left:4px solid var(--accion);padding-left:10px}
+.ficha{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:0 24px;border-top:1px solid var(--linea)}
+.ficha div{display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--linea);min-width:0}
+.ficha dt{flex:0 0 38%;color:var(--tinta2);font-size:12.5px}
+.ficha dd{margin:0;font-weight:500;font-variant-numeric:tabular-nums}
+#mapa{height:560px;max-width:100%;border:1px solid var(--linea);background:var(--suave)}
+.leyenda{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:12.5px;margin-top:8px;color:var(--tinta2)}
+.leyenda span::before{content:"";display:inline-block;width:22px;height:4px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.leyenda .l-monte::before{background:var(--monte)} .leyenda .l-via::before{background:var(--accion)}
+.leyenda .l-pt::before{width:10px;height:10px;border-radius:50%;background:#fff;border:2px solid var(--marca)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--linea);vertical-align:top}
+th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--tinta2);font-weight:600;background:var(--suave)}
+td.n,th.n{text-align:right}
+.tabla{overflow-x:auto}
+.nota{font-size:12.5px;color:var(--tinta2);margin:8px 0 0}
+svg{max-width:100%;height:auto;display:block}
+.km-label{background:transparent;border:0;box-shadow:none;font:600 11px var(--texto);color:var(--marca);text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff}
+.leaflet-container{font-family:var(--texto)}
+footer{margin-top:32px;padding-top:10px;border-top:1px solid var(--linea);font-size:12px;color:var(--tinta2);display:flex;flex-wrap:wrap;gap:6px 24px;justify-content:space-between}
+@media print{
+  .pagina{max-width:none;padding:0}
+  #mapa{height:520px}
+  h2{break-after:avoid}
+  .salto{break-before:page}
+  .leaflet-control-zoom,.leaflet-control-layers{display:none}
+  a{color:inherit;text-decoration:none}
+}
+</style>
+</head>
+<body>
+<div class="pagina">
+<header>
+  <div>
+    <h1>II Trail Navideño Monte Tejas</h1>
+    <p class="sub">Trazado de la prueba · Domingo 13 de diciembre de 2026 · San Felices de Buelna (Cantabria)</p>
+  </div>
+  <div class="sello">Documento para el Ayuntamiento<br>y la solicitud e-TRAZA (DGT)</div>
+</header>
+
+<h2>Datos de la prueba</h2>
+<dl class="ficha">
+  <div><dt>Prueba</dt><dd>II Trail Navideño Monte Tejas (carrera por montaña, a pie)</dd></div>
+  <div><dt>Organiza</dt><dd>C.D.E. Kilómetro Vertical de Torrelavega y Grupo de Montaña Tejas4run</dd></div>
+  <div><dt>Fecha</dt><dd>Domingo 13 de diciembre de 2026</dd></div>
+  <div><dt>Colabora</dt><dd>Ayuntamiento de San Felices de Buelna</dd></div>
+  <div><dt>Hora de salida</dt><dd>10:30 h</dd></div>
+  <div><dt>Teléfono de la organización</dt><dd>679 602 812</dd></div>
+  <div><dt>Cierre de control (meta)</dt><dd>14:00 h (3 h 30 min)</dd></div>
+  <div><dt>Participantes</dt><dd>Máximo 200 (mayores de 16 años)</dd></div>
+  <div><dt>Salida y meta</dt><dd>Plaza del Ayuntamiento, San Felices de Buelna</dd></div>
+  <div><dt>Distancia</dt><dd>16,65 km según GPS (16 km oficiales), recorrido circular</dd></div>
+  <div><dt>Desnivel</dt><dd>+860 m / −840 m · altitud entre 110 y 482 m</dd></div>
+  <div><dt>Marcaje</dt><dd>Cintas y banderines naranjas; se retira todo al terminar</dd></div>
+  <div><dt>Tramos por vía pública</dt><dd>1,6 km de ida y 1,6 km de vuelta por carretera, zonas asfaltadas y pueblo, más 500 m por el parque de la Lama</dd></div>
+  <div><dt>Corte de tráfico</dt><dd>No se solicita: los tramos de vía pública se transitan respetando las normas de circulación y las indicaciones de la organización</dd></div>
+  <div><dt>Asistencia sanitaria</dt><dd>Ambulancia SVB con médico y 2 técnicos, desde media hora antes de la salida hasta 15 min después del cierre</dd></div>
+  <div><dt>Inscripciones y cronometraje</dt><dd>UNO · Camberas</dd></div>
+</dl>
+
+<h2>Plano del recorrido</h2>
+<div id="mapa"></div>
+<div class="leyenda">
+  <span class="l-via">Tramo por vía pública (pueblo, asfalto y parque de la Lama)</span>
+  <span class="l-monte">Sendas y caminos del Monte Tejas</span>
+  <span class="l-pt">Salida y meta, avituallamientos y techo</span>
+  <span>Marcas cada kilómetro</span>
+</div>
+<p class="nota">Track GPS del recorrido de 2026 (fichero GPX): <a href="https://camberas.com/gpx/trail-navideno-monte-tejas-2026.gpx">camberas.com/gpx/trail-navideno-monte-tejas-2026.gpx</a>. Mapa interactivo con perfil y vuelo 3D en <a href="https://camberas.com/trail-navideno-monte-tejas-2026">camberas.com/trail-navideno-monte-tejas-2026</a>.</p>
+
+<h2 class="salto">Perfil</h2>
+<svg id="perfil" viewBox="0 0 1000 260" role="img" aria-label="Perfil de altitud del recorrido"></svg>
+
+<h2>Puntos del recorrido y horario de paso</h2>
+<div class="tabla">
+<table>
+  <thead><tr><th class="n">Km</th><th>Punto</th><th class="n">Altitud</th><th class="n">Primer corredor</th><th class="n">Último corredor</th><th>Observaciones</th></tr></thead>
+  <tbody id="puntos"></tbody>
+</table>
+</div>
+<p class="nota">Horario de paso estimado con el ritmo del ganador de 2025 (5:03 min/km) y el ritmo de corte (12:37 min/km, cierre a las 14:00). Puntos de avituallamiento provisionales hasta el reglamento definitivo.</p>
+
+<h2>Tramos por vía pública</h2>
+<div class="tabla">
+<table>
+  <thead><tr><th>Tramo</th><th>Vías</th><th class="n">Longitud</th><th class="n">Ventana de paso</th><th>Medidas</th></tr></thead>
+  <tbody>
+    <tr><td>Ida: salida desde la plaza del Ayuntamiento, pueblo y parque de la Lama hasta el inicio de las pistas del monte</td><td>CA-736 y viales municipales (a confirmar por la organización)</td><td class="n">≈1,6 km + 0,5 km</td><td class="n">10:30 – 11:00 h</td><td>Sin corte de tráfico. Voluntarios en los cruces. Los corredores circulan por la acera o el arcén respetando las normas de circulación.</td></tr>
+    <tr><td>Vuelta: desde el final de las pistas del monte, parque de la Lama y pueblo hasta la meta en la plaza del Ayuntamiento</td><td>CA-736 y viales municipales (a confirmar por la organización)</td><td class="n">≈0,5 km + 1,6 km</td><td class="n">11:40 – 14:00 h</td><td>Sin corte de tráfico. Voluntarios en los cruces. Zona de meta acotada en la plaza.</td></tr>
+  </tbody>
+</table>
+</div>
+<p class="nota">Las vías concretas (carretera autonómica y calles) y sus puntos kilométricos las tiene que confirmar la organización antes de presentar la solicitud. El resto del recorrido discurre por sendas y caminos del Monte Tejas, fuera de la red viaria.</p>
+
+<footer>
+  <span>Fuente: track GPS de 2026 y reglamento de la prueba. Elaborado el 16 de octubre de 2026.</span>
+  <span>UNO · Camberas · camberas.com</span>
+</footer>
+</div>
+
+<script>
+const TRACK = [[43.27494,-4.05001,111,0.0],[43.27457,-4.05013,112,0.04],[43.27427,-4.05013,112,0.08],[43.27403,-4.04975,111,0.13],[43.27375,-4.04938,111,0.17],[43.27349,-4.04903,111,0.21],[43.27324,-4.04866,111,0.25],[43.27299,-4.04827,111,0.29],[43.27274,-4.04788,111,0.33],[43.27247,-4.04751,112,0.38],[43.27223,-4.04713,113,0.42],[43.27196,-4.04683,115,0.46],[43.27162,-4.04704,115,0.5],[43.27125,-4.04714,113,0.54],[43.27089,-4.04717,112,0.59],[43.27067,-4.04754,112,0.63],[43.27051,-4.04796,111,0.67],[43.27015,-4.04808,111,0.71],[43.26992,-4.04777,111,0.75],[43.26975,-4.04732,114,0.79],[43.26966,-4.04683,116,0.83],[43.26965,-4.04632,114,0.88],[43.2696,-4.04583,117,0.92],[43.26962,-4.04534,123,0.96],[43.26935,-4.04501,131,1.0],[43.26904,-4.04475,135,1.04],[43.26896,-4.0443,135,1.08],[43.26869,-4.04397,135,1.12],[43.26871,-4.04352,134,1.16],[43.26872,-4.043,137,1.21],[43.26863,-4.04249,146,1.25],[43.26849,-4.04204,151,1.29],[43.26828,-4.04194,156,1.33],[43.26797,-4.0422,160,1.37],[43.26761,-4.04236,165,1.41],[43.26727,-4.04225,172,1.46],[43.26694,-4.04197,178,1.5],[43.2666,-4.0418,183,1.54],[43.26623,-4.04174,183,1.58],[43.26595,-4.0416,171,1.62],[43.26562,-4.04145,160,1.66],[43.26528,-4.0415,151,1.7],[43.26492,-4.04134,148,1.75],[43.26456,-4.04143,144,1.79],[43.26427,-4.04134,141,1.83],[43.26416,-4.04084,140,1.87],[43.26407,-4.04034,141,1.91],[43.26401,-4.03986,143,1.95],[43.26395,-4.03937,145,1.99],[43.26379,-4.03892,145,2.03],[43.26386,-4.03842,141,2.08],[43.26378,-4.03794,139,2.12],[43.26375,-4.03745,137,2.16],[43.26362,-4.037,135,2.2],[43.26329,-4.03687,132,2.24],[43.26299,-4.03716,130,2.28],[43.26278,-4.03686,130,2.33],[43.26272,-4.03638,131,2.37],[43.26252,-4.03596,132,2.41],[43.26248,-4.03547,134,2.45],[43.26226,-4.03509,137,2.49],[43.26203,-4.03471,141,2.53],[43.26181,-4.03429,139,2.57],[43.26149,-4.03406,146,2.61],[43.26118,-4.03383,156,2.66],[43.26082,-4.03391,163,2.7],[43.26045,-4.03383,170,2.74],[43.2601,-4.03386,174,2.78],[43.2598,-4.03407,188,2.82],[43.25947,-4.03428,200,2.86],[43.25928,-4.03469,215,2.91],[43.25899,-4.03497,225,2.95],[43.25867,-4.03512,231,2.99],[43.25838,-4.03482,233,3.03],[43.2581,-4.03497,244,3.07],[43.25779,-4.03526,251,3.11],[43.25756,-4.03543,259,3.15],[43.25734,-4.03582,270,3.19],[43.25704,-4.03603,283,3.24],[43.25668,-4.03602,288,3.28],[43.25634,-4.03594,296,3.32],[43.25606,-4.0358,304,3.36],[43.25581,-4.03616,308,3.4],[43.25552,-4.03648,311,3.44],[43.25516,-4.03653,317,3.48],[43.25495,-4.03689,318,3.52],[43.25498,-4.03737,323,3.56],[43.25526,-4.03762,326,3.6],[43.25547,-4.038,329,3.65],[43.25515,-4.03796,336,3.69],[43.25487,-4.03826,348,3.73],[43.25488,-4.03836,351,3.77],[43.25455,-4.03855,356,3.81],[43.25431,-4.03847,358,3.85],[43.25434,-4.03798,362,3.89],[43.25414,-4.03755,360,3.93],[43.25394,-4.03715,356,3.97],[43.2539,-4.03663,355,4.02],[43.25392,-4.03614,360,4.06],[43.25363,-4.03592,362,4.1],[43.25326,-4.03584,366,4.14],[43.25297,-4.03564,370,4.18],[43.25272,-4.03529,371,4.22],[43.25252,-4.03485,369,4.26],[43.25236,-4.03439,367,4.31],[43.25265,-4.03418,363,4.35],[43.25281,-4.03374,358,4.39],[43.2531,-4.03348,348,4.43],[43.25343,-4.03333,335,4.47],[43.25368,-4.03301,325,4.51],[43.2537,-4.0325,326,4.56],[43.25395,-4.03212,318,4.6],[43.25415,-4.03181,313,4.64],[43.25426,-4.03139,307,4.68],[43.25433,-4.0309,296,4.72],[43.25446,-4.03042,288,4.77],[43.2545,-4.02993,283,4.81],[43.25456,-4.02945,278,4.85],[43.25486,-4.02926,274,4.89],[43.25506,-4.02896,266,4.93],[43.25484,-4.02853,260,4.97],[43.25489,-4.02833,252,5.01],[43.25478,-4.02796,239,5.06],[43.25455,-4.02762,226,5.1],[43.25489,-4.02768,224,5.14],[43.25488,-4.0273,219,5.18],[43.25485,-4.02682,216,5.22],[43.25451,-4.02663,212,5.27],[43.25429,-4.02623,209,5.31],[43.25394,-4.02604,205,5.35],[43.25359,-4.02594,202,5.39],[43.25339,-4.02577,198,5.43],[43.25349,-4.02531,194,5.48],[43.25313,-4.02525,196,5.52],[43.25282,-4.025,200,5.56],[43.25253,-4.02489,207,5.6],[43.25263,-4.02536,215,5.64],[43.25286,-4.02573,223,5.68],[43.25271,-4.02612,230,5.72],[43.25235,-4.02606,239,5.76],[43.25203,-4.02632,247,5.81],[43.25172,-4.02659,256,5.85],[43.25145,-4.02691,266,5.89],[43.25153,-4.02739,274,5.93],[43.25135,-4.02768,280,5.97],[43.25104,-4.02748,285,6.01],[43.25068,-4.02746,290,6.05],[43.25055,-4.0279,297,6.09],[43.2502,-4.02803,303,6.14],[43.24986,-4.02821,309,6.18],[43.24954,-4.02794,313,6.22],[43.24928,-4.02756,320,6.26],[43.24901,-4.02778,328,6.3],[43.24883,-4.02818,337,6.34],[43.24855,-4.02855,340,6.39],[43.24821,-4.02868,345,6.43],[43.24785,-4.02856,347,6.47],[43.24751,-4.0286,351,6.51],[43.24737,-4.02906,359,6.55],[43.24707,-4.02935,370,6.59],[43.24678,-4.02911,370,6.64],[43.24645,-4.02906,374,6.68],[43.24613,-4.02883,377,6.72],[43.24578,-4.02872,383,6.76],[43.24544,-4.02854,384,6.8],[43.24526,-4.0284,380,6.84],[43.24518,-4.02794,386,6.88],[43.24506,-4.02746,388,6.93],[43.24473,-4.02729,393,6.97],[43.24439,-4.02741,399,7.01],[43.24404,-4.02724,405,7.05],[43.24371,-4.02713,407,7.09],[43.24347,-4.02689,406,7.13],[43.24343,-4.02641,412,7.18],[43.24353,-4.02591,417,7.22],[43.24339,-4.02545,419,7.26],[43.24317,-4.02509,423,7.3],[43.24294,-4.02478,426,7.34],[43.2426,-4.02469,432,7.38],[43.24227,-4.02456,438,7.42],[43.24189,-4.02456,443,7.47],[43.24154,-4.02472,447,7.51],[43.24126,-4.02503,452,7.55],[43.24115,-4.02549,457,7.59],[43.24096,-4.0259,462,7.63],[43.24074,-4.02615,467,7.67],[43.24057,-4.0257,470,7.71],[43.24021,-4.02564,475,7.76],[43.23989,-4.0257,480,7.8],[43.23974,-4.02526,482,7.84],[43.23975,-4.02477,481,7.88],[43.23989,-4.0243,477,7.92],[43.24,-4.02383,475,7.97],[43.24025,-4.02356,470,8.01],[43.24059,-4.02347,466,8.05],[43.24082,-4.02309,457,8.09],[43.24111,-4.02336,452,8.13],[43.24144,-4.02358,448,8.17],[43.24181,-4.02356,444,8.21],[43.24216,-4.02366,442,8.25],[43.24236,-4.02334,438,8.3],[43.2424,-4.02292,432,8.34],[43.24266,-4.0226,425,8.38],[43.24286,-4.02228,415,8.42],[43.24288,-4.02178,410,8.46],[43.24314,-4.02167,407,8.51],[43.24336,-4.02127,404,8.55],[43.24363,-4.02094,403,8.59],[43.24396,-4.02072,400,8.63],[43.24422,-4.02035,401,8.67],[43.24443,-4.01995,400,8.71],[43.24461,-4.0195,396,8.75],[43.24491,-4.01923,394,8.8],[43.24497,-4.01893,384,8.84],[43.24523,-4.01863,369,8.88],[43.24547,-4.01829,351,8.92],[43.24566,-4.01839,342,8.96],[43.24595,-4.0183,334,9.0],[43.24596,-4.01784,326,9.04],[43.24573,-4.01744,325,9.09],[43.24538,-4.01729,323,9.13],[43.24504,-4.01743,320,9.17],[43.24469,-4.01741,319,9.21],[43.24478,-4.01694,315,9.25],[43.24468,-4.01653,311,9.29],[43.24437,-4.01625,309,9.34],[43.24407,-4.01595,305,9.38],[43.24383,-4.01559,302,9.42],[43.24353,-4.01526,300,9.46],[43.24325,-4.01495,295,9.5],[43.24288,-4.01488,291,9.54],[43.24294,-4.01465,286,9.58],[43.24326,-4.01443,278,9.62],[43.24354,-4.01419,276,9.67],[43.24383,-4.01452,271,9.71],[43.24417,-4.01474,267,9.75],[43.24434,-4.01502,261,9.79],[43.24457,-4.01523,259,9.83],[43.2448,-4.01561,260,9.88],[43.24511,-4.01586,264,9.92],[43.24537,-4.01586,257,9.96],[43.24559,-4.01586,255,10.0],[43.2459,-4.01576,251,10.04],[43.2462,-4.0158,244,10.08],[43.2465,-4.01604,244,10.12],[43.24655,-4.01578,251,10.17],[43.2467,-4.01554,258,10.21],[43.24705,-4.01558,266,10.25],[43.2474,-4.01565,276,10.29],[43.24775,-4.01576,283,10.33],[43.24801,-4.01545,290,10.37],[43.24834,-4.01539,292,10.41],[43.24869,-4.01538,293,10.45],[43.24906,-4.01534,294,10.5],[43.24943,-4.01536,293,10.54],[43.24976,-4.01509,292,10.58],[43.25008,-4.0151,293,10.62],[43.24985,-4.01547,296,10.66],[43.24981,-4.01598,298,10.7],[43.24981,-4.01642,301,10.74],[43.25014,-4.0167,299,10.79],[43.25046,-4.01692,296,10.83],[43.25077,-4.01721,292,10.87],[43.25107,-4.01752,288,10.91],[43.25137,-4.01783,286,10.95],[43.25171,-4.01805,284,10.99],[43.25203,-4.01832,284,11.04],[43.25233,-4.01858,287,11.08],[43.25271,-4.01863,291,11.12],[43.25299,-4.01832,295,11.16],[43.25335,-4.01836,298,11.2],[43.25372,-4.01835,298,11.24],[43.25408,-4.01841,301,11.28],[43.25427,-4.0188,296,11.33],[43.2541,-4.01912,286,11.37],[43.25376,-4.01935,279,11.41],[43.25352,-4.01971,271,11.45],[43.25345,-4.02014,264,11.49],[43.25374,-4.02037,268,11.53],[43.25381,-4.0208,265,11.57],[43.25361,-4.02123,254,11.62],[43.25332,-4.02152,245,11.66],[43.25302,-4.02182,235,11.7],[43.2528,-4.0222,226,11.74],[43.25286,-4.0227,220,11.78],[43.25302,-4.02312,212,11.82],[43.25274,-4.02336,200,11.86],[43.25278,-4.0238,195,11.91],[43.25303,-4.02417,192,11.95],[43.25333,-4.02448,190,11.99],[43.25359,-4.02482,188,12.03],[43.25363,-4.02533,189,12.07],[43.25388,-4.02568,187,12.11],[43.25424,-4.02579,186,12.15],[43.25463,-4.02585,186,12.2],[43.25478,-4.02591,185,12.24],[43.25514,-4.02599,184,12.28],[43.2555,-4.0261,182,12.32],[43.25585,-4.02633,181,12.36],[43.25617,-4.02656,179,12.4],[43.25652,-4.02671,177,12.44],[43.25686,-4.02691,175,12.49],[43.25717,-4.0272,175,12.53],[43.25753,-4.02729,174,12.57],[43.25786,-4.02752,173,12.61],[43.25791,-4.02797,172,12.65],[43.25767,-4.02776,178,12.69],[43.25738,-4.02758,182,12.73],[43.25701,-4.02767,186,12.77],[43.25709,-4.02813,193,12.81],[43.25741,-4.02842,197,12.86],[43.25761,-4.02883,201,12.9],[43.25749,-4.02925,207,12.94],[43.25716,-4.02947,211,12.98],[43.25706,-4.0299,213,13.03],[43.25714,-4.03034,218,13.07],[43.25683,-4.03023,224,13.11],[43.25664,-4.03056,230,13.15],[43.25638,-4.0309,235,13.19],[43.2561,-4.03124,240,13.23],[43.25576,-4.03144,244,13.28],[43.2559,-4.03172,246,13.32],[43.25625,-4.03189,247,13.36],[43.25655,-4.03219,245,13.4],[43.25681,-4.03254,242,13.44],[43.25701,-4.03297,244,13.48],[43.25726,-4.03331,245,13.53],[43.25762,-4.03339,244,13.57],[43.25786,-4.03374,246,13.61],[43.25821,-4.03391,242,13.65],[43.25856,-4.03402,235,13.69],[43.2589,-4.03383,226,13.73],[43.25922,-4.03357,220,13.77],[43.25956,-4.03338,212,13.81],[43.25988,-4.03315,202,13.85],[43.26016,-4.03344,194,13.89],[43.26051,-4.03338,185,13.94],[43.26082,-4.03339,178,13.98],[43.26108,-4.03376,165,14.02],[43.26138,-4.03402,154,14.06],[43.26171,-4.03423,148,14.1],[43.26192,-4.03464,142,14.14],[43.26217,-4.035,143,14.19],[43.26244,-4.03533,140,14.23],[43.26249,-4.03583,136,14.27],[43.26268,-4.03626,134,14.31],[43.26276,-4.03672,133,14.35],[43.26287,-4.03719,133,14.39],[43.2632,-4.03701,133,14.43],[43.26352,-4.03687,134,14.48],[43.26373,-4.03728,138,14.52],[43.2637,-4.03778,140,14.56],[43.26381,-4.03825,140,14.6],[43.26383,-4.03875,144,14.64],[43.26389,-4.03921,147,14.68],[43.264,-4.03972,148,14.72],[43.26406,-4.04021,147,14.77],[43.26414,-4.0407,145,14.81],[43.26425,-4.0412,144,14.85],[43.26443,-4.04147,144,14.89],[43.26478,-4.04136,147,14.93],[43.26514,-4.04148,151,14.97],[43.26551,-4.04142,156,15.02],[43.26587,-4.0415,166,15.06],[43.2661,-4.04176,177,15.1],[43.26643,-4.04174,186,15.14],[43.26679,-4.0419,185,15.18],[43.26714,-4.04211,180,15.22],[43.26745,-4.04236,174,15.26],[43.26782,-4.04227,168,15.31],[43.26816,-4.04211,163,15.35],[43.26841,-4.04187,158,15.39],[43.26853,-4.04234,152,15.43],[43.26872,-4.04278,147,15.47],[43.26873,-4.04328,140,15.51],[43.26862,-4.04376,135,15.56],[43.26879,-4.04419,137,15.6],[43.26903,-4.04455,136,15.64],[43.26918,-4.04494,136,15.68],[43.2695,-4.04516,133,15.72],[43.2696,-4.04564,126,15.76],[43.26964,-4.04612,118,15.8],[43.26964,-4.04661,114,15.84],[43.26967,-4.0471,116,15.89],[43.26983,-4.04758,116,15.93],[43.26999,-4.04804,113,15.97],[43.27034,-4.04801,112,16.01],[43.27055,-4.04776,112,16.05],[43.27074,-4.04731,112,16.09],[43.27107,-4.04713,113,16.13],[43.27145,-4.04711,113,16.18],[43.27179,-4.04696,115,16.22],[43.27209,-4.047,116,16.26],[43.27233,-4.04741,113,16.3],[43.2726,-4.04777,112,16.34],[43.27286,-4.04816,111,16.39],[43.27311,-4.04852,111,16.43],[43.27336,-4.0489,110,16.47],[43.27362,-4.04927,110,16.51],[43.27387,-4.04963,110,16.55],[43.27413,-4.04997,110,16.59],[43.27441,-4.05031,112,16.63],[43.27458,-4.05025,112,16.65]];   // [lat, lon, altitud, km]
+const KMS = [[43.26935,-4.04501,1],[43.26395,-4.03937,2],[43.25867,-4.03512,3],[43.2539,-4.03663,4],[43.25489,-4.02833,5],[43.25104,-4.02748,6],[43.24439,-4.02741,7],[43.24025,-4.02356,8],[43.24595,-4.0183,9],[43.24559,-4.01586,10],[43.25171,-4.01805,11],[43.25333,-4.02448,12],[43.25716,-4.02947,13],[43.26082,-4.03339,14],[43.26551,-4.04142,15],[43.27034,-4.04801,16]];       // [lat, lon, km]
+const PUNTOS = [
+  [0,    'Salida · plaza del Ayuntamiento', 111, 43.274942, -4.050007, 'Salida a las 10:30 h'],
+  [5.5,  'Avituallamiento líquido · cruce (ida)', 196, 43.253482, -4.025467, 'Cruce por el que se pasa dos veces'],
+  [7.8,  'Techo del recorrido', 482, 43.239797, -4.025482, 'Fin de la subida más larga'],
+  [12.1, 'Avituallamiento líquido · cruce (vuelta)', 188, 43.25363, -4.025292, 'Mismo cruce que en la ida'],
+  [16.65,'Meta · plaza del Ayuntamiento', 112, 43.274467, -4.050287, 'Cierre de control a las 14:00 h']
+];
+const ASFALTO_IDA = 1.6, PARQUE_IDA = 2.1, PARQUE_VUELTA = 16.65 - 2.1, ASFALTO_VUELTA = 16.65 - 1.6;
+const RITMO_PRIMERO = 5 + 3/60, RITMO_CORTE = 12 + 37/60;
+function hora(min){ const t = 10*60 + 30 + min; const h = Math.floor(t/60), m = Math.round(t%60); return `${h}:${String(m).padStart(2,'0')}`; }
+
+// ---- Perfil
+(function(){
+  const W = 1000, H = 260, L0 = 52, R = 16, T = 18, B = 40;
+  const kmMax = TRACK[TRACK.length-1][3], aMin = 100, aMax = 500;
+  const x = km => L0 + (km / kmMax) * (W - L0 - R);
+  const y = a => T + (1 - (a - aMin) / (aMax - aMin)) * (H - T - B);
+  let s = '';
+  // rejilla
+  for (let a = 100; a <= 500; a += 100) s += `<line x1="${L0}" x2="${W-R}" y1="${y(a)}" y2="${y(a)}" stroke="#D9DED6" stroke-width="1"/><text x="${L0-8}" y="${y(a)+4}" text-anchor="end" font-size="11" fill="#5A6660">${a} m</text>`;
+  for (let k = 0; k <= 16; k += 2) s += `<text x="${x(k)}" y="${H-B+18}" text-anchor="middle" font-size="11" fill="#5A6660">km ${k}</text>`;
+  // área y línea
+  const pts = TRACK.map(p => `${x(p[3]).toFixed(1)},${y(p[2]).toFixed(1)}`).join(' ');
+  s += `<polygon points="${x(0)},${y(aMin)} ${pts} ${x(kmMax)},${y(aMin)}" fill="#2E7D32" fill-opacity=".14"/>`;
+  s += `<polyline points="${pts}" fill="none" stroke="#2E7D32" stroke-width="2"/>`;
+  // tramos de vía pública
+  [[0, PARQUE_IDA], [PARQUE_VUELTA, kmMax]].forEach(([a, b]) => {
+    const sub = TRACK.filter(p => p[3] >= a && p[3] <= b).map(p => `${x(p[3]).toFixed(1)},${y(p[2]).toFixed(1)}`).join(' ');
+    s += `<polyline points="${sub}" fill="none" stroke="#E0201F" stroke-width="3"/>`;
+  });
+  // puntos
+  PUNTOS.forEach(p => {
+    s += `<circle cx="${x(p[0])}" cy="${y(p[2])}" r="5" fill="#fff" stroke="#0F2A1B" stroke-width="2"/>`;
+    const anchor = p[0] < 1 ? 'start' : p[0] > 15.5 ? 'end' : 'middle';
+    s += `<text x="${x(p[0])}" y="${y(p[2]) - 10}" text-anchor="${anchor}" font-size="11" font-weight="600" fill="#1B2420">${p[0] === 0 ? 'Salida' : p[0] > 16 ? 'Meta' : p[2] > 400 ? '482 m · km 7,8' : 'Avit. km ' + String(p[0]).replace('.', ',')}</text>`;
+  });
+  document.getElementById('perfil').innerHTML = s;
+})();
+
+// ---- Tabla de puntos
+document.getElementById('puntos').innerHTML = PUNTOS.map(p =>
+  `<tr><td class="n">${String(p[0]).replace('.', ',')}</td><td>${p[1]}</td><td class="n">${p[2]} m</td><td class="n">${hora(p[0]*RITMO_PRIMERO)} h</td><td class="n">${p[0] === 16.65 ? '14:00' : hora(p[0]*RITMO_CORTE)} h</td><td>${p[5]}</td></tr>`).join('');
+// ---- Mapa (al final: si no carga Leaflet, el resto del documento se pinta igual)
+try {
+const mapa = L.map('mapa', { scrollWheelZoom: false });
+const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17, attribution: '© OpenStreetMap, SRTM · OpenTopoMap (CC-BY-SA)' });
+osm.addTo(mapa);
+L.control.layers({ 'Callejero': osm, 'Topográfico': topo }).addTo(mapa);
+const enVia = p => p[3] <= PARQUE_IDA || p[3] >= PARQUE_VUELTA;
+let seg = [], segs = [];
+for (let i = 0; i < TRACK.length; i++) {
+  const p = TRACK[i], v = enVia(p);
+  if (seg.length && seg.via !== v) { seg.push([p[0], p[1]]); segs.push(seg); seg = []; }
+  if (!seg.length) seg.via = v;
+  seg.push([p[0], p[1]]);
+}
+segs.push(seg);
+segs.forEach(s => L.polyline(s, { color: s.via ? '#E0201F' : '#2E7D32', weight: 5, opacity: .95 }).addTo(mapa));
+KMS.forEach(k => L.marker([k[0], k[1]], { icon: L.divIcon({ className: 'km-label', html: 'km ' + k[2], iconSize: [36, 14], iconAnchor: [18, 7] }), interactive: false }).addTo(mapa));
+PUNTOS.forEach(p => L.circleMarker([p[3], p[4]], { radius: 7, color: '#0F2A1B', weight: 2, fillColor: '#fff', fillOpacity: 1 }).addTo(mapa).bindTooltip(`km ${p[0]} · ${p[1]}`));
+mapa.fitBounds(L.latLngBounds(TRACK.map(p => [p[0], p[1]])), { padding: [24, 24] });
+
+} catch (e) {
+  document.getElementById('mapa').innerHTML = '<p style="padding:24px;color:#5A6660">El plano necesita conexión a internet para cargar el mapa. Abre este fichero con conexión o consulta el mapa en camberas.com/trail-navideno-monte-tejas-2026.</p>';
+}
+</script>
+</body>
+</html>
