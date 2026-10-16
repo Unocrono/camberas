@@ -1,5 +1,9 @@
 # Tareas
 
+- [x] Borrar los indicadores de `generate-training-plan` y `support-chat` y comprobar que Admin › Edge Functions muestra 5 funciones.
+- [x] Copiar las dos migraciones ya aplicadas al historial de `supabase/migrations/`, sin ejecutarlas y conservando `drizzle/`.
+- [x] Registrar la convención de ubicación y nombres para las nuevas migraciones.
+
 - [x] Eliminar `generate-training-plan` del repositorio y del servidor.
 - [x] Confirmar con Bernardo la eliminación de `training_plans` y su único plan guardado.
 - [x] Eliminar `support-chat` del repositorio y del servidor.
