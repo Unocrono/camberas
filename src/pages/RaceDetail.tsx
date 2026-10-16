@@ -432,18 +432,32 @@ const RaceDetail = () => {
   };
 
   // Vuelve a pintar en el próximo cambio de plazo (apertura, cierre o salida)
-  // de cualquier recorrido. setTimeout admite como mucho ~24,8 días: si el
-  // cambio está más lejos, salta antes y se vuelve a programar.
+  // de cualquier recorrido. La espera sale de restar horas de PARED y
+  // setTimeout cuenta tiempo real: el cambio de hora (1 h) o un móvil
+  // suspendido la descuadran. Por eso salta como mucho cada 5 min y recalcula,
+  // y además se repinta al volver a la pestaña.
   useEffect(() => {
     const ahora = ahoraParedMs();
     const proximos = (race?.distances ?? [])
       .map((d: { plazo?: PlazoInscripcion }) => (d.plazo ? proximoCambioMs(d.plazo, ahora) : null))
       .filter((ms: number | null): ms is number => ms !== null);
     if (!proximos.length) return;
-    const espera = Math.min(Math.min(...proximos) - ahora + 250, 2_147_000_000);
+    const espera = Math.min(Math.min(...proximos) - ahora + 250, 5 * 60 * 1000);
     const t = setTimeout(() => setRelojPlazos((n) => n + 1), Math.max(espera, 250));
     return () => clearTimeout(t);
   }, [race?.distances, relojPlazos]);
+
+  useEffect(() => {
+    const repintar = () => {
+      if (document.visibilityState === "visible") setRelojPlazos((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", repintar);
+    window.addEventListener("focus", repintar);
+    return () => {
+      document.removeEventListener("visibilitychange", repintar);
+      window.removeEventListener("focus", repintar);
+    };
+  }, []);
 
   // Llegada con ?inscribir=ID: se abre el formulario de ese recorrido una
   // sola vez, cuando ya se sabe si hay sesión (con cuenta NO es invitado) y
@@ -455,6 +469,11 @@ const RaceDetail = () => {
     inscripcionDirectaHecha.current = true;
     const distancia = race.distances.find((d: any) => d.id === inscribirDeUrl);
     if (!distancia) return;
+    // Mismo orden que la etiqueta del botón: cerrada antes que completo
+    if (estadoInscripcion(distancia) === "cerrada") {
+      avisoNoAdmite(distancia);
+      return;
+    }
     if (distancia.availablePlaces === 0) {
       toast({
         title: "Recorrido completo",

@@ -79,11 +79,14 @@ BEGIN
   END IF;
 END $s$;
 
--- Que la web propia no enseñe durante 90 s el estado de antes
-DELETE FROM public.evento_publico_cache;
-
 -- Guardia de horas (CLAUDE.md): ninguna función con horas mal tratadas
 DO $$ BEGIN IF EXISTS (SELECT 1 FROM public.guardia_horas() WHERE nivel='FALLO') THEN RAISE EXCEPTION 'horas'; END IF; END $$;
+
+-- Que la web propia no enseñe hasta 90 s el estado de antes. No se borra la
+-- caché: se da por caducada, así cada carrera conserva su copia de reserva y
+-- solo la recalcula quien gana el candado (20261001200500). Al final, para
+-- que las filas queden bloqueadas solo lo que dura el COMMIT.
+UPDATE public.evento_publico_cache SET generado = '-infinity';
 
 COMMIT;
 

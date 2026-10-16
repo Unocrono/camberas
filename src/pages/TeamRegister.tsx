@@ -26,7 +26,8 @@ import { DynamicRegistrationForm } from "@/components/DynamicRegistrationForm";
 import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { camposVisibles } from "@/lib/fieldConditions";
 import type { Session } from "@supabase/supabase-js";
-import { hoyLocal, paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
+import { hoyLocal, ahoraParedMs } from "@/lib/timezoneUtils";
+import { plazoInscripcion, estadoPlazo, type PlazoInscripcion } from "@/lib/cierreInscripcion";
 
 interface Team {
   id: string;
@@ -60,6 +61,8 @@ interface DistanceOption {
   price: number | null;
   registration_opens: string | null;
   registration_closes: string | null;
+  /** Plazo de inscripción: su cierre y, como muy tarde, la salida oficial */
+  plazo?: PlazoInscripcion;
 }
 
 interface TeamTier {
@@ -163,7 +166,7 @@ const TeamRegister = () => {
       return;
     }
     (async () => {
-      const [{ data: ds }, { data: ts }] = await Promise.all([
+      const [{ data: ds }, { data: ts }, { data: olas }] = await Promise.all([
         supabase
           .from("race_distances")
           .select("id, name, distance_km, price, registration_opens, registration_closes")
@@ -175,18 +178,28 @@ const TeamRegister = () => {
           .select("min_members, discount_type, discount_value")
           .eq("race_id", carreraId)
           .order("min_members", { ascending: true }),
+        supabase.from("race_waves").select("race_distance_id, start_time").eq("race_id", carreraId),
       ]);
-      // Plazos en hora de pared (+00, no UTC): «ahora» también en hora de pared
+      // Plazos en hora de pared (+00, no UTC), con «ahora» también en hora de
+      // pared. Se cierran en su fecha de cierre y, como muy tarde, a la salida
+      // oficial del recorrido (src/lib/cierreInscripcion.ts), como la ficha.
       const now = ahoraParedMs();
-      const abiertas = ((ds ?? []) as DistanceOption[]).filter((d) => {
-        const opens = d.registration_opens ? paredAMs(d.registration_opens) : null;
-        const closes = d.registration_closes ? paredAMs(d.registration_closes) : null;
-        return (opens === null || now >= opens) && (closes === null || now <= closes);
-      });
+      const fecha = carreras.find((c) => c.id === carreraId)?.date ?? null;
+      const abiertas = ((ds ?? []) as DistanceOption[])
+        .map((d) => ({
+          ...d,
+          plazo: plazoInscripcion({
+            registrationOpens: d.registration_opens,
+            registrationCloses: d.registration_closes,
+            salidaOficial: (olas ?? []).find((o) => o.race_distance_id === d.id)?.start_time ?? null,
+            fechaCarrera: fecha,
+          }),
+        }))
+        .filter((d) => estadoPlazo(d.plazo, now) === "abierta");
       setDistancias(abiertas);
       setTramos((ts ?? []) as TeamTier[]);
     })();
-  }, [carreraId]);
+  }, [carreraId, carreras]);
 
   const toggleMiembro = (m: Member) => {
     const s = new Set(seleccion);
@@ -216,6 +229,12 @@ const TeamRegister = () => {
     if (!team || !distanciaId || N === 0) return;
     setEnviando(true);
     try {
+      // La lista se cargó antes: si entretanto se dio la salida o terminó el
+      // plazo, no se inscribe
+      const plazo = distancias.find((d) => d.id === distanciaId)?.plazo;
+      if (plazo && estadoPlazo(plazo, ahoraParedMs()) !== "abierta") {
+        throw new Error("La inscripción de este recorrido ya está cerrada: terminó su plazo o ya se ha dado la salida.");
+      }
       // Campos obligatorios del recorrido, comprobados antes de enviar
       const { data: fields } = await supabase
         .from("registration_form_fields")

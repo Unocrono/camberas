@@ -1,4 +1,5 @@
 import { paredAMs } from "@/lib/timezoneUtils";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
  * Cuándo se cierra la inscripción de un recorrido.
@@ -65,4 +66,23 @@ export function proximoCambioMs(plazo: PlazoInscripcion, ahoraMs: number): numbe
   const momentos = [plazo.abreMs, plazo.plazoMs === null ? null : plazo.plazoMs + 1, plazo.salidaMs]
     .filter((ms): ms is number => ms !== null && ms > ahoraMs);
   return momentos.length ? Math.min(...momentos) : null;
+}
+
+/**
+ * ¿Ya se dio la salida de este recorrido? Pregunta al servidor
+ * (hora_salida_recorrido, abierta a invitados), para las páginas que no tienen
+ * la salida oficial a mano: la web con plantilla solo recibe la prevista.
+ * Esa función devuelve un INSTANTE real (alineada el 27-sep), así que aquí se
+ * compara con Date.now() y no con ahoraParedMs(). Si la consulta falla, no
+ * bloquea: el estado que ya enseña la página sigue mandando.
+ */
+export async function salidaYaDada(distanceId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc("hora_salida_recorrido", { p_distance_id: distanceId });
+    if (error || !data) return false;
+    const salida = new Date(String(data)).getTime();
+    return Number.isFinite(salida) && Date.now() >= salida;
+  } catch {
+    return false;
+  }
 }
