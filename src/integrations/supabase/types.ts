@@ -2982,6 +2982,7 @@ export type Database = {
           cutoff_time: string | null
           display_order: number | null
           distance_km: number
+          dorsal_simulado: Json | null
           elevation_gain: number | null
           elevation_loss: number | null
           finish_location: string | null
@@ -3016,6 +3017,7 @@ export type Database = {
           cutoff_time?: string | null
           display_order?: number | null
           distance_km: number
+          dorsal_simulado?: Json | null
           elevation_gain?: number | null
           elevation_loss?: number | null
           finish_location?: string | null
@@ -3050,6 +3052,7 @@ export type Database = {
           cutoff_time?: string | null
           display_order?: number | null
           distance_km?: number
+          dorsal_simulado?: Json | null
           elevation_gain?: number | null
           elevation_loss?: number | null
           finish_location?: string | null
