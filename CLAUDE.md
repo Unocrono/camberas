@@ -230,6 +230,18 @@ Este repo es la web y el panel. El ecosistema se reparte en:
 `camberasToken.ts` está duplicado a propósito en los tres primeros. Cambios en el formato de token
 o en las tablas GPS afectan a todos: comprueba los lectores antes de tocar.
 
+## Flujo de trabajo con Claude
+
+- **Los PR de Claude se fusionan en `main` sin pedir permiso.** Cuando `npm run build` pasa y
+  el trabajo está completo, Claude marca el PR como listo y lo fusiona él mismo (merge, no
+  squash) y después lo dice. Pedido por el promotor el 17-oct-2026. Al fusionar, Lovable publica
+  la web; las edge functions se despliegan aparte desde Lovable.
+- Las migraciones se prueban primero en seco (`BEGIN … ROLLBACK`) contra la base de datos de
+  producción con la consulta de Lovable y, si pasan, se aplican en firme en la misma sesión.
+  Si alguna queda sin aplicar, se dice explícitamente al terminar.
+- Rama de trabajo merged = rama acabada: el trabajo siguiente arranca de `main` con el mismo
+  nombre de rama (`git checkout -B <rama> origin/main`) y abre un PR nuevo.
+
 ## Lovable
 
 El repo está sincronizado con Lovable (`lovable-tagger` se activa solo en modo desarrollo y el
