@@ -86,7 +86,7 @@ export const VARIABLES_EMAIL: { clave: string; descripcion: string }[] = [
 ];
 
 export const BLOQUES_EMAIL: { clave: string; descripcion: string; requisito?: string }[] = [
-  { clave: "tarjeta_dorsal", descripcion: "El dorsal en grande, con recorrido, fecha y lugar", requisito: "Solo a inscritos con dorsal" },
+  { clave: "tarjeta_dorsal", descripcion: "El dorsal en grande, con recorrido, fecha y lugar. Si la carrera tiene dorsal simulado, su dorsal tal cual, con número y nombre", requisito: "Solo a inscritos con dorsal" },
   { clave: "qr_dorsal", descripcion: "El QR para la mesa de recogida, dentro del propio correo (sin pulsar nada), con un enlace de respaldo por si no se ven las imágenes" },
   { clave: "boton_mi_dorsal", descripcion: "Botón «Ver mi dorsal»: la página con el QR para la mesa de recogida" },
   { clave: "resumen_inscripcion", descripcion: "Tabla del comprobante: carrera, recorrido, fecha, estado, importe y referencia" },
