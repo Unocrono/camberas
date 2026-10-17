@@ -2,6 +2,7 @@ import { Check, Lock } from "lucide-react";
 import type { EventoPublico } from "@/eventos/tipos";
 import { fechaLarga, formatoPrecio, precioVigente } from "@/eventos/useEventoPublico";
 import { useTenant } from "@/tenant/TenantContext";
+import { inscripcionExterna } from "@/lib/resultados";
 import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
 
 interface Props {
@@ -27,6 +28,10 @@ export function Inscripcion({ evento, onInscribirse }: Props) {
   const consulta = useConsultaInscripcion();
   const ins = evento.inscripcion;
   const abierta = evento.estado === "abierta";
+  // Enlace externo de inscripción (uno.es…) en todos los recorridos abiertos:
+  // el botón lleva fuera, así que no se promete pago con tarjeta aquí
+  const abiertas = evento.pruebas.filter((p) => (p.estado ?? evento.estado) === "abierta");
+  const inscripcionFuera = abiertas.length > 0 && abiertas.every((p) => inscripcionExterna(p));
   const hayTramos = ins.tarifas.some((t) => t.periodos.length > 1);
   const devolucion = ins.devolucion;
   const devolucionTramos = Array.isArray(devolucion) ? devolucion : null;
@@ -94,7 +99,9 @@ export function Inscripcion({ evento, onInscribirse }: Props) {
             )}
             <p className="mt-4 flex items-center justify-center gap-2 text-[13px]" style={{ color: "var(--wp-muted-dark)" }}>
               <Lock size={14} strokeWidth={2} aria-hidden="true" />
-              Pago seguro con tarjeta{evento.web?.tpvPropio ? " en el TPV del organizador" : ""} · Confirmación inmediata
+              {inscripcionFuera
+                ? "La inscripción se hace en la web del organizador: el botón te lleva allí"
+                : `Pago seguro con tarjeta${evento.web?.tpvPropio ? " en el TPV del organizador" : ""} · Confirmación inmediata`}
             </p>
             <button
               type="button"

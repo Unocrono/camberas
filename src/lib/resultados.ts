@@ -70,6 +70,18 @@ export function resultadosDeCarrera(
   return { href: enCamberas, externo: false };
 }
 
+/**
+ * Enlace externo de inscripción de un recorrido (race_distances.registration_url,
+ * se pone en Recorridos): la inscripción se hace fuera (uno.es, la web del
+ * organizador…) y el botón «Inscribirme» lleva allí. null si está vacío o no
+ * es http(s). Los plazos siguen mandando: solo se usa con la inscripción abierta.
+ */
+export function inscripcionExterna(
+  recorrido: { registration_url?: string | null; inscripcionUrl?: string | null } | null | undefined,
+): string | null {
+  return urlAlternativa(recorrido?.registration_url ?? recorrido?.inscripcionUrl);
+}
+
 /** Atributos para abrir fuera de Camberas en pestaña nueva */
 export const atributosEnlace = (e: EnlaceResultados) =>
   e.externo ? ({ target: "_blank", rel: "noopener noreferrer" } as const) : {};

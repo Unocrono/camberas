@@ -123,7 +123,12 @@ const emptyFormData: RegistrationFormData = {
   bib_number: "",
 };
 
-type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "origen" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions";
+// Las columnas fijas de la tabla más los campos PROPIOS del formulario de la
+// carrera ("campo:<field_name>"): empadronado, talla, modalidad… Se ofrecen en
+// «Columnas» cuando hay una carrera elegida y se leen de registration_responses.
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "origen" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions" | `campo:${string}`;
+
+const PREFIJO_CAMPO = "campo:";
 
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "bib_number", label: "Dorsal" },
@@ -382,6 +387,24 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_VISIBLE_COLUMNS));
+
+  // Campos propios del formulario de la carrera elegida: los que no son de
+  // sistema ni se vuelcan a una columna fija (profile_field). Un mismo campo
+  // en varios recorridos (misma field_name) es UNA columna; la respuesta se
+  // lee por field_name, que es como está indexado registrationResponses.
+  const camposFormulario = useMemo(() => {
+    const vistos = new Set<string>();
+    const lista: { key: ColumnKey; field_name: string; label: string }[] = [];
+    for (const f of formFields) {
+      if (f.is_system_field || f.profile_field || !f.field_name) continue;
+      if (vistos.has(f.field_name)) continue;
+      vistos.add(f.field_name);
+      lista.push({ key: `${PREFIJO_CAMPO}${f.field_name}`, field_name: f.field_name, label: f.field_label || f.field_name });
+    }
+    return lista;
+  }, [formFields]);
+  const camposVisibles = camposFormulario.filter((c) => visibleColumns.has(c.key));
+  const respuestaDe = (regId: string, fieldName: string) => registrationResponses.get(regId)?.get(fieldName) ?? "";
 
   // Helper to get registration response value - MUST be defined before useMemo hooks that use it
   const getResponseValue = (regId: string, fieldName: string): string => {
@@ -1181,8 +1204,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       // Fetch form fields for all distances
       const { data: fieldsData } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, field_label, profile_field, race_distance_id")
-        .in("race_distance_id", distanceIds);
+        .select("id, field_name, field_label, profile_field, race_distance_id, is_system_field, field_order")
+        .in("race_distance_id", distanceIds)
+        .order("field_order", { ascending: true });
       
       setFormFields(fieldsData || []);
 
@@ -1897,13 +1921,18 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         case "distance": return `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`;
         case "status": return ESTADO_CSV[reg.status] ?? reg.status;
         case "payment": return PAGO_CSV[reg.payment_status] ?? reg.payment_status;
-        default: return "";
+        default:
+          // Campo propio del formulario: su respuesta
+          return col.startsWith(PREFIJO_CAMPO) ? respuestaDe(reg.id, col.slice(PREFIJO_CAMPO.length)) : "";
       }
     };
 
-    const columnas = ALL_COLUMNS.filter(
-      (c) => c.key !== "actions" && visibleColumns.has(c.key),
-    );
+    // Fijas marcadas y, detrás, los campos del formulario marcados (mismo
+    // orden que en la tabla)
+    const columnas: { key: ColumnKey; label: string }[] = [
+      ...ALL_COLUMNS.filter((c) => c.key !== "actions" && visibleColumns.has(c.key)),
+      ...camposVisibles.map((c) => ({ key: c.key, label: c.label })),
+    ];
     const headers = [
       "Carrera",
       ...columnas.flatMap((c) => (c.key === "participant" ? ["Nombre", "Apellidos"] : [c.label])),
@@ -2288,6 +2317,22 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                     {col.label}
                   </DropdownMenuCheckboxItem>
                 ))}
+                {/* Campos propios del formulario de la carrera elegida */}
+                {camposFormulario.length > 0 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Campos del formulario</DropdownMenuLabel>
+                    {camposFormulario.map((col) => (
+                      <DropdownMenuCheckboxItem
+                        key={col.key}
+                        checked={visibleColumns.has(col.key)}
+                        onCheckedChange={() => toggleColumn(col.key)}
+                      >
+                        {col.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -2461,6 +2506,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
+                  {camposVisibles.map((c) => (
+                    <TableHead key={c.key}>{c.label}</TableHead>
+                  ))}
                   {visibleColumns.has("actions") && <TableHead>Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
@@ -2594,6 +2642,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             ) : null}
                           </TableCell>
                         )}
+                        {camposVisibles.map((c) => (
+                          <TableCell key={c.key}>{respuestaDe(reg.id, c.field_name) || "-"}</TableCell>
+                        ))}
                         {visibleColumns.has("actions") && (
                           <TableCell>
                             <div className="flex gap-1">

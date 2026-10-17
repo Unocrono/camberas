@@ -22,7 +22,7 @@ import { RedsysPaymentForm } from "@/components/payment/RedsysPaymentForm";
 import { ContactOrganizerDialog } from "@/components/ContactOrganizerDialog";
 import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
 import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
-import { resultadosDeCarrera, resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
+import { resultadosDeCarrera, resultadosDeRecorrido, atributosEnlace, inscripcionExterna } from "@/lib/resultados";
 
 /**
  * Texto del formulario -> gender_id de la tabla genders (1=M, 2=F, 3=X).
@@ -415,6 +415,12 @@ const RaceDetail = () => {
         title: distancia.availablePlaces === 0 ? "Recorrido completo" : "Inscripción no disponible",
         description: `${distancia.name}: ahora mismo no admite inscripciones.`,
       });
+      return;
+    }
+    // Inscripción fuera de Camberas (uno.es…): el enlace manda, dentro de plazo
+    const externa = inscripcionExterna(distancia);
+    if (externa) {
+      window.location.assign(externa);
       return;
     }
     handleRegisterClick(distancia);
@@ -1318,20 +1324,31 @@ const RaceDetail = () => {
                               setSelectedDistance(null);
                             }
                           }}>
+                            {/* Enlace externo de inscripción (uno.es…): dentro de
+                                plazo y con plazas, el botón lleva allí en vez de
+                                abrir el formulario; fuera de plazo, igual que siempre */}
+                            {inscripcionExterna(distance) && distance.availablePlaces !== 0 && distance.isRegistrationOpen ? (
+                              <Button className="w-full" variant="secondary" asChild>
+                                <a href={inscripcionExterna(distance)!} target="_blank" rel="noopener noreferrer">
+                                  Inscribirme
+                                </a>
+                              </Button>
+                            ) : (
                             <DialogTrigger asChild>
-                              <Button 
+                              <Button
                                 className="w-full"
                                 onClick={() => handleRegisterClick(distance)}
                                 disabled={distance.availablePlaces === 0 || !distance.isRegistrationOpen}
                                 variant={!distance.isRegistrationOpen ? "outline" : "secondary"}
                               >
-                                {distance.availablePlaces === 0 
-                                  ? "Completo" 
-                                  : !distance.isRegistrationOpen 
-                                    ? "NO DISPONIBLE" 
+                                {distance.availablePlaces === 0
+                                  ? "Completo"
+                                  : !distance.isRegistrationOpen
+                                    ? "NO DISPONIBLE"
                                     : "Inscribirme"}
                               </Button>
                             </DialogTrigger>
+                            )}
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                               <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">

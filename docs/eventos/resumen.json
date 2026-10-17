@@ -1,24 +1,28 @@
 [
  {
   "slug": "entre-vinedos-2026",
-  "nombre": "Entre Viñedos",
+  "nombre": "XIX Carrera Entre Viñedos",
   "deporte": "popular",
-  "pruebas": 2,
+  "pruebas": 3,
   "tarifas": 4,
   "mecanicas": [
-   "periodos",
+   "cambios",
    "equipo",
-   "presencial",
-   "tutor",
    "extra€",
-   "infantil"
+   "infantil",
+   "locales",
+   "marcha",
+   "periodos",
+   "presencial",
+   "tutor"
   ],
   "secciones": [],
   "estado": "abierta",
   "pendiente": [
-   "hora de salida real (10:00 y 09:30 son provisionales)",
-   "distancia de la prueba absoluta",
-   "años de nacimiento de alevín/infantil/cadete"
+   "años de nacimiento de alevín/infantil/cadete",
+   "trazado 2026 (el GPX es el de 2021)",
+   "cartel y logo para la web",
+   "avituallamientos (a criterio de la organización)"
   ]
  },
  {

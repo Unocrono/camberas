@@ -48,6 +48,12 @@ const distanceSchema = z.object({
     .max(500, "La URL de resultados es demasiado larga")
     .refine((v) => !v || urlTecleada(v) !== null, "La URL alternativa de resultados no es una dirección web válida (https://…)")
     .optional(),
+  registration_url: z
+    .string()
+    .trim()
+    .max(500, "El enlace de inscripción es demasiado largo")
+    .refine((v) => !v || urlTecleada(v) !== null, "El enlace externo de inscripción no es una dirección web válida (https://…)")
+    .optional(),
 });
 
 interface PriceRange {
@@ -88,6 +94,9 @@ interface Distance {
   // URL alternativa de resultados (20261002100000): rellena, los botones de
   // resultados llevan ahí (RaceTec…); vacía, a los resultados de Camberas
   results_url?: string | null;
+  // Enlace externo de inscripción (20261017140000): rellena, «Inscribirme»
+  // lleva ahí dentro de los plazos (uno.es…); vacío, formulario de Camberas
+  registration_url?: string | null;
   registration_opens: string | null;
   registration_closes: string | null;
   display_order: number | null;
@@ -161,6 +170,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
     gps_update_frequency: "30",
     show_route_map: true,
     results_url: "",
+    registration_url: "",
     registration_opens_date: "",
     registration_opens_time: "",
     registration_closes_date: "",
@@ -345,6 +355,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_update_frequency: distance.gps_update_frequency?.toString() || "30",
         show_route_map: distance.show_route_map ?? true,
         results_url: distance.results_url || "",
+        registration_url: distance.registration_url || "",
         registration_opens_date: regOpens.date,
         registration_opens_time: regOpens.time,
         registration_closes_date: regCloses.date,
@@ -385,6 +396,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_update_frequency: "30",
         show_route_map: true,
         results_url: "",
+        registration_url: "",
         registration_opens_date: "",
         registration_opens_time: "",
         registration_closes_date: "",
@@ -477,6 +489,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         start_location: formData.start_location || undefined,
         finish_location: formData.finish_location || undefined,
         results_url: formData.results_url || undefined,
+        registration_url: formData.registration_url || undefined,
       });
 
       // ── Salida prevista (la de aquí) y oficial (start_time, cronometraje) ──
@@ -632,6 +645,7 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
         gps_update_frequency: parseInt(formData.gps_update_frequency) || 30,
         show_route_map: formData.show_route_map,
         results_url: validatedData.results_url ? urlTecleada(validatedData.results_url) : null,
+        registration_url: validatedData.registration_url ? urlTecleada(validatedData.registration_url) : null,
         registration_opens: registrationOpens,
         registration_closes: registrationCloses,
         display_order: formData.display_order ? parseInt(formData.display_order) : null,
@@ -1291,6 +1305,21 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     <p className="text-xs text-muted-foreground">
                       Si la rellenas, los botones «Resultados» y «Clasificaciones» llevan a esa dirección.
                       Vacía, llevan a los resultados de Camberas.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="registration_url">Enlace externo de inscripción</Label>
+                    <Input
+                      id="registration_url"
+                      inputMode="url"
+                      placeholder="https://… (por ejemplo, el formulario de uno.es)"
+                      value={formData.registration_url}
+                      onChange={(e) => setFormData({ ...formData, registration_url: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Si lo rellenas, el botón «Inscribirme» lleva a esa dirección en vez de abrir el formulario de Camberas.
+                      Los plazos de inscripción siguen mandando: fuera de ellos el botón queda desactivado.
                     </p>
                   </div>
 

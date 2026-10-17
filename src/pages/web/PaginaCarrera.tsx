@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
 import { useIrAlAncla } from "@/eventos/useIrAlAncla";
 import type { EventoPublico } from "@/eventos/tipos";
+import { inscripcionExterna } from "@/lib/resultados";
 import { InscripcionDialog } from "@/eventos/InscripcionDialog";
 import { ConsultaInscripcionDialog } from "@/components/ConsultaInscripcionDialog";
 import { useConsultaInscripcion } from "@/hooks/useConsultaInscripcion";
@@ -42,7 +43,16 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const consulta = useConsultaInscripcion();
 
+  // Todos los botones de inscripción de la plantilla (cabecera, portada,
+  // sección, tarjetas y «¿en qué recorrido?») pasan por aquí. Si el recorrido
+  // tiene enlace externo de inscripción (uno.es…), se va allí en vez de abrir
+  // el formulario de Camberas; los plazos ya los aplica la plantilla (estado).
   const abrirInscripcion = (id: string) => {
+    const externa = inscripcionExterna(evento?.pruebas.find((p) => p.id === id));
+    if (externa) {
+      window.open(externa, "_blank", "noopener,noreferrer");
+      return;
+    }
     setPruebaId(id);
     setDialogoAbierto(true);
   };
@@ -60,7 +70,15 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
       });
       return;
     }
+    // Al llegar por enlace no hay clic del usuario: una pestaña nueva la
+    // frenaría el navegador, así que se sigue en esta
+    const externa = inscripcionExterna(prueba);
+    if (externa) {
+      window.location.assign(externa);
+      return;
+    }
     abrirInscripcion(prueba.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inscribirDeUrl, evento, toast]);
 
   // SEO por carrera: título, description, OG, canonical (su dominio si lo
