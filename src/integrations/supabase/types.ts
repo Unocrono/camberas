@@ -877,6 +877,7 @@ export type Database = {
           distance_map: Json
           enabled: boolean
           event_id: number
+          eventos: Json | null
           last_result: Json | null
           last_sync_at: string | null
           numerar_por_carrera: boolean
@@ -886,6 +887,7 @@ export type Database = {
           distance_map?: Json
           enabled?: boolean
           event_id: number
+          eventos?: Json | null
           last_result?: Json | null
           last_sync_at?: string | null
           numerar_por_carrera?: boolean
@@ -895,6 +897,7 @@ export type Database = {
           distance_map?: Json
           enabled?: boolean
           event_id?: number
+          eventos?: Json | null
           last_result?: Json | null
           last_sync_at?: string | null
           numerar_por_carrera?: boolean
@@ -2996,6 +2999,7 @@ export type Database = {
           race_id: string
           registration_closes: string | null
           registration_opens: string | null
+          registration_url: string | null
           results_url: string | null
           show_route_map: boolean | null
           start_location: string | null
@@ -3029,6 +3033,7 @@ export type Database = {
           race_id: string
           registration_closes?: string | null
           registration_opens?: string | null
+          registration_url?: string | null
           results_url?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
@@ -3062,6 +3067,7 @@ export type Database = {
           race_id?: string
           registration_closes?: string | null
           registration_opens?: string | null
+          registration_url?: string | null
           results_url?: string | null
           show_route_map?: boolean | null
           start_location?: string | null
