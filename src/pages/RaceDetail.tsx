@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane, SearchCheck } from "lucide-react";
 import { formatLocalTime, paredAMs, ahoraParedMs, hoyLocal } from "@/lib/timezoneUtils";
+import { plazoInscripcion, estadoPlazo, proximoCambioMs, type PlazoInscripcion } from "@/lib/cierreInscripcion";
 import { formatearTiempoLimite } from "@/lib/tiempoLimite";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -88,6 +89,9 @@ const RaceDetail = () => {
   const [isGuestRegistration, setIsGuestRegistration] = useState(false);
   const [customFormData, setCustomFormData] = useState<Record<string, any>>({});
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  // Sube cuando abre o cierra el plazo de algún recorrido: con la página
+  // abierta desde antes, el botón cambia solo a su hora (a la salida, cerrado)
+  const [relojPlazos, setRelojPlazos] = useState(0);
   const [faqs, setFaqs] = useState<any[]>([]);
   const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
   
@@ -269,10 +273,15 @@ const RaceDetail = () => {
         // Find the wave for this distance
         const wave = wavesData?.find((w: any) => w.race_distance_id === distance.id);
         
-        // Check registration window
-        const regOpens = distance.registration_opens ? paredAMs(distance.registration_opens) : null;
-        const regCloses = distance.registration_closes ? paredAMs(distance.registration_closes) : null;
-        const isRegistrationOpen = (regOpens === null || now >= regOpens) && (regCloses === null || now <= regCloses);
+        // Plazo de inscripción: se cierra en su fecha de cierre y, como muy
+        // tarde, a la salida oficial del recorrido (src/lib/cierreInscripcion.ts)
+        const plazo = plazoInscripcion({
+          registrationOpens: distance.registration_opens,
+          registrationCloses: distance.registration_closes,
+          salidaOficial: wave?.start_time ?? null,
+          fechaCarrera: raceData.date,
+        });
+        const isRegistrationOpen = estadoPlazo(plazo, now) === "abierta";
         
         // Get current price from ranges or fallback to base price. Si dos
         // tramos se solapan, gana el que EMPEZÓ MÁS TARDE: la misma regla que
@@ -300,6 +309,7 @@ const RaceDetail = () => {
           hora_prevista: (wave as { hora_prevista?: string | null } | undefined)?.hora_prevista || null,
           wave_name: wave?.wave_name || null,
           isRegistrationOpen,
+          plazo,
           currentPrice,
         };
       });
@@ -383,7 +393,28 @@ const RaceDetail = () => {
     }
   };
 
+  // Estado del plazo de un recorrido AHORA (no al cargar la página): se cierra
+  // en su fecha de cierre y, como muy tarde, a su salida oficial
+  type RecorridoConPlazo = { name?: string; plazo?: PlazoInscripcion; isRegistrationOpen?: boolean };
+  const estadoInscripcion = (distance: RecorridoConPlazo | null | undefined) =>
+    distance?.plazo
+      ? estadoPlazo(distance.plazo, ahoraParedMs())
+      : distance?.isRegistrationOpen ? "abierta" : "cerrada";
+
+  const avisoNoAdmite = (distance: RecorridoConPlazo) => {
+    const estado = estadoInscripcion(distance);
+    toast({
+      title: estado === "cerrada" ? "Inscripción cerrada" : "Inscripción no disponible",
+      description: `${distance.name}: ahora mismo no admite inscripciones.`,
+    });
+  };
+
   const handleRegisterClick = (distance: any) => {
+    // El botón ya se apaga a su hora; esto cubre un clic en el último segundo
+    if (estadoInscripcion(distance) !== "abierta") {
+      avisoNoAdmite(distance);
+      return;
+    }
     setSelectedDistance(distance);
     setIsGuestRegistration(!user);
     setRegistrationStep('form');
@@ -400,6 +431,34 @@ const RaceDetail = () => {
     }
   };
 
+  // Vuelve a pintar en el próximo cambio de plazo (apertura, cierre o salida)
+  // de cualquier recorrido. La espera sale de restar horas de PARED y
+  // setTimeout cuenta tiempo real: el cambio de hora (1 h) o un móvil
+  // suspendido la descuadran. Por eso salta como mucho cada 5 min y recalcula,
+  // y además se repinta al volver a la pestaña.
+  useEffect(() => {
+    const ahora = ahoraParedMs();
+    const proximos = (race?.distances ?? [])
+      .map((d: { plazo?: PlazoInscripcion }) => (d.plazo ? proximoCambioMs(d.plazo, ahora) : null))
+      .filter((ms: number | null): ms is number => ms !== null);
+    if (!proximos.length) return;
+    const espera = Math.min(Math.min(...proximos) - ahora + 250, 5 * 60 * 1000);
+    const t = setTimeout(() => setRelojPlazos((n) => n + 1), Math.max(espera, 250));
+    return () => clearTimeout(t);
+  }, [race?.distances, relojPlazos]);
+
+  useEffect(() => {
+    const repintar = () => {
+      if (document.visibilityState === "visible") setRelojPlazos((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", repintar);
+    window.addEventListener("focus", repintar);
+    return () => {
+      document.removeEventListener("visibilitychange", repintar);
+      window.removeEventListener("focus", repintar);
+    };
+  }, []);
+
   // Llegada con ?inscribir=ID: se abre el formulario de ese recorrido una
   // sola vez, cuando ya se sabe si hay sesión (con cuenta NO es invitado) y
   // con las mismas condiciones que el botón de la tarjeta: si está completo
@@ -410,11 +469,20 @@ const RaceDetail = () => {
     inscripcionDirectaHecha.current = true;
     const distancia = race.distances.find((d: any) => d.id === inscribirDeUrl);
     if (!distancia) return;
-    if (distancia.availablePlaces === 0 || !distancia.isRegistrationOpen) {
+    // Mismo orden que la etiqueta del botón: cerrada antes que completo
+    if (estadoInscripcion(distancia) === "cerrada") {
+      avisoNoAdmite(distancia);
+      return;
+    }
+    if (distancia.availablePlaces === 0) {
       toast({
-        title: distancia.availablePlaces === 0 ? "Recorrido completo" : "Inscripción no disponible",
+        title: "Recorrido completo",
         description: `${distancia.name}: ahora mismo no admite inscripciones.`,
       });
+      return;
+    }
+    if (estadoInscripcion(distancia) !== "abierta") {
+      avisoNoAdmite(distancia);
       return;
     }
     handleRegisterClick(distancia);
@@ -480,6 +548,12 @@ const RaceDetail = () => {
     e.preventDefault();
 
     if (!selectedDistance) return;
+
+    // Formulario abierto antes de la salida (o del cierre) y enviado después
+    if (estadoInscripcion(selectedDistance) !== "abierta") {
+      avisoNoAdmite(selectedDistance);
+      return;
+    }
 
     // La validación nativa del navegador solo frena los Input vacíos; los
     // desplegables, radios y checkboxes (Radix) se le escapan. Esta lista la
@@ -1322,14 +1396,16 @@ const RaceDetail = () => {
                               <Button 
                                 className="w-full"
                                 onClick={() => handleRegisterClick(distance)}
-                                disabled={distance.availablePlaces === 0 || !distance.isRegistrationOpen}
-                                variant={!distance.isRegistrationOpen ? "outline" : "secondary"}
+                                disabled={distance.availablePlaces === 0 || estadoInscripcion(distance) !== "abierta"}
+                                variant={estadoInscripcion(distance) !== "abierta" ? "outline" : "secondary"}
                               >
-                                {distance.availablePlaces === 0 
-                                  ? "Completo" 
-                                  : !distance.isRegistrationOpen 
-                                    ? "NO DISPONIBLE" 
-                                    : "Inscribirme"}
+                                {estadoInscripcion(distance) === "cerrada"
+                                  ? "Inscripción cerrada"
+                                  : distance.availablePlaces === 0
+                                    ? "Completo"
+                                    : estadoInscripcion(distance) !== "abierta"
+                                      ? "NO DISPONIBLE"
+                                      : "Inscribirme"}
                               </Button>
                             </DialogTrigger>
                             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

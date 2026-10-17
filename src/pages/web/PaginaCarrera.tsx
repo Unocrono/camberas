@@ -1,6 +1,7 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { salidaYaDada } from "@/lib/cierreInscripcion";
 import { useEventoPublico } from "@/eventos/useEventoPublico";
 import { useIrAlAncla } from "@/eventos/useIrAlAncla";
 import type { EventoPublico } from "@/eventos/tipos";
@@ -42,10 +43,17 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
   const [dialogoAbierto, setDialogoAbierto] = useState(false);
   const consulta = useConsultaInscripcion();
 
-  const abrirInscripcion = (id: string) => {
+  const abrirInscripcion = useCallback(async (id: string) => {
+    // El estado de la página puede tener unos minutos: si entretanto se dio la
+    // salida, no se abre el formulario (src/lib/cierreInscripcion.ts)
+    if (await salidaYaDada(id)) {
+      const prueba = evento?.pruebas.find((p) => p.id === id);
+      toast({ title: "Inscripción cerrada", description: `${prueba?.nombre ?? "Este recorrido"}: ya se ha dado la salida.` });
+      return;
+    }
     setPruebaId(id);
     setDialogoAbierto(true);
-  };
+  }, [evento, toast]);
 
   // ?inscribir=ID: se abre una sola vez, con las mismas condiciones que el botón
   useEffect(() => {
@@ -55,13 +63,13 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
     if (!prueba) return;
     if (prueba.estado && prueba.estado !== "abierta") {
       toast({
-        title: prueba.estado === "agotada" ? "Recorrido completo" : "Inscripción no disponible",
+        title: prueba.estado === "agotada" ? "Recorrido completo" : prueba.estado === "cerrada" ? "Inscripción cerrada" : "Inscripción no disponible",
         description: `${prueba.nombre}: ahora mismo no admite inscripciones.`,
       });
       return;
     }
     abrirInscripcion(prueba.id);
-  }, [inscribirDeUrl, evento, toast]);
+  }, [inscribirDeUrl, evento, toast, abrirInscripcion]);
 
   // SEO por carrera: título, description, OG, canonical (su dominio si lo
   // tiene) y JSON-LD SportsEvent. Se restaura al salir de la página.

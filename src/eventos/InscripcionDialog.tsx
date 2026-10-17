@@ -3,6 +3,7 @@ import { ArrowLeft, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { salidaYaDada } from "@/lib/cierreInscripcion";
 import { useTenant } from "@/tenant/TenantContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,6 +117,12 @@ export function InscripcionDialog({ evento, prueba, abierto, onOpenChange, cupon
 
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Formulario abierto antes de la salida y enviado después: la página no
+    // tiene la salida oficial, se pregunta al servidor (src/lib/cierreInscripcion.ts)
+    if (await salidaYaDada(prueba.id)) {
+      toast({ title: "Inscripción cerrada", description: `${prueba.nombre}: ya se ha dado la salida.`, variant: "destructive" });
+      return;
+    }
     if (camposQueFaltan.length > 0) {
       toast({ title: "Faltan campos obligatorios", description: camposQueFaltan.join(", "), variant: "destructive" });
       return;

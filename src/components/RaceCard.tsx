@@ -127,7 +127,8 @@ const RaceCard = ({
             </span>
           )}
           <span className="flex items-center gap-1 text-sm font-bold text-primary group-hover:gap-2 transition-all">
-            {isPast ? 'Ver' : 'Inscribirme'}
+            {/* «Inscribirme» solo si se puede: con la RPC, abierta o con algún recorrido libre */}
+            {isPast || (estado && estado !== 'abierta' && estado !== 'agotada_parcial') ? 'Ver' : 'Inscribirme'}
             <ChevronRight className="h-4 w-4" />
           </span>
         </div>
