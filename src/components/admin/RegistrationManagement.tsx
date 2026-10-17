@@ -130,6 +130,24 @@ type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "typ
 
 const PREFIJO_CAMPO = "campo:";
 
+// Columnas de registrations que guardan directamente un campo del formulario
+// (por profile_field o por su field_name, como tshirt_size)
+const COLUMNAS_REGISTRO = new Set([
+  "first_name", "last_name", "email", "phone", "dni_passport", "birth_date", "gender",
+  "club", "team", "country", "address", "city", "province", "autonomous_community", "tshirt_size",
+]);
+// Las que ya tienen columna fija en la tabla: no se repiten en «Campos del formulario»
+const COLUMNAS_FIJAS = new Set([
+  "first_name", "last_name", "email", "phone", "dni_passport", "birth_date", "gender",
+  "club", "team", "country", "category",
+]);
+function columnaInscripcion(f: { field_name?: string | null; profile_field?: string | null }): string | null {
+  if (f.field_name === "category") return "category";
+  if (f.profile_field && COLUMNAS_REGISTRO.has(f.profile_field)) return f.profile_field;
+  if (f.field_name && COLUMNAS_REGISTRO.has(f.field_name)) return f.field_name;
+  return null;
+}
+
 const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "bib_number", label: "Dorsal" },
   { key: "participant", label: "Participante" },
@@ -388,23 +406,35 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_VISIBLE_COLUMNS));
 
-  // Campos propios del formulario de la carrera elegida: los que no son de
-  // sistema ni se vuelcan a una columna fija (profile_field). Un mismo campo
-  // en varios recorridos (misma field_name) es UNA columna; la respuesta se
-  // lee por field_name, que es como está indexado registrationResponses.
+  // Campos del formulario de la carrera elegida, en el orden del formulario,
+  // salvo los que ya son una columna fija (nombre, email, DNI, teléfono,
+  // género, nacimiento, categoría, club, equipo, país). Así se pueden ver
+  // Talla, Domicilio, Localidad, Provincia, Com. Autónoma y los campos propios
+  // (empadronado…). Un mismo campo en varios recorridos es UNA columna.
+  // Cada uno se lee de donde se guarda: los que tienen columna en
+  // registrations (columnaInscripcion) de ahí; los propios, de
+  // registration_responses por field_name.
   const camposFormulario = useMemo(() => {
     const vistos = new Set<string>();
-    const lista: { key: ColumnKey; field_name: string; label: string }[] = [];
+    const lista: { key: ColumnKey; field_name: string; label: string; columna: string | null }[] = [];
     for (const f of formFields) {
-      if (f.is_system_field || f.profile_field || !f.field_name) continue;
+      if (!f.field_name) continue;
+      const columna = columnaInscripcion(f);
+      if (columna && COLUMNAS_FIJAS.has(columna)) continue;
       if (vistos.has(f.field_name)) continue;
       vistos.add(f.field_name);
-      lista.push({ key: `${PREFIJO_CAMPO}${f.field_name}`, field_name: f.field_name, label: f.field_label || f.field_name });
+      lista.push({ key: `${PREFIJO_CAMPO}${f.field_name}`, field_name: f.field_name, label: f.field_label || f.field_name, columna });
     }
     return lista;
   }, [formFields]);
   const camposVisibles = camposFormulario.filter((c) => visibleColumns.has(c.key));
-  const respuestaDe = (regId: string, fieldName: string) => registrationResponses.get(regId)?.get(fieldName) ?? "";
+  const valorCampo = (reg: Registration, c: { field_name: string; columna: string | null }): string => {
+    if (c.columna) {
+      const v = (reg as any)[c.columna] ?? (reg.profiles as any)?.[c.columna];
+      if (v != null && String(v).trim() !== "") return String(v);
+    }
+    return registrationResponses.get(reg.id)?.get(c.field_name) ?? "";
+  };
 
   // Helper to get registration response value - MUST be defined before useMemo hooks that use it
   const getResponseValue = (regId: string, fieldName: string): string => {
@@ -1210,13 +1240,18 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       
       setFormFields(fieldsData || []);
 
-      // Fetch all registrations for this race
-      const { data: regsData } = await supabase
-        .from("registrations")
-        .select("id")
-        .eq("race_id", raceId);
-      
-      const regIds = regsData?.map(r => r.id) || [];
+      // Todas las inscripciones de la carrera, por páginas (PostgREST corta en 1.000)
+      const regIds: string[] = [];
+      for (let desde = 0; ; desde += 1000) {
+        const { data: pagina } = await supabase
+          .from("registrations")
+          .select("id")
+          .eq("race_id", raceId)
+          .order("id")
+          .range(desde, desde + 999);
+        regIds.push(...(pagina ?? []).map((r) => r.id));
+        if (!pagina || pagina.length < 1000) break;
+      }
       
       if (regIds.length === 0) return;
 
@@ -1455,10 +1490,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (racesError) throw racesError;
       setRaces(racesData || []);
 
-      // Fetch registrations with related data
-      let registrationsQuery = supabase
-        .from("registrations")
-        .select(`
+      // Inscripciones con sus datos relacionados. PostgREST corta en 1.000
+      // filas: antes se pedían todas las de todas las carreras de una vez y
+      // las más antiguas se perdían (Entre Viñedos salía desde el dorsal 329
+      // con «260 de 1000 totales»). Ahora se piden por páginas hasta el final
+      // y, con una carrera elegida arriba, solo las de esa carrera.
+      const COLUMNAS_INSCRIPCION = `
           id,
           status,
           payment_status,
@@ -1509,12 +1546,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             team,
             country
           )
-        `)
-        .order("created_at", { ascending: false });
+        `;
 
-      const { data: registrationsData, error: registrationsError } = await registrationsQuery;
-
-      if (registrationsError) throw registrationsError;
+      const PAGINA = 1000;
+      const registrationsData: any[] = [];
+      for (let desde = 0; ; desde += PAGINA) {
+        let pagina = supabase
+          .from("registrations")
+          .select(COLUMNAS_INSCRIPCION)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true }) // desempate estable entre páginas
+          .range(desde, desde + PAGINA - 1);
+        if (selectedRaceId) pagina = pagina.eq("race_id", selectedRaceId);
+        const { data, error: registrationsError } = await pagina;
+        if (registrationsError) throw registrationsError;
+        registrationsData.push(...(data ?? []));
+        if (!data || data.length < PAGINA) break;
+      }
       
       // Filter registrations for organizer mode
       let filteredRegistrations = registrationsData as any;
@@ -1923,7 +1971,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         case "payment": return PAGO_CSV[reg.payment_status] ?? reg.payment_status;
         default:
           // Campo propio del formulario: su respuesta
-          return col.startsWith(PREFIJO_CAMPO) ? respuestaDe(reg.id, col.slice(PREFIJO_CAMPO.length)) : "";
+          if (!col.startsWith(PREFIJO_CAMPO)) return "";
+          {
+            const campo = camposFormulario.find((c) => c.key === col);
+            return campo ? valorCampo(reg, campo) : "";
+          }
       }
     };
 
@@ -2643,7 +2695,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                           </TableCell>
                         )}
                         {camposVisibles.map((c) => (
-                          <TableCell key={c.key}>{respuestaDe(reg.id, c.field_name) || "-"}</TableCell>
+                          <TableCell key={c.key}>{valorCampo(reg, c) || "-"}</TableCell>
                         ))}
                         {visibleColumns.has("actions") && (
                           <TableCell>
