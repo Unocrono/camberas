@@ -37,6 +37,7 @@ import {
   type RaceCategory 
 } from "@/lib/categoryUtils";
 import { getGenderIdFromText } from "@/lib/genderUtils";
+import * as XLSX from "xlsx";
 
 interface RegistrationImportDialogProps {
   open: boolean;
@@ -99,9 +100,34 @@ const SPECIAL_FIELDS: FormField[] = [
   { value: "team", label: "Equipo", registrationField: "team" },
   { value: "club", label: "Club", registrationField: "club" },
   { value: "external_id", label: "ID externo (EventBooking)" },
+  // Inscripción por grupos de EventBooking («Group:» y «#Registrants»): el
+  // jefe del grupo (la fila con más de un inscrito) NO se importa; sus
+  // miembros entran uno a uno con Equipo = Club del jefe + « *».
+  { value: "group", label: "Grupo de EventBooking (jefe del equipo)" },
+  { value: "group_size", label: "Nº de inscritos del grupo (#Registrants)" },
   { value: "status", label: "Estado de Inscripción" },
   { value: "payment_status", label: "Estado de Pago" },
 ];
+
+/** Marca de los equipos que vienen de la inscripción por grupos */
+const MARCA_EQUIPO_GRUPO = " *";
+
+// Lo que llega como estado («Paid», «Pendiente», «Cancelled»…) → lo que guarda Camberas
+function normalizarEstadoPago(v: string): string {
+  const n = normalizarTexto(v);
+  if (/^(paid|pagad|abonad|complet)/.test(n)) return "paid";
+  if (/^(refund|reembols|devuelt)/.test(n)) return "refunded";
+  if (/^(free|gratis|notrequired|norequerid)/.test(n)) return "not_required";
+  if (/^(pending|pendiente|unpaid|impagad|waiting)/.test(n)) return "pending";
+  return v;
+}
+function normalizarEstado(v: string): string {
+  const n = normalizarTexto(v);
+  if (/^(confirm|paid|pagad|activ|publish)/.test(n)) return "confirmed";
+  if (/^(cancel|anulad|baja)/.test(n)) return "cancelled";
+  if (/^(pending|pendiente|unpaid)/.test(n)) return "pending";
+  return v;
+}
 
 // Patrones de auto-detección por profile_field
 const PROFILE_FIELD_PATTERNS: Record<string, RegExp[]> = {
@@ -121,11 +147,13 @@ const SPECIAL_FIELD_PATTERNS: Record<string, RegExp[]> = {
   distance: [/^recorrido$/i, /^modalidad$/i, /^distancia$/i, /^prueba$/i, /^carrera$/i],
   bib_number: [/^dorsal$/i, /^bib$/i, /^número$/i, /^numero$/i],
   chip_code: [/^chip$/i, /^código.?chip$/i, /^chip.?code$/i],
-  team: [/^equipo$/i, /^team$/i, /^grupo$/i, /^nombre.?(del.?)?equipo$/i, /^group.?name$/i],
-  club: [/^club$/i],
+  team: [/^equipo$/i, /^team$/i, /^nombre.?(del.?)?equipo$/i, /^group.?name$/i],
+  club: [/^club/i],
   external_id: [/^id$/i, /^registrant.?id$/i, /^id.?(eb|eventbooking|externo)$/i, /^eventbooking.?id$/i],
-  status: [/^estado$/i, /^status$/i],
-  payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i],
+  group: [/^group:?$/i, /^grupo:?$/i, /^representante$/i],
+  group_size: [/^#?\s?registrants$/i, /^n[ºo.]?\s?(de\s)?inscritos$/i, /^number.?of.?registrants$/i],
+  status: [/^estado$/i, /^status$/i, /^estado.?inscripci[oó]n$/i],
+  payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i, /^payment.?status$/i],
 };
 
 const normalizarTexto = (s: string): string =>
@@ -176,6 +204,30 @@ function parseCSV(text: string): { headers: string[]; rows: CSVRow[] } {
 
   return { headers, rows };
 }
+
+// Excel (.xlsx/.xls): la primera hoja, primera fila como cabeceras, todo como
+// texto (las fechas tal como se ven en la celda). El export de EventBooking
+// llega así y se ahorra el paso por «guardar como CSV».
+async function parseExcel(file: File): Promise<{ headers: string[]; rows: CSVRow[] }> {
+  const libro = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+  const hoja = libro.Sheets[libro.SheetNames[0]];
+  if (!hoja) return { headers: [], rows: [] };
+  const matriz = XLSX.utils.sheet_to_json<unknown[]>(hoja, { header: 1, raw: false, defval: "" });
+  if (matriz.length === 0) return { headers: [], rows: [] };
+  const headers = (matriz[0] ?? []).map((h) => String(h ?? "").trim());
+  const rows: CSVRow[] = [];
+  for (const fila of matriz.slice(1)) {
+    const valores = (fila ?? []).map((v) => String(v ?? "").trim());
+    if (valores.some((v) => v !== "")) {
+      const row: CSVRow = {};
+      headers.forEach((h, i) => { row[h] = valores[i] ?? ""; });
+      rows.push(row);
+    }
+  }
+  return { headers, rows };
+}
+
+const esExcel = (nombre: string) => /\.xlsx?$/i.test(nombre);
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -241,12 +293,27 @@ function autoDetectMapping(headers: string[], availableFields: FormField[]): Col
     
     // 4. Check by partial label match
     for (const field of availableFields) {
-      if (normalizedHeader.includes(field.label.toLowerCase()) || 
+      if (normalizedHeader.includes(field.label.toLowerCase()) ||
           field.label.toLowerCase().includes(normalizedHeader)) {
         return { csvColumn: header, field: field.value };
       }
     }
-    
+
+    // 5. Por palabras: «Talla camiseta» ≈ «Talla de camiseta», «Empadronado o
+    //    residente en Cenicero» ≈ «¿Estás empadronado/a o resides en Cenicero?».
+    //    Valen las palabras de 4+ letras del título; hacen falta dos (o la
+    //    única que haya) presentes en la etiqueta del campo.
+    const palabras = normalizedHeader.normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter((p) => p.length >= 4);
+    if (palabras.length > 0) {
+      const minimo = Math.min(2, palabras.length);
+      for (const field of availableFields) {
+        if (field.value === "ignore") continue;
+        const etiqueta = field.label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+        const aciertos = palabras.filter((p) => etiqueta.includes(p)).length;
+        if (aciertos >= minimo) return { csvColumn: header, field: field.value };
+      }
+    }
+
     return { csvColumn: header, field: "ignore" };
   });
 }
@@ -413,6 +480,17 @@ export function RegistrationImportDialog({
   const processFile = useCallback(
     async (file: File, selectedEncoding: Encoding) => {
       try {
+        if (esExcel(file.name)) {
+          const parsed = await parseExcel(file);
+          if (parsed.headers.length === 0 || parsed.rows.length === 0) {
+            toast({ title: "Archivo vacío", description: "La hoja de Excel no contiene datos", variant: "destructive" });
+            return;
+          }
+          setCsvData(parsed);
+          setColumnMappings(autoDetectMapping(parsed.headers, availableFields));
+          return;
+        }
+
         const text = await readFileWithEncoding(file, selectedEncoding);
         
         // Check for encoding issues
@@ -457,10 +535,10 @@ export function RegistrationImportDialog({
       const file = event.target.files?.[0];
       if (!file) return;
 
-      if (!file.name.endsWith(".csv")) {
+      if (!file.name.toLowerCase().endsWith(".csv") && !esExcel(file.name)) {
         toast({
           title: "Formato no válido",
-          description: "Por favor, selecciona un archivo CSV",
+          description: "Selecciona un archivo CSV o Excel (.xlsx)",
           variant: "destructive",
         });
         return;
@@ -746,6 +824,34 @@ export function RegistrationImportDialog({
     // Altas sin dorsal, por recorrido, para numerarlas al final en el orden del fichero
     const sinDorsal = new Map<string, string[]>();
 
+    // Grupos de EventBooking: con la columna «Grupo» mapeada, cada grupo tiene
+    // un jefe (la fila con #Registrants > 1 o, sin esa columna, la fila cuyo
+    // nombre y apellidos son el propio nombre del grupo). El jefe no se
+    // importa; sus miembros llevan Equipo = Club del jefe + « *».
+    const filasJefe = new Set<number>();
+    const equipoDeGrupo = new Map<string, string>();
+    if (columnMappings.some((m) => m.field === "group")) {
+      const porGrupo = new Map<string, number[]>();
+      csvData.rows.forEach((row, i) => {
+        const g = getMappedData(row).group?.trim();
+        if (g) porGrupo.set(g, [...(porGrupo.get(g) ?? []), i]);
+      });
+      for (const [grupo, indices] of porGrupo) {
+        const datos = indices.map((i) => ({ i, d: getMappedData(csvData.rows[i]) }));
+        const jefe =
+          datos.find(({ d }) => parseInt(d.group_size ?? "") > 1) ??
+          datos.find(({ d }) => normalizarTexto(`${d.first_name ?? ""} ${d.last_name ?? ""}`) === normalizarTexto(grupo));
+        if (!jefe) {
+          errors.push(`Grupo «${grupo}»: no se encuentra al jefe del equipo (fila con #Registrants > 1); sus miembros entran sin equipo`);
+          continue;
+        }
+        filasJefe.add(jefe.i);
+        const nombreEquipo = (jefe.d.club || jefe.d.team || grupo).trim();
+        equipoDeGrupo.set(grupo, `${nombreEquipo}${MARCA_EQUIPO_GRUPO}`);
+      }
+    }
+    let jefesOmitidos = 0;
+
     // Fetch race date once, used for category calculation
     const { data: raceData } = await supabase
       .from("races")
@@ -755,6 +861,14 @@ export function RegistrationImportDialog({
 
     for (let i = 0; i < csvData.rows.length; i++) {
       const row = csvData.rows[i];
+
+      // El jefe del grupo paga y da nombre al equipo, pero no corre
+      if (filasJefe.has(i)) {
+        jefesOmitidos++;
+        setImportProgress((prev) => ({ ...prev, current: i + 1 }));
+        continue;
+      }
+
       const validation = validateRow(row, i);
 
       // Skip empty rows silently
@@ -793,8 +907,12 @@ export function RegistrationImportDialog({
         for (const [key, value] of Object.entries(mappedData)) {
           if (!value) continue;
 
-          if (key === "distance") {
-            continue; // ya resuelto en distanciaFila
+          if (key === "distance" || key === "group" || key === "group_size") {
+            continue; // ya resueltos en distanciaFila y en equipoDeGrupo
+          } else if (key === "status") {
+            insertData.status = normalizarEstado(value);
+          } else if (key === "payment_status") {
+            insertData.payment_status = normalizarEstadoPago(value);
           } else if (key === "external_id") {
             // Importado de otra plataforma: misma huella que el sync de EventBooking
             insertData.external_id = value.trim();
@@ -803,10 +921,6 @@ export function RegistrationImportDialog({
             insertData.bib_number = parseInt(value) || null;
           } else if (key === "chip_code") {
             insertData.chip_code = value;
-          } else if (key === "status") {
-            insertData.status = value;
-          } else if (key === "payment_status") {
-            insertData.payment_status = value;
           } else if (PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION]) {
             const regField = PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION];
             if (regField === 'birth_date') {
@@ -827,6 +941,12 @@ export function RegistrationImportDialog({
               customFieldMappings.push({ fieldId, value });
             }
           }
+        }
+
+        // Miembro de un grupo: el equipo es el del jefe, con la marca
+        const grupoFila = mappedData.group?.trim();
+        if (grupoFila && equipoDeGrupo.has(grupoFila)) {
+          insertData.team = equipoDeGrupo.get(grupoFila);
         }
 
         // -----------------------------------------------------------------
@@ -1029,6 +1149,7 @@ export function RegistrationImportDialog({
       if (insertedCount > 0) parts.push(`${insertedCount} nuevas`);
       if (updatedCount > 0) parts.push(`${updatedCount} actualizadas`);
       if (dorsalesAsignados > 0) parts.push(`${dorsalesAsignados} dorsales asignados`);
+      if (jefesOmitidos > 0) parts.push(`${jefesOmitidos} jefes de grupo omitidos`);
       if (errors.length > 0) parts.push(`${errors.length} errores`);
       if (skippedCount > 0) parts.push(`${skippedCount} filas vacías omitidas`);
       toast({
@@ -1078,14 +1199,14 @@ export function RegistrationImportDialog({
                 </p>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileUpload}
                   className="hidden"
                   id="csv-upload"
                 />
                 <label htmlFor="csv-upload">
                   <Button asChild>
-                    <span>Seleccionar archivo CSV</span>
+                    <span>Seleccionar archivo CSV o Excel</span>
                   </Button>
                 </label>
               </div>
@@ -1230,6 +1351,17 @@ export function RegistrationImportDialog({
                   </TableBody>
                 </Table>
               </ScrollArea>
+
+              {columnMappings.some((m) => m.field === "group") && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Inscripción por grupos: el jefe de cada grupo (la fila con más de un inscrito) no se importa.
+                    Sus miembros entran uno a uno con <strong>Equipo = Club del jefe + «{MARCA_EQUIPO_GRUPO.trim()}»</strong>.
+                    {!columnMappings.some((m) => m.field === "group_size") && " Mapea también «#Registrants» para reconocer al jefe con seguridad."}
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
                 <span>{csvData.rows.length} filas encontradas en el archivo</span>
