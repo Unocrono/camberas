@@ -299,15 +299,56 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       return persona || null;
     };
 
-    // Inscripciones ya sincronizadas de esta carrera
-    const { data: existentes } = await service
-      .from("registrations")
-      .select("id, external_id, club, team, " + CAMPOS_SYNC.join(", "))
-      .eq("race_id", race_id)
-      .not("external_id", "is", null);
-    const porExternalId = new Map(
-      (existentes ?? []).map((r: any) => [String(r.external_id), r]),
+    // Inscripciones ya sincronizadas de esta carrera. Por páginas: PostgREST
+    // corta en 1.000 filas y, sin paginar, a partir de ahí las ya importadas
+    // parecerían nuevas y el alta chocaría con el índice único.
+    const existentes = await todasLasFilas((desde, hasta) =>
+      service
+        .from("registrations")
+        .select("id, external_id, club, team, " + CAMPOS_SYNC.join(", "))
+        .eq("race_id", race_id)
+        .not("external_id", "is", null)
+        .order("id")
+        .range(desde, hasta),
     );
+    const porExternalId = new Map(
+      existentes.map((r: any) => [String(r.external_id), r]),
+    );
+
+    // Campos propios del formulario de cada recorrido (no de sistema y sin
+    // columna en registrations, p. ej. «¿Estás empadronado/a o resides en
+    // Cenicero?»). Su respuesta va a registration_responses; se casan con el
+    // campo de uno.es por el título (ver campoFormularioEnEB).
+    const { data: camposForm } = await service
+      .from("registration_form_fields")
+      .select("id, race_distance_id, field_label, field_options")
+      .in("race_distance_id", [
+        ...new Set(eventos.flatMap((e) => [...e.mapa.values(), ...(e.distance_id ? [e.distance_id] : [])])),
+      ])
+      .eq("is_system_field", false)
+      .is("profile_field", null);
+    const camposPorRecorrido = new Map<string, any[]>();
+    for (const f of camposForm ?? []) {
+      camposPorRecorrido.set(f.race_distance_id, [...(camposPorRecorrido.get(f.race_distance_id) ?? []), f]);
+    }
+    // Respuestas que ya tienen las inscripciones importadas: registration_id → field_id → valor
+    const respuestasActuales = new Map<string, Map<string, string>>();
+    const idsExistentes = existentes.map((r: any) => r.id);
+    for (let i = 0; i < idsExistentes.length; i += 100) {
+      const { data } = await service
+        .from("registration_responses")
+        .select("registration_id, field_id, field_value")
+        .in("registration_id", idsExistentes.slice(i, i + 100));
+      for (const r of data ?? []) {
+        if (!respuestasActuales.has(r.registration_id)) respuestasActuales.set(r.registration_id, new Map());
+        respuestasActuales.get(r.registration_id)!.set(r.field_id, r.field_value);
+      }
+    }
+    // Respuestas a escribir: para las altas se resuelven por external_id
+    // después de insertar; para las existentes, directamente
+    const respuestasPorExternalId = new Map<string, { field_id: string; field_value: string }[]>();
+    const respuestasExistentes: { registration_id: string; field_id: string; field_value: string }[] = [];
+    let respuestasEscritas = 0;
 
     // Inscripciones nacidas en Camberas (la carrera puede estar abierta en
     // las dos plataformas a la vez): sirven para avisar de posibles
@@ -406,7 +447,24 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
         equipoEB = rep ? nombreEquipo(rep) : null;
       }
 
+      // Respuestas a los campos propios del formulario de su recorrido
+      const respuestas: { field_id: string; field_value: string }[] = [];
+      for (const f of camposPorRecorrido.get(distanceId) ?? []) {
+        const valor = campoFormularioEnEB(fields, f.field_label);
+        if (valor) respuestas.push({ field_id: f.id, field_value: valorDeOpcion(valor, f.field_options) });
+      }
+
       const existente = porExternalId.get(externalId);
+      if (existente) {
+        const actuales = respuestasActuales.get(existente.id);
+        for (const r of respuestas) {
+          if (actuales?.get(r.field_id) !== r.field_value) {
+            respuestasExistentes.push({ registration_id: existente.id, ...r });
+          }
+        }
+      } else if (respuestas.length > 0) {
+        respuestasPorExternalId.set(externalId, respuestas);
+      }
       if (!existente) {
         const dni = dniNorm(deseado.dni_passport as string | null);
         const email = String(deseado.email ?? "").toLowerCase().trim();
@@ -443,14 +501,30 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       }
     }
 
-    // Altas en lotes de 100
+    // Altas en lotes de 100 (devuelven su id para colgar las respuestas)
     for (let i = 0; i < inserciones.length; i += 100) {
       const lote = inserciones.slice(i, i + 100);
-      const { error } = await service.from("registrations").insert(lote);
+      const { data: altas, error } = await service.from("registrations").insert(lote).select("id, external_id");
       if (error) {
         nuevos -= lote.length;
         errores.push(`Lote de altas ${i / 100 + 1}: ${error.message}`);
+        continue;
       }
+      for (const a of altas ?? []) {
+        for (const r of respuestasPorExternalId.get(String(a.external_id)) ?? []) {
+          respuestasExistentes.push({ registration_id: a.id, ...r });
+        }
+      }
+    }
+
+    // Respuestas del formulario (altas y cambios), en lotes de 500
+    for (let i = 0; i < respuestasExistentes.length; i += 500) {
+      const lote = respuestasExistentes.slice(i, i + 500);
+      const { error } = await service
+        .from("registration_responses")
+        .upsert(lote, { onConflict: "registration_id,field_id" });
+      if (error) errores.push(`Respuestas del formulario: ${error.message}`);
+      else respuestasEscritas += lote.length;
     }
 
     // Dorsales: solo si el recorrido tiene numeracion automatica.
@@ -471,14 +545,18 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
     // Sin él, cada recorrido numera en su rango (Entre Viñedos: carrera
     // desde el 11, marcha desde el 1001, infantil desde el 2001).
     const porCarrera = cfg.numerar_por_carrera === true;
-    const { data: pendientesDorsal } = await service
-      .from("registrations")
-      .select("id, race_distance_id")
-      .eq("race_id", race_id)
-      .not("external_id", "is", null)
-      .is("bib_number", null)
-      .neq("status", "cancelled")
-      .order("created_at", { ascending: true });
+    const pendientesDorsal = await todasLasFilas((desde, hasta) =>
+      service
+        .from("registrations")
+        .select("id, race_distance_id")
+        .eq("race_id", race_id)
+        .not("external_id", "is", null)
+        .is("bib_number", null)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    );
 
     let dorsales = 0;
     const sinNumeracion = new Set<string>();
@@ -524,6 +602,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       omitidos_sin_pagar: omitidosPendientes,
       representantes_omitidos: representantesOmitidos,
       dorsales_asignados: dorsales,
+      respuestas_formulario: respuestasEscritas,
       avisos,
       errores,
     };
@@ -538,6 +617,48 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
     console.error(`eventbooking-sync carrera ${race_id}:`, e);
     return { error: e instanceof Error ? e.message : "Error inesperado" };
   }
+}
+
+// Todas las filas de una consulta, pidiéndolas por páginas de 1.000 (el tope
+// de PostgREST). La consulta tiene que llevar un orden estable.
+async function todasLasFilas(
+  pagina: (desde: number, hasta: number) => PromiseLike<{ data: any[] | null; error: any }>,
+): Promise<any[]> {
+  const todas: any[] = [];
+  for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await pagina(desde, desde + 999);
+    if (error) throw new Error(error.message ?? String(error));
+    todas.push(...(data ?? []));
+    if (!data || data.length < 1000) return todas;
+  }
+}
+
+// Valor del campo de uno.es que corresponde a un campo propio del formulario
+// de Camberas, casando por el título: igual (sin tildes ni signos) o, si no,
+// el que comparte al menos dos palabras de 4+ letras con él («Empadronado o
+// residente en Cenicero» ≈ «¿Estás empadronado/a o resides en Cenicero?»).
+function campoFormularioEnEB(fields: Record<string, string>, etiqueta: string): string | null {
+  const objetivo = normalizar(etiqueta);
+  const palabras = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter((p) => p.length >= 4);
+  const delCampo = new Set(palabras(etiqueta));
+  let mejor: { valor: string; aciertos: number } | null = null;
+  for (const [titulo, v] of Object.entries(fields)) {
+    const valor = String(v ?? "").trim();
+    if (!valor) continue;
+    if (normalizar(titulo) === objetivo) return valor;
+    const aciertos = palabras(titulo).filter((p) => delCampo.has(p)).length;
+    if (aciertos >= 2 && (!mejor || aciertos > mejor.aciertos)) mejor = { valor, aciertos };
+  }
+  return mejor?.valor ?? null;
+}
+
+// Si el campo tiene opciones, el valor se escribe como la opción equivalente
+// («Si» → «Sí»); si no cuadra con ninguna, tal cual viene.
+function valorDeOpcion(valor: string, opciones: unknown): string {
+  if (!Array.isArray(opciones)) return valor;
+  const igual = opciones.find((o) => normalizar(String(o)) === normalizar(valor));
+  return igual !== undefined ? String(igual) : valor;
 }
 
 // Recorrido de una modalidad: el mapeo explícito del evento. Sin
