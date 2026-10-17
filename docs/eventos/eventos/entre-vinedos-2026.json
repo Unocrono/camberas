@@ -336,7 +336,45 @@
   "camberas": {
     "race_id": "1789e37c-0329-4cf1-ace7-32419c12db6c",
     "slug": "entre-vinedos-2026",
-    "migracion": "20261017120000_carrera_entre_vinedos_2026.sql"
+    "migraciones": [
+      "20261017120000_carrera_entre_vinedos_2026.sql",
+      "20261017130000_entre_vinedos_cartel_y_portada.sql",
+      "20261017140000_url_externa_de_inscripcion.sql",
+      "20261017150000_eventbooking_varios_eventos_entre_vinedos.sql"
+    ],
+    "inscripcion": "externa: uno.es (carrera y marcha) y carreraentrevinedos.com (infantil); los inscritos entran por el sync de EventBooking",
+    "eventbooking": {
+      "eventos": [
+        {
+          "event_id": 1061,
+          "campo": "Recorrido",
+          "pruebas": [
+            "ABS",
+            "MAR"
+          ]
+        },
+        {
+          "event_id": 1062,
+          "pruebas": [
+            "INF"
+          ]
+        },
+        {
+          "event_id": 1060,
+          "grupos": true,
+          "campo": "Recorrido",
+          "pruebas": [
+            "ABS",
+            "MAR"
+          ]
+        }
+      ],
+      "dorsales": {
+        "ABS": "11-1000",
+        "MAR": "1001-2000",
+        "INF": "2001-2500"
+      }
+    }
   },
   "patrocinadores": [
     {

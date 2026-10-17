@@ -1,16 +1,30 @@
-// Sincroniza los inscritos de un evento de EventBooking (uno.es) con una
-// carrera de Camberas. El origen es el fichero camberas-sync.php subido a
-// la raíz de Joomla, que devuelve los inscritos en JSON protegidos por
-// clave. La clave de idempotencia es el ID del inscrito en EventBooking
+// Sincroniza los inscritos de uno o varios eventos de EventBooking (uno.es)
+// con una carrera de Camberas. El origen es el fichero camberas-sync.php
+// subido a la raíz de Joomla, que devuelve los inscritos en JSON protegidos
+// por clave. La clave de idempotencia es el ID del inscrito en EventBooking
 // (registrations.external_id): repetir la sincronización nunca duplica.
 //
 // Secretos necesarios en Lovable:
 //   EVENTBOOKING_ENDPOINT  p.ej. https://uno.es/camberas-sync.php
 //   EVENTBOOKING_KEY       la misma CLAVE_API escrita en el fichero PHP
 //
-// La configuración por carrera (evento de EB + mapeo Modalidad→recorrido)
-// vive en la tabla eventbooking_sync. Una modalidad sin mapear se reporta
-// como error y esa fila NO se importa: el mapeo es explícito, no se deduce.
+// La configuración por carrera vive en la tabla eventbooking_sync:
+//   · event_id + distance_map: UN evento, recorrido por el campo «Modalidad»
+//     (ADEMCO);
+//   · eventos (jsonb): VARIOS eventos, cada uno con su campo de recorrido,
+//     su mapeo, un recorrido por defecto y si es de equipos (Entre Viñedos:
+//     1061 carrera y marcha por «Recorrido», 1062 infantil, 1060 equipos).
+// Una modalidad sin mapear se reporta como error y esa fila NO se importa:
+// el mapeo es explícito, no se deduce.
+//
+// Equipos (Group Billing de EventBooking): el representante del grupo es un
+// inscrito más con is_group_billing = 1 y los miembros llevan group_id = su
+// id. El representante NO se importa; cada miembro entra como inscripción
+// individual con registrations.team = nombre del equipo (campo «Nombre del
+// equipo» del representante o, si no lo hay, su nombre y apellidos). Para
+// ello camberas-sync.php debe devolver por inscrito `group_id` e
+// `is_group_billing` (columnas de #__eb_registrants); si no vienen, el sync
+// lo avisa y trata a todos como individuales.
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
@@ -25,7 +39,7 @@ const normalizar = (s: string): string =>
   s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]/g, "");
 
 // Busca un campo personalizado por su título visible, tolerando tildes,
@@ -82,6 +96,68 @@ const CAMPOS_SYNC = [
   "tshirt_size", "race_distance_id", "status", "payment_status",
 ] as const;
 
+// Un evento de EventBooking que alimenta la carrera (eventbooking_sync.eventos)
+interface EventoEB {
+  event_id: number;
+  /** Título del campo personalizado con el recorrido («Modalidad» por defecto) */
+  campo: string;
+  /** valor del campo (normalizado) → race_distance_id */
+  mapa: Map<string, string>;
+  /** Recorrido si el campo falta o está vacío */
+  distance_id: string | null;
+  /** Group Billing: saltar al representante y poner el equipo a los miembros */
+  grupos: boolean;
+  /** Evento ya cerrado en EventBooking: se importa UNA vez desde el botón y el
+      robot (cron) no lo vuelve a pedir. Tras importarlo se anota `hecho`. */
+  una_vez: boolean;
+  /** Fecha de la importación única ya hecha (ISO); vacío si aún no se ha hecho */
+  hecho: string | null;
+}
+
+function eventosDe(cfg: any): EventoEB[] {
+  const aMapa = (m: unknown) =>
+    new Map<string, string>(
+      Object.entries((m ?? {}) as Record<string, string>).map(([k, v]) => [normalizar(k), v]),
+    );
+  const lista = Array.isArray(cfg.eventos) ? cfg.eventos : null;
+  if (!lista || lista.length === 0) {
+    return [{
+      event_id: Number(cfg.event_id),
+      campo: "Modalidad",
+      mapa: aMapa(cfg.distance_map),
+      distance_id: null,
+      grupos: false,
+      una_vez: false,
+      hecho: null,
+    }];
+  }
+  return lista
+    .filter((e: any) => e && e.event_id)
+    .map((e: any) => ({
+      event_id: Number(e.event_id),
+      campo: String(e.campo ?? "Modalidad"),
+      mapa: aMapa(e.distance_map),
+      distance_id: e.distance_id ? String(e.distance_id) : null,
+      grupos: e.grupos === true,
+      una_vez: e.una_vez === true,
+      hecho: e.hecho ? String(e.hecho) : null,
+    }));
+}
+
+// Qué eventos toca pedir en esta pasada: el robot (cron) nunca pide los de
+// una sola vez; el botón los pide mientras no estén hechos.
+function eventosDeLaPasada(eventos: EventoEB[], modo: "cron" | "boton"): EventoEB[] {
+  return eventos.filter((e) => !e.una_vez || (modo === "boton" && !e.hecho));
+}
+
+// is_group_billing / group_id tal como los da EventBooking ("1", 1, true…)
+const esRepresentante = (r: any): boolean =>
+  r.is_group_billing === true || Number(r.is_group_billing) === 1;
+const grupoDe = (r: any): string | null => {
+  const g = Number(r.group_id);
+  return Number.isFinite(g) && g > 0 ? String(g) : null;
+};
+
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -109,7 +185,7 @@ serve(async (req: Request): Promise<Response> => {
         .eq("enabled", true);
       const carreras: Record<string, unknown> = {};
       for (const cfg of cfgs ?? []) {
-        carreras[cfg.race_id] = await sincronizarCarrera(service, cfg);
+        carreras[cfg.race_id] = await sincronizarCarrera(service, cfg, "cron");
       }
       return json({ carreras });
     }
@@ -142,16 +218,16 @@ serve(async (req: Request): Promise<Response> => {
       return json({ error: "Esta carrera no tiene sincronización EventBooking configurada" }, 404);
     }
 
-    return json(await sincronizarCarrera(service, cfg));
+    return json(await sincronizarCarrera(service, cfg, "boton"));
   } catch (e) {
     console.error("eventbooking-sync:", e);
     return json({ error: e instanceof Error ? e.message : "Error inesperado" }, 500);
   }
 });
 
-// Descarga los inscritos del evento de EventBooking asociado a cfg y los
+// Descarga los inscritos de los eventos de EventBooking asociados a cfg y los
 // vuelca en registrations. Devuelve el resumen (nuevos/actualizados/...).
-async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string, unknown>> {
+async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"): Promise<Record<string, unknown>> {
   const race_id = cfg.race_id;
   try {
     const endpoint = Deno.env.get("EVENTBOOKING_ENDPOINT");
@@ -160,26 +236,73 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
       return { error: "Faltan los secretos EVENTBOOKING_ENDPOINT / EVENTBOOKING_KEY" };
     }
 
-    const resp = await fetch(`${endpoint}?event_id=${cfg.event_id}`, {
-      headers: { "x-api-key": apiKey },
-    });
-    if (!resp.ok) {
-      return { error: `uno.es respondió ${resp.status} al pedir los inscritos` };
+    const todos = eventosDe(cfg);
+    const eventos = eventosDeLaPasada(todos, modo);
+    const errores: string[] = [];
+    const avisos: string[] = [];
+    if (eventos.length === 0) {
+      return { error: "Ningún evento que pedir en esta pasada (los de una sola vez ya están importados)" };
     }
-    const origen = await resp.json();
-    const registrants: any[] = origen.registrants ?? [];
 
-    // Mapeo Modalidad → recorrido, con claves normalizadas
-    const mapaDistancias = new Map<string, string>(
-      Object.entries(cfg.distance_map as Record<string, string>).map(
-        ([k, v]) => [normalizar(k), v],
-      ),
-    );
+    // Inscritos de todos los eventos, cada uno con su configuración
+    const filas: { r: any; ev: EventoEB }[] = [];
+    const pedidosBien = new Set<number>();
+    for (const ev of eventos) {
+      const resp = await fetch(`${endpoint}?event_id=${ev.event_id}`, {
+        headers: { "x-api-key": apiKey },
+      });
+      if (!resp.ok) {
+        errores.push(`uno.es respondió ${resp.status} al pedir los inscritos del evento ${ev.event_id}`);
+        continue;
+      }
+      const origen = await resp.json();
+      for (const r of origen.registrants ?? []) filas.push({ r, ev });
+      pedidosBien.add(ev.event_id);
+    }
+    if (filas.length === 0 && errores.length > 0) {
+      return { error: errores.join(" · ") };
+    }
+
+    // Los eventos de una sola vez (cerrados en EventBooking, p. ej. los equipos
+    // de Entre Viñedos) quedan anotados como hechos: ni el robot ni el botón
+    // los vuelven a pedir. Para repetirlos, borrar `hecho` en eventbooking_sync.
+    const unaVezHechos = eventos.filter((e) => e.una_vez && pedidosBien.has(e.event_id));
+    if (unaVezHechos.length > 0 && Array.isArray(cfg.eventos)) {
+      const ahora = new Date().toISOString();
+      const nuevos = cfg.eventos.map((e: any) =>
+        unaVezHechos.some((h) => h.event_id === Number(e?.event_id)) ? { ...e, hecho: ahora } : e,
+      );
+      await service.from("eventbooking_sync").update({ eventos: nuevos }).eq("race_id", race_id);
+      avisos.push(`Importación única hecha de los eventos ${unaVezHechos.map((e) => e.event_id).join(", ")}: no se volverán a pedir`);
+    }
+
+    // Equipos (Group Billing): representantes por id, para dar nombre al
+    // equipo de sus miembros. Si el PHP no manda group_id / is_group_billing,
+    // no hay forma de distinguirlos: se avisa y todos entran como individuales.
+    const representantes = new Map<string, any>();
+    for (const { r, ev } of filas) {
+      if (ev.grupos && esRepresentante(r)) representantes.set(String(r.id), r);
+    }
+    for (const ev of eventos) {
+      if (!ev.grupos) continue;
+      const delEvento = filas.filter((f) => f.ev === ev);
+      const traeGrupos = delEvento.some((f) => "group_id" in f.r || "is_group_billing" in f.r);
+      if (delEvento.length > 0 && !traeGrupos) {
+        avisos.push(`Evento ${ev.event_id}: camberas-sync.php no devuelve group_id / is_group_billing; los inscritos entran como individuales y sin equipo`);
+      }
+    }
+    const nombreEquipo = (rep: any): string | null => {
+      const f: Record<string, string> = rep.fields ?? {};
+      const nombre = campo(f, "Nombre del equipo", "Nombre equipo", "Equipo", "Nombre del grupo", "Grupo", "Club");
+      if (nombre) return nombre;
+      const persona = `${rep.first_name ?? ""} ${rep.last_name ?? ""}`.trim();
+      return persona || null;
+    };
 
     // Inscripciones ya sincronizadas de esta carrera
     const { data: existentes } = await service
       .from("registrations")
-      .select("id, external_id, club, " + CAMPOS_SYNC.join(", "))
+      .select("id, external_id, club, team, " + CAMPOS_SYNC.join(", "))
       .eq("race_id", race_id)
       .not("external_id", "is", null);
     const porExternalId = new Map(
@@ -204,22 +327,32 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
       (nativas ?? []).map((r: any) => (r.email ?? "").toLowerCase().trim()).filter(Boolean),
     );
 
-    let nuevos = 0, actualizados = 0, sinCambios = 0, omitidosPendientes = 0;
-    const errores: string[] = [];
-    const avisos: string[] = [];
+    let nuevos = 0, actualizados = 0, sinCambios = 0, omitidosPendientes = 0, representantesOmitidos = 0;
     const inserciones: any[] = [];
 
-    for (const r of registrants) {
+    for (const { r, ev } of filas) {
       const externalId = String(r.id);
       const fields: Record<string, string> = r.fields ?? {};
       const nombre = (r.first_name ?? campo(fields, "Nombre") ?? "").trim();
       const apellidos = (r.last_name ?? campo(fields, "Apellidos") ?? "").trim();
       const etiqueta = `${nombre} ${apellidos}`.trim() || `EB #${externalId}`;
 
-      const modalidad = campo(fields, "Modalidad") ?? "";
-      const distanceId = mapaDistancias.get(normalizar(modalidad));
+      // El representante del grupo paga y da nombre al equipo, pero no corre
+      if (ev.grupos && esRepresentante(r)) {
+        representantesOmitidos++;
+        continue;
+      }
+
+      const modalidad = campo(fields, ev.campo) ?? "";
+      const distanceId = modalidad
+        ? mapaRecorrido(ev, modalidad)
+        : ev.distance_id;
       if (!distanceId) {
-        errores.push(`${etiqueta}: modalidad "${modalidad || "(vacía)"}" sin mapear`);
+        errores.push(
+          modalidad
+            ? `${etiqueta}: ${ev.campo.toLowerCase()} "${modalidad}" sin mapear (evento ${ev.event_id})`
+            : `${etiqueta}: sin ${ev.campo.toLowerCase()} y el evento ${ev.event_id} no tiene recorrido por defecto`,
+        );
         continue;
       }
 
@@ -261,6 +394,18 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
       // un valor vacío nunca borra el que el organizador puso a mano.
       const clubEB = campo(fields, "Club");
 
+      // Equipo: el del Group Billing al que pertenece el miembro. Igual que
+      // el club, solo se escribe cuando hay valor.
+      let equipoEB: string | null = null;
+      if (ev.grupos) {
+        const grupo = grupoDe(r);
+        const rep = grupo ? representantes.get(grupo) : undefined;
+        if (grupo && !rep) {
+          avisos.push(`${etiqueta}: su grupo ${grupo} no está entre los inscritos del evento ${ev.event_id}; entra sin equipo`);
+        }
+        equipoEB = rep ? nombreEquipo(rep) : null;
+      }
+
       const existente = porExternalId.get(externalId);
       if (!existente) {
         const dni = dniNorm(deseado.dni_passport as string | null);
@@ -271,6 +416,7 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
         inserciones.push({
           ...deseado,
           club: clubEB,
+          team: equipoEB,
           race_id,
           external_id: externalId,
           source: "external",
@@ -283,6 +429,7 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
           if ((existente[c] ?? null) !== (deseado[c] ?? null)) cambios[c] = deseado[c];
         }
         if (clubEB && (existente.club ?? null) !== clubEB) cambios.club = clubEB;
+        if (equipoEB && (existente.team ?? null) !== equipoEB) cambios.team = equipoEB;
         if (Object.keys(cambios).length > 0) {
           const { error } = await service
             .from("registrations")
@@ -321,6 +468,8 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     // Con cfg.numerar_por_carrera la serie es UNA para toda la carrera:
     // asignar_dorsal_carrera elige el primer numero libre y lo escribe en la
     // misma transaccion (ADEMCO: una sola numeracion para las tres marchas).
+    // Sin él, cada recorrido numera en su rango (Entre Viñedos: carrera
+    // desde el 11, marcha desde el 1001, infantil desde el 2001).
     const porCarrera = cfg.numerar_por_carrera === true;
     const { data: pendientesDorsal } = await service
       .from("registrations")
@@ -367,11 +516,13 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     }
 
     const resultado = {
-      total_eventbooking: registrants.length,
+      total_eventbooking: filas.length,
+      eventos: eventos.map((e) => e.event_id),
       nuevos,
       actualizados,
       sin_cambios: sinCambios,
       omitidos_sin_pagar: omitidosPendientes,
+      representantes_omitidos: representantesOmitidos,
       dorsales_asignados: dorsales,
       avisos,
       errores,
@@ -387,4 +538,11 @@ async function sincronizarCarrera(service: any, cfg: any): Promise<Record<string
     console.error(`eventbooking-sync carrera ${race_id}:`, e);
     return { error: e instanceof Error ? e.message : "Error inesperado" };
   }
+}
+
+// Recorrido de una modalidad: el mapeo explícito del evento. Sin
+// coincidencia, el recorrido por defecto del evento NO vale: una modalidad
+// escrita y desconocida es un error que hay que mapear, no adivinar.
+function mapaRecorrido(ev: EventoEB, modalidad: string): string | null {
+  return ev.mapa.get(normalizar(modalidad)) ?? null;
 }
