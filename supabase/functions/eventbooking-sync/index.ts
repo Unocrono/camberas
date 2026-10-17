@@ -248,6 +248,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
     // Inscritos de todos los eventos, cada uno con su configuración
     const filas: { r: any; ev: EventoEB }[] = [];
     const camposEventBooking: Record<number, string[]> = {};
+    const clavesInscrito: Record<number, string[]> = {};
     const pedidosBien = new Set<number>();
     for (const ev of eventos) {
       const resp = await fetch(`${endpoint}?event_id=${ev.event_id}`, {
@@ -266,6 +267,10 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
         for (const t of Object.keys(r.fields ?? {})) titulos.add(t);
       }
       camposEventBooking[ev.event_id] = [...titulos];
+      // Y los datos de primer nivel de cada inscrito (¿manda organization y address?)
+      const claves = new Set<string>();
+      for (const r of origen.registrants ?? []) for (const k of Object.keys(r)) if (k !== "fields") claves.add(k);
+      clavesInscrito[ev.event_id] = [...claves];
       pedidosBien.add(ev.event_id);
     }
     if (filas.length === 0 && errores.length > 0) {
@@ -314,7 +319,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
     const existentes = await todasLasFilas((desde, hasta) =>
       service
         .from("registrations")
-        .select("id, external_id, club, team, " + CAMPOS_SYNC.join(", "))
+        .select("id, external_id, club, team, address, " + CAMPOS_SYNC.join(", "))
         .eq("race_id", race_id)
         .not("external_id", "is", null)
         .order("id")
@@ -445,7 +450,15 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       // El club es opcional en EventBooking: si viene se sincroniza, pero
       // un valor vacío nunca borra el que el organizador puso a mano.
       // En Entre Viñedos el campo se llama «Club / Equipo»
-      const clubEB = formatoPropio(campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo"));
+      // «Club / Equipo» y «Domicilio» son en EventBooking los campos DE SERIE
+      // organization y address (is_core = 1): su valor está en columnas de
+      // jos_eb_registrants, no en jos_eb_field_values. Llegan como r.organization
+      // y r.address si camberas-sync.php manda la fila entera del inscrito, o
+      // en fields con su título si el PHP los añade ahí.
+      const clubEB = formatoPropio(
+        campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo") ?? (r.organization ? String(r.organization) : null),
+      );
+      const domicilioEB = formatoPropio(campo(fields, "Domicilio", "Dirección", "Direccion") ?? (r.address ? String(r.address) : null));
 
       // Equipo: el del Group Billing al que pertenece el miembro. Igual que
       // el club, solo se escribe cuando hay valor.
@@ -491,6 +504,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
         inserciones.push({
           ...deseado,
           club: clubEB,
+          address: domicilioEB,
           team: equipoEB,
           race_id,
           external_id: externalId,
@@ -504,6 +518,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
           if ((existente[c] ?? null) !== (deseado[c] ?? null)) cambios[c] = deseado[c];
         }
         if (clubEB && (existente.club ?? null) !== clubEB) cambios.club = clubEB;
+        if (domicilioEB && (existente.address ?? null) !== domicilioEB) cambios.address = domicilioEB;
         if (equipoEB && (existente.team ?? null) !== equipoEB) cambios.team = equipoEB;
         if (Object.keys(cambios).length > 0) {
           const { error } = await service
@@ -621,6 +636,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       dorsales_asignados: dorsales,
       respuestas_formulario: respuestasEscritas,
       campos_eventbooking: camposEventBooking,
+      claves_inscrito: clavesInscrito,
       avisos,
       errores,
     };
