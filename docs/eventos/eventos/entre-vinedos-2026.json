@@ -342,7 +342,7 @@
       "20261017140000_url_externa_de_inscripcion.sql",
       "20261017150000_eventbooking_varios_eventos_entre_vinedos.sql"
     ],
-    "inscripcion": "externa: uno.es (carrera y marcha) y carreraentrevinedos.com (infantil); los inscritos entran por el sync de EventBooking",
+    "inscripcion": "externa: uno.es (carrera y marcha) y carreraentrevinedos.com (infantil); los inscritos entran por «Importar CSV» (export de EventBooking a tabla, columna Recorrido, equipo del Group Billing). El sync de EventBooking queda configurado pero desactivado (enabled=false).",
     "eventbooking": {
       "eventos": [
         {

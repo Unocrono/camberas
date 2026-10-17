@@ -37,6 +37,7 @@ import {
   type RaceCategory 
 } from "@/lib/categoryUtils";
 import { getGenderIdFromText } from "@/lib/genderUtils";
+import * as XLSX from "xlsx";
 
 interface RegistrationImportDialogProps {
   open: boolean;
@@ -85,13 +86,48 @@ const PROFILE_TO_REGISTRATION: Record<string, string> = {
 };
 
 // Campos especiales que siempre están disponibles (no dependen de registration_form_fields)
+//  · «Recorrido»: una columna del fichero decide el recorrido de cada fila
+//    (carrera / marcha / infantil) y un solo fichero vale para toda la carrera.
+//  · «Equipo» y «Club»: siempre mapeables aunque el formulario no los tenga
+//    (los equipos del Group Billing de EventBooking, los clubes del export).
+//  · «ID externo»: el id del inscrito en la plataforma de origen (EventBooking);
+//    es la clave para repetir la importación sin duplicar.
 const SPECIAL_FIELDS: FormField[] = [
   { value: "ignore", label: "-- Ignorar --" },
+  { value: "distance", label: "Recorrido (carrera / marcha / infantil)" },
   { value: "bib_number", label: "Dorsal" },
   { value: "chip_code", label: "Código de Chip" },
+  { value: "team", label: "Equipo", registrationField: "team" },
+  { value: "club", label: "Club", registrationField: "club" },
+  { value: "external_id", label: "ID externo (EventBooking)" },
+  // Inscripción por grupos de EventBooking («Group:» y «#Registrants»): el
+  // jefe del grupo (la fila con más de un inscrito) NO se importa; sus
+  // miembros entran uno a uno con Equipo = Club del jefe + « *».
+  { value: "group", label: "Grupo de EventBooking (jefe del equipo)" },
+  { value: "group_size", label: "Nº de inscritos del grupo (#Registrants)" },
   { value: "status", label: "Estado de Inscripción" },
   { value: "payment_status", label: "Estado de Pago" },
 ];
+
+/** Marca de los equipos que vienen de la inscripción por grupos */
+const MARCA_EQUIPO_GRUPO = " *";
+
+// Lo que llega como estado («Paid», «Pendiente», «Cancelled»…) → lo que guarda Camberas
+function normalizarEstadoPago(v: string): string {
+  const n = normalizarTexto(v);
+  if (/^(paid|pagad|abonad|complet)/.test(n)) return "paid";
+  if (/^(refund|reembols|devuelt)/.test(n)) return "refunded";
+  if (/^(free|gratis|notrequired|norequerid)/.test(n)) return "not_required";
+  if (/^(pending|pendiente|unpaid|impagad|waiting)/.test(n)) return "pending";
+  return v;
+}
+function normalizarEstado(v: string): string {
+  const n = normalizarTexto(v);
+  if (/^(confirm|paid|pagad|activ|publish)/.test(n)) return "confirmed";
+  if (/^(cancel|anulad|baja)/.test(n)) return "cancelled";
+  if (/^(pending|pendiente|unpaid)/.test(n)) return "pending";
+  return v;
+}
 
 // Patrones de auto-detección por profile_field
 const PROFILE_FIELD_PATTERNS: Record<string, RegExp[]> = {
@@ -108,11 +144,41 @@ const PROFILE_FIELD_PATTERNS: Record<string, RegExp[]> = {
 
 // Patrones para campos especiales
 const SPECIAL_FIELD_PATTERNS: Record<string, RegExp[]> = {
+  distance: [/^recorrido$/i, /^modalidad$/i, /^distancia$/i, /^prueba$/i, /^carrera$/i],
   bib_number: [/^dorsal$/i, /^bib$/i, /^número$/i, /^numero$/i],
   chip_code: [/^chip$/i, /^código.?chip$/i, /^chip.?code$/i],
-  status: [/^estado$/i, /^status$/i],
-  payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i],
+  team: [/^equipo$/i, /^team$/i, /^nombre.?(del.?)?equipo$/i, /^group.?name$/i],
+  club: [/^club/i],
+  external_id: [/^id$/i, /^registrant.?id$/i, /^id.?(eb|eventbooking|externo)$/i, /^eventbooking.?id$/i],
+  group: [/^group:?$/i, /^grupo:?$/i, /^representante$/i],
+  group_size: [/^#?\s?registrants$/i, /^n[ºo.]?\s?(de\s)?inscritos$/i, /^number.?of.?registrants$/i],
+  status: [/^estado$/i, /^status$/i, /^estado.?inscripci[oó]n$/i],
+  payment_status: [/^pago$/i, /^payment$/i, /^estado.?pago$/i, /^payment.?status$/i],
 };
+
+const normalizarTexto = (s: string): string =>
+  s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+
+/**
+ * Qué recorrido es el valor de la columna «Recorrido» de una fila: el de
+ * nombre igual, el que contiene el valor (o al revés) y, si no, por la palabra
+ * clave (marcha/andar → la marcha; infantil → la infantil; carrera/correr → la
+ * carrera que no sea infantil). null si no cuadra con ninguno.
+ */
+function resolverRecorrido(valor: string, recorridos: { id: string; name: string }[]): string | null {
+  const v = normalizarTexto(valor);
+  if (!v) return null;
+  const exacto = recorridos.find((d) => normalizarTexto(d.name) === v);
+  if (exacto) return exacto.id;
+  const contiene = recorridos.find((d) => normalizarTexto(d.name).includes(v) || v.includes(normalizarTexto(d.name)));
+  if (contiene) return contiene.id;
+  const porNombre = (re: RegExp, salvo?: RegExp) =>
+    recorridos.find((d) => re.test(normalizarTexto(d.name)) && !(salvo && salvo.test(normalizarTexto(d.name))));
+  if (/marcha|andar|andarin|caminar|senderis/.test(v)) return porNombre(/marcha|andar|senderis/)?.id ?? null;
+  if (/infantil|menor|nin|txiki|kid/.test(v)) return porNombre(/infantil|menor|nin|txiki|kid/)?.id ?? null;
+  if (/carrera|correr|corre|run|trail/.test(v)) return porNombre(/carrera|trail|run/, /infantil|marcha/)?.id ?? null;
+  return null;
+}
 
 type Encoding = "utf-8" | "iso-8859-1";
 
@@ -138,6 +204,30 @@ function parseCSV(text: string): { headers: string[]; rows: CSVRow[] } {
 
   return { headers, rows };
 }
+
+// Excel (.xlsx/.xls): la primera hoja, primera fila como cabeceras, todo como
+// texto (las fechas tal como se ven en la celda). El export de EventBooking
+// llega así y se ahorra el paso por «guardar como CSV».
+async function parseExcel(file: File): Promise<{ headers: string[]; rows: CSVRow[] }> {
+  const libro = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+  const hoja = libro.Sheets[libro.SheetNames[0]];
+  if (!hoja) return { headers: [], rows: [] };
+  const matriz = XLSX.utils.sheet_to_json<unknown[]>(hoja, { header: 1, raw: false, defval: "" });
+  if (matriz.length === 0) return { headers: [], rows: [] };
+  const headers = (matriz[0] ?? []).map((h) => String(h ?? "").trim());
+  const rows: CSVRow[] = [];
+  for (const fila of matriz.slice(1)) {
+    const valores = (fila ?? []).map((v) => String(v ?? "").trim());
+    if (valores.some((v) => v !== "")) {
+      const row: CSVRow = {};
+      headers.forEach((h, i) => { row[h] = valores[i] ?? ""; });
+      rows.push(row);
+    }
+  }
+  return { headers, rows };
+}
+
+const esExcel = (nombre: string) => /\.xlsx?$/i.test(nombre);
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -203,12 +293,27 @@ function autoDetectMapping(headers: string[], availableFields: FormField[]): Col
     
     // 4. Check by partial label match
     for (const field of availableFields) {
-      if (normalizedHeader.includes(field.label.toLowerCase()) || 
+      if (normalizedHeader.includes(field.label.toLowerCase()) ||
           field.label.toLowerCase().includes(normalizedHeader)) {
         return { csvColumn: header, field: field.value };
       }
     }
-    
+
+    // 5. Por palabras: «Talla camiseta» ≈ «Talla de camiseta», «Empadronado o
+    //    residente en Cenicero» ≈ «¿Estás empadronado/a o resides en Cenicero?».
+    //    Valen las palabras de 4+ letras del título; hacen falta dos (o la
+    //    única que haya) presentes en la etiqueta del campo.
+    const palabras = normalizedHeader.normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter((p) => p.length >= 4);
+    if (palabras.length > 0) {
+      const minimo = Math.min(2, palabras.length);
+      for (const field of availableFields) {
+        if (field.value === "ignore") continue;
+        const etiqueta = field.label.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+        const aciertos = palabras.filter((p) => etiqueta.includes(p)).length;
+        if (aciertos >= minimo) return { csvColumn: header, field: field.value };
+      }
+    }
+
     return { csvColumn: header, field: "ignore" };
   });
 }
@@ -295,34 +400,55 @@ export function RegistrationImportDialog({
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [newFieldName, setNewFieldName] = useState("");
   const [showNewFieldInput, setShowNewFieldInput] = useState<string | null>(null);
+  // Dorsal automático a las filas que no traen dorsal, con el rango del
+  // recorrido (bib_start / next_bib), igual que la acción en bloque del panel
+  const [asignarDorsales, setAsignarDorsales] = useState(true);
+  // Campos personalizados por nombre de campo y recorrido: el mismo campo
+  // («local_cenicero») tiene un id distinto en cada recorrido, y la respuesta
+  // tiene que colgar del id del recorrido de la fila.
+  //   field_name → (race_distance_id | "*" para los de carrera) → field_id
+  const [camposPorRecorrido, setCamposPorRecorrido] = useState<Record<string, Record<string, string>>>({});
 
-  // Load form fields when race/distance changes
+  // Load form fields when race/distance changes. Se cargan los de TODOS los
+  // recorridos de la carrera: con la columna «Recorrido» un mismo fichero
+  // reparte filas entre varios.
   useEffect(() => {
     if (!raceId || !open) return;
 
     const loadFormFields = async () => {
+      const { data: dists } = await supabase
+        .from("race_distances")
+        .select("id")
+        .eq("race_id", raceId);
+      const distIds = (dists ?? []).map((d) => d.id);
+      const filtro = [`race_id.eq.${raceId}`, ...(distIds.length ? [`race_distance_id.in.(${distIds.join(",")})`] : [])].join(",");
+
       const { data: formFields } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, field_label, profile_field, is_system_field")
-        .or(`race_id.eq.${raceId},race_distance_id.eq.${selectedDistanceId || distanceId}`)
+        .select("id, field_name, field_label, profile_field, is_system_field, race_distance_id")
+        .or(filtro)
         .eq("is_visible", true)
         .order("field_order");
 
       if (formFields) {
-        const configuredFields: FormField[] = formFields.map(f => {
+        const porRecorrido: Record<string, Record<string, string>> = {};
+        const configuredFields: FormField[] = [];
+        for (const f of formFields) {
           const profileField = f.profile_field as string | null;
           const registrationField = profileField ? PROFILE_TO_REGISTRATION[profileField] : undefined;
-          
-          return {
-            value: registrationField || `custom_${f.id}`,
+          const value = registrationField || `custom_${f.field_name}`;
+          porRecorrido[f.field_name] = { ...(porRecorrido[f.field_name] ?? {}), [f.race_distance_id ?? "*"]: f.id };
+          if (configuredFields.some((c) => c.value === value)) continue;
+          configuredFields.push({
+            value,
             label: f.field_label,
             isCustom: !f.is_system_field && !registrationField,
             fieldId: f.id,
             profileField: profileField,
             registrationField: registrationField,
-          };
-        });
-        
+          });
+        }
+
         // Merge special fields with configured fields, avoiding duplicates
         const mergedFields = [...SPECIAL_FIELDS];
         for (const field of configuredFields) {
@@ -330,13 +456,14 @@ export function RegistrationImportDialog({
             mergedFields.push(field);
           }
         }
-        
+
+        setCamposPorRecorrido(porRecorrido);
         setAvailableFields(mergedFields);
       }
     };
 
     loadFormFields();
-  }, [raceId, selectedDistanceId, distanceId, open]);
+  }, [raceId, open]);
 
   const resetState = useCallback(() => {
     setStep("upload");
@@ -353,6 +480,17 @@ export function RegistrationImportDialog({
   const processFile = useCallback(
     async (file: File, selectedEncoding: Encoding) => {
       try {
+        if (esExcel(file.name)) {
+          const parsed = await parseExcel(file);
+          if (parsed.headers.length === 0 || parsed.rows.length === 0) {
+            toast({ title: "Archivo vacío", description: "La hoja de Excel no contiene datos", variant: "destructive" });
+            return;
+          }
+          setCsvData(parsed);
+          setColumnMappings(autoDetectMapping(parsed.headers, availableFields));
+          return;
+        }
+
         const text = await readFileWithEncoding(file, selectedEncoding);
         
         // Check for encoding issues
@@ -397,10 +535,10 @@ export function RegistrationImportDialog({
       const file = event.target.files?.[0];
       if (!file) return;
 
-      if (!file.name.endsWith(".csv")) {
+      if (!file.name.toLowerCase().endsWith(".csv") && !esExcel(file.name)) {
         toast({
           title: "Formato no válido",
-          description: "Por favor, selecciona un archivo CSV",
+          description: "Selecciona un archivo CSV o Excel (.xlsx)",
           variant: "destructive",
         });
         return;
@@ -473,12 +611,16 @@ export function RegistrationImportDialog({
       if (error) throw error;
 
       const newFormField: FormField = {
-        value: `custom_${newField.id}`,
+        value: `custom_${newField.field_name}`,
         label: newField.field_label,
         isCustom: true,
         fieldId: newField.id,
       };
 
+      setCamposPorRecorrido((prev) => ({
+        ...prev,
+        [newField.field_name]: { ...(prev[newField.field_name] ?? {}), [selectedDistanceId]: newField.id },
+      }));
       setAvailableFields(prev => [...prev, newFormField]);
       updateMapping(csvColumn, newFormField.value);
       setNewFieldName("");
@@ -591,7 +733,30 @@ export function RegistrationImportDialog({
       }
     }
 
+    // Recorrido de la fila: la columna «Recorrido» si está mapeada; si no,
+    // el elegido arriba. Sin ninguno de los dos, la fila no puede entrar.
+    if (!recorridoDeFila(mappedData)) {
+      errors.push(
+        mappedData.distance
+          ? `Recorrido «${mappedData.distance}» no coincide con ninguno de la carrera`
+          : "Sin recorrido: elige uno arriba o mapea una columna a «Recorrido»",
+      );
+    }
+
     return { valid: errors.length === 0, errors, skipped: false };
+  };
+
+  // Recorrido al que va una fila ya mapeada (ver validateRow)
+  const recorridoDeFila = (mappedData: Record<string, string>): string | null => {
+    if (mappedData.distance?.trim()) return resolverRecorrido(mappedData.distance, distances);
+    return selectedDistanceId || null;
+  };
+
+  // id del campo personalizado «custom_<field_name>» en el recorrido de la fila
+  // (o el de carrera, común a todos)
+  const campoEnRecorrido = (key: string, distId: string): string | null => {
+    const porRec = camposPorRecorrido[key.slice("custom_".length)];
+    return porRec?.[distId] ?? porRec?.["*"] ?? null;
   };
 
   // Convert date from DD/MM/YYYY or D/M/YYYY to YYYY-MM-DD (ISO format for PostgreSQL)
@@ -643,8 +808,10 @@ export function RegistrationImportDialog({
     return data;
   };
 
+  const hayColumnaRecorrido = columnMappings.some((m) => m.field === "distance");
+
   const handleImport = async () => {
-    if (!csvData || !selectedDistanceId) return;
+    if (!csvData || (!selectedDistanceId && !hayColumnaRecorrido)) return;
 
     setStep("importing");
     setImportProgress({ current: 0, total: csvData.rows.length, errors: 0 });
@@ -654,6 +821,36 @@ export function RegistrationImportDialog({
     let insertedCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
+    // Altas sin dorsal, por recorrido, para numerarlas al final en el orden del fichero
+    const sinDorsal = new Map<string, string[]>();
+
+    // Grupos de EventBooking: con la columna «Grupo» mapeada, cada grupo tiene
+    // un jefe (la fila con #Registrants > 1 o, sin esa columna, la fila cuyo
+    // nombre y apellidos son el propio nombre del grupo). El jefe no se
+    // importa; sus miembros llevan Equipo = Club del jefe + « *».
+    const filasJefe = new Set<number>();
+    const equipoDeGrupo = new Map<string, string>();
+    if (columnMappings.some((m) => m.field === "group")) {
+      const porGrupo = new Map<string, number[]>();
+      csvData.rows.forEach((row, i) => {
+        const g = getMappedData(row).group?.trim();
+        if (g) porGrupo.set(g, [...(porGrupo.get(g) ?? []), i]);
+      });
+      for (const [grupo, indices] of porGrupo) {
+        const datos = indices.map((i) => ({ i, d: getMappedData(csvData.rows[i]) }));
+        const jefe =
+          datos.find(({ d }) => parseInt(d.group_size ?? "") > 1) ??
+          datos.find(({ d }) => normalizarTexto(`${d.first_name ?? ""} ${d.last_name ?? ""}`) === normalizarTexto(grupo));
+        if (!jefe) {
+          errors.push(`Grupo «${grupo}»: no se encuentra al jefe del equipo (fila con #Registrants > 1); sus miembros entran sin equipo`);
+          continue;
+        }
+        filasJefe.add(jefe.i);
+        const nombreEquipo = (jefe.d.club || jefe.d.team || grupo).trim();
+        equipoDeGrupo.set(grupo, `${nombreEquipo}${MARCA_EQUIPO_GRUPO}`);
+      }
+    }
+    let jefesOmitidos = 0;
 
     // Fetch race date once, used for category calculation
     const { data: raceData } = await supabase
@@ -664,6 +861,14 @@ export function RegistrationImportDialog({
 
     for (let i = 0; i < csvData.rows.length; i++) {
       const row = csvData.rows[i];
+
+      // El jefe del grupo paga y da nombre al equipo, pero no corre
+      if (filasJefe.has(i)) {
+        jefesOmitidos++;
+        setImportProgress((prev) => ({ ...prev, current: i + 1 }));
+        continue;
+      }
+
       const validation = validateRow(row, i);
 
       // Skip empty rows silently
@@ -684,6 +889,8 @@ export function RegistrationImportDialog({
       }
 
       const mappedData = getMappedData(row);
+      // Validada arriba: aquí siempre hay recorrido
+      const distanciaFila = recorridoDeFila(mappedData) ?? selectedDistanceId;
 
       try {
         // Separate registration fields from custom fields
@@ -691,7 +898,7 @@ export function RegistrationImportDialog({
 
         const insertData: any = {
           race_id: raceId,
-          race_distance_id: selectedDistanceId,
+          race_distance_id: distanciaFila,
           status: "confirmed",
           payment_status: "paid",
         };
@@ -700,14 +907,20 @@ export function RegistrationImportDialog({
         for (const [key, value] of Object.entries(mappedData)) {
           if (!value) continue;
 
-          if (key === "bib_number") {
+          if (key === "distance" || key === "group" || key === "group_size") {
+            continue; // ya resueltos en distanciaFila y en equipoDeGrupo
+          } else if (key === "status") {
+            insertData.status = normalizarEstado(value);
+          } else if (key === "payment_status") {
+            insertData.payment_status = normalizarEstadoPago(value);
+          } else if (key === "external_id") {
+            // Importado de otra plataforma: misma huella que el sync de EventBooking
+            insertData.external_id = value.trim();
+            insertData.source = "external";
+          } else if (key === "bib_number") {
             insertData.bib_number = parseInt(value) || null;
           } else if (key === "chip_code") {
             insertData.chip_code = value;
-          } else if (key === "status") {
-            insertData.status = value;
-          } else if (key === "payment_status") {
-            insertData.payment_status = value;
           } else if (PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION]) {
             const regField = PROFILE_TO_REGISTRATION[key as keyof typeof PROFILE_TO_REGISTRATION];
             if (regField === 'birth_date') {
@@ -719,51 +932,77 @@ export function RegistrationImportDialog({
               insertData[regField] = value;
             }
           } else if (key.startsWith("custom_")) {
-            const field = availableFields.find(f => f.value === key);
-            if (field?.fieldId) {
-              customFieldMappings.push({ fieldId: field.fieldId, value });
+            // El id del campo en el recorrido de ESTA fila (cada recorrido
+            // tiene su copia del campo); si no existe ahí, el de carrera
+            const fieldId = campoEnRecorrido(key, distanciaFila)
+              ?? availableFields.find(f => f.value === key)?.fieldId
+              ?? null;
+            if (fieldId) {
+              customFieldMappings.push({ fieldId, value });
             }
           }
         }
 
+        // Miembro de un grupo: el equipo es el del jefe, con la marca
+        const grupoFila = mappedData.group?.trim();
+        if (grupoFila && equipoDeGrupo.has(grupoFila)) {
+          insertData.team = equipoDeGrupo.get(grupoFila);
+        }
+
         // -----------------------------------------------------------------
-        // UPSERT POR DNI: si ya existe una inscripción con el mismo DNI en
-        // este recorrido, solo actualizamos los campos operativos (dorsal,
-        // chip, estado). El snapshot (nombre, apellidos, etc.) no se toca.
+        // UPSERT: primero por ID externo (misma plataforma de origen, en toda
+        // la carrera) y, si no, POR DNI en el recorrido de la fila. Si ya
+        // existe, solo actualizamos los campos operativos (dorsal, chip,
+        // estado, equipo). El snapshot (nombre, apellidos…) no se toca.
         // -----------------------------------------------------------------
         let registrationId: string | null = null;
         let operationError: string | null = null;
         let isUpdate = false;
 
         const dniValue = insertData.dni_passport as string | undefined;
+        const externalId = insertData.external_id as string | undefined;
 
-        if (dniValue) {
-          const { data: existing } = await supabase
+        let existing: { id: string } | null = null;
+        if (externalId) {
+          const { data } = await supabase
             .from("registrations")
             .select("id")
-            .eq("race_distance_id", selectedDistanceId)
+            .eq("race_id", raceId)
+            .eq("external_id", externalId)
+            .maybeSingle();
+          existing = data ?? null;
+        }
+        if (!existing && dniValue) {
+          const { data } = await supabase
+            .from("registrations")
+            .select("id")
+            .eq("race_distance_id", distanciaFila)
             .eq("dni_passport", dniValue)
             .maybeSingle();
+          existing = data ?? null;
+        }
 
-          if (existing) {
-            // Registro existente: actualizar solo campos operativos
-            const updateData: any = {};
-            if (insertData.bib_number != null) updateData.bib_number = insertData.bib_number;
-            if (insertData.chip_code)          updateData.chip_code = insertData.chip_code;
-            if (insertData.status)             updateData.status = insertData.status;
-            if (insertData.payment_status)     updateData.payment_status = insertData.payment_status;
+        if (existing) {
+          // Registro existente: actualizar solo campos operativos
+          const updateData: any = {};
+          if (insertData.bib_number != null) updateData.bib_number = insertData.bib_number;
+          if (insertData.chip_code)          updateData.chip_code = insertData.chip_code;
+          if (insertData.status)             updateData.status = insertData.status;
+          if (insertData.payment_status)     updateData.payment_status = insertData.payment_status;
+          if (insertData.team)               updateData.team = insertData.team;
+          if (insertData.club)               updateData.club = insertData.club;
+          if (insertData.external_id)        updateData.external_id = insertData.external_id;
 
-            if (Object.keys(updateData).length > 0) {
-              const { error: updateError } = await supabase
-                .from("registrations")
-                .update(updateData)
-                .eq("id", existing.id);
-              if (updateError) operationError = updateError.message;
-            }
-
-            registrationId = existing.id;
-            isUpdate = true;
+          if (Object.keys(updateData).length > 0) {
+            const { error: updateError } = await supabase
+              .from("registrations")
+              .update(updateData)
+              .eq("id", existing.id);
+            if (updateError) operationError = updateError.message;
           }
+
+          registrationId = existing.id;
+          isUpdate = true;
         }
 
         if (!isUpdate) {
@@ -778,6 +1017,9 @@ export function RegistrationImportDialog({
             operationError = insertError.message;
           } else {
             registrationId = newReg?.id ?? null;
+            if (registrationId && insertData.bib_number == null) {
+              sinDorsal.set(distanciaFila, [...(sinDorsal.get(distanciaFila) ?? []), registrationId]);
+            }
           }
         }
 
@@ -833,7 +1075,7 @@ export function RegistrationImportDialog({
 
           const categoryResult = await getOrCreateCategoryId(
             raceId,
-            selectedDistanceId,
+            distanciaFila,
             importedCategoryName,
             birthDate,
             gender,
@@ -866,6 +1108,39 @@ export function RegistrationImportDialog({
       }
     }
 
+    // Dorsales automáticos a las altas que no traían dorsal, por recorrido y
+    // en el orden del fichero, con el mismo criterio que la acción en bloque
+    // del panel: desde next_bib (o bib_start) hasta bib_end, y se deja
+    // apuntado el siguiente. Un recorrido sin rango se queda sin numerar.
+    let dorsalesAsignados = 0;
+    if (asignarDorsales) {
+      for (const [distId, ids] of sinDorsal) {
+        const { data: d } = await supabase
+          .from("race_distances")
+          .select("name, bib_start, bib_end, next_bib")
+          .eq("id", distId)
+          .single();
+        if (!d?.bib_start) {
+          errors.push(`${d?.name ?? "Recorrido"}: sin rango de dorsales; ${ids.length} inscripciones quedan sin dorsal`);
+          continue;
+        }
+        let siguiente = d.next_bib || d.bib_start;
+        const tope = d.bib_end || 99999;
+        for (const id of ids) {
+          if (siguiente > tope) {
+            errors.push(`${d.name}: dorsales agotados (tope ${tope})`);
+            break;
+          }
+          const { error } = await supabase.from("registrations").update({ bib_number: siguiente }).eq("id", id);
+          if (!error) {
+            siguiente++;
+            dorsalesAsignados++;
+          }
+        }
+        await supabase.from("race_distances").update({ next_bib: siguiente }).eq("id", distId);
+      }
+    }
+
     setImportErrors(errors);
 
     const totalSuccess = insertedCount + updatedCount;
@@ -873,6 +1148,8 @@ export function RegistrationImportDialog({
       const parts: string[] = [];
       if (insertedCount > 0) parts.push(`${insertedCount} nuevas`);
       if (updatedCount > 0) parts.push(`${updatedCount} actualizadas`);
+      if (dorsalesAsignados > 0) parts.push(`${dorsalesAsignados} dorsales asignados`);
+      if (jefesOmitidos > 0) parts.push(`${jefesOmitidos} jefes de grupo omitidos`);
       if (errors.length > 0) parts.push(`${errors.length} errores`);
       if (skippedCount > 0) parts.push(`${skippedCount} filas vacías omitidas`);
       toast({
@@ -922,14 +1199,14 @@ export function RegistrationImportDialog({
                 </p>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   onChange={handleFileUpload}
                   className="hidden"
                   id="csv-upload"
                 />
                 <label htmlFor="csv-upload">
                   <Button asChild>
-                    <span>Seleccionar archivo CSV</span>
+                    <span>Seleccionar archivo CSV o Excel</span>
                   </Button>
                 </label>
               </div>
@@ -960,10 +1237,10 @@ export function RegistrationImportDialog({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>Recorrido de destino *</Label>
+                  <Label>{hayColumnaRecorrido ? "Recorrido de destino (lo decide la columna «Recorrido»)" : "Recorrido de destino *"}</Label>
                   <Select value={selectedDistanceId} onValueChange={setSelectedDistanceId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un recorrido" />
+                      <SelectValue placeholder={hayColumnaRecorrido ? "Por columna, fila a fila" : "Selecciona un recorrido"} />
                     </SelectTrigger>
                     <SelectContent>
                       {distances.map((d) => (
@@ -1075,8 +1352,28 @@ export function RegistrationImportDialog({
                 </Table>
               </ScrollArea>
 
-              <div className="text-sm text-muted-foreground">
-                {csvData.rows.length} filas encontradas en el archivo
+              {columnMappings.some((m) => m.field === "group") && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Inscripción por grupos: el jefe de cada grupo (la fila con más de un inscrito) no se importa.
+                    Sus miembros entran uno a uno con <strong>Equipo = Club del jefe + «{MARCA_EQUIPO_GRUPO.trim()}»</strong>.
+                    {!columnMappings.some((m) => m.field === "group_size") && " Mapea también «#Registrants» para reconocer al jefe con seguridad."}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                <span>{csvData.rows.length} filas encontradas en el archivo</span>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={asignarDorsales}
+                    onChange={(e) => setAsignarDorsales(e.target.checked)}
+                  />
+                  Dorsal automático a las filas sin dorsal (rango de cada recorrido)
+                </label>
               </div>
             </div>
           )}
@@ -1138,7 +1435,7 @@ export function RegistrationImportDialog({
               </Button>
               <Button
                 onClick={handleImport}
-                disabled={!selectedDistanceId || getMappedFieldsCount() === 0}
+                disabled={(!selectedDistanceId && !hayColumnaRecorrido) || getMappedFieldsCount() === 0}
               >
                 Importar {csvData?.rows.length} inscripciones
               </Button>
