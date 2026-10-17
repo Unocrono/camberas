@@ -684,7 +684,7 @@ serve(async (req: Request): Promise<Response> => {
     };
 
     const [distancias, perfiles, respuestasPorLote, intents, items] = await Promise.all([
-      leer<any>("race_distances", service.from("race_distances").select("id, name, gps_tracking_enabled, registration_closes").in("id", distanceIds)),
+      leer<any>("race_distances", service.from("race_distances").select("id, name, gps_tracking_enabled, registration_closes, dorsal_simulado").in("id", distanceIds)),
       userIds.length
         ? leer<any>("profiles", service.from("profiles").select("id, email, first_name, last_name").in("id", userIds))
         : Promise.resolve([] as any[]),
@@ -725,6 +725,8 @@ serve(async (req: Request): Promise<Response> => {
     const respuestas = respuestasPorLote.flat();
 
     const nombreDistancia = new Map(distancias.map((d: any) => [d.id, d.name as string]));
+    // Recorridos con dorsal simulado propio (Recorridos › Dorsales)
+    const conDorsalSimulado = new Set(distancias.filter((d: any) => d.dorsal_simulado?.fondo).map((d: any) => d.id as string));
     const gpsEnRecorrido = new Map(distancias.map((d: any) => [d.id, d.gps_tracking_enabled === true]));
 
     // Track: el enlace de activación de cada dorsal es el token GPS activo de
@@ -979,7 +981,8 @@ serve(async (req: Request): Promise<Response> => {
         miDorsalUrl: r.token_inscripcion ? `${SITE_URL}/mi-dorsal/${r.token_inscripcion}` : null,
         qrUrl: r.token_inscripcion ? `${SUPABASE_URL}/functions/v1/qr-dorsal?t=${r.token_inscripcion}` : null,
         dorsalImagenUrl:
-          r.token_inscripcion && r.bib_number != null && carrera?.dorsal_simulado
+          r.token_inscripcion && r.bib_number != null &&
+          (conDorsalSimulado.has(r.race_distance_id) || carrera?.dorsal_simulado)
             ? `${SUPABASE_URL}/functions/v1/dorsal-imagen?t=${r.token_inscripcion}&n=${r.bib_number}`
             : null,
         seguirUrl:
