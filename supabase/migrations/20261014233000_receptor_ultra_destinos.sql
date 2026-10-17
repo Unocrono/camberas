@@ -24,7 +24,7 @@
 -- lecturas que vengan en `estado` son de pared y la pantalla las enseña tal
 -- cual.
 --
--- PENDIENTE DE APLICAR en producción (panel de Supabase).
+-- APLICADA en producción el 15-oct-2026 (panel de Supabase).
 -- ============================================================
 
 SET client_encoding = 'UTF8';
