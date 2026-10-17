@@ -136,11 +136,14 @@ const COLUMNAS_REGISTRO = new Set([
   "first_name", "last_name", "email", "phone", "dni_passport", "birth_date", "gender",
   "club", "team", "country", "address", "city", "province", "autonomous_community", "tshirt_size",
 ]);
-// Las que ya tienen columna fija en la tabla: no se repiten en «Campos del formulario»
-const COLUMNAS_FIJAS = new Set([
-  "first_name", "last_name", "email", "phone", "dni_passport", "birth_date", "gender",
-  "club", "team", "country", "category",
-]);
+// Campo del formulario (por su columna) → columna fija de la tabla que lo pinta
+const FIJA_DE_CAMPO: Record<string, ColumnKey> = {
+  first_name: "participant", last_name: "participant", email: "email", dni_passport: "dni",
+  phone: "phone", gender: "gender", birth_date: "birth_date", category: "category",
+  club: "club", team: "team", country: "country",
+};
+// Columnas que no son del formulario: «Datos de la inscripción»
+const COLUMNAS_INSCRIPCION: ColumnKey[] = ["bib_number", "created_at", "origen", "type", "distance", "status", "payment", "actions"];
 function columnaInscripcion(f: { field_name?: string | null; profile_field?: string | null }): string | null {
   if (f.field_name === "category") return "category";
   if (f.profile_field && COLUMNAS_REGISTRO.has(f.profile_field)) return f.profile_field;
@@ -410,28 +413,55 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Column visibility
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(DEFAULT_VISIBLE_COLUMNS));
 
-  // Campos del formulario de la carrera elegida, en el orden del formulario,
-  // salvo los que ya son una columna fija (nombre, email, DNI, teléfono,
-  // género, nacimiento, categoría, club, equipo, país). Así se pueden ver
-  // Talla, Domicilio, Localidad, Provincia, Com. Autónoma y los campos propios
-  // (empadronado…). Un mismo campo en varios recorridos es UNA columna.
-  // Cada uno se lee de donde se guarda: los que tienen columna en
-  // registrations (columnaInscripcion) de ahí; los propios, de
-  // registration_responses por field_name.
+  // ── Columnas = campos del formulario del evento ─────────────────────────
+  // Con una carrera elegida, el menú «Columnas» es el formulario de inscripción
+  // de ese evento: sus campos ACTIVOS (is_visible), con su etiqueta y en su
+  // orden, del recorrido filtrado o, sin filtro, de todos sus recorridos (un
+  // mismo campo en varios recorridos es una sola columna). Los datos
+  // personales que ya tienen columna propia en la tabla (con su filtro en la
+  // cabecera: género, categoría, club…) se siguen pintando con ella, pero
+  // aparecen en el menú con el nombre del formulario; el resto (talla,
+  // domicilio, empadronado…) se lee de su columna en registrations o de
+  // registration_responses. Debajo, «Datos de la inscripción»: lo que no es
+  // del formulario (dorsal, fecha, origen, distancia, estado, pago…).
+  const camposDelEvento = useMemo(
+    () => formFields.filter((f) => f.field_name && f.is_visible !== false && (!distanciaFiltro || f.race_distance_id === distanciaFiltro)),
+    [formFields, distanciaFiltro],
+  );
+  const menuFormulario = useMemo(() => {
+    const vistos = new Set<string>();
+    const lista: { key: ColumnKey; label: string }[] = [];
+    for (const f of camposDelEvento) {
+      const columna = columnaInscripcion(f);
+      const fija = columna ? FIJA_DE_CAMPO[columna] : undefined;
+      const key: ColumnKey = fija ?? `${PREFIJO_CAMPO}${f.field_name}`;
+      if (vistos.has(key)) continue;
+      vistos.add(key);
+      lista.push({ key, label: fija === "participant" ? "Nombre y apellidos" : f.field_label || f.field_name });
+    }
+    return lista;
+  }, [camposDelEvento]);
+  // Campos del formulario que no tienen columna fija: se pintan detrás
   const camposFormulario = useMemo(() => {
     const vistos = new Set<string>();
     const lista: { key: ColumnKey; field_name: string; label: string; columna: string | null }[] = [];
-    for (const f of formFields) {
-      if (!f.field_name) continue;
+    for (const f of camposDelEvento) {
       const columna = columnaInscripcion(f);
-      if (columna && COLUMNAS_FIJAS.has(columna)) continue;
+      if (columna && FIJA_DE_CAMPO[columna]) continue;
       if (vistos.has(f.field_name)) continue;
       vistos.add(f.field_name);
       lista.push({ key: `${PREFIJO_CAMPO}${f.field_name}`, field_name: f.field_name, label: f.field_label || f.field_name, columna });
     }
     return lista;
-  }, [formFields]);
-  const camposVisibles = camposFormulario.filter((c) => visibleColumns.has(c.key));
+  }, [camposDelEvento]);
+  // Lo que de verdad se pinta: con formulario cargado, una columna de datos
+  // personales que el formulario no tiene activa no sale aunque esté marcada
+  const columnasEfectivas = useMemo(() => {
+    if (menuFormulario.length === 0) return visibleColumns;
+    const delMenu = new Set<ColumnKey>([...menuFormulario.map((m) => m.key), ...COLUMNAS_INSCRIPCION]);
+    return new Set([...visibleColumns].filter((k) => delMenu.has(k)));
+  }, [visibleColumns, menuFormulario]);
+  const camposVisibles = camposFormulario.filter((c) => columnasEfectivas.has(c.key));
   const valorCampo = (reg: Registration, c: { field_name: string; columna: string | null }): string => {
     if (c.columna) {
       const v = (reg as any)[c.columna] ?? (reg.profiles as any)?.[c.columna];
@@ -1241,7 +1271,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       // Fetch form fields for all distances
       const { data: fieldsData } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, field_label, profile_field, race_distance_id, is_system_field, field_order")
+        .select("id, field_name, field_label, profile_field, race_distance_id, is_system_field, is_visible, field_order")
         .in("race_distance_id", distanceIds)
         .order("field_order", { ascending: true });
       
@@ -2003,7 +2033,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     // Fijas marcadas y, detrás, los campos del formulario marcados (mismo
     // orden que en la tabla)
     const columnas: { key: ColumnKey; label: string }[] = [
-      ...ALL_COLUMNS.filter((c) => c.key !== "actions" && visibleColumns.has(c.key)),
+      ...ALL_COLUMNS.filter((c) => c.key !== "actions" && columnasEfectivas.has(c.key)),
       ...camposVisibles.map((c) => ({ key: c.key, label: c.label })),
     ];
     const headers = [
@@ -2378,28 +2408,52 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   Columnas
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover">
-                <DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {ALL_COLUMNS.map((col) => (
-                  <DropdownMenuCheckboxItem
-                    key={col.key}
-                    checked={visibleColumns.has(col.key)}
-                    onCheckedChange={() => toggleColumn(col.key)}
-                  >
-                    {col.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-                {/* Campos propios del formulario de la carrera elegida */}
-                {camposFormulario.length > 0 && (
+              <DropdownMenuContent align="end" className="bg-popover max-h-[70vh] overflow-y-auto">
+                {menuFormulario.length > 0 ? (
                   <>
+                    {/* El formulario de inscripción del evento, tal cual */}
+                    <DropdownMenuLabel>
+                      Campos del formulario
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {distanciaFiltro
+                          ? distances.find((d) => d.id === distanciaFiltro)?.name ?? "Recorrido filtrado"
+                          : "Todos los recorridos de la carrera"}
+                      </span>
+                    </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Campos del formulario</DropdownMenuLabel>
-                    {camposFormulario.map((col) => (
+                    {menuFormulario.map((col) => (
                       <DropdownMenuCheckboxItem
                         key={col.key}
-                        checked={visibleColumns.has(col.key)}
+                        checked={columnasEfectivas.has(col.key)}
                         onCheckedChange={() => toggleColumn(col.key)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {col.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Datos de la inscripción</DropdownMenuLabel>
+                    {ALL_COLUMNS.filter((c) => COLUMNAS_INSCRIPCION.includes(c.key)).map((col) => (
+                      <DropdownMenuCheckboxItem
+                        key={col.key}
+                        checked={columnasEfectivas.has(col.key)}
+                        onCheckedChange={() => toggleColumn(col.key)}
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {col.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <DropdownMenuLabel>Mostrar columnas</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {ALL_COLUMNS.map((col) => (
+                      <DropdownMenuCheckboxItem
+                        key={col.key}
+                        checked={columnasEfectivas.has(col.key)}
+                        onCheckedChange={() => toggleColumn(col.key)}
+                        onSelect={(e) => e.preventDefault()}
                       >
                         {col.label}
                       </DropdownMenuCheckboxItem>
@@ -2423,12 +2477,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       className={isSomeSelected ? "data-[state=checked]:bg-primary/50" : ""}
                     />
                   </TableHead>
-                  {visibleColumns.has("bib_number") && <TableHead className="w-[80px]">Dorsal</TableHead>}
-                  {visibleColumns.has("participant") && <TableHead>Participante</TableHead>}
-                  {visibleColumns.has("email") && <TableHead>Email</TableHead>}
-                  {visibleColumns.has("dni") && <TableHead>DNI/Pasaporte</TableHead>}
-                  {visibleColumns.has("phone") && <TableHead>Teléfono</TableHead>}
-                  {visibleColumns.has("gender") && (
+                  {columnasEfectivas.has("bib_number") && <TableHead className="w-[80px]">Dorsal</TableHead>}
+                  {columnasEfectivas.has("participant") && <TableHead>Participante</TableHead>}
+                  {columnasEfectivas.has("email") && <TableHead>Email</TableHead>}
+                  {columnasEfectivas.has("dni") && <TableHead>DNI/Pasaporte</TableHead>}
+                  {columnasEfectivas.has("phone") && <TableHead>Teléfono</TableHead>}
+                  {columnasEfectivas.has("gender") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2452,8 +2506,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
-                  {visibleColumns.has("birth_date") && <TableHead>F. Nacimiento</TableHead>}
-                  {visibleColumns.has("category") && (
+                  {columnasEfectivas.has("birth_date") && <TableHead>F. Nacimiento</TableHead>}
+                  {columnasEfectivas.has("category") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2477,7 +2531,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
-                  {visibleColumns.has("club") && (
+                  {columnasEfectivas.has("club") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2501,7 +2555,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
-                  {visibleColumns.has("team") && (
+                  {columnasEfectivas.has("team") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2525,12 +2579,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
-                  {visibleColumns.has("country") && <TableHead>País</TableHead>}
-                  {visibleColumns.has("created_at") && <TableHead>Fecha y hora</TableHead>}
-                  {visibleColumns.has("type") && <TableHead>Tipo</TableHead>}
-                  {visibleColumns.has("origen") && <TableHead>Origen</TableHead>}
-                  {visibleColumns.has("distance") && <TableHead>Distancia</TableHead>}
-                  {visibleColumns.has("status") && (
+                  {columnasEfectivas.has("country") && <TableHead>País</TableHead>}
+                  {columnasEfectivas.has("created_at") && <TableHead>Fecha y hora</TableHead>}
+                  {columnasEfectivas.has("type") && <TableHead>Tipo</TableHead>}
+                  {columnasEfectivas.has("origen") && <TableHead>Origen</TableHead>}
+                  {columnasEfectivas.has("distance") && <TableHead>Distancia</TableHead>}
+                  {columnasEfectivas.has("status") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2552,7 +2606,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
-                  {visibleColumns.has("payment") && (
+                  {columnasEfectivas.has("payment") && (
                     <TableHead>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -2582,13 +2636,13 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   {camposVisibles.map((c) => (
                     <TableHead key={c.key}>{c.label}</TableHead>
                   ))}
-                  {visibleColumns.has("actions") && <TableHead>Acciones</TableHead>}
+                  {columnasEfectivas.has("actions") && <TableHead>Acciones</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedRegistrations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={visibleColumns.size + 1} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={columnasEfectivas.size + 1} className="text-center text-muted-foreground py-8">
                       No se encontraron inscripciones
                     </TableCell>
                   </TableRow>
@@ -2618,7 +2672,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             aria-label={`Seleccionar ${firstName} ${lastName}`}
                           />
                         </TableCell>
-                        {visibleColumns.has("bib_number") && (
+                        {columnasEfectivas.has("bib_number") && (
                           <TableCell className="font-mono font-bold">
                             {reg.bib_number ? (
                               <Badge variant="outline">#{reg.bib_number}</Badge>
@@ -2627,43 +2681,43 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             )}
                           </TableCell>
                         )}
-                        {visibleColumns.has("participant") && (
+                        {columnasEfectivas.has("participant") && (
                           <TableCell className="font-medium">
                             {firstName} {lastName}
                           </TableCell>
                         )}
-                        {visibleColumns.has("email") && (
+                        {columnasEfectivas.has("email") && (
                           <TableCell className="text-sm text-muted-foreground">
                             {email || "-"}
                           </TableCell>
                         )}
-                        {visibleColumns.has("dni") && (
+                        {columnasEfectivas.has("dni") && (
                           <TableCell>{dniPassport || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("phone") && (
+                        {columnasEfectivas.has("phone") && (
                           <TableCell>{phone || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("gender") && (
+                        {columnasEfectivas.has("gender") && (
                           <TableCell>{gender || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("birth_date") && (
+                        {columnasEfectivas.has("birth_date") && (
                           <TableCell>
                             {birthDate ? new Date(birthDate).toLocaleDateString("es-ES") : "-"}
                           </TableCell>
                         )}
-                        {visibleColumns.has("category") && (
+                        {columnasEfectivas.has("category") && (
                           <TableCell>{category || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("club") && (
+                        {columnasEfectivas.has("club") && (
                           <TableCell>{club || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("team") && (
+                        {columnasEfectivas.has("team") && (
                           <TableCell>{team || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("country") && (
+                        {columnasEfectivas.has("country") && (
                           <TableCell>{country || "-"}</TableCell>
                         )}
-                        {visibleColumns.has("created_at") && (
+                        {columnasEfectivas.has("created_at") && (
                           <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                             {reg.created_at
                               ? new Date(reg.created_at).toLocaleString("es-ES", {
@@ -2676,14 +2730,14 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                               : "-"}
                           </TableCell>
                         )}
-                        {visibleColumns.has("type") && (
+                        {columnasEfectivas.has("type") && (
                           <TableCell>
                             <Badge variant={isGuest ? "outline" : "secondary"}>
                               {isGuest ? "Invitado" : "Registrado"}
                             </Badge>
                           </TableCell>
                         )}
-                        {visibleColumns.has("origen") && (
+                        {columnasEfectivas.has("origen") && (
                           <TableCell>
                             {(() => {
                               const o = origenDe(reg) ?? { label: "—", variant: "outline" as const };
@@ -2691,15 +2745,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                             })()}
                           </TableCell>
                         )}
-                        {visibleColumns.has("distance") && (
+                        {columnasEfectivas.has("distance") && (
                           <TableCell>
                             {reg.race_distance.name} ({reg.race_distance.distance_km}km)
                           </TableCell>
                         )}
-                        {visibleColumns.has("status") && (
+                        {columnasEfectivas.has("status") && (
                           <TableCell>{getStatusBadge(reg.status)}</TableCell>
                         )}
-                        {visibleColumns.has("payment") && (
+                        {columnasEfectivas.has("payment") && (
                           <TableCell>
                             <Badge variant={reg.payment_status === "paid" ? "default" : reg.payment_status === "refunded" ? "outline" : "secondary"}>
                               {reg.payment_status === "paid" ? "Pagado" : reg.payment_status === "refunded" ? "Reembolsado" : "Pendiente"}
@@ -2718,7 +2772,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                         {camposVisibles.map((c) => (
                           <TableCell key={c.key}>{valorCampo(reg, c) || "-"}</TableCell>
                         ))}
-                        {visibleColumns.has("actions") && (
+                        {columnasEfectivas.has("actions") && (
                           <TableCell>
                             <div className="flex gap-1">
                               <Dialog
