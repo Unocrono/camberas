@@ -128,6 +128,8 @@ export interface Prueba {
   lugarMeta?: string;
   /** URL alternativa de resultados del recorrido (race_distances.results_url); sin ella, clasificaciones.urlCamberas */
   resultadosUrl?: string;
+  /** Enlace externo de inscripción (race_distances.registration_url): rellena, «Inscribirme» lleva ahí, dentro de los plazos */
+  inscripcionUrl?: string;
   color?: string;
   marcaje?: string;
   municipios?: string;
