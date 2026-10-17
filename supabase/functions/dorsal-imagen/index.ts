@@ -4,11 +4,16 @@
 //
 //   GET /functions/v1/dorsal-imagen?t=<token_inscripcion>  →  image/jpeg
 //
-// Se configura por carrera en races.dorsal_simulado (jsonb):
+//   POST (panel, con sesión de admin u organizador) {race_distance_id,
+//   dorsal_simulado, numero, nombre}  →  vista previa sin guardar nada
+//
+// Se configura por RECORRIDO en race_distances.dorsal_simulado (Recorridos ›
+// Dorsales) y, si el recorrido no tiene, vale la de la carrera
+// (races.dorsal_simulado, con «recorridos» por id). Formato:
 //   {
 //     "fondo":  "https://camberas.com/fotos/<carrera>/dorsal.jpg",  plantilla en blanco
 //     "fuente": "https://camberas.com/fuentes/Anton-Regular.ttf",   opcional (Anton)
-//     "texto":  "nombre" | "nick",   qué va debajo del número (nombre de pila
+//     "texto":  "nombre" | "nick" | "ninguno",  qué va debajo del número (nombre de pila
 //                                    por defecto; «nick» lee la respuesta del
 //                                    campo nick/apodo/nombre_dorsal del formulario)
 //     "numero": { centroX, arriba, alto, ensanche, anchoMax, color },
@@ -41,19 +46,89 @@ async function descargar(url: string): Promise<Uint8Array> {
   return bytes;
 }
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+};
 const texto = (s: string, status: number) =>
-  new Response(s, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Access-Control-Allow-Origin": "*" } });
+  new Response(s, { status, headers: { "Content-Type": "text/plain; charset=utf-8", ...CORS } });
+const imagen = (jpg: Uint8Array, cache: string, cabeza = false) =>
+  new Response(cabeza ? null : (jpg.buffer as ArrayBuffer), {
+    headers: { "Content-Type": "image/jpeg", "Content-Length": String(jpg.length), "Cache-Control": cache, ...CORS },
+  });
+
+// deno-lint-ignore no-explicit-any
+type Conf = Record<string, any>;
+
+/** La configuración que manda: la del recorrido y, si no tiene, la de la carrera */
+function configuracion(recorrido: Conf | null, carrera: Conf | null, distanceId: string): Conf | null {
+  if (recorrido?.fondo && recorrido?.numero) return recorrido;
+  if (!carrera) return null;
+  const c = { ...carrera, ...(carrera.recorridos?.[distanceId] ?? {}) };
+  return c.fondo && c.numero ? c : null;
+}
+
+// Solo plantillas y fuentes nuestras: Storage del proyecto o camberas.com
+function urlPermitida(url: unknown): url is string {
+  try {
+    const u = new URL(String(url));
+    const propio = new URL(Deno.env.get("SUPABASE_URL")!).host;
+    return u.protocol === "https:" && (u.host === propio || u.host === "camberas.com" || u.host.endsWith(".camberas.com"));
+  } catch {
+    return false;
+  }
+}
+
+async function pintar(conf: Conf, numero: string, nombre: string | null): Promise<Uint8Array> {
+  const sitio = (Deno.env.get("SITE_URL") ?? "https://camberas.com").replace(/\/+$/, "");
+  const fuenteUrl = conf.fuente ?? `${sitio}/fuentes/Anton-Regular.ttf`;
+  if (!urlPermitida(conf.fondo) || !urlPermitida(fuenteUrl)) throw new Error("Plantilla o fuente fuera de Camberas");
+  const [plantilla, fuente] = await Promise.all([descargar(conf.fondo), descargar(fuenteUrl)]);
+  return await dibujarDorsal(plantilla, fuente, numero, conf.texto === "ninguno" ? null : nombre, conf as unknown as Colocacion);
+}
 
 serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
+  const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // ── Vista previa del panel (Recorridos › Dorsales): datos de prueba y la
+  //    configuración que se está editando, sin guardar. Solo admin u
+  //    organizador de la carrera del recorrido.
+  if (req.method === "POST") {
+    try {
+      const jwt = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
+      const { data: u } = await service.auth.getUser(jwt);
+      if (!u?.user) return texto("No autenticado", 401);
+      const body = await req.json().catch(() => ({}));
+      const distanceId = String(body.race_distance_id ?? "");
+      if (!UUID.test(distanceId)) return texto("Falta el recorrido", 400);
+      const [{ data: roles }, { data: dist }] = await Promise.all([
+        service.from("user_roles").select("role").eq("user_id", u.user.id),
+        service.from("race_distances").select("id, race:races!race_distances_race_id_fkey(organizer_id)").eq("id", distanceId).maybeSingle(),
+      ]);
+      const esAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
+      // deno-lint-ignore no-explicit-any
+      if (!dist || (!esAdmin && (dist as any).race?.organizer_id !== u.user.id)) return texto("Sin permiso sobre este recorrido", 403);
+      const conf = body.dorsal_simulado as Conf | null;
+      if (!conf?.fondo || !conf?.numero) return texto("Falta la plantilla", 400);
+      const numero = String(body.numero ?? "").replace(/[^0-9A-Za-z-]/g, "").slice(0, 6) || "1";
+      const nombre = String(body.nombre ?? "").trim().slice(0, 60) || null;
+      return imagen(await pintar(conf, numero, nombre), "no-store");
+    } catch (e) {
+      console.error("dorsal-imagen (vista previa):", e);
+      return texto(e instanceof Error ? e.message : "No se pudo generar el dorsal", 500);
+    }
+  }
+
   if (req.method !== "GET" && req.method !== "HEAD") return texto("Método no permitido", 405);
   const token = (new URL(req.url).searchParams.get("t") ?? "").trim().toLowerCase();
   if (!UUID.test(token)) return texto("Falta el código de la inscripción", 400);
 
   try {
-    const service = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: reg, error } = await service
       .from("registrations")
-      .select("id, bib_number, first_name, status, race_distance_id, race:races!registrations_race_id_fkey(dorsal_simulado)")
+      .select("id, bib_number, first_name, status, race_distance_id, race:races!registrations_race_id_fkey(dorsal_simulado), distance:race_distances!registrations_race_distance_id_fkey(dorsal_simulado)")
       .eq("token_inscripcion", token)
       .maybeSingle();
     if (error) throw error;
@@ -61,13 +136,12 @@ serve(async (req: Request): Promise<Response> => {
     if (reg.bib_number == null) return texto("Aún sin dorsal", 404);
 
     // deno-lint-ignore no-explicit-any
-    const base = ((reg as any).race?.dorsal_simulado ?? null) as Record<string, any> | null;
-    if (!base?.fondo && !base?.recorridos) return texto("Esta carrera no tiene dorsal simulado", 404);
-    const conf = { ...base, ...(base?.recorridos?.[reg.race_distance_id] ?? {}) };
-    if (!conf.fondo || !conf.numero) return texto("Esta carrera no tiene dorsal simulado", 404);
+    const r = reg as any;
+    const conf = configuracion(r.distance?.dorsal_simulado ?? null, r.race?.dorsal_simulado ?? null, reg.race_distance_id);
+    if (!conf) return texto("Este recorrido no tiene dorsal simulado", 404);
 
-    // Debajo del número: el nombre de pila o, si la carrera lo pide, el nick
-    // El nombre de pila se normaliza («MARTA» → «Marta»); el nick va tal cual
+    // Debajo del número: el nombre de pila (normalizado, «MARTA» → «Marta»),
+    // el nick tal cual si el recorrido lo pide, o nada («ninguno»)
     let nombre: string | null = reg.first_name ? nombreDorsal(reg.first_name) : null;
     if (conf.texto === "nick") {
       const { data: resp } = await service
@@ -80,29 +154,9 @@ serve(async (req: Request): Promise<Response> => {
       if (nick) nombre = nick;
     }
 
-    const sitio = (Deno.env.get("SITE_URL") ?? "https://camberas.com").replace(/\/+$/, "");
-    const [plantilla, fuente] = await Promise.all([
-      descargar(conf.fondo),
-      descargar(conf.fuente ?? `${sitio}/fuentes/Anton-Regular.ttf`),
-    ]);
-    const jpg = await dibujarDorsal(
-      plantilla,
-      fuente,
-      String(reg.bib_number),
-      nombre,
-      conf as unknown as Colocacion,
-    );
-
-    return new Response(req.method === "HEAD" ? null : (jpg.buffer as ArrayBuffer), {
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Content-Length": String(jpg.length),
-        // El dorsal o el nombre pueden cambiar: una hora de caché basta para
-        // que los proxies de imágenes de los correos no la pidan sin parar
-        "Cache-Control": "public, max-age=3600",
-        "Access-Control-Allow-Origin": "*",
-      },
-    });
+    // El dorsal o el nombre pueden cambiar: una hora de caché basta para que
+    // los proxies de imágenes de los correos no la pidan sin parar
+    return imagen(await pintar(conf, String(reg.bib_number), nombre), "public, max-age=3600", req.method === "HEAD");
   } catch (e) {
     console.error("dorsal-imagen:", e);
     return texto("No se pudo generar el dorsal", 500);

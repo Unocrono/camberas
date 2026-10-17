@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { paredAMs, ahoraParedMs } from "@/lib/timezoneUtils";
 import { horaCierre, formatearTiempoLimite, tiempoLimiteValido } from "@/lib/tiempoLimite";
 import { urlTecleada } from "@/lib/resultados";
+import { DorsalSimuladoEditor } from "./DorsalSimuladoEditor";
 
 // Format timestamp to local time HH:MM - extract directly from ISO string
 const formatTimeLocal = (isoString: string | null): string => {
@@ -1512,10 +1513,19 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <span>
-                        Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1} 
+                        Dorsales disponibles: {parseInt(formData.bib_end) - parseInt(formData.next_bib) + 1}
                         ({formData.next_bib} - {formData.bib_end})
                       </span>
                     </div>
+                  )}
+
+                  {/* Dorsal simulado para el correo: necesita el recorrido ya creado */}
+                  {editingDistance ? (
+                    <DorsalSimuladoEditor raceId={editingDistance.race_id} distanceId={editingDistance.id} />
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Cuando guardes el recorrido podrás subir aquí el dorsal en blanco para enseñárselo a cada corredor con su número.
+                    </p>
                   )}
                 </TabsContent>
               </Tabs>
