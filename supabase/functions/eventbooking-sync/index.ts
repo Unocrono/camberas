@@ -261,7 +261,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       // Títulos de los campos que trae el evento, para ver en last_result cómo
       // se llaman en uno.es cuando un campo no casa
       const titulos = new Set<string>();
-      for (const r of (origen.registrants ?? []).slice(0, 50)) {
+      for (const r of origen.registrants ?? []) {
         for (const t of Object.keys(r.fields ?? {})) titulos.add(t);
       }
       camposEventBooking[ev.event_id] = [...titulos];
