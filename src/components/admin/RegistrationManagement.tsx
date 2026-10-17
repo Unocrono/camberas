@@ -142,7 +142,7 @@ const FIJA_DE_CAMPO: Record<string, ColumnKey> = {
   phone: "phone", gender: "gender", birth_date: "birth_date", category: "category",
   club: "club", team: "team", country: "country",
 };
-// Columnas que no son del formulario: «Datos de la inscripción»
+// Columnas que no son del formulario (dorsal, fecha, origen, estado, pago…)
 const COLUMNAS_INSCRIPCION: ColumnKey[] = ["bib_number", "created_at", "origen", "type", "distance", "status", "payment", "actions"];
 function columnaInscripcion(f: { field_name?: string | null; profile_field?: string | null }): string | null {
   if (f.field_name === "category") return "category";
@@ -422,7 +422,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // cabecera: género, categoría, club…) se siguen pintando con ella, pero
   // aparecen en el menú con el nombre del formulario; el resto (talla,
   // domicilio, empadronado…) se lee de su columna en registrations o de
-  // registration_responses. Debajo, «Datos de la inscripción»: lo que no es
+  // registration_responses. El dorsal va el primero y, tras una raya, lo que no es
   // del formulario (dorsal, fecha, origen, distancia, estado, pago…).
   const camposDelEvento = useMemo(
     () => formFields.filter((f) => f.field_name && f.is_visible !== false && (!distanciaFiltro || f.race_distance_id === distanciaFiltro)),
@@ -2413,7 +2413,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                   <>
                     {/* El formulario de inscripción del evento, tal cual */}
                     <DropdownMenuLabel>
-                      Campos del formulario
+                      Mostrar columnas
                       <span className="block text-xs font-normal text-muted-foreground">
                         {distanciaFiltro
                           ? distances.find((d) => d.id === distanciaFiltro)?.name ?? "Recorrido filtrado"
@@ -2421,7 +2421,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </span>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {menuFormulario.map((col) => (
+                    {/* El dorsal, lo primero; después el formulario en su orden
+                        y, tras una raya, el resto de datos de la inscripción */}
+                    {[{ key: "bib_number" as ColumnKey, label: "Dorsal" }, ...menuFormulario].map((col) => (
                       <DropdownMenuCheckboxItem
                         key={col.key}
                         checked={columnasEfectivas.has(col.key)}
@@ -2432,8 +2434,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenuCheckboxItem>
                     ))}
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Datos de la inscripción</DropdownMenuLabel>
-                    {ALL_COLUMNS.filter((c) => COLUMNAS_INSCRIPCION.includes(c.key)).map((col) => (
+                    {ALL_COLUMNS.filter((c) => COLUMNAS_INSCRIPCION.includes(c.key) && c.key !== "bib_number").map((col) => (
                       <DropdownMenuCheckboxItem
                         key={col.key}
                         checked={columnasEfectivas.has(col.key)}
