@@ -398,6 +398,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const [formFields, setFormFields] = useState<any[]>([]);
   const [registrationResponses, setRegistrationResponses] = useState<Map<string, Map<string, string>>>(new Map());
   const [categories, setCategories] = useState<any[]>([]);
+  // Todas las categorías de la carrera elegida, solo para mostrar el nombre en
+  // la tabla y en la exportación. Antes la columna salía vacía con «Todos los
+  // recorridos»: se buscaban por race_distance_id pasando el id de la carrera.
+  const [categoriasCarrera, setCategoriasCarrera] = useState<any[]>([]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -473,7 +477,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Helper to get category short_name from race_category_id
   const getCategoryShortName = (reg: Registration): string => {
     if (reg.race_category_id) {
-      const cat = categories.find(c => c.id === reg.race_category_id);
+      // Primero las de toda la carrera (no dependen del filtro de recorrido);
+      // `categories` es la lista del recorrido filtrado, para los selectores
+      const cat = categoriasCarrera.find(c => c.id === reg.race_category_id)
+        ?? categories.find(c => c.id === reg.race_category_id);
       if (cat) {
         return cat.short_name || cat.name || "";
       }
@@ -536,7 +543,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (category) cats.add(category);
     });
     return Array.from(cats).sort();
-  }, [registrations, registrationResponses, categories]);
+  }, [registrations, registrationResponses, categories, categoriasCarrera]);
 
   const uniqueClubs = useMemo(() => {
     const clubs = new Set<string>();
@@ -1327,6 +1334,20 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       setCategories([]);
     }
   }, [selectedRace]);
+
+  // Categorías de toda la carrera para la columna Categoría
+  useEffect(() => {
+    const raceId = selectedRaceId || (selectedRace !== "all" ? selectedRace : "");
+    if (!raceId) {
+      setCategoriasCarrera([]);
+      return;
+    }
+    supabase
+      .from("race_categories")
+      .select("id, name, short_name, race_distance_id")
+      .eq("race_id", raceId)
+      .then(({ data }) => setCategoriasCarrera(data || []));
+  }, [selectedRaceId, selectedRace]);
 
   // Load categories when distance changes
   useEffect(() => {

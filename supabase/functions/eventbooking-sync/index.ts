@@ -246,6 +246,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
 
     // Inscritos de todos los eventos, cada uno con su configuración
     const filas: { r: any; ev: EventoEB }[] = [];
+    const camposEventBooking: Record<number, string[]> = {};
     const pedidosBien = new Set<number>();
     for (const ev of eventos) {
       const resp = await fetch(`${endpoint}?event_id=${ev.event_id}`, {
@@ -257,6 +258,13 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       }
       const origen = await resp.json();
       for (const r of origen.registrants ?? []) filas.push({ r, ev });
+      // Títulos de los campos que trae el evento, para ver en last_result cómo
+      // se llaman en uno.es cuando un campo no casa
+      const titulos = new Set<string>();
+      for (const r of (origen.registrants ?? []).slice(0, 50)) {
+        for (const t of Object.keys(r.fields ?? {})) titulos.add(t);
+      }
+      camposEventBooking[ev.event_id] = [...titulos];
       pedidosBien.add(ev.event_id);
     }
     if (filas.length === 0 && errores.length > 0) {
@@ -433,7 +441,8 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
 
       // El club es opcional en EventBooking: si viene se sincroniza, pero
       // un valor vacío nunca borra el que el organizador puso a mano.
-      const clubEB = campo(fields, "Club");
+      // En Entre Viñedos el campo se llama «Club / Equipo»
+      const clubEB = campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo");
 
       // Equipo: el del Group Billing al que pertenece el miembro. Igual que
       // el club, solo se escribe cuando hay valor.
@@ -603,6 +612,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       representantes_omitidos: representantesOmitidos,
       dorsales_asignados: dorsales,
       respuestas_formulario: respuestasEscritas,
+      campos_eventbooking: camposEventBooking,
       avisos,
       errores,
     };
