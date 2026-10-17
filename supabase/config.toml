@@ -89,6 +89,9 @@ verify_jwt = false
 [functions.qr-dorsal]
 verify_jwt = false
 
+[functions.dorsal-imagen]
+verify_jwt = false
+
 # El cedente sin cuenta pide su enlace por email: no hay sesion que valga.
 # La funcion nunca devuelve el enlace en la respuesta, solo lo manda al correo.
 [functions.cesion-solicitar-enlace]

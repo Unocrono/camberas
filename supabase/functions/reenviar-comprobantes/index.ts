@@ -173,6 +173,8 @@ interface Datos {
   miDorsalUrl: string | null;
   /** Imagen PNG del QR de la recogida (edge function qr-dorsal), para verlo en el propio correo */
   qrUrl: string | null;
+  /** Dorsal simulado (edge function dorsal-imagen): solo si la carrera tiene races.dorsal_simulado */
+  dorsalImagenUrl: string | null;
   /** Mapa público en directo centrado en este dorsal (para familia y amigos) */
   seguirUrl: string | null;
   /** Datos de la inscripción (columnas, al día) + preguntas propias de la carrera */
@@ -313,6 +315,15 @@ function bloque(nombre: string, d: Datos, vistaPrevia: boolean): string {
         .filter((x): x is string => !!x)
         .map((x) => esc(x))
         .join(" · ");
+      // Con dorsal simulado de la carrera: su dorsal tal como lo llevará, con
+      // su número y su nombre. El alt dice el número por si no se ven imágenes
+      if (d.dorsalImagenUrl) {
+        return `<div style="text-align: center; margin: 24px 0;">
+          <img src="${esc(d.dorsalImagenUrl)}" width="560" alt="Tu dorsal: ${d.dorsal ?? ""}"
+               style="display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px;">
+          ${linea ? `<p style="margin: 10px 0 0; color: #6b7280; font-size: 13px;">${linea}</p>` : ""}
+        </div>`;
+      }
       return `<div style="background: ${VERDE}; color: ${CREMA}; border-radius: 10px; padding: 22px; text-align: center; margin: 24px 0;">
         <p style="margin: 0; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.85;">Dorsal</p>
         <p style="margin: 6px 0 0; font-size: 56px; font-weight: bold; line-height: 1;">${d.dorsal ?? "—"}</p>
@@ -558,6 +569,7 @@ serve(async (req: Request): Promise<Response> => {
         referencia: "260923123456",
         miDorsalUrl: `${SITE_URL}/mi-dorsal/${cero}`,
         qrUrl: `${SUPABASE_URL}/functions/v1/qr-dorsal?t=${cero}`,
+        dorsalImagenUrl: null,
         seguirUrl: `${SITE_URL}/carrera-de-ejemplo/gps?dorsal=123`,
         respuestas: [
           { label: "Documento", value: "12345678Z" },
@@ -645,7 +657,7 @@ serve(async (req: Request): Promise<Response> => {
       uid
         ? service.from("user_roles").select("role").eq("user_id", uid)
         : Promise.resolve({ data: [] as { role: string }[] }),
-      service.from("races").select("id, name, date, location, organizer_id, slug").in("id", raceIds),
+      service.from("races").select("id, name, date, location, organizer_id, slug, dorsal_simulado").in("id", raceIds),
     ]);
     if (racesErr) throw new Error(`races: ${racesErr.message}`);
     const esAdmin = interna || (roles ?? []).some((r: { role: string }) => r.role === "admin");
@@ -966,6 +978,10 @@ serve(async (req: Request): Promise<Response> => {
         referencia: pago?.order ?? null,
         miDorsalUrl: r.token_inscripcion ? `${SITE_URL}/mi-dorsal/${r.token_inscripcion}` : null,
         qrUrl: r.token_inscripcion ? `${SUPABASE_URL}/functions/v1/qr-dorsal?t=${r.token_inscripcion}` : null,
+        dorsalImagenUrl:
+          r.token_inscripcion && r.bib_number != null && carrera?.dorsal_simulado
+            ? `${SUPABASE_URL}/functions/v1/dorsal-imagen?t=${r.token_inscripcion}&n=${r.bib_number}`
+            : null,
         seguirUrl:
           carrera?.slug && r.bib_number != null
             ? `${SITE_URL}/${carrera.slug}/gps?dorsal=${r.bib_number}&recorrido=${r.race_distance_id}`
