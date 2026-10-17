@@ -27,7 +27,7 @@
 --   · el GPX es el de 2021: si el trazado ha cambiado, sustituir el fichero.
 -- Nace OCULTA (is_visible = false) con la web activa: se ve con ?previa=1
 -- desde el panel. Cuando se quiera publicar, is_visible = true.
--- Falta el cartel y el logo (poster_url / logo_url): se suben desde el panel.
+-- El cartel y la portada van en 20261017130000; falta el logo (logo_url).
 -- Requiere 20260928140000 (tipos de ítem del rutómetro).
 -- =============================================================================
 
