@@ -19,13 +19,17 @@
  *  - Los tipos son los del rutómetro (roadbook_item_types), filtrados por
  *    el tipo de carrera; nada inventado aquí.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { parseGpxFile } from "@/lib/gpxParser";
 import { buildRouteIndex, haversineKm, type RouteIndex } from "@/lib/routeProgress";
 import { ICONOS_RUTOMETRO } from "@/lib/iconosRutometro";
-import { AlertTriangle, CloudOff, Loader2, LocateFixed, MapPin } from "lucide-react";
+import { AlertTriangle, CloudOff, Loader2, LocateFixed, MapPin, X } from "lucide-react";
+import type { PuntoMapa } from "./MapaMarcarPuntos";
+
+// mapbox solo se baja al abrir esta pantalla
+const MapaMarcarPuntos = lazy(() => import("./MapaMarcarPuntos").then((m) => ({ default: m.MapaMarcarPuntos })));
 
 interface Props {
   raceId: string | null;
@@ -52,7 +56,19 @@ interface PuntoExistente {
   item_type: string;
   description: string;
   origen: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
+
+/** Punto elegido pulsando en el mapa, ya pegado al trazado si lo hay */
+interface PuntoElegido {
+  lat: number;
+  lng: number;
+  km: number | null;
+  idx: number | null;
+}
+
+const SIN_TRAZADO: [number, number][] = [];
 
 /** Marca guardada en el móvil hasta que el servidor la acepte */
 interface MarcaPendiente {
@@ -137,6 +153,7 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
   const [pendientes, setPendientes] = useState<MarcaPendiente[]>(() => leerPendientes());
   const [guardando, setGuardando] = useState(false);
   const [enLinea, setEnLinea] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  const [elegido, setElegido] = useState<PuntoElegido | null>(null);
   const enviandoRef = useRef(false);
 
   // ── Recorridos de la carrera y tipos del rutómetro ──────────────────
@@ -203,6 +220,7 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
 
   useEffect(() => {
     if (raceId && recorridoId) localStorage.setItem(CLAVE_RECORRIDO(raceId), recorridoId);
+    setElegido(null);
   }, [raceId, recorridoId]);
 
   // ── Puntos que ya tiene el rutómetro (sin el trazado) ────────────────
@@ -218,7 +236,7 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
     if (!rb) { setExistentes([]); return; }
     const { data } = await supabase
       .from("roadbook_items")
-      .select("id, km_total, item_type, description, origen")
+      .select("id, km_total, item_type, description, origen, latitude, longitude")
       .eq("roadbook_id", rb.id)
       .neq("item_type", "point")
       .order("km_total")
@@ -325,26 +343,69 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
   const enTrazado = useMemo(() => (indice && pos ? kmEnTrazado(indice, pos.lat, pos.lng) : null), [indice, pos]);
   const posVieja = pos ? Date.now() - pos.ms > 60_000 : false;
 
+  // Pulsar en el mapa: el punto se pega al trazado (el rutómetro va por km);
+  // sin trazado, donde se pulsó
+  const elegirEnMapa = useCallback((lat: number, lng: number) => {
+    const t = indice ? kmEnTrazado(indice, lat, lng) : null;
+    if (indice && t) {
+      const [lngT, latT] = indice.coords[t.idx];
+      setElegido({ lat: latT, lng: lngT, km: t.km, idx: t.idx });
+    } else {
+      setElegido({ lat, lng, km: null, idx: null });
+    }
+  }, [indice]);
+
+  // Lo que pinta el mapa (memorizado: el mapa solo se repinta si cambia)
+  const puntosMapa = useMemo<PuntoMapa[]>(
+    () =>
+      existentes
+        .filter((p) => p.latitude != null && p.longitude != null)
+        .map((p) => ({ id: p.id, lat: Number(p.latitude), lng: Number(p.longitude), texto: p.description })),
+    [existentes],
+  );
+  const pendientesMapa = useMemo<PuntoMapa[]>(
+    () => pendientes.filter((m) => m.distance_id === recorridoId).map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, texto: m.tipo })),
+    [pendientes, recorridoId],
+  );
+  const yoLat = pos?.lat;
+  const yoLng = pos?.lng;
+  const yo = useMemo(() => (yoLat != null && yoLng != null ? { lat: yoLat, lng: yoLng } : null), [yoLat, yoLng]);
+
   const marcar = async () => {
-    if (!pos || !recorridoId || !tipo) return;
+    if ((!pos && !elegido) || !recorridoId || !tipo) return;
     setGuardando(true);
-    const marca: MarcaPendiente = {
-      id: nuevoId(),
-      distance_id: recorridoId,
-      tipo,
-      lat: pos.lat,
-      lng: pos.lng,
-      altitud: pos.altitud ?? (enTrazado ? elevaciones[enTrazado.idx] ?? null : null),
-      precision_m: Number.isFinite(pos.precision_m) ? Math.round(pos.precision_m) : null,
-      nota: nota.trim() || null,
-      km: enTrazado && enTrazado.fueraM <= 300 ? Math.round(enTrazado.km * 1000) / 1000 : null,
-      marcado_en: new Date().toISOString(),
-    };
+    const marca: MarcaPendiente = elegido
+      ? {
+          // Colocado en el mapa: sin precisión GPS; altitud y km, del trazado
+          id: nuevoId(),
+          distance_id: recorridoId,
+          tipo,
+          lat: Math.round(elegido.lat * 1e6) / 1e6,
+          lng: Math.round(elegido.lng * 1e6) / 1e6,
+          altitud: elegido.idx != null ? elevaciones[elegido.idx] ?? null : null,
+          precision_m: null,
+          nota: ["Colocado en el mapa", nota.trim()].filter(Boolean).join(" · "),
+          km: elegido.km != null ? Math.round(elegido.km * 1000) / 1000 : null,
+          marcado_en: new Date().toISOString(),
+        }
+      : {
+          id: nuevoId(),
+          distance_id: recorridoId,
+          tipo,
+          lat: pos!.lat,
+          lng: pos!.lng,
+          altitud: pos!.altitud ?? (enTrazado ? elevaciones[enTrazado.idx] ?? null : null),
+          precision_m: Number.isFinite(pos!.precision_m) ? Math.round(pos!.precision_m) : null,
+          nota: nota.trim() || null,
+          km: enTrazado && enTrazado.fueraM <= 300 ? Math.round(enTrazado.km * 1000) / 1000 : null,
+          marcado_en: new Date().toISOString(),
+        };
     const lista = [...leerPendientes(), marca];
     guardarPendientes(lista);
     setPendientes(lista);
     setNota("");
     setTipo(null);
+    setElegido(null);
     await enviarPendientes();
     if (leerPendientes().some((m) => m.id === marca.id)) {
       toast({
@@ -365,8 +426,8 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
-        Lleva Camberas Track grabando el recorrido y marca aquí lo que vayas viendo. Cada marca entra en el
-        rutómetro del recorrido con su km; después la puedes retocar en el panel.
+        En el terreno: lleva Camberas Track grabando y marca lo que vayas viendo donde estás. Desde casa: pulsa
+        en el mapa sobre el recorrido. Cada marca entra en el rutómetro con su km; después la puedes retocar en el panel.
       </p>
 
       {/* Recorrido */}
@@ -387,7 +448,49 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
       )}
       {recorridos.length === 0 && <p className="text-sm text-muted-foreground">Esta carrera no tiene recorridos.</p>}
 
-      {/* Dónde estoy */}
+      {/* Mapa: recorrido, yo, puntos; pulsar elige el punto */}
+      {recorridoId && (
+        <Suspense
+          fallback={
+            <div className="flex h-[300px] items-center justify-center rounded-2xl border border-border text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando el mapa…
+            </div>
+          }
+        >
+          <MapaMarcarPuntos
+            trazado={indice?.coords ?? SIN_TRAZADO}
+            yo={yo}
+            existentes={puntosMapa}
+            pendientes={pendientesMapa}
+            elegido={elegido}
+            onElegir={elegirEnMapa}
+          />
+        </Suspense>
+      )}
+
+      {/* Punto elegido en el mapa: manda sobre el GPS hasta que se marque o se quite */}
+      {elegido && (
+        <div className="flex items-center gap-3 rounded-2xl border-2 border-primary bg-primary/5 px-4 py-3">
+          <MapPin className="h-6 w-6 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="font-archivo text-lg uppercase leading-tight">
+              {elegido.km != null ? `Km ${elegido.km.toFixed(2)}` : "Punto en el mapa"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Elegido en el mapa{elegido.km == null && " · sin trazado: el km lo pondrá el servidor si puede"}
+            </p>
+          </div>
+          <button
+            onClick={() => setElegido(null)}
+            className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-bold uppercase"
+          >
+            <X className="h-3.5 w-3.5" /> Usar mi GPS
+          </button>
+        </div>
+      )}
+
+      {/* Dónde estoy (oculto con un punto elegido en el mapa: no liar dos km) */}
+      {!elegido && (
       <div className="rounded-2xl border border-border bg-card px-4 py-3">
         <div className="flex items-center gap-3">
           <LocateFixed className={`h-6 w-6 shrink-0 ${pos && !posVieja ? "text-secondary" : "text-muted-foreground"}`} />
@@ -422,6 +525,7 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
           <p className="mt-2 text-xs text-amber-600">Este recorrido no tiene GPX: el km lo pondrá el servidor si el rutómetro tiene trazado.</p>
         )}
       </div>
+      )}
 
       {/* Qué hay aquí */}
       <div>
@@ -453,11 +557,11 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
         />
         <button
           onClick={marcar}
-          disabled={!pos || !tipo || !recorridoId || guardando}
+          disabled={(!pos && !elegido) || !tipo || !recorridoId || guardando}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary py-4 font-archivo text-base uppercase tracking-wide text-primary-foreground disabled:opacity-40"
         >
           {guardando ? <Loader2 className="h-5 w-5 animate-spin" /> : <MapPin className="h-5 w-5" />}
-          Marcar punto aquí
+          {elegido ? `Marcar en el punto del mapa${elegido.km != null ? ` (km ${elegido.km.toFixed(1)})` : ""}` : "Marcar punto aquí"}
         </button>
       </div>
 
