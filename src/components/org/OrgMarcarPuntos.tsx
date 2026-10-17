@@ -389,12 +389,26 @@ export const OrgMarcarPuntos = ({ raceId }: Props) => {
     () =>
       existentes
         .filter((p) => p.latitude != null && p.longitude != null)
-        .map((p) => ({ id: p.id, lat: Number(p.latitude), lng: Number(p.longitude), texto: p.description })),
-    [existentes],
+        .map((p) => ({
+          id: p.id,
+          lat: Number(p.latitude),
+          lng: Number(p.longitude),
+          texto: p.description,
+          tipo: p.item_type,
+          icono: tipos.find((t) => t.name === p.item_type)?.icon ?? null,
+          km: Number(p.km_total),
+        })),
+    [existentes, tipos],
   );
   const pendientesMapa = useMemo<PuntoMapa[]>(
-    () => pendientes.filter((m) => m.distance_id === recorridoId).map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, texto: m.tipo })),
-    [pendientes, recorridoId],
+    () =>
+      pendientes
+        .filter((m) => m.distance_id === recorridoId)
+        .map((m) => {
+          const tp = tipos.find((t) => t.name === m.tipo);
+          return { id: m.id, lat: m.lat, lng: m.lng, texto: tp?.label ?? m.tipo, tipo: m.tipo, icono: tp?.icon ?? null, km: m.km };
+        }),
+    [pendientes, recorridoId, tipos],
   );
   const yoLat = pos?.lat;
   const yoLng = pos?.lng;

@@ -7,17 +7,24 @@
  * En Camberas Org va con import normal (mapbox ya viaja con la app y así no
  * depende de bajar otro trozo con mala cobertura); el panel lo carga diferido.
  */
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { Loader2, LocateFixed } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { iconoRutometro } from "@/lib/iconosRutometro";
 
 export interface PuntoMapa {
   id: string;
   lat: number;
   lng: number;
   texto: string;
+  /** roadbook_item_types.icon del tipo (si no, se deduce del tipo) */
+  icono?: string | null;
+  /** item_type del rutómetro */
+  tipo?: string | null;
+  km?: number | null;
 }
 
 interface Props {
@@ -39,6 +46,41 @@ interface Props {
 
 const VERDE = "#235940";
 const NARANJA = "#EC7C2B";
+const AMBAR = "#d97706";
+
+/** Burbuja con el icono del tipo (la misma del mapa público y la web propia) y su ficha al pulsar */
+function marcadorConIcono(p: PuntoMapa, fondo: string, pie: string | null): { marker: mapboxgl.Marker; root: Root } {
+  const el = document.createElement("div");
+  el.className = "marcador-rutometro";
+  el.style.cssText = `width:28px;height:28px;border-radius:50%;background:${fondo};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer`;
+  const root = createRoot(el);
+  root.render(createElement(iconoRutometro(p.icono ?? undefined, p.tipo ?? undefined), { size: 15, strokeWidth: 2.5, color: "#fff" }));
+  // Ficha con DOM, no HTML: la descripción la escribe cualquiera
+  const ficha = document.createElement("div");
+  ficha.style.cssText = "font-size:12px;line-height:1.35";
+  const nombre = document.createElement("strong");
+  nombre.textContent = p.texto;
+  ficha.appendChild(nombre);
+  const linea2 = [p.km != null ? `km ${String(Math.round(p.km * 10) / 10).replace(".", ",")}` : null, pie].filter(Boolean).join(" · ");
+  if (linea2) {
+    const extra = document.createElement("div");
+    extra.style.color = "#6b7280";
+    extra.textContent = linea2;
+    ficha.appendChild(extra);
+  }
+  const marker = new mapboxgl.Marker({ element: el })
+    .setLngLat([p.lng, p.lat])
+    .setPopup(new mapboxgl.Popup({ offset: 18, closeButton: false }).setDOMContent(ficha));
+  return { marker, root };
+}
+
+/** Quitar marcadores con icono (la raíz de React se desmonta fuera del render en curso) */
+function quitarMarcadores(lista: { marker: mapboxgl.Marker; root: Root }[]) {
+  for (const { marker, root } of lista) {
+    marker.remove();
+    setTimeout(() => root.unmount(), 0);
+  }
+}
 
 type Coleccion = GeoJSON.FeatureCollection<GeoJSON.Point, { texto: string }>;
 const coleccion = (ps: PuntoMapa[]): Coleccion => ({
@@ -54,6 +96,8 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<mapboxgl.Map | null>(null);
   const marcador = useRef<mapboxgl.Marker | null>(null);
+  // Los puntos del rutómetro y los pendientes, con su icono
+  const marcadoresPuntos = useRef<{ marker: mapboxgl.Marker; root: Root }[]>([]);
   const onElegirRef = useRef(onElegir);
   onElegirRef.current = onElegir;
   const [listo, setListo] = useState(false);
@@ -118,28 +162,6 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
             data: { type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [] } },
           });
           m.addLayer({ id: "trazado", type: "line", source: "trazado", paint: { "line-color": VERDE, "line-width": 4 } });
-          m.addSource("existentes", { type: "geojson", data: vacio });
-          m.addLayer({
-            id: "existentes",
-            type: "circle",
-            source: "existentes",
-            paint: { "circle-radius": 7, "circle-color": VERDE, "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 },
-          });
-          m.addLayer({
-            id: "existentes-texto",
-            type: "symbol",
-            source: "existentes",
-            minzoom: 12,
-            layout: { "text-field": ["get", "texto"], "text-size": 11, "text-offset": [0, 1.3], "text-anchor": "top", "text-optional": true },
-            paint: { "text-color": "#1f2937", "text-halo-color": "#ffffff", "text-halo-width": 1.5 },
-          });
-          m.addSource("pendientes", { type: "geojson", data: vacio });
-          m.addLayer({
-            id: "pendientes",
-            type: "circle",
-            source: "pendientes",
-            paint: { "circle-radius": 7, "circle-color": "#f59e0b", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 },
-          });
           m.addSource("yo", { type: "geojson", data: vacio });
           m.addLayer({
             id: "yo-halo",
@@ -154,6 +176,8 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
             paint: { "circle-radius": 7, "circle-color": "#2563eb", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
           });
           m.on("click", (e) => {
+            // Pulsar un punto ya puesto abre su ficha: no elige sitio
+            if ((e.originalEvent?.target as HTMLElement | null)?.closest?.(".marcador-rutometro")) return;
             const { lat, lng } = e.lngLat;
             cancelarPulsacion();
             pulsacion = setTimeout(() => {
@@ -174,6 +198,8 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
       vivo = false;
       cancelarPulsacion();
       clearTimeout(reloj);
+      quitarMarcadores(marcadoresPuntos.current);
+      marcadoresPuntos.current = [];
       marcador.current?.remove();
       marcador.current = null;
       mapa.current?.remove();
@@ -209,8 +235,12 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
   useEffect(() => {
     const m = mapa.current;
     if (!listo || !m) return;
-    (m.getSource("existentes") as mapboxgl.GeoJSONSource | undefined)?.setData(coleccion(existentes));
-    (m.getSource("pendientes") as mapboxgl.GeoJSONSource | undefined)?.setData(coleccion(pendientes));
+    quitarMarcadores(marcadoresPuntos.current);
+    marcadoresPuntos.current = [
+      ...existentes.map((p) => marcadorConIcono(p, VERDE, null)),
+      ...pendientes.map((p) => marcadorConIcono(p, AMBAR, "pendiente de enviar")),
+    ];
+    for (const { marker } of marcadoresPuntos.current) marker.addTo(m);
   }, [listo, existentes, pendientes]);
 
   // ── Dónde estoy ──────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { ICONOS_RUTOMETRO } from "@/lib/iconosRutometro";
 import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, textoARitmo } from "@/lib/ritmos";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,6 +84,7 @@ const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPi
 const ITEMS_PER_PAGE = 50;
 
 const SIN_TRAZADO: [number, number][] = [];
+const SIN_PUNTOS: PuntoMapa[] = [];
 
 
 export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookManagementProps) {
@@ -126,6 +127,10 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   // 'point' del track); pinchar sobre el recorrido abre «Nuevo punto» relleno
   const [trazadoMapa, setTrazadoMapa] = useState<{ indice: RouteIndex; ele: (number | undefined)[] } | null>(null);
   const [puntosMapa, setPuntosMapa] = useState<PuntoMapa[]>([]);
+  const puntosMapaConIcono = useMemo(
+    () => puntosMapa.map((pm) => ({ ...pm, icono: itemTypes.find((it) => it.name === pm.tipo)?.icon ?? null })),
+    [puntosMapa, itemTypes],
+  );
 
   const [itemFormData, setItemFormData] = useState({
     item_type: "checkpoint",
@@ -262,7 +267,7 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const fetchPuntosMapa = async (roadbookId: string) => {
     const { data } = await supabase
       .from("roadbook_items")
-      .select("id, description, latitude, longitude")
+      .select("id, description, latitude, longitude, item_type, km_total")
       .eq("roadbook_id", roadbookId)
       .neq("item_type", "point")
       .not("latitude", "is", null)
@@ -270,11 +275,13 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       .order("km_total")
       .limit(1000);
     setPuntosMapa(
-      ((data ?? []) as { id: string; description: string; latitude: number; longitude: number }[]).map((r) => ({
+      ((data ?? []) as { id: string; description: string; latitude: number; longitude: number; item_type: string; km_total: number }[]).map((r) => ({
         id: r.id,
         lat: Number(r.latitude),
         lng: Number(r.longitude),
         texto: r.description,
+        tipo: r.item_type,
+        km: Number(r.km_total),
       })),
     );
   };
@@ -949,8 +956,8 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
                 <MapaMarcarPuntos
                   trazado={trazadoMapa?.indice.coords ?? SIN_TRAZADO}
                   yo={null}
-                  existentes={puntosMapa}
-                  pendientes={[]}
+                  existentes={puntosMapaConIcono}
+                  pendientes={SIN_PUNTOS}
                   elegido={null}
                   onElegir={nuevoPuntoDesdeMapa}
                   alto={380}
