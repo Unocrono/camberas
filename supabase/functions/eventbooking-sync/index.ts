@@ -455,9 +455,9 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       // jos_eb_registrants, no en jos_eb_field_values. Llegan como r.organization
       // y r.address si camberas-sync.php manda la fila entera del inscrito, o
       // en fields con su título si el PHP los añade ahí.
-      const clubEB = formatoPropio(
+      const clubEB = clubValido(formatoPropio(
         campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo") ?? (r.organization ? String(r.organization) : null),
-      );
+      ));
       const domicilioEB = formatoPropio(campo(fields, "Domicilio", "Dirección", "Direccion") ?? (r.address ? String(r.address) : null));
 
       // Equipo: el del Group Billing al que pertenece el miembro. Igual que
@@ -651,6 +651,17 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
     console.error(`eventbooking-sync carrera ${race_id}:`, e);
     return { error: e instanceof Error ? e.message : "Error inesperado" };
   }
+}
+
+// Respuestas que no son un club: «No», «Nada», «Ninguno», un guion o un DNI
+// escrito en la casilla. Se tratan como vacías (y así no pisan nada).
+// «Independiente», «Particular» y similares sí se respetan.
+function clubValido(club: string | null): string | null {
+  if (!club) return null;
+  const n = normalizar(club);
+  if (["no", "nada", "ninguno", "ninguna", "na", "nc", "sinclub", "noclub"].includes(n) || n === "") return null;
+  if (/^[0-9]{7,8}[a-z]$/.test(n) || /^[xyz][0-9]{7}[a-z]$/.test(n)) return null;
+  return club;
 }
 
 // Todas las filas de una consulta, pidiéndolas por páginas de 1.000 (el tope
