@@ -28,6 +28,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { formatoPropio, formatoPropioSiEsNombre } from "../_shared/formatoPropio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -423,16 +424,18 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       const genero = sexo ? GENERO[normalizar(sexo)] : undefined;
 
       const deseado: Record<string, unknown> = {
-        first_name: nombre || null,
-        last_name: apellidos || null,
+        // Nombres y lugares en formato propio («MARTA» → «Marta»): así llegan
+        // iguales de todas las plataformas. Email, DNI, teléfono y talla, tal cual
+        first_name: formatoPropio(nombre),
+        last_name: formatoPropio(apellidos),
         email: (r.email ?? campo(fields, "Email")) || null,
         phone: (r.phone ?? campo(fields, "Tel. Movil", "Telefono", "Teléfono", "Tel. Móvil")) || null,
         dni_passport: campo(fields, "DNI / Pasaporte", "DNI", "NIF"),
         gender: genero?.gender ?? null,
         gender_id: genero?.gender_id ?? null,
         birth_date: fechaISO(campo(fields, "Fecha de Nacimiento")),
-        city: campo(fields, "Localidad", "Poblacion", "Población", "Ciudad"),
-        autonomous_community: campo(fields, "Com Autonoma", "Comunidad Autonoma", "Com Autónoma"),
+        city: formatoPropio(campo(fields, "Localidad", "Poblacion", "Población", "Ciudad")),
+        autonomous_community: formatoPropio(campo(fields, "Com Autonoma", "Comunidad Autonoma", "Com Autónoma")),
         tshirt_size: campo(fields, "Talla camiseta", "Talla"),
         race_distance_id: distanceId,
         status,
@@ -442,7 +445,7 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
       // El club es opcional en EventBooking: si viene se sincroniza, pero
       // un valor vacío nunca borra el que el organizador puso a mano.
       // En Entre Viñedos el campo se llama «Club / Equipo»
-      const clubEB = campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo");
+      const clubEB = formatoPropio(campo(fields, "Club", "Club / Equipo", "Club/Equipo", "Club o Equipo"));
 
       // Equipo: el del Group Billing al que pertenece el miembro. Igual que
       // el club, solo se escribe cuando hay valor.
@@ -453,14 +456,19 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
         if (grupo && !rep) {
           avisos.push(`${etiqueta}: su grupo ${grupo} no está entre los inscritos del evento ${ev.event_id}; entra sin equipo`);
         }
-        equipoEB = rep ? nombreEquipo(rep) : null;
+        equipoEB = rep ? formatoPropio(nombreEquipo(rep)) : null;
       }
 
       // Respuestas a los campos propios del formulario de su recorrido
       const respuestas: { field_id: string; field_value: string }[] = [];
       for (const f of camposPorRecorrido.get(distanceId) ?? []) {
         const valor = campoFormularioEnEB(fields, f.field_label);
-        if (valor) respuestas.push({ field_id: f.id, field_value: valorDeOpcion(valor, f.field_options) });
+        if (valor) {
+          // Con opciones, la opción tal cual; texto libre con pinta de nombre
+          // (el tutor), en formato propio
+          const v = Array.isArray(f.field_options) && f.field_options.length ? valorDeOpcion(valor, f.field_options) : formatoPropioSiEsNombre(valor);
+          respuestas.push({ field_id: f.id, field_value: v });
+        }
       }
 
       const existente = porExternalId.get(externalId);

@@ -38,6 +38,13 @@ import {
 } from "@/lib/categoryUtils";
 import { getGenderIdFromText } from "@/lib/genderUtils";
 import * as XLSX from "xlsx";
+import { formatoPropio } from "@/lib/formatoPropio";
+
+// Al importar, estos van en formato propio (primera en mayúscula, resto en
+// minúscula). Email, DNI, teléfono, talla y respuestas propias, tal cual
+const CAMPOS_FORMATO_PROPIO = new Set([
+  "first_name", "last_name", "city", "province", "autonomous_community", "address", "country", "club", "team",
+]);
 
 interface RegistrationImportDialogProps {
   open: boolean;
@@ -846,7 +853,7 @@ export function RegistrationImportDialog({
           continue;
         }
         filasJefe.add(jefe.i);
-        const nombreEquipo = (jefe.d.club || jefe.d.team || grupo).trim();
+        const nombreEquipo = formatoPropio(jefe.d.club || jefe.d.team || grupo) ?? grupo.trim();
         equipoDeGrupo.set(grupo, `${nombreEquipo}${MARCA_EQUIPO_GRUPO}`);
       }
     }
@@ -928,6 +935,9 @@ export function RegistrationImportDialog({
             } else if (regField === 'gender') {
               insertData[regField] = value;
               insertData.gender_id = getGenderIdFromText(value);
+            } else if (CAMPOS_FORMATO_PROPIO.has(regField)) {
+              // Nombres, lugares, club y equipo en formato propio («MARTA» → «Marta»)
+              insertData[regField] = formatoPropio(value);
             } else {
               insertData[regField] = value;
             }
