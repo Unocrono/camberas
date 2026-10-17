@@ -20,7 +20,7 @@ import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
 import { getGenderCode, resolveGenderId } from "@/lib/genderUtils";
-import { camposVisibles } from "@/lib/fieldConditions";
+import { camposVisibles as filtrarCamposVisibles } from "@/lib/fieldConditions";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
@@ -1732,7 +1732,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       for (const f of camposCargados) {
         valoresPorNombre[f.field_name] = editFormData[f.profile_field || f.field_name] ?? editFormData[f.field_name];
       }
-      const idsVisibles = new Set(camposVisibles(camposCargados, valoresPorNombre).map((f) => f.id));
+      const idsVisibles = new Set(filtrarCamposVisibles(camposCargados, valoresPorNombre).map((f) => f.id));
       const idsCargados = new Set(camposCargados.map((f) => f.id));
 
       const denormalizedFields = [
