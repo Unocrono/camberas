@@ -237,18 +237,31 @@ export function DorsalSimuladoEditor({ raceId, distanceId }: Props) {
   };
 
   // ── Guardar en el recorrido (y, si se pide, en todos los de la carrera)
+  // Guardar en este recorrido. Los demás recorridos de la carrera que aún no
+  // tienen dorsal propio reciben este mismo (así la primera plantilla vale
+  // para todos), y cada uno lo puede cambiar luego subiendo la suya. Con
+  // «aTodos» se sobrescribe también a los que ya tienen el suyo.
   const guardar = async () => {
     if (!conf) return;
     setGuardando(true);
     try {
-      let consulta = supabase.from("race_distances").update({ dorsal_simulado: conf } as never);
-      consulta = aTodos ? consulta.eq("race_id", raceId) : consulta.eq("id", distanceId);
-      const { error } = await consulta;
+      const { error } = await supabase.from("race_distances").update({ dorsal_simulado: conf } as never).eq("id", distanceId);
       if (error) throw error;
+      let otros = supabase
+        .from("race_distances")
+        .update({ dorsal_simulado: conf } as never)
+        .eq("race_id", raceId)
+        .neq("id", distanceId);
+      if (!aTodos) otros = otros.is("dorsal_simulado" as never, null);
+      const { data: copiados, error: errOtros } = await otros.select("name");
+      if (errOtros) throw errOtros;
       setHeredada(false);
+      const nombres = (copiados ?? []).map((d: { name: string }) => d.name);
       toast({
         title: "Dorsal guardado",
-        description: aTodos ? "Aplicado a todos los recorridos de la carrera." : "Saldrá en el correo «Tu dorsal y QR».",
+        description: nombres.length
+          ? `También se ha puesto en ${nombres.join(", ")}. En cada recorrido puedes cambiarlo por su propio diseño.`
+          : "Saldrá en el correo «Tu dorsal y QR».",
       });
     } catch (e) {
       toast({ title: "No se pudo guardar", description: e instanceof Error ? e.message : "", variant: "destructive" });
@@ -459,7 +472,7 @@ export function DorsalSimuladoEditor({ raceId, distanceId }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" className="h-4 w-4" checked={aTodos} onChange={(e) => setATodos(e.target.checked)} />
-              Usar este dorsal en todos los recorridos de la carrera
+              Poner este dorsal también en los recorridos que ya tienen el suyo
             </label>
             <div className="flex gap-2">
               {!heredada && (
