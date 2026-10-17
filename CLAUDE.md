@@ -212,6 +212,10 @@ Consúltala antes de rehacer análisis:
   credenciales de Postgres**, así que no hay `pg_dump`: la copia sale del export nativo de Lovable
   y `scripts/copia-seguridad.ps1` la verifica y archiva fuera del repo (lleva datos personales de
   inscritos y pagos). Los secrets y el Storage no van en el export.
+- **`docs/cronometraje-automatico.md`** — el motor que saca las clasificaciones solo (vueltas,
+  tiempo chip, seguro de salida, `pg_cron` cada 15 s). `race_results.finish_time`, `status` y las
+  posiciones las escribe el motor: una corrección va a `tiempo_manual`, `penalizacion` o
+  `estado_manual`, que el motor nunca toca.
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
 - **`receptor-ultra/README.md`** — lecturas del RFID Ultra sin Outreach: un programa Python en el
