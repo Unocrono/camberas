@@ -3995,6 +3995,7 @@ export type Database = {
           created_at: string
           date: string
           description: string | null
+          dorsal_simulado: Json | null
           es_demo: boolean
           gps_tracking_enabled: boolean | null
           gps_update_frequency: number | null
@@ -4029,6 +4030,7 @@ export type Database = {
           created_at?: string
           date: string
           description?: string | null
+          dorsal_simulado?: Json | null
           es_demo?: boolean
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
@@ -4063,6 +4065,7 @@ export type Database = {
           created_at?: string
           date?: string
           description?: string | null
+          dorsal_simulado?: Json | null
           es_demo?: boolean
           gps_tracking_enabled?: boolean | null
           gps_update_frequency?: number | null
