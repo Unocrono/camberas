@@ -4,6 +4,11 @@ import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, textoARitmo } from
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 const MapaElegirPunto = lazy(() => import("./MapaElegirPunto").then((m) => ({ default: m.MapaElegirPunto })));
+// El mismo mapa de «Marcar puntos en campo» de Camberas Org: trazado + todos los puntos
+const MapaMarcarPuntos = lazy(() => import("@/components/org/MapaMarcarPuntos").then((m) => ({ default: m.MapaMarcarPuntos })));
+import type { PuntoMapa } from "@/components/org/MapaMarcarPuntos";
+import { parseGpxFile, getAllTrackPoints } from "@/lib/gpxParser";
+import { buildRouteIndex, haversineKm, type RouteIndex } from "@/lib/routeProgress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -78,6 +83,8 @@ const getIconComponent = (iconName: string) => iconComponents[iconName] || MapPi
 
 const ITEMS_PER_PAGE = 50;
 
+const SIN_TRAZADO: [number, number][] = [];
+
 
 export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookManagementProps) {
   const [distanceInfo, setDistanceInfo] = useState<DistanceInfo | null>(null);
@@ -115,6 +122,11 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
   const [salidaOleada, setSalidaOleada] = useState<string | null>(null);
   const [regenerarDialogOpen, setRegenerarDialogOpen] = useState(false);
   
+  // Mapa de todo el rutómetro: el trazado del GPX y los puntos (sin los
+  // 'point' del track); pinchar sobre el recorrido abre «Nuevo punto» relleno
+  const [trazadoMapa, setTrazadoMapa] = useState<{ indice: RouteIndex; ele: (number | undefined)[] } | null>(null);
+  const [puntosMapa, setPuntosMapa] = useState<PuntoMapa[]>([]);
+
   const [itemFormData, setItemFormData] = useState({
     item_type: "checkpoint",
     description: "",
@@ -148,6 +160,28 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       fetchItems();
     }
   }, [roadbook, currentPage, filterType, filterCheckpoint, filterHighlighted]);
+
+  useEffect(() => {
+    setTrazadoMapa(null);
+    const url = distanceInfo?.gpx_file_url;
+    if (!url) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const res = await fetch(url, { cache: "no-store" });
+        if (!res.ok) return;
+        const pts = getAllTrackPoints(parseGpxFile(await res.text()));
+        if (!vivo || pts.length < 2) return;
+        setTrazadoMapa({
+          indice: buildRouteIndex(pts.map((q) => [q.lon, q.lat] as [number, number])),
+          ele: pts.map((q) => q.ele),
+        });
+      } catch {
+        /* sin GPX legible: el mapa enseña solo los puntos */
+      }
+    })();
+    return () => { vivo = false; };
+  }, [distanceInfo?.gpx_file_url]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -225,8 +259,29 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     }
   };
 
+  const fetchPuntosMapa = async (roadbookId: string) => {
+    const { data } = await supabase
+      .from("roadbook_items")
+      .select("id, description, latitude, longitude")
+      .eq("roadbook_id", roadbookId)
+      .neq("item_type", "point")
+      .not("latitude", "is", null)
+      .not("longitude", "is", null)
+      .order("km_total")
+      .limit(1000);
+    setPuntosMapa(
+      ((data ?? []) as { id: string; description: string; latitude: number; longitude: number }[]).map((r) => ({
+        id: r.id,
+        lat: Number(r.latitude),
+        lng: Number(r.longitude),
+        texto: r.description,
+      })),
+    );
+  };
+
   const fetchItems = async () => {
     if (!roadbook) return;
+    fetchPuntosMapa(roadbook.id);
     
     try {
       // Build query with filters
@@ -588,6 +643,30 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
     setItemDialogOpen(true);
   };
 
+  const nuevoPuntoDesdeMapa = (lat: number, lng: number) => {
+    let datos = { latitude: String(Math.round(lat * 1e6) / 1e6), longitude: String(Math.round(lng * 1e6) / 1e6) } as Record<string, string>;
+    if (trazadoMapa) {
+      const { indice, ele } = trazadoMapa;
+      let mejor = 0;
+      let dMin = Infinity;
+      for (let i = 0; i < indice.coords.length; i++) {
+        const d = haversineKm(lat, lng, indice.coords[i][1], indice.coords[i][0]);
+        if (d < dMin) { dMin = d; mejor = i; }
+      }
+      const [lngT, latT] = indice.coords[mejor];
+      const km = Math.round(indice.cumKm[mejor] * 1000) / 1000;
+      datos = {
+        latitude: String(Math.round(latT * 1e6) / 1e6),
+        longitude: String(Math.round(lngT * 1e6) / 1e6),
+        km_total: String(km),
+        km_remaining: String(Math.max(0, Math.round((indice.totalKm - km) * 1000) / 1000)),
+        ...(typeof ele[mejor] === "number" ? { altitude: String(Math.round(ele[mejor] as number)) } : {}),
+      };
+    }
+    handleOpenItemDialog();
+    setItemFormData((f) => ({ ...f, ...datos }));
+  };
+
   const handleQuickToggle = async (itemId: string, field: 'is_highlighted' | 'is_checkpoint', newValue: boolean) => {
     setUpdatingItemId(itemId);
     try {
@@ -860,6 +939,24 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
       {/* Items Section */}
       {roadbook && (
         <>
+          {(distanceInfo?.gpx_file_url || puntosMapa.length > 0) && (
+            <div className="space-y-1.5">
+              <Suspense fallback={<div className="h-[380px] rounded-2xl border" />}>
+                <MapaMarcarPuntos
+                  trazado={trazadoMapa?.indice.coords ?? SIN_TRAZADO}
+                  yo={null}
+                  existentes={puntosMapa}
+                  pendientes={[]}
+                  elegido={null}
+                  onElegir={nuevoPuntoDesdeMapa}
+                  alto={380}
+                />
+              </Suspense>
+              <p className="text-xs text-muted-foreground">
+                Pincha sobre el recorrido para añadir un punto ahí: se abre «Nuevo punto» con el km, el restante, la altitud y las coordenadas ya puestos.
+              </p>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">Puntos del Rutómetro</h3>
             <div className="flex gap-2">

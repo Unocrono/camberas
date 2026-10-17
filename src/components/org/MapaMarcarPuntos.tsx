@@ -32,6 +32,8 @@ interface Props {
   elegido: { lat: number; lng: number } | null;
   /** Pulsación o arrastre: la posición CRUDA (la pantalla la pega al trazado) */
   onElegir: (lat: number, lng: number) => void;
+  /** Alto en píxeles (300 en el móvil) */
+  alto?: number;
 }
 
 const VERDE = "#235940";
@@ -47,7 +49,7 @@ const coleccion = (ps: PuntoMapa[]): Coleccion => ({
   })),
 });
 
-export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido, onElegir }: Props) {
+export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido, onElegir, alto = 300 }: Props) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<mapboxgl.Map | null>(null);
   const marcador = useRef<mapboxgl.Marker | null>(null);
@@ -201,7 +203,7 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
   };
 
   return (
-    <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-border">
+    <div className="relative w-full overflow-hidden rounded-2xl border border-border" style={{ height: alto }}>
       <div ref={contenedor} className="h-full w-full" />
       {yo && listo && (
         <button
