@@ -653,6 +653,10 @@ export function RoadbookManagement({ distanceId, raceType = 'trail' }: RoadbookM
         const d = haversineKm(lat, lng, indice.coords[i][1], indice.coords[i][0]);
         if (d < dMin) { dMin = d; mejor = i; }
       }
+      if (dMin * 1000 > 300) {
+        toast({ title: "Fuera del recorrido", description: `Has pinchado a ${Math.round(dMin * 1000)} m del trazado: pincha sobre la línea verde.` });
+        return;
+      }
       const [lngT, latT] = indice.coords[mejor];
       const km = Math.round(indice.cumKm[mejor] * 1000) / 1000;
       datos = {

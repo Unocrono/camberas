@@ -4,7 +4,8 @@
  * Pulsar sobre el mapa (o arrastrar el marcador naranja) elige un punto
  * pegado al trazado: así se colocan también desde casa, sin ir al sitio.
  *
- * Va aparte y con carga diferida: mapbox solo se baja al abrir la pantalla.
+ * En Camberas Org va con import normal (mapbox ya viaja con la app y así no
+ * depende de bajar otro trozo con mala cobertura); el panel lo carga diferido.
  */
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
@@ -57,12 +58,28 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
   onElegirRef.current = onElegir;
   const [listo, setListo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Sube con «Reintentar» (o al volver la señal): rehace el mapa entero
+  const [intento, setIntento] = useState(0);
   // El primer encuadre: al trazado si lo hay; si no, a mi posición cuando llegue
   const encuadrado = useRef(false);
 
-  // ── El mapa, una vez ─────────────────────────────────────────────────
+  // ── El mapa (otra vez solo si se reintenta) ──────────────────────────
   useEffect(() => {
     let vivo = true;
+    let cargado = false;
+    let reloj: ReturnType<typeof setTimeout> | undefined;
+    // Un toque elige y un doble toque solo acerca: el click espera un poco y
+    // se cancela si empieza otro toque (con el dedo, el zoom de doble toque
+    // anula el click del 2.º toque pero no el del 1.º, y no llega dblclick),
+    // si llega dblclick (ratón) o si empieza un zoom
+    let pulsacion: ReturnType<typeof setTimeout> | undefined;
+    const cancelarPulsacion = () => {
+      clearTimeout(pulsacion);
+      pulsacion = undefined;
+    };
+    setListo(false);
+    setError(null);
+    encuadrado.current = false;
     (async () => {
       try {
         const { data, error: errToken } = await supabase.functions.invoke("get-mapbox-token");
@@ -78,9 +95,23 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
         });
         mapa.current = m;
         m.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-        m.addControl(new mapboxgl.AttributionControl({ compact: true }));
+        // Abajo a la izquierda, sobre el logo: abajo a la derecha va «Dónde estoy»
+        m.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-left");
+        // Si el estilo no llega no hay 'load' y mapbox solo lo dice en consola:
+        // avisar y dejar reintentar (los fallos de teselas llevan sourceId y no
+        // impiden cargar)
+        m.on("error", (ev) => {
+          console.error("mapa marcar puntos:", ev.error);
+          if (vivo && !cargado && !(ev as { sourceId?: string }).sourceId) setError("No se pudo cargar el mapa");
+        });
+        reloj = setTimeout(() => {
+          if (vivo && !cargado) setError("El mapa no responde");
+        }, 20_000);
         m.on("load", () => {
           if (!vivo) return;
+          cargado = true;
+          clearTimeout(reloj);
+          setError(null);
           const vacio: Coleccion = { type: "FeatureCollection", features: [] };
           m.addSource("trazado", {
             type: "geojson",
@@ -122,7 +153,17 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
             source: "yo",
             paint: { "circle-radius": 7, "circle-color": "#2563eb", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
           });
-          m.on("click", (e) => onElegirRef.current(e.lngLat.lat, e.lngLat.lng));
+          m.on("click", (e) => {
+            const { lat, lng } = e.lngLat;
+            cancelarPulsacion();
+            pulsacion = setTimeout(() => {
+              pulsacion = undefined;
+              onElegirRef.current(lat, lng);
+            }, 350);
+          });
+          m.on("touchstart", cancelarPulsacion);
+          m.on("dblclick", cancelarPulsacion);
+          m.on("zoomstart", cancelarPulsacion);
           setListo(true);
         });
       } catch (e) {
@@ -131,12 +172,22 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
     })();
     return () => {
       vivo = false;
+      cancelarPulsacion();
+      clearTimeout(reloj);
       marcador.current?.remove();
       marcador.current = null;
       mapa.current?.remove();
       mapa.current = null;
     };
-  }, []);
+  }, [intento]);
+
+  // Sin señal al abrir: al volver, otro intento solo
+  useEffect(() => {
+    if (!error) return;
+    const otraVez = () => setIntento((i) => i + 1);
+    window.addEventListener("online", otraVez);
+    return () => window.removeEventListener("online", otraVez);
+  }, [error]);
 
   // ── El trazado (cambia con el recorrido) ─────────────────────────────
   useEffect(() => {
@@ -196,6 +247,9 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
     } else {
       marcador.current.setLngLat([elegido.lng, elegido.lat]);
     }
+    // Pegado al trazado puede caer fuera de lo que se ve: que se vea
+    const vista = m.getBounds();
+    if (vista && !vista.contains([elegido.lng, elegido.lat])) m.easeTo({ center: [elegido.lng, elegido.lat], duration: 500 });
   }, [listo, elegido]);
 
   const irAMi = () => {
@@ -218,9 +272,15 @@ export function MapaMarcarPuntos({ trazado, yo, existentes, pendientes, elegido,
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cargando el mapa…
         </div>
       )}
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/80 p-4 text-center text-sm text-destructive">
+      {error && !listo && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-background/80 p-4 text-center text-sm text-destructive">
           {error}
+          <button
+            onClick={() => setIntento((i) => i + 1)}
+            className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-bold uppercase text-foreground"
+          >
+            Reintentar
+          </button>
         </div>
       )}
     </div>
