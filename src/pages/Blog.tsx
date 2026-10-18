@@ -89,7 +89,7 @@ export default function Blog() {
           <p className="text-sm font-bold uppercase tracking-[0.14em] text-secondary">Actualidad</p>
           <h1 className="font-archivo mt-2 text-3xl uppercase leading-[0.98] mb-2 md:text-4xl">Noticias y Entrevistas</h1>
           <p className="text-muted-foreground">
-            Descubre las últimas novedades del mundo del trail running y MTB
+            Descubre las últimas novedades del mundo del trail running y la montaña
           </p>
         </div>
 

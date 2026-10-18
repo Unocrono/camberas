@@ -240,7 +240,7 @@ const Inicio = () => {
 
       <header className="pt-24 pb-4 md:pt-28 md:pb-6">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="font-archivo text-3xl md:text-5xl text-foreground">Carreras de montaña: trail y MTB</h1>
+          <h1 className="font-archivo text-3xl md:text-5xl text-foreground">Carreras de trail running y montaña</h1>
           <p className="mt-2 text-lg text-muted-foreground">Inscripciones, cronometraje, seguimiento GPS en vivo y clasificaciones.</p>
 
           {/* Mismos filtros que /races */}

@@ -19,7 +19,7 @@ const Footer = () => {
               Camberas
             </div>
             <p className="text-muted-foreground text-sm mb-4">
-              Tu plataforma de carreras de montaña y trail
+              Tu plataforma de carreras de trail y montaña
             </p>
             {/* Newsletter */}
             <div className="mt-4">

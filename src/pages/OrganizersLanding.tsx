@@ -205,7 +205,7 @@ const OrganizersLanding = () => {
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
                 Más de 500 organizadores confían en nosotros para gestionar sus eventos. 
-                Nuestra plataforma está diseñada específicamente para carreras de trail, running y MTB.
+                Nuestra plataforma está diseñada específicamente para carreras de trail running y montaña.
               </p>
               
               <div className="space-y-4">
