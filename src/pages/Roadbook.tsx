@@ -300,8 +300,11 @@ export default function Roadbook() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {items.map((item) => {
+                    {items.map((item, i) => {
                       const typeInfo = getItemTypeInfo(item);
+                      // Parcial desde el punto anterior de esta lista: el guardado
+                      // es desde el punto anterior del track en lo que sale del GPX
+                      const parcial = i > 0 ? item.km_total - items[i - 1].km_total : item.km_total;
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="text-center">
@@ -318,7 +321,7 @@ export default function Roadbook() {
                             {item.km_total.toFixed(1)}
                           </TableCell>
                           <TableCell className="text-right">
-                            {item.km_partial !== null ? item.km_partial.toFixed(1) : "-"}
+                            {parcial.toFixed(1)}
                           </TableCell>
                           <TableCell className="text-right">
                             {item.km_remaining !== null ? item.km_remaining.toFixed(1) : "-"}
