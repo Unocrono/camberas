@@ -18,6 +18,9 @@
  *   comisión; lo cobrado en mano va a importe_manual, aparte de la pasarela.
  * - Respuestas y dorsal: política «Organizadores gestionan respuestas de sus
  *   carreras» y RPC asignar_dorsal_siguiente (20261019120000).
+ * - El que empezó en la web y no pagó (pendiente de la pasarela): se completa
+ *   ESA inscripción en vez de crear otra (no quedan dos vivas, conserva su
+ *   cuenta y el enlace de «retomar pago» deja de valer).
  */
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,26 +30,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle2, Loader2, UserPlus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, RefreshCw, UserPlus } from "lucide-react";
+import { ahoraParedMs, paredAMs } from "@/lib/timezoneUtils";
 
 interface Recorrido {
   id: string;
   name: string;
   distance_km: number | null;
   price: number | null;
+  /** El tramo de precio vigente (race_distance_prices), si no el precio base */
+  precio_vigente: number | null;
   bib_start: number | null;
+  bib_end: number | null;
+  next_bib: number | null;
 }
+
+/** Una inscripción ya hecha en la carrera, para avisar de repetidos */
+interface YaInscrita {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  dni_passport: string | null;
+  bib_number: number | null;
+  status: string;
+  payment_status: string | null;
+  source: string | null;
+  team_id: string | null;
+}
+
+// Datos de la persona, con el mismo nombre en todos los recorridos: se
+// conservan al cambiar de recorrido (no la categoría ni la talla, que dependen
+// del recorrido)
+const DATOS_PERSONA = [
+  "first_name", "last_name", "document_number", "dni_passport", "birth_date", "gender", "email", "phone",
+  "club", "team", "country", "address", "city", "province", "autonomous_community",
+];
 
 type ComoEntra = "pagado" | "invitado" | "pendiente";
 type ModoDorsal = "siguiente" | "manual" | "ninguno";
 
 interface Hecho {
+  id: string;
   nombre: string;
   recorrido: string;
   dorsal: number | null;
   como: ComoEntra;
   importe: number | null;
+  /** Se completó la que había empezado en la web (no se creó otra) */
+  completada: boolean;
+  avisos: string[];
   avisoDorsal: string | null;
+  /** Se pidió «Siguiente libre»: si falló, se puede reintentar */
+  pideSiguiente: boolean;
 }
 
 interface Props {
@@ -74,6 +109,13 @@ const dniNorm = (s: string | null) => (s ?? "").toUpperCase().replace(/[^A-Z0-9]
 
 const euros = (n: number) => n.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + " €";
 
+const ESTADO_PAGO: Record<string, string> = {
+  paid: "pagada",
+  not_required: "invitado o gratis",
+  pending: "sin pagar",
+  refunded: "devuelta",
+};
+
 const ETIQUETA_COMO: Record<ComoEntra, string> = {
   pagado: "Pagado en mano",
   invitado: "Invitado (gratis)",
@@ -96,6 +138,7 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
   const [dorsalManual, setDorsalManual] = useState("");
   const [plazasLibres, setPlazasLibres] = useState<number | null>(null);
   const [guardando, setGuardando] = useState(false);
+  const [reintentando, setReintentando] = useState(false);
   const [hecho, setHecho] = useState<Hecho | null>(null);
   // Para remontar el formulario vacío tras cada alta
   const [vuelta, setVuelta] = useState(0);
@@ -109,25 +152,50 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
     setDistanceId("");
     if (!raceId) return;
     let vivo = true;
-    supabase
-      .from("race_distances")
-      .select("id, name, distance_km, price, bib_start")
-      .eq("race_id", raceId)
-      .order("display_order", { ascending: true, nullsFirst: false })
-      .order("distance_km", { ascending: true })
-      .then(({ data }) => {
-        if (!vivo) return;
-        const lista = (data ?? []) as Recorrido[];
-        setRecorridos(lista);
-        // Con un solo recorrido no hay nada que elegir
-        if (lista.length === 1) setDistanceId(lista[0].id);
+    (async () => {
+      const { data } = await supabase
+        .from("race_distances")
+        .select("id, name, distance_km, price, bib_start, bib_end, next_bib")
+        .eq("race_id", raceId)
+        .order("display_order", { ascending: true, nullsFirst: false })
+        .order("distance_km", { ascending: true });
+      const base = (data ?? []) as Omit<Recorrido, "precio_vigente">[];
+      const { data: tramos } = base.length
+        ? await supabase
+            .from("race_distance_prices")
+            .select("race_distance_id, price, start_datetime, end_datetime")
+            .in("race_distance_id", base.map((r) => r.id))
+        : { data: [] as { race_distance_id: string; price: number; start_datetime: string; end_datetime: string }[] };
+      if (!vivo) return;
+      // La misma regla que la web y el cobro: el tramo que cubre «ahora» (hora
+      // de pared), el que empezó más tarde si se solapan
+      const ahora = ahoraParedMs();
+      const lista: Recorrido[] = base.map((r) => {
+        const tramo = ((tramos ?? []) as { race_distance_id: string; price: number; start_datetime: string; end_datetime: string }[])
+          .filter((p) => p.race_distance_id === r.id)
+          .sort((a, b) => (paredAMs(b.start_datetime) ?? 0) - (paredAMs(a.start_datetime) ?? 0))
+          .find((p) => {
+            const ini = paredAMs(p.start_datetime);
+            const fin = paredAMs(p.end_datetime);
+            return ini !== null && fin !== null && ahora >= ini && ahora <= fin;
+          });
+        return { ...r, precio_vigente: tramo ? Number(tramo.price) : r.price != null ? Number(r.price) : null };
       });
+      setRecorridos(lista);
+      // Con un solo recorrido no hay nada que elegir
+      if (lista.length === 1) setDistanceId(lista[0].id);
+    })();
     return () => { vivo = false; };
   }, [raceId]);
 
   // ── Al elegir recorrido: formulario, plazas y dorsal por defecto ─────
   useEffect(() => {
-    setDatos({});
+    setDatos((d) => {
+      const quedan: Record<string, any> = {};
+      for (const k of DATOS_PERSONA) if (d[k] != null && String(d[k]).trim() !== "") quedan[k] = d[k];
+      return quedan;
+    });
+    setImporteTocado(false);
     setFaltan([]);
     setSuplemento(0);
     setHayFormulario(null);
@@ -157,9 +225,9 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
   // El importe sugerido sigue al precio y a los extras hasta que se toca a mano
   useEffect(() => {
     if (importeTocado) return;
-    const base = Number(recorrido?.price ?? 0) + suplemento;
+    const base = Number(recorrido?.precio_vigente ?? 0) + suplemento;
     setImporte(base > 0 ? String(Math.round(base * 100) / 100) : "");
-  }, [recorrido?.price, suplemento, importeTocado]);
+  }, [recorrido?.precio_vigente, suplemento, importeTocado]);
 
   const cambiar = useCallback((campo: string, valor: any) => {
     setDatos((d) => ({ ...d, [campo]: valor }));
@@ -172,7 +240,26 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
     setImporteTocado(false);
     setDorsalManual("");
     setComo("pagado");
+    setModoDorsal(numeraSolo ? "siguiente" : "manual");
     setVuelta((v) => v + 1);
+  };
+
+  const pedirDorsal = async (registrationId: string): Promise<{ dorsal: number | null; aviso: string | null }> => {
+    const { data: bib, error } = await supabase.rpc("asignar_dorsal_siguiente" as never, {
+      p_registration_id: registrationId,
+    } as never);
+    if (error) return { dorsal: null, aviso: `Inscrito sin dorsal: ${error.message}. Pulsa «Reintentar dorsal».` };
+    if (bib == null) return { dorsal: null, aviso: "Inscrito sin dorsal: el recorrido no tiene rango o se ha agotado. Pónselo a mano." };
+    return { dorsal: Number(bib), aviso: null };
+  };
+
+  const reintentarDorsal = async () => {
+    if (!hecho) return;
+    setReintentando(true);
+    const r = await pedirDorsal(hecho.id);
+    setHecho({ ...hecho, dorsal: r.dorsal ?? hecho.dorsal, avisoDorsal: r.aviso });
+    setReintentando(false);
+    onHecho?.();
   };
 
   const guardar = async () => {
@@ -192,6 +279,19 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
       toast({ title: "Dorsal no válido", description: "Pon un número de dorsal o elige «Siguiente libre».", variant: "destructive" });
       return;
     }
+    if (modoDorsal === "manual" && !dorsalManual) {
+      toast({ title: "Falta el dorsal", description: "Pon el número o elige «Sin dorsal».", variant: "destructive" });
+      return;
+    }
+    // Un número del rango que la web aún no ha repartido: la web lo repetiría
+    // (su contador no sabe de los puestos a mano)
+    if (
+      dorsalPuesto != null && recorrido.bib_start != null && recorrido.next_bib != null &&
+      dorsalPuesto >= recorrido.next_bib && (recorrido.bib_end == null || dorsalPuesto <= recorrido.bib_end) &&
+      !window.confirm(
+        `El ${dorsalPuesto} es del rango que reparte la web (va por el ${recorrido.next_bib}): cuando llegue a ese número, podría dárselo también a otro.\n\nMejor «Siguiente libre». ¿Ponerlo igualmente?`,
+      )
+    ) return;
     const importeNum = como === "pagado" && importe !== "" ? Number(importe) : null;
     if (importeNum != null && (!Number.isFinite(importeNum) || importeNum < 0)) {
       toast({ title: "Importe no válido", description: "Pon lo cobrado en euros.", variant: "destructive" });
@@ -200,30 +300,57 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
 
     setGuardando(true);
     try {
-      // ¿Ya está inscrito? (mismo DNI, o mismo nombre y apellidos) — se pregunta
-      const { data: yaHay } = await supabase
-        .from("registrations")
-        .select("id, first_name, last_name, dni_passport, bib_number, status")
-        .eq("race_id", raceId)
-        .neq("status", "cancelled");
+      // ¿Ya está inscrito? (mismo DNI, o mismo nombre y apellidos). Por
+      // páginas: PostgREST corta en 1.000 filas
+      const yaHay: YaInscrita[] = [];
+      for (let desde = 0; ; desde += 1000) {
+        const { data: pagina, error: errYa } = await supabase
+          .from("registrations")
+          .select("id, first_name, last_name, dni_passport, bib_number, status, payment_status, source, team_id")
+          .eq("race_id", raceId)
+          .neq("status", "cancelled")
+          .order("id")
+          .range(desde, desde + 999);
+        if (errYa) throw errYa;
+        yaHay.push(...((pagina ?? []) as YaInscrita[]));
+        if (!pagina || pagina.length < 1000) break;
+      }
       const dniN = dniNorm(dni);
       const nombreN = `${nombre} ${apellidos}`.toLowerCase().replace(/\s+/g, " ");
-      const repetida = (yaHay ?? []).find(
-        (r: any) =>
+      const repetida = yaHay.find(
+        (r) =>
           (dniN && dniNorm(r.dni_passport) === dniN) ||
           `${r.first_name ?? ""} ${r.last_name ?? ""}`.toLowerCase().replace(/\s+/g, " ").trim() === nombreN,
-      ) as any;
-      if (
-        repetida &&
-        !window.confirm(
-          `Ya hay una inscripción de ${repetida.first_name ?? ""} ${repetida.last_name ?? ""}` +
-            `${repetida.bib_number ? ` (dorsal ${repetida.bib_number})` : ""} en esta carrera.\n\n¿Inscribir igualmente?`,
-        )
-      ) {
-        setGuardando(false);
-        return;
+      );
+      // Empezó en la web y no pagó: se completa ESA (no se crea otra)
+      const aMedias =
+        !!repetida && repetida.status === "pending" && repetida.payment_status === "pending" &&
+        repetida.source === "gateway" && !repetida.team_id;
+      let reutilizar: string | null = null;
+      if (repetida && aMedias) {
+        if (
+          !window.confirm(
+            `${repetida.first_name ?? ""} ${repetida.last_name ?? ""} empezó la inscripción en la web y NO la pagó.\n\n` +
+              "Aceptar: completar ESA inscripción con estos datos (no se crea otra).\nCancelar: no hacer nada.",
+          )
+        ) {
+          setGuardando(false);
+          return;
+        }
+        reutilizar = repetida.id;
+      } else if (repetida) {
+        const estado = ESTADO_PAGO[repetida.payment_status ?? ""] ?? repetida.payment_status ?? "";
+        if (
+          !window.confirm(
+            `Ya hay una inscripción de ${repetida.first_name ?? ""} ${repetida.last_name ?? ""}` +
+              ` (${estado}${repetida.bib_number ? `, dorsal ${repetida.bib_number}` : ""}) en esta carrera.\n\n¿Inscribir igualmente?`,
+          )
+        ) {
+          setGuardando(false);
+          return;
+        }
       }
-      if (dorsalPuesto != null && (yaHay ?? []).some((r: any) => r.bib_number === dorsalPuesto)) {
+      if (dorsalPuesto != null && yaHay.some((r) => r.bib_number === dorsalPuesto && r.id !== reutilizar)) {
         if (!window.confirm(`El dorsal ${dorsalPuesto} ya lo tiene otro corredor de esta carrera. ¿Ponerlo igualmente?`)) {
           setGuardando(false);
           return;
@@ -231,9 +358,7 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
       }
 
       // 1) La inscripción, con las columnas que copia también la web
-      const { data: nueva, error } = await supabase
-        .from("registrations")
-        .insert({
+      const fila: Record<string, unknown> = {
           race_id: raceId,
           race_distance_id: recorrido.id,
           first_name: nombre,
@@ -258,40 +383,59 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
           bib_number: dorsalPuesto,
           // Alta de la organización: no pasa por la pasarela, no factura comisión
           source: "manual",
-        } as any)
-        .select("id")
-        .single();
+      };
+      const { data: nueva, error } = reutilizar
+        ? // Completar la de la web: solo lo que trae valor (no se borra lo que
+          // guardó la web; se conserva su cuenta)
+          await supabase
+            .from("registrations")
+            .update(Object.fromEntries(Object.entries(fila).filter(([k, v]) => v !== null || k === "importe_manual")) as any)
+            .eq("id", reutilizar)
+            .select("id")
+            .single()
+        : await supabase.from("registrations").insert(fila as any).select("id").single();
       if (error || !nueva) throw error ?? new Error("No se pudo crear la inscripción");
 
       // 2) Las respuestas del formulario (como la web: todas las que tienen
       //    valor; un comentario no guarda nada)
-      let avisoRespuestas: string | null = null;
-      const { data: campos } = await supabase
+      const avisos: string[] = [];
+      const { data: campos, error: errCampos } = await supabase
         .from("registration_form_fields")
         .select("id, field_name, field_type")
         .eq("race_distance_id", recorrido.id);
+      if (errCampos) avisos.push(`Inscrito, pero no se guardaron las respuestas del formulario: ${errCampos.message}`);
       const respuestas = ((campos ?? []) as { id: string; field_name: string; field_type: string }[])
         .filter((c) => c.field_type !== "comment")
         .filter((c) => datos[c.field_name] !== undefined && datos[c.field_name] !== null && String(datos[c.field_name]).trim() !== "")
         .map((c) => ({ registration_id: nueva.id, field_id: c.id, field_value: String(datos[c.field_name]) }));
       if (respuestas.length) {
+        // Al completar la de la web, sus respuestas viejas dejan paso a las de ahora
+        if (reutilizar) await supabase.from("registration_responses").delete().eq("registration_id", nueva.id);
         const { error: errResp } = await supabase.from("registration_responses").insert(respuestas);
-        if (errResp) avisoRespuestas = `Inscrito, pero no se guardaron las respuestas: ${errResp.message}`;
+        if (errResp) avisos.push(`Inscrito, pero no se guardaron las respuestas: ${errResp.message}`);
       }
 
       // 3) El dorsal siguiente, si se pidió
       let dorsal = dorsalPuesto;
-      let avisoDorsal: string | null = avisoRespuestas;
+      let avisoDorsal: string | null = null;
       if (modoDorsal === "siguiente") {
-        const { data: bib, error: errBib } = await supabase.rpc("asignar_dorsal_siguiente" as never, {
-          p_registration_id: nueva.id,
-        } as never);
-        if (errBib) avisoDorsal = `Inscrito sin dorsal: ${errBib.message}`;
-        else if (bib == null) avisoDorsal = "Inscrito sin dorsal: el recorrido no tiene rango o se ha agotado. Pónselo a mano.";
-        else dorsal = Number(bib);
+        const r = await pedirDorsal(nueva.id);
+        dorsal = r.dorsal;
+        avisoDorsal = r.aviso;
       }
 
-      setHecho({ nombre: `${nombre} ${apellidos}`, recorrido: recorrido.name, dorsal, como, importe: importeNum, avisoDorsal });
+      setHecho({
+        id: nueva.id,
+        nombre: `${nombre} ${apellidos}`,
+        recorrido: recorrido.name,
+        dorsal,
+        como,
+        importe: importeNum,
+        completada: !!reutilizar,
+        avisos,
+        avisoDorsal,
+        pideSiguiente: modoDorsal === "siguiente",
+      });
       onHecho?.();
     } catch (e: any) {
       toast({ title: "No se pudo inscribir", description: e?.message ?? String(e), variant: "destructive" });
@@ -327,10 +471,21 @@ export const AltaCorredor = ({ raceId, onHecho }: Props) => {
             {hecho.como === "pagado" && hecho.importe != null && ` · ${euros(hecho.importe)}`}
           </p>
         </div>
-        {hecho.avisoDorsal && (
-          <p className="flex items-start gap-1.5 text-sm text-amber-700">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {hecho.avisoDorsal}
+        {hecho.completada && (
+          <p className="text-center text-xs text-muted-foreground">
+            Se ha completado la inscripción que había empezado en la web (no hay otra).
           </p>
+        )}
+        {[...hecho.avisos, ...(hecho.avisoDorsal ? [hecho.avisoDorsal] : [])].map((a) => (
+          <p key={a} className="flex items-start gap-1.5 text-sm text-amber-700">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {a}
+          </p>
+        ))}
+        {hecho.pideSiguiente && hecho.dorsal == null && hecho.avisoDorsal && (
+          <Button variant="outline" onClick={reintentarDorsal} disabled={reintentando} className="w-full">
+            {reintentando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Reintentar dorsal
+          </Button>
         )}
         <Button onClick={otro} className="w-full">
           <UserPlus className="mr-2 h-4 w-4" /> Inscribir a otro

@@ -1827,6 +1827,23 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           continue;
         }
         
+        // La categoría la manda el desplegable (race_category_id): la respuesta
+        // de texto se escribe con el NOMBRE de la elegida, para que el trigger
+        // asignar_categoria_por_respuesta no la devuelva a la que se cargó
+        if (field.field_name === 'category') {
+          const elegida = categories.find((c: any) => c.id === editFormData.race_category_id);
+          if (elegida) {
+            await supabase
+              .from("registration_responses")
+              .upsert({
+                registration_id: editingRegistration.id,
+                field_id: field.id,
+                field_value: elegida.name,
+              }, { onConflict: 'registration_id,field_id' });
+          }
+          continue;
+        }
+
         const value = editFormData[fieldKey] || editFormData[field.field_name];
         if (value !== undefined && value !== null && value !== '') {
           await supabase
