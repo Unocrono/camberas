@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camberas Track — Demo QR for App Review</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1a1a2e">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e; color: #fff; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card { max-width: 420px; width: 100%; text-align: center; }
+  .logo { font-size: 34px; font-weight: 800; letter-spacing: 8px; }
+  .logo-sub { color: #e94560; font-size: 14px; letter-spacing: 11px; margin-top: -4px; }
+  .qr {
+    background: #fff; border-radius: 14px; padding: 14px;
+    margin: 28px auto 22px; max-width: 320px;
+  }
+  .qr img { width: 100%; display: block; }
+  .box { background: #16213e; border-radius: 14px; padding: 22px; margin-bottom: 22px; text-align: left; }
+  .box p.lead { color: #fff; font-weight: 600; text-align: center; margin-bottom: 14px; }
+  .step { color: #aab; font-size: 14px; line-height: 20px; margin-bottom: 9px; }
+  .hint { color: #667; font-size: 12px; line-height: 18px; margin-top: 8px; word-break: break-all; }
+  a { color: #e94560; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">CAMBERAS</div>
+  <div class="logo-sub">TRACK</div>
+
+  <div class="qr"><img src="/demo-review-qr.png" alt="Demo activation QR code for App Review"></div>
+
+  <div class="box">
+    <p class="lead">Demo QR code — App Review</p>
+    <div class="step">1️⃣&nbsp; Open the Camberas Track app on the review device</div>
+    <div class="step">2️⃣&nbsp; Tap “Scan QR” and point the camera at the code above</div>
+    <div class="step">3️⃣&nbsp; The app links demo bib <strong>999</strong> and all features unlock: live GPS tracking, SOS button, unlink</div>
+  </div>
+
+  <p class="hint">
+    This QR encodes<br>
+    https://camberas.com/activar.html?t=8e2532de-1646-4140-8bf8-38a3d046fa83<br><br>
+    The demo bib is not attached to any real race — positions sent while testing
+    are never shown on a public race map. The token can be scanned on multiple
+    devices; the app will simply ask to confirm the transfer.
+  </p>
+</div>
+</body>
+</html>
