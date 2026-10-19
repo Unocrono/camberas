@@ -234,8 +234,14 @@ o en las tablas GPS afectan a todos: comprueba los lectores antes de tocar.
 
 - **Los PR de Claude se fusionan en `main` sin pedir permiso.** Cuando `npm run build` pasa y
   el trabajo está completo, Claude marca el PR como listo y lo fusiona él mismo (merge, no
-  squash) y después lo dice. Pedido por el promotor el 17-oct-2026. Al fusionar, Lovable publica
-  la web; las edge functions se despliegan aparte desde Lovable.
+  squash) y después lo dice. Pedido por el promotor el 17-oct-2026.
+- **Fusionar NO publica la web.** El código llega a Lovable, pero camberas.com sigue con la versión
+  anterior hasta que se da a **Publish** en Lovable (19-oct: la doble meta de Monte Tejas seguía
+  saliendo tras fusionar el arreglo). Si el cambio toca la web, después de fusionar Claude publica
+  con la herramienta de Lovable (`deploy_project`) o, si no puede, avisa de que falta el Publish;
+  nunca da por publicado lo que solo está fusionado. Para comprobarlo, la página de camberas.com
+  debe pedir otro `assets/index-*.js` (desde el contenedor no se llega a camberas.com: se mira con
+  `net.http_get` desde la base de datos). Las edge functions se despliegan aparte desde Lovable.
 - Las migraciones se prueban primero en seco (`BEGIN … ROLLBACK`) contra la base de datos de
   producción con la consulta de Lovable y, si pasan, se aplican en firme en la misma sesión.
   Si alguna queda sin aplicar, se dice explícitamente al terminar.
