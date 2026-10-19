@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Trophy, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff, MapPin, Square, CheckSquare, MinusSquare } from "lucide-react";
+import { Upload, Plus, Search, Image as ImageIcon, Pencil, Trash2, FileUp, Download, AlertCircle, CheckCircle2, Calculator, RefreshCw, Play, Clock, Loader2, ChevronDown, ChevronRight, Timer, FileText, Radio, Wifi, WifiOff, MapPin, Square, CheckSquare, MinusSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import jsPDF from "jspdf";
 import { getGenderCode } from "@/lib/genderUtils";
 import { hoyLocal } from "@/lib/timezoneUtils";
@@ -26,6 +27,13 @@ interface RaceResult {
   gender_position: number | null;
   category_position: number | null;
   status: string;
+  // Motor de cronometraje (migración 20261013180000): calculado, chip y
+  // correcciones del cronometrador, que el recálculo no toca
+  tiempo_calculado?: string | null;
+  tiempo_chip?: string | null;
+  tiempo_manual?: string | null;
+  penalizacion?: string | null;
+  estado_manual?: string | null;
   photo_url: string | null;
   notes: string | null;
   race_distance_id: string;
@@ -59,6 +67,43 @@ interface RaceDistance {
   distance_km: number;
 }
 
+// Estado del cronometraje automático de un recorrido (RPC cronometraje_estado)
+interface EstadoCrono {
+  race_distance_id: string;
+  recorrido: string;
+  automatico: boolean;
+  pendiente: boolean;
+  calculado_at: string | null;
+  duracion_ms: number | null;
+  resumen: { finalizados?: number; en_carrera?: number; retirados?: number; corredores?: number; salida?: string } | null;
+  avisos: { tipo: string; n: number; texto: string; dorsales?: (string | number)[] }[];
+  error: string | null;
+  error_at: string | null;
+  clasificar_por: "oficial" | "chip";
+}
+
+// Orden de la lista: los que terminan (por posición), en carrera, retirados…
+const ORDEN_ESTADO: Record<string, number> = { FIN: 0, STD: 1, DNF: 2, CUT: 3, DSQ: 4, DNS: 5, INS: 6 };
+
+// «01:02:30.25» → igual; «1:2:3» → «01:02:03». Centésimas solo si las hay.
+const formatTiempo = (t: string | null | undefined): string => {
+  if (!t) return "-";
+  const m = t.match(/^(-)?(\d+):(\d+):(\d+)(?:\.(\d+))?$/);
+  if (!m) return t;
+  const cent = m[5] ? m[5].padEnd(2, "0").slice(0, 2) : "";
+  return `${m[1] || ""}${m[2].padStart(2, "0")}:${m[3].padStart(2, "0")}:${m[4].padStart(2, "0")}${cent && cent !== "00" ? `.${cent}` : ""}`;
+};
+
+// «HH:MM:SS», «HH:MM:SS.cc» o «MM:SS» → intervalo de Postgres; null si no vale
+const aIntervalo = (texto: string): string | null => {
+  const t = texto.trim();
+  let m = t.match(/^(\d{1,2}):([0-5]\d):([0-5]\d)(?:[.,](\d{1,3}))?$/);
+  if (m) return `${+m[1]} hours ${+m[2]} minutes ${+m[3]}${m[4] ? `.${m[4]}` : ""} seconds`;
+  m = t.match(/^(\d{1,3}):([0-5]\d)(?:[.,](\d{1,3}))?$/);
+  if (m) return `${+m[1]} minutes ${+m[2]}${m[3] ? `.${m[3]}` : ""} seconds`;
+  return null;
+};
+
 interface ResultsManagementProps {
   isOrganizer?: boolean;
   selectedRaceId?: string;
@@ -73,14 +118,9 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [results, setResults] = useState<RaceResult[]>([]);
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [calculating, setCalculating] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [processProgress, setProcessProgress] = useState<{
-    step: 'idle' | 'splits' | 'results' | 'done';
-    message: string;
-    splitCount?: number;
-    resultCount?: number;
-  }>({ step: 'idle', message: '' });
+  const [estadoCrono, setEstadoCrono] = useState<EstadoCrono | null>(null);
+  const [cambiandoAutomatico, setCambiandoAutomatico] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCsvDialogOpen, setIsCsvDialogOpen] = useState(false);
   const [editingResult, setEditingResult] = useState<RaceResult | null>(null);
@@ -102,12 +142,12 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const [lastSplitsCache, setLastSplitsCache] = useState<Record<string, { checkpoint_name: string; split_time: string } | null>>({});
   const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
   
+  // Corrección del cronometrador: lo vacío vuelve a lo que salga de las lecturas
   const [formData, setFormData] = useState({
     registration_id: "",
-    finish_time: "",
-    overall_position: "",
-    category_position: "",
-    status: "FIN",
+    tiempo_manual: "",
+    penalizacion: "",
+    estado_manual: "AUTO",
     notes: "",
   });
 
@@ -140,30 +180,26 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     }
   }, [selectedDistance]);
 
-  // Realtime subscription for race_results
+  // En vivo: el motor deja una fila por recorrido en cronometraje_recorridos
+  // cada vez que calcula; con eso se recarga la lista (un aviso por cálculo,
+  // no uno por corredor)
   useEffect(() => {
     if (!selectedDistance || !realtimeEnabled) return;
 
     const channel = supabase
-      .channel(`race-results-${selectedDistance}`)
+      .channel(`cronometraje-${selectedDistance}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'race_results',
+          table: 'cronometraje_recorridos',
           filter: `race_distance_id=eq.${selectedDistance}`
         },
-        (payload) => {
+        () => {
           setLastUpdate(new Date());
-          // Refetch results on any change
-          fetchResults();
-          
-          if (payload.eventType === 'INSERT') {
-            toast({ title: "Nuevo resultado", description: "Se ha añadido un nuevo resultado", duration: 2000 });
-          } else if (payload.eventType === 'UPDATE') {
-            toast({ title: "Resultado actualizado", description: "Un resultado ha sido modificado", duration: 2000 });
-          }
+          fetchResults(true);
+          fetchEstadoCrono();
         }
       )
       .subscribe();
@@ -172,6 +208,25 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       supabase.removeChannel(channel);
     };
   }, [selectedDistance, realtimeEnabled]);
+
+  // Por si el realtime se corta: el estado (pendiente, último cálculo) cada 20 s
+  useEffect(() => {
+    if (!selectedDistance) {
+      setEstadoCrono(null);
+      return;
+    }
+    fetchEstadoCrono();
+    const id = setInterval(fetchEstadoCrono, 20000);
+    return () => clearInterval(id);
+  }, [selectedDistance, selectedRace]);
+
+  const fetchEstadoCrono = async () => {
+    if (!selectedRace || !selectedDistance) return;
+    const { data, error } = await supabase.rpc("cronometraje_estado" as never, { p_race_id: selectedRace } as never);
+    if (error) return; // Sin la migración aplicada el panel sigue funcionando como antes
+    const fila = ((data as unknown as EstadoCrono[]) || []).find((e) => e.race_distance_id === selectedDistance) || null;
+    setEstadoCrono(fila);
+  };
 
   const fetchRaces = async () => {
     let query = supabase
@@ -209,45 +264,64 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     setDistances(data || []);
   };
 
-  const fetchResults = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("race_results")
-      .select(`
-        *,
-        registration:registrations (
-          id,
-          bib_number,
-          first_name,
-          last_name,
-          birth_date,
-          gender,
-          gender_id,
-          race:races (name, organizer_id, date),
-          race_distance:race_distances (name),
-          race_category:race_categories (short_name, name),
-          profiles (first_name, last_name, gender, gender_id, birth_date)
-        )
-      `)
-      .eq("race_distance_id", selectedDistance)
-      .order("status", { ascending: true })
-      .order("overall_position", { ascending: true, nullsFirst: false })
-      .order("finish_time", { ascending: true });
+  // silencioso: recarga en vivo sin vaciar la tabla («Cargando…» cada 15 s parpadea)
+  const fetchResults = async (silencioso = false) => {
+    if (!silencioso) setLoading(true);
+    // PostgREST corta en 1.000 filas: se pide por páginas
+    const PAGINA = 1000;
+    let data: RaceResult[] = [];
+    let error: { message: string } | null = null;
+    for (let desde = 0; ; desde += PAGINA) {
+      const { data: pagina, error: e } = await supabase
+        .from("race_results")
+        .select(`
+          *,
+          registration:registrations (
+            id,
+            bib_number,
+            first_name,
+            last_name,
+            birth_date,
+            gender,
+            gender_id,
+            race:races (name, organizer_id, date),
+            race_distance:race_distances (name),
+            race_category:race_categories (short_name, name),
+            profiles (first_name, last_name, gender, gender_id, birth_date)
+          )
+        `)
+        .eq("race_distance_id", selectedDistance)
+        .order("id")
+        .range(desde, desde + PAGINA - 1);
+      if (e) { error = e; break; }
+      data = data.concat((pagina || []) as unknown as RaceResult[]);
+      if (!pagina || pagina.length < PAGINA) break;
+    }
 
     if (error) {
       toast({ title: "Error cargando resultados", description: error.message, variant: "destructive" });
     } else {
-      const resultsData = data as any || [];
+      // Los que terminan por posición, luego en carrera y los retirados
+      const resultsData = data.sort((a, b) =>
+        (ORDEN_ESTADO[a.status] ?? 9) - (ORDEN_ESTADO[b.status] ?? 9)
+        || (a.overall_position ?? Infinity) - (b.overall_position ?? Infinity)
+        || String(a.finish_time).localeCompare(String(b.finish_time))
+        || (a.registration?.bib_number ?? 0) - (b.registration?.bib_number ?? 0));
       setResults(resultsData);
       
-      // Fetch last split for each result
+      // Último paso de cada uno (por lotes: con varios parciales por corredor se pasa de 1.000 filas)
       if (resultsData.length > 0) {
         const resultIds = resultsData.map((r: any) => r.id);
-        const { data: splitsData } = await supabase
-          .from('split_times')
-          .select('race_result_id, checkpoint_name, split_time, checkpoint_order')
-          .in('race_result_id', resultIds)
-          .order('checkpoint_order', { ascending: false });
+        const lotes = [];
+        for (let i = 0; i < resultIds.length; i += 50) {
+          lotes.push(supabase
+            .from('split_times')
+            .select('race_result_id, checkpoint_name, split_time, checkpoint_order')
+            .in('race_result_id', resultIds.slice(i, i + 50))
+            .order('checkpoint_order', { ascending: false }));
+        }
+        const respuestas = await Promise.all(lotes);
+        const splitsData = respuestas.flatMap((r) => r.data || []);
         
         if (splitsData) {
           const lastSplits: Record<string, { checkpoint_name: string; split_time: string } | null> = {};
@@ -284,89 +358,67 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     }
   };
 
-  const handleProcessTimesAndResults = async () => {
+  // «Recalcular ahora»: el mismo cálculo que hace el automático
+  // (lecturas → pasos por orden, vueltas, tiempo oficial y chip, estados y posiciones)
+  const handleRecalcular = async () => {
     if (!selectedDistance) {
-      toast({ title: "Selecciona un evento", description: "Debes seleccionar un evento para procesar", variant: "destructive" });
+      toast({ title: "Selecciona un evento", description: "Debes seleccionar un evento para calcular", variant: "destructive" });
       return;
     }
 
     setProcessing(true);
-    setProcessProgress({ step: 'splits', message: 'Generando split times desde lecturas...' });
-
     try {
-      // Step 1: Generate split times from timing_readings
-      const { data: splitData, error: splitError } = await supabase.rpc('generate_split_times', {
-        p_race_distance_id: selectedDistance
-      });
-
-      if (splitError) throw splitError;
-
-      const splitResult = splitData?.[0];
-      setProcessProgress({ 
-        step: 'results', 
-        message: 'Calculando clasificaciones y resultados...',
-        splitCount: (splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0)
-      });
-
-      // Step 2: Process event results (calculate positions)
-      const { data: resultData, error: resultError } = await supabase.rpc('process_event_results', {
-        p_race_distance_id: selectedDistance
-      });
-
-      if (resultError) throw resultError;
-
-      const result = resultData?.[0];
-      setProcessProgress({ 
-        step: 'done', 
-        message: 'Procesamiento completado',
-        splitCount: (splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0),
-        resultCount: result?.processed_count || 0
-      });
-
-      toast({
-        title: "Procesamiento completado",
-        description: `Splits: ${(splitResult?.inserted_count || 0) + (splitResult?.updated_count || 0)} | Resultados: ${result?.processed_count || 0} (${result?.finished_count || 0} finalizados, ${result?.in_progress_count || 0} en carrera)`,
-      });
-
+      const { data, error } = await supabase.rpc("cronometrar_recorrido" as never, { p_race_distance_id: selectedDistance } as never);
+      if (error) throw error;
+      const res = data as unknown as { ok: boolean; error?: string; finalizados?: number; en_carrera?: number; retirados?: number; parciales?: number; avisos?: number };
+      if (!res?.ok) {
+        toast({ title: "No se ha calculado", description: res?.error || "Error desconocido", variant: "destructive" });
+      } else {
+        toast({
+          title: "Clasificación calculada",
+          description: `${res.finalizados ?? 0} finalizados, ${res.en_carrera ?? 0} en carrera, ${res.retirados ?? 0} retirados · ${res.parciales ?? 0} parciales${res.avisos ? ` · ${res.avisos} avisos` : ""}`,
+        });
+      }
       fetchResults();
-    } catch (error: any) {
-      setProcessProgress({ step: 'idle', message: '' });
-      toast({ title: "Error en procesamiento", description: error.message, variant: "destructive" });
+      fetchEstadoCrono();
+    } catch (error) {
+      toast({ title: "Error calculando", description: (error as Error).message, variant: "destructive" });
     } finally {
       setProcessing(false);
-      // Reset progress after 3 seconds
-      setTimeout(() => {
-        setProcessProgress({ step: 'idle', message: '' });
-      }, 3000);
     }
   };
 
-  const handleCalculateResults = async () => {
-    if (!selectedDistance) {
-      toast({ title: "Selecciona un evento", description: "Debes seleccionar un evento para calcular resultados", variant: "destructive" });
+  const handleAutomatico = async (activo: boolean) => {
+    if (!selectedDistance) return;
+    setCambiandoAutomatico(true);
+    const { error } = await supabase.rpc("cronometraje_automatico" as never,
+      { p_race_distance_id: selectedDistance, p_activo: activo } as never);
+    setCambiandoAutomatico(false);
+    if (error) {
+      toast({ title: "No se ha podido cambiar", description: error.message, variant: "destructive" });
       return;
     }
+    toast({
+      title: activo ? "Cronometraje automático encendido" : "Cronometraje automático apagado",
+      description: activo
+        ? "Cada lectura, retirada o corrección recalcula la clasificación en unos segundos."
+        : "La clasificación solo cambia con «Recalcular ahora».",
+    });
+    fetchEstadoCrono();
+  };
 
-    setCalculating(true);
-    try {
-      const { data, error } = await supabase.rpc('process_event_results', {
-        p_race_distance_id: selectedDistance
-      });
-
-      if (error) throw error;
-
-      const result = data?.[0];
-      toast({
-        title: "Resultados calculados",
-        description: `Procesados: ${result?.processed_count || 0}, Finalizados: ${result?.finished_count || 0}, En carrera: ${result?.in_progress_count || 0}`,
-      });
-
-      fetchResults();
-    } catch (error: any) {
-      toast({ title: "Error calculando resultados", description: error.message, variant: "destructive" });
-    } finally {
-      setCalculating(false);
+  const handleClasificarPor = async (valor: "oficial" | "chip") => {
+    if (!selectedDistance) return;
+    const { error } = await supabase
+      .from("race_distances")
+      .update({ clasificar_por: valor } as never)
+      .eq("id", selectedDistance);
+    if (error) {
+      toast({ title: "No se ha podido cambiar", description: error.message, variant: "destructive" });
+      return;
     }
+    toast({ title: valor === "chip" ? "Se clasifica por tiempo chip" : "Se clasifica por tiempo oficial" });
+    fetchEstadoCrono();
   };
 
   const handlePhotoUpload = async (registrationId: string): Promise<string | null> => {
@@ -393,29 +445,39 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     return data.publicUrl;
   };
 
+  // Guardar una corrección del cronometrador. Va a tiempo_manual, penalizacion
+  // y estado_manual, que el motor respeta siempre; después se recalcula para
+  // que se vea ya con sus posiciones.
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const tiempoManual = formData.tiempo_manual.trim() ? aIntervalo(formData.tiempo_manual) : null;
+    if (formData.tiempo_manual.trim() && !tiempoManual) {
+      toast({ title: "Tiempo no válido", description: "Usa HH:MM:SS (con centésimas si quieres: 01:02:30.25)", variant: "destructive" });
+      return;
+    }
+    const penalizacion = formData.penalizacion.trim() ? aIntervalo(formData.penalizacion) : null;
+    if (formData.penalizacion.trim() && !penalizacion) {
+      toast({ title: "Penalización no válida", description: "Usa MM:SS o HH:MM:SS", variant: "destructive" });
+      return;
+    }
+    if (!editingResult && !formData.registration_id) {
+      toast({ title: "Elige el participante", variant: "destructive" });
+      return;
+    }
+    const estadoManual = formData.estado_manual === "AUTO" ? null : formData.estado_manual;
+
     setLoading(true);
-
     try {
-      const timeParts = formData.finish_time.split(':');
-      const hours = parseInt(timeParts[0] || '0');
-      const minutes = parseInt(timeParts[1] || '0');
-      const seconds = parseInt(timeParts[2] || '0');
-      const intervalString = `${hours} hours ${minutes} minutes ${seconds} seconds`;
-
       let photoUrl = editingResult?.photo_url || null;
       if (photoFile) {
         photoUrl = await handlePhotoUpload(formData.registration_id);
       }
 
-      const resultData = {
-        registration_id: formData.registration_id,
-        race_distance_id: selectedDistance,
-        finish_time: intervalString,
-        overall_position: formData.overall_position ? parseInt(formData.overall_position) : null,
-        category_position: formData.category_position ? parseInt(formData.category_position) : null,
-        status: formData.status,
+      const correccion = {
+        tiempo_manual: tiempoManual,
+        penalizacion,
+        estado_manual: estadoManual,
         photo_url: photoUrl,
         notes: formData.notes || null,
       };
@@ -424,24 +486,42 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       if (editingResult) {
         ({ error } = await supabase
           .from("race_results")
-          .update(resultData)
+          .update(correccion as never)
           .eq("id", editingResult.id));
       } else {
+        // Hasta que calcule el motor, la fila lleva lo que se ha tecleado
         ({ error } = await supabase
           .from("race_results")
-          .insert(resultData));
+          .upsert({
+            registration_id: formData.registration_id,
+            race_distance_id: selectedDistance,
+            finish_time: tiempoManual || "0 seconds",
+            status: estadoManual || (tiempoManual ? "FIN" : "INS"),
+            ...correccion,
+          } as never, { onConflict: "registration_id" }));
       }
 
       if (error) throw error;
 
-      toast({
-        title: editingResult ? "Resultado actualizado" : "Resultado añadido",
-        description: "El resultado se ha guardado correctamente",
-      });
+      const { data: calc } = await supabase.rpc("cronometrar_recorrido" as never, { p_race_distance_id: selectedDistance } as never);
+      const res = calc as unknown as { ok: boolean; error?: string } | null;
+      if (res && !res.ok) {
+        toast({
+          title: "Corrección guardada, pero sin recalcular",
+          description: res.error,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: editingResult ? "Corrección guardada" : "Resultado añadido",
+          description: "La clasificación ya la tiene en cuenta",
+        });
+      }
 
       setIsDialogOpen(false);
       resetForm();
       fetchResults();
+      fetchEstadoCrono();
     } catch (error: any) {
       toast({ title: "Error guardando resultado", description: error.message, variant: "destructive" });
     } finally {
@@ -467,16 +547,11 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
   const handleEdit = (result: RaceResult) => {
     setEditingResult(result);
-    
-    const timeMatch = result.finish_time.match(/(\d+):(\d+):(\d+)/);
-    const timeString = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}:${timeMatch[3]}` : "";
-
     setFormData({
       registration_id: result.registration.id, // Use UUID, not bib_number
-      finish_time: timeString,
-      overall_position: result.overall_position?.toString() || "",
-      category_position: result.category_position?.toString() || "",
-      status: result.status,
+      tiempo_manual: result.tiempo_manual ? formatTiempo(result.tiempo_manual) : "",
+      penalizacion: result.penalizacion ? formatTiempo(result.penalizacion) : "",
+      estado_manual: result.estado_manual || "AUTO",
       notes: result.notes || "",
     });
     setIsDialogOpen(true);
@@ -485,10 +560,9 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
   const resetForm = () => {
     setFormData({
       registration_id: "",
-      finish_time: "",
-      overall_position: "",
-      category_position: "",
-      status: "FIN",
+      tiempo_manual: "",
+      penalizacion: "",
+      estado_manual: "AUTO",
       notes: "",
     });
     setPhotoFile(null);
@@ -746,13 +820,16 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
             .eq("registration_id", registration.id)
             .maybeSingle();
 
+          // Un tiempo importado es una corrección: el motor lo respeta y
+          // calcula las posiciones (las del fichero no se usan)
+          const estado = row.status?.toUpperCase() || 'FIN';
           const resultData = {
             registration_id: registration.id,
             race_distance_id: selectedDistance,
             finish_time: intervalTime,
-            overall_position: row.overall_position ? parseInt(row.overall_position) : null,
-            category_position: row.category_position ? parseInt(row.category_position) : null,
-            status: row.status?.toUpperCase() || 'FIN',
+            status: estado,
+            tiempo_manual: intervalTime,
+            estado_manual: estado === 'FIN' ? null : estado,
             notes: row.notes || null,
           };
 
@@ -760,12 +837,12 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
           if (existingResult) {
             ({ error } = await supabase
               .from("race_results")
-              .update(resultData)
+              .update(resultData as never)
               .eq("id", existingResult.id));
           } else {
             ({ error } = await supabase
               .from("race_results")
-              .insert(resultData));
+              .insert(resultData as never));
           }
 
           if (error) {
@@ -785,11 +862,16 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
       setImportStatus(newStatus);
 
       if (newStatus.success > 0) {
+        // Posiciones con los tiempos importados
+        const { data: calc } = await supabase.rpc("cronometrar_recorrido" as never, { p_race_distance_id: selectedDistance } as never);
+        const res = calc as unknown as { ok: boolean; error?: string } | null;
         toast({
           title: "Importación completada",
-          description: `Importados ${newStatus.success} resultados${newStatus.failed > 0 ? `, ${newStatus.failed} fallaron` : ''}`,
+          description: `Importados ${newStatus.success} resultados${newStatus.failed > 0 ? `, ${newStatus.failed} fallaron` : ''}`
+            + (res && !res.ok ? `. Sin recalcular: ${res.error}` : ''),
         });
         fetchResults();
+        fetchEstadoCrono();
       }
 
       if (newStatus.failed > 0) {
@@ -996,7 +1078,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
     if (splits.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={9} className="bg-muted/30">
+          <TableCell colSpan={14} className="bg-muted/30">
             <div className="py-3 text-center text-sm text-muted-foreground">
               <Timer className="h-4 w-4 inline mr-2" />
               No hay tiempos intermedios registrados
@@ -1008,7 +1090,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
     return (
       <TableRow>
-        <TableCell colSpan={9} className="bg-muted/30 p-0">
+        <TableCell colSpan={14} className="bg-muted/30 p-0">
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Timer className="h-4 w-4 text-primary" />
@@ -1090,36 +1172,80 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
 
           {selectedDistance && (
             <div className="space-y-4">
-              {/* Process Progress Card */}
-              {processProgress.step !== 'idle' && (
-                <Card className="border-primary/20 bg-primary/5">
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3">
-                      {processProgress.step === 'done' ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                      )}
-                      <div className="flex-1">
-                        <p className="font-medium">{processProgress.message}</p>
-                        <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                          {processProgress.splitCount !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {processProgress.splitCount} splits
-                            </span>
-                          )}
-                          {processProgress.resultCount !== undefined && (
-                            <span className="flex items-center gap-1">
-                              <Trophy className="h-3 w-3" />
-                              {processProgress.resultCount} resultados
-                            </span>
-                          )}
-                        </div>
+              {/* Cronometraje automático del recorrido */}
+              {estadoCrono && (
+                <Card className={estadoCrono.error ? "border-destructive/50" : "border-primary/20 bg-primary/5"}>
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id="crono-automatico"
+                          checked={estadoCrono.automatico}
+                          disabled={cambiandoAutomatico}
+                          onCheckedChange={handleAutomatico}
+                        />
+                        <Label htmlFor="crono-automatico" className="font-medium">Cronometraje automático</Label>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm text-muted-foreground">Clasificar por</Label>
+                        <Select value={estadoCrono.clasificar_por} onValueChange={(v) => handleClasificarPor(v as "oficial" | "chip")}>
+                          <SelectTrigger className="h-8 w-[160px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="oficial">Tiempo oficial</SelectItem>
+                            <SelectItem value="chip">Tiempo chip</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {estadoCrono.calculado_at
+                          ? <>Calculado a las {new Date(estadoCrono.calculado_at).toLocaleTimeString('es-ES')}
+                              {estadoCrono.resumen && <> · {estadoCrono.resumen.finalizados ?? 0} finalizados, {estadoCrono.resumen.en_carrera ?? 0} en carrera, {estadoCrono.resumen.retirados ?? 0} retirados</>}</>
+                          : "Sin calcular todavía"}
+                      </div>
+                      {estadoCrono.pendiente && (
+                        <Badge variant="secondary" className="gap-1">
+                          <RefreshCw className={`h-3 w-3 ${estadoCrono.automatico ? "animate-spin" : ""}`} />
+                          {estadoCrono.automatico ? "Calculando cambios…" : "Hay cambios sin calcular"}
+                        </Badge>
+                      )}
                     </div>
-                    {processProgress.step !== 'done' && (
-                      <Progress value={processProgress.step === 'splits' ? 33 : 66} className="mt-3" />
+                    {!estadoCrono.automatico && (
+                      <p className="text-xs text-muted-foreground">
+                        Apagado: las lecturas se guardan pero la clasificación solo cambia con «Recalcular ahora».
+                        Las carreras que ya pasaron empiezan apagadas para no tocar lo publicado.
+                      </p>
+                    )}
+                    {estadoCrono.error && (
+                      <Alert variant="destructive">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>No se ha podido calcular</AlertTitle>
+                        <AlertDescription>{estadoCrono.error}</AlertDescription>
+                      </Alert>
+                    )}
+                    {estadoCrono.avisos.length > 0 && (
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <AlertCircle className="h-4 w-4 text-amber-500" />
+                            {estadoCrono.avisos.length} {estadoCrono.avisos.length === 1 ? "aviso" : "avisos"} para revisar
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 space-y-2">
+                          {estadoCrono.avisos.map((a) => (
+                            <div key={a.tipo} className="rounded-md border bg-background p-2 text-sm">
+                              <p className="font-medium">{a.texto}</p>
+                              {a.dorsales && a.dorsales.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1 font-mono">
+                                  {a.dorsales.map((d) => `#${d}`).join(" · ")}
+                                  {a.n > a.dorsales.length && ` … y ${a.n - a.dorsales.length} más`}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </CollapsibleContent>
+                      </Collapsible>
                     )}
                   </CardContent>
                 </Card>
@@ -1129,21 +1255,11 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                 <Button
                   variant="default"
                   className="gap-2"
-                  onClick={handleProcessTimesAndResults}
-                  disabled={processing || calculating}
+                  onClick={handleRecalcular}
+                  disabled={processing}
                 >
                   {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                  {processing ? "Procesando..." : "Procesar Tiempos y Resultados"}
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  className="gap-2"
-                  onClick={handleCalculateResults}
-                  disabled={calculating || processing}
-                >
-                  {calculating ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
-                  {calculating ? "Calculando..." : "Solo Clasificaciones"}
+                  {processing ? "Calculando..." : "Recalcular ahora"}
                 </Button>
 
                 <Button
@@ -1345,7 +1461,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                   <DialogHeader>
                     <DialogTitle>{editingResult ? "Editar" : "Añadir"} Resultado</DialogTitle>
                     <DialogDescription>
-                      Introduce los datos del tiempo y sube foto del participante
+                      Corrige tiempo, penalización o estado y sube la foto. Las posiciones las calcula el cronometraje.
                     </DialogDescription>
                   </DialogHeader>
 
@@ -1371,53 +1487,55 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                         </Select>
                       </div>
 
+                      {editingResult && (
+                        <div className="md:col-span-2 rounded-md bg-muted/50 p-3 text-sm space-y-1">
+                          <p>
+                            <span className="text-muted-foreground">Según las lecturas:</span>{" "}
+                            <span className="font-mono">{formatTiempo(editingResult.tiempo_calculado)}</span>
+                            {editingResult.tiempo_chip && (
+                              <> <span className="text-muted-foreground">· chip</span> <span className="font-mono">{formatTiempo(editingResult.tiempo_chip)}</span></>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Lo que pongas aquí manda sobre las lecturas y el recálculo no lo toca. Déjalo vacío para volver a lo calculado.
+                          </p>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
-                        <Label>Tiempo Final (HH:MM:SS)</Label>
+                        <Label>Tiempo oficial corregido</Label>
                         <Input
-                          placeholder="01:30:45"
-                          value={formData.finish_time}
-                          onChange={(e) => setFormData({ ...formData, finish_time: e.target.value })}
-                          pattern="\d{2}:\d{2}:\d{2}"
-                          required
+                          placeholder="HH:MM:SS (vacío: el de las lecturas)"
+                          value={formData.tiempo_manual}
+                          onChange={(e) => setFormData({ ...formData, tiempo_manual: e.target.value })}
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Posición General</Label>
+                        <Label>Penalización</Label>
                         <Input
-                          type="number"
-                          placeholder="1"
-                          value={formData.overall_position}
-                          onChange={(e) => setFormData({ ...formData, overall_position: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Posición Categoría</Label>
-                        <Input
-                          type="number"
-                          placeholder="1"
-                          value={formData.category_position}
-                          onChange={(e) => setFormData({ ...formData, category_position: e.target.value })}
+                          placeholder="MM:SS (se suma al tiempo)"
+                          value={formData.penalizacion}
+                          onChange={(e) => setFormData({ ...formData, penalizacion: e.target.value })}
                         />
                       </div>
 
                       <div className="space-y-2">
                         <Label>Estado</Label>
                         <Select
-                          value={formData.status}
-                          onValueChange={(value) => setFormData({ ...formData, status: value })}
+                          value={formData.estado_manual}
+                          onValueChange={(value) => setFormData({ ...formData, estado_manual: value })}
                         >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="AUTO">Automático (según lecturas y retiradas)</SelectItem>
                             <SelectItem value="FIN">Finalizado</SelectItem>
-                            <SelectItem value="STD">En Carrera</SelectItem>
-                            <SelectItem value="DNF">DNF (No Finalizó)</SelectItem>
-                            <SelectItem value="DNS">DNS (No Salió)</SelectItem>
+                            <SelectItem value="DNF">DNF (Abandono)</SelectItem>
+                            <SelectItem value="DNS">DNS (No sale)</SelectItem>
                             <SelectItem value="DSQ">DSQ (Descalificado)</SelectItem>
-                            <SelectItem value="CUT">Fuera de Control</SelectItem>
+                            <SelectItem value="CUT">Fuera de control</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1511,7 +1629,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
             ) : filteredResults.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No hay resultados para este evento</p>
-                <Button onClick={handleCalculateResults} disabled={calculating}>
+                <Button onClick={handleRecalcular} disabled={processing}>
                   <Calculator className="h-4 w-4 mr-2" />
                   Calcular desde Lecturas
                 </Button>
@@ -1539,6 +1657,7 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                       <TableHead>Categoría</TableHead>
                       <TableHead>Último Paso</TableHead>
                       <TableHead>Tiempo</TableHead>
+                      <TableHead title="Desde que pisa la alfombra de salida">Chip</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead className="w-20">Acciones</TableHead>
                     </TableRow>
@@ -1604,10 +1723,25 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                               <span className="text-muted-foreground text-sm">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="font-mono">
-                            {formatTime(result.finish_time)}
+                          <TableCell className="font-mono whitespace-nowrap">
+                            {formatTiempo(result.finish_time)}
+                            {result.penalizacion && (
+                              <span className="ml-1 text-xs text-destructive" title="Penalización">+{formatTiempo(result.penalizacion)}</span>
+                            )}
                           </TableCell>
-                          <TableCell>{getStatusBadge(result.status)}</TableCell>
+                          <TableCell className="font-mono text-muted-foreground whitespace-nowrap">
+                            {formatTiempo(result.tiempo_chip)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              {getStatusBadge(result.status)}
+                              {(result.tiempo_manual || result.estado_manual || result.penalizacion) && (
+                                <span title="Corregido a mano: el recálculo lo respeta">
+                                  <Pencil className="h-3 w-3 text-amber-500" />
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button
