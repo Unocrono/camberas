@@ -60,6 +60,41 @@ function occupiesPlace(reg: {
   return ageMin < CHECKOUT_HOLD_MINUTES;
 }
 
+/**
+ * Cuenta atrás hasta la apertura de inscripciones de un recorrido. Las dos
+ * horas son de pared (paredAMs/ahoraParedMs): se restan sin zonas y la fecha
+ * se escribe en UTC para no convertirla.
+ */
+function CuentaAtrasApertura({ aperturaMs, ahoraMs }: { aperturaMs: number; ahoraMs: number }) {
+  const falta = Math.max(0, aperturaMs - ahoraMs);
+  const partes = [
+    { valor: String(Math.floor(falta / 86400000)), etiqueta: "días" },
+    { valor: String(Math.floor((falta % 86400000) / 3600000)).padStart(2, "0"), etiqueta: "h" },
+    { valor: String(Math.floor((falta % 3600000) / 60000)).padStart(2, "0"), etiqueta: "min" },
+    { valor: String(Math.floor((falta % 60000) / 1000)).padStart(2, "0"), etiqueta: "seg" },
+  ];
+  const apertura = new Date(aperturaMs);
+  // «sábado, 24 de octubre» → «sábado 24 de octubre»
+  const dia = apertura.toLocaleDateString("es-ES", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }).replace(",", "");
+  const hora = apertura.toLocaleTimeString("es-ES", { timeZone: "UTC", hour: "2-digit", minute: "2-digit" });
+  return (
+    <div className="mb-3 rounded-lg bg-muted/50 p-3 text-center">
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-secondary">Abren las inscripciones en</p>
+      <div className="mt-2 flex justify-center gap-4">
+        {partes.map((p) => (
+          <div key={p.etiqueta}>
+            <div className="font-archivo text-2xl tabular-nums text-primary">{p.valor}</div>
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{p.etiqueta}</div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        El {dia} a las {hora}
+      </p>
+    </div>
+  );
+}
+
 const RaceDetail = () => {
   const { id, slug } = useParams();
   // Cupon que viene en el enlace (?cupon=CODIGO): lo manda el organizador por
@@ -183,6 +218,28 @@ const RaceDetail = () => {
     return () => clearInterval(interval);
   }, [race?.date]);
 
+  // Reloj de la cuenta atrás hasta la apertura de inscripciones: solo corre
+  // si algún recorrido aún no ha abierto. Al llegar la hora se recarga la
+  // ficha y el botón pasa a «Inscribirme» con el precio y las plazas de ese
+  // momento
+  const [ahoraApertura, setAhoraApertura] = useState(() => ahoraParedMs());
+  const proximaApertura = ((race?.distances ?? []) as { pendienteDeAbrir?: boolean; aperturaMs?: number | null }[])
+    .filter((d) => d.pendienteDeAbrir && d.aperturaMs != null)
+    .reduce<number | null>((min, d) => (min === null || (d.aperturaMs as number) < min ? (d.aperturaMs as number) : min), null);
+
+  useEffect(() => {
+    if (proximaApertura === null) return;
+    const intervalo = setInterval(() => {
+      const ahora = ahoraParedMs();
+      setAhoraApertura(ahora);
+      if (ahora >= proximaApertura) {
+        clearInterval(intervalo);
+        fetchRaceDetails();
+      }
+    }, 1000);
+    return () => clearInterval(intervalo);
+  }, [proximaApertura]);
+
   const fetchRaceDetails = async () => {
     if (!raceId) return;
     
@@ -273,7 +330,9 @@ const RaceDetail = () => {
         const regOpens = distance.registration_opens ? paredAMs(distance.registration_opens) : null;
         const regCloses = distance.registration_closes ? paredAMs(distance.registration_closes) : null;
         const isRegistrationOpen = (regOpens === null || now >= regOpens) && (regCloses === null || now <= regCloses);
-        
+        // Aún no ha abierto: el botón dice «Próximamente» y lleva cuenta atrás
+        const pendienteDeAbrir = regOpens !== null && now < regOpens;
+
         // Get current price from ranges or fallback to base price. Si dos
         // tramos se solapan, gana el que EMPEZÓ MÁS TARDE: la misma regla que
         // el cobro (redsys-init-payment, guest-register) y el widget
@@ -300,6 +359,8 @@ const RaceDetail = () => {
           hora_prevista: (wave as { hora_prevista?: string | null } | undefined)?.hora_prevista || null,
           wave_name: wave?.wave_name || null,
           isRegistrationOpen,
+          pendienteDeAbrir,
+          aperturaMs: regOpens,
           currentPrice,
         };
       });
@@ -412,8 +473,14 @@ const RaceDetail = () => {
     if (!distancia) return;
     if (distancia.availablePlaces === 0 || !distancia.isRegistrationOpen) {
       toast({
-        title: distancia.availablePlaces === 0 ? "Recorrido completo" : "Inscripción no disponible",
-        description: `${distancia.name}: ahora mismo no admite inscripciones.`,
+        title: distancia.availablePlaces === 0
+          ? "Recorrido completo"
+          : distancia.pendienteDeAbrir
+            ? "Inscripciones próximamente"
+            : "Inscripción no disponible",
+        description: distancia.pendienteDeAbrir
+          ? `${distancia.name}: las inscripciones aún no han abierto. La cuenta atrás está en la ficha.`
+          : `${distancia.name}: ahora mismo no admite inscripciones.`,
       });
       return;
     }
@@ -1320,6 +1387,9 @@ const RaceDetail = () => {
                         </div>
                         
                         <div className="pt-3 mt-auto">
+                          {distance.pendienteDeAbrir && distance.availablePlaces !== 0 && (
+                            <CuentaAtrasApertura aperturaMs={distance.aperturaMs} ahoraMs={ahoraApertura} />
+                          )}
                           <Dialog open={isDialogOpen && selectedDistance?.id === distance.id} onOpenChange={(open) => {
                             if (!open) {
                               setIsDialogOpen(false);
@@ -1345,9 +1415,11 @@ const RaceDetail = () => {
                               >
                                 {distance.availablePlaces === 0
                                   ? "Completo"
-                                  : !distance.isRegistrationOpen
-                                    ? "NO DISPONIBLE"
-                                    : "Inscribirme"}
+                                  : distance.pendienteDeAbrir
+                                    ? "PRÓXIMAMENTE"
+                                    : !distance.isRegistrationOpen
+                                      ? "NO DISPONIBLE"
+                                      : "Inscribirme"}
                               </Button>
                             </DialogTrigger>
                             )}
