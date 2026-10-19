@@ -778,6 +778,28 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
 
         const fieldOptions = buildFieldOptions();
 
+        // El identificador es la clave de las respuestas, las condiciones y la
+        // copia entre recorridos: no puede repetirse en el recorrido (un
+        // comentario con el mismo nombre que otro campo le robaría el valor)
+        if (!editingField && fields.some((x) => x.field_name === validatedData.field_name)) {
+          throw new Error(`Ya hay un campo con el identificador «${validatedData.field_name}» en este recorrido. Usa otro.`);
+        }
+
+        // Un campo con respuestas no pasa a comentario: quedarían respuestas
+        // huérfanas (ocultas en el panel, visibles en comprobantes y correos)
+        if (editingField && editingField.field_type !== "comment" && validatedData.field_type === "comment") {
+          const { count, error: errCount } = await supabase
+            .from("registration_responses")
+            .select("id", { count: "exact", head: true })
+            .eq("field_id", editingField.id);
+          if (errCount) throw errCount;
+          if ((count ?? 0) > 0) {
+            throw new Error(
+              `Este campo ya tiene ${count} respuesta(s): no puede pasar a comentario. Crea un comentario nuevo y oculta o borra este.`,
+            );
+          }
+        }
+
         // Un comentario no tiene respuesta: si otros campos dependen de este,
         // quedarían ocultos para siempre
         if (

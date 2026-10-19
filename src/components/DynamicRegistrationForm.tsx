@@ -104,8 +104,12 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
   // guardarse. Los tres puntos de guardado descartan valores vacíos.
   useEffect(() => {
     const aLaVista = new Set(visibles.map((f) => f.id));
+    // Un nombre que sigue a la vista en otro campo no se suelta
+    const nombresALaVista = new Set(visibles.filter((f) => f.field_type !== "comment").map((f) => f.field_name));
     for (const f of fields) {
-      if (!aLaVista.has(f.id) && !estaVacio(formData[f.field_name])) {
+      // Un comentario no tiene valor que soltar
+      if (f.field_type === "comment") continue;
+      if (!aLaVista.has(f.id) && !nombresALaVista.has(f.field_name) && !estaVacio(formData[f.field_name])) {
         onChange(f.field_name, "");
       }
     }

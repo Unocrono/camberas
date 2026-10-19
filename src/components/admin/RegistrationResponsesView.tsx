@@ -45,7 +45,8 @@ export const RegistrationResponsesView = forwardRef<HTMLDivElement, Registration
         .eq("registration_id", registrationId);
 
       if (error) throw error;
-      setResponses(data || []);
+      // Un comentario no tiene respuesta: si quedara alguna antigua, no se enseña
+      setResponses((data || []).filter((r: any) => r.registration_form_fields?.field_type !== "comment"));
     } catch (error: any) {
       toast({
         title: "Error al cargar respuestas",

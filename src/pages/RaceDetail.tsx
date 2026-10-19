@@ -869,7 +869,7 @@ const RaceDetail = () => {
     // Fetch form fields for this distance
     const { data: fields, error: fieldsError } = await supabase
       .from("registration_form_fields")
-      .select("id, field_name")
+      .select("id, field_name, field_type")
       .eq("race_distance_id", distanceId);
 
     if (fieldsError) throw fieldsError;
@@ -877,6 +877,8 @@ const RaceDetail = () => {
     // Store all form field responses
     if (fields && fields.length > 0) {
       const responses = fields
+        // Un comentario solo muestra texto: nunca guarda respuesta (como guest-register y team-register)
+        .filter(field => field.field_type !== "comment")
         .filter(field => customFormData[field.field_name] !== undefined && customFormData[field.field_name] !== "")
         .map(field => ({
           registration_id: registrationId,
