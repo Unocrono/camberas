@@ -25,6 +25,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { RegistrationResponsesView } from "./RegistrationResponsesView";
 import { RegistrationImportDialog } from "./RegistrationImportDialog";
 import { DynamicEditRegistrationForm } from "./DynamicEditRegistrationForm";
+import { AltaCorredor } from "@/components/org/AltaCorredor";
 import { DevolucionDialog } from "./DevolucionDialog";
 import { hoyLocal } from "@/lib/timezoneUtils";
 
@@ -1740,46 +1741,6 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     });
   };
 
-  const handleCreate = async () => {
-    if (!formData.race_id || !formData.race_distance_id) {
-      toast({ title: "Error", description: "Selecciona carrera y recorrido", variant: "destructive" });
-      return;
-    }
-    setSaving(true);
-    try {
-      const insertData: any = {
-        race_id: formData.race_id,
-        race_distance_id: formData.race_distance_id,
-        first_name: formData.first_name || null,
-        last_name: formData.last_name || null,
-        email: formData.email || null,
-        phone: formData.phone || null,
-        dni_passport: formData.dni_passport || null,
-        status: formData.status,
-        payment_status: formData.payment_status,
-        bib_number: formData.bib_number ? parseInt(formData.bib_number) : null,
-        // Alta desde el panel: no pasa por la pasarela, no factura comisión
-        source: "manual",
-        // Lo cobrado a mano. NO suma a la recaudación de pasarela: se muestra
-        // en su propia cifra, para que el organizador sepa lo que lleva
-        // cobrado sin mezclarlo con lo que Camberas puede verificar.
-        importe_manual: formData.importe_manual ? Number(formData.importe_manual) : null,
-      };
-
-      const { error } = await supabase.from("registrations").insert(insertData);
-      if (error) throw error;
-
-      toast({ title: "Inscripción creada" });
-      setIsCreateOpen(false);
-      setFormData(emptyFormData);
-      fetchData();
-      triggerRefresh("registrations");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleEdit = async () => {
     if (!editingRegistration) return;
@@ -2971,137 +2932,43 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva Inscripción</DialogTitle>
-            <DialogDescription>Crear inscripción manualmente (invitado)</DialogDescription>
+            <DialogDescription>
+              Con el formulario completo del recorrido y el dorsal en el momento. Funciona aunque las inscripciones estén cerradas.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Sin carrera elegida en la cabecera (admin, «todas»): primero la carrera */}
+            {!(selectedRaceId || (selectedRace !== "all" && selectedRace)) && (
               <div className="space-y-2">
-                <Label>Nombre *</Label>
-                <Input
-                  value={formData.first_name}
-                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                />
+                <Label>Carrera *</Label>
+                <Select value={formData.race_id} onValueChange={(v) => setFormData({ ...formData, race_id: v, race_distance_id: "" })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar carrera" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {races.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Apellidos *</Label>
-                <Input
-                  value={formData.last_name}
-                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            )}
+            {formData.race_id && (
+              <AltaCorredor
+                key={formData.race_id}
+                raceId={formData.race_id}
+                onHecho={() => {
+                  fetchData();
+                  triggerRefresh("registrations");
+                }}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Teléfono</Label>
-                <Input
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>DNI/Pasaporte</Label>
-                <Input
-                  value={formData.dni_passport}
-                  onChange={(e) => setFormData({ ...formData, dni_passport: e.target.value })}
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Carrera *</Label>
-              <Select value={formData.race_id} onValueChange={(v) => setFormData({ ...formData, race_id: v, race_distance_id: "" })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar carrera" />
-                </SelectTrigger>
-                <SelectContent>
-                  {races.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Recorrido *</Label>
-              <Select value={formData.race_distance_id} onValueChange={(v) => setFormData({ ...formData, race_distance_id: v })} disabled={!formData.race_id}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar recorrido" />
-                </SelectTrigger>
-                <SelectContent>
-                  {formDistances.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name} ({d.distance_km}km)</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Estado</Label>
-                <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="confirmed">Confirmada</SelectItem>
-                    <SelectItem value="cancelled">Cancelada</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Pago</Label>
-                <Select value={formData.payment_status} onValueChange={(v) => setFormData({ ...formData, payment_status: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="paid">Pagado</SelectItem>
-                    <SelectItem value="refunded">Reembolsado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Dorsal</Label>
-                <Input
-                  type="number"
-                  value={formData.bib_number}
-                  onChange={(e) => setFormData({ ...formData, bib_number: e.target.value })}
-                />
-              </div>
-            </div>
-
-            {/* Sin esto, cobrar 30 € en la carpa y marcar "Pagado" dejaba la
-                recaudación a cero: no había ningún sitio donde anotarlo. */}
-            {formData.payment_status === "paid" && (
-              <div className="space-y-2">
-                <Label>Importe cobrado (€)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  placeholder="lo que te ha pagado en mano"
-                  value={formData.importe_manual}
-                  onChange={(e) => setFormData({ ...formData, importe_manual: e.target.value })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  No entra en la recaudación de la pasarela: se muestra aparte, como cobrado a mano.
-                </p>
-              </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={saving}>{saving ? "Guardando..." : "Crear"}</Button>
+            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

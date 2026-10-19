@@ -218,7 +218,7 @@ const ORG_MENU: OrgMenuGroup[] = [
     items: [
       // Pantallas nativas: alta de invitado e inscripciones (buscar,
       // ficha, marcar pagado, dar dorsal)
-      { id: "guest-add", title: "Añadir invitado", icon: UserPlus, screen: "invitado" },
+      { id: "guest-add", title: "Añadir corredor", icon: UserPlus, screen: "invitado" },
       { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
       { id: "cupones-app", title: "Cupones", icon: TicketPercent, screen: "cupones" },
       // El día de la recogida: cuántos van, qué mesas atienden y quién ha
