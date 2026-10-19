@@ -28,7 +28,7 @@
 -- Horas: la del Ultra es hora de pared (CLAUDE.md); llega como texto
 -- 'AAAA-MM-DD HH:MM:SS.mmm' y se guarda tal cual con +00.
 --
--- PENDIENTE DE APLICAR en producción (panel de Supabase).
+-- APLICADA en producción el 15-oct-2026 (panel de Supabase).
 -- ============================================================
 
 SET client_encoding = 'UTF8';
