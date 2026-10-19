@@ -22,9 +22,9 @@
   },
   "estado": "proximamente",
   "inscripcion": {
-    "apertura": "2026-11-01T20:00:00+01:00",
+    "apertura": "2026-10-24T20:00:00+02:00",
     "cierre": "2026-12-07T23:59:00+01:00",
-    "cierreTexto": "Del 1 de noviembre a las 20:00 al 7 de diciembre, o hasta agotar los 200 dorsales",
+    "cierreTexto": "Del 24 de octubre a las 20:00 al 7 de diciembre, o hasta agotar los 200 dorsales",
     "limiteDorsales": 200,
     "plazasDisponibles": null,
     "modalidades": ["individual"],
