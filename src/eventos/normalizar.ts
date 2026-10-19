@@ -50,11 +50,15 @@ export function avituallamientosDePrueba(prueba: Prueba): Avituallamiento[] | un
     lista.push(desdeRutometro(p, tipo));
   }
 
-  // Controles: los de cronometraje (con su corte) y, si no hay, los del rutómetro
+  // Controles: los de cronometraje (con su corte) y, si no hay, los del
+  // rutómetro. La salida y la meta van aparte (abajo) aunque estén marcadas
+  // como punto de control: si no, salían dos veces
   const controlesBase = base.filter((a) => a.tipo !== "start" && a.tipo !== "finish");
   const controles: Avituallamiento[] = controlesBase.length
     ? controlesBase
-    : puntos.filter((p) => p.tipo === "checkpoint" || p.control).map((p) => desdeRutometro(p, "control"));
+    : puntos
+        .filter((p) => p.tipo !== "start" && p.tipo !== "finish" && (p.tipo === "checkpoint" || p.control))
+        .map((p) => desdeRutometro(p, "control"));
   for (const c of controles) {
     const cerca = lista.find((a) => Math.abs(a.km - c.km) <= MISMO_SITIO_KM);
     if (cerca) {
@@ -111,7 +115,14 @@ function limpiarRutometro(prueba: Prueba): Prueba {
       ...prueba.rutometro,
       // evento_publico da los ritmos al lado del rutómetro (ritmosRutometro)
       ritmos: prueba.rutometro.ritmos ?? prueba.ritmosRutometro,
-      puntos: prueba.rutometro.puntos?.map((p) => ({ ...p, descripcion: (p.descripcion ?? "").trim(), notas: sinRepetir(p.notas) })),
+      // El parcial, desde el punto anterior de la lista: el guardado es desde
+      // el punto anterior del track (unos metros) en lo que sale del GPX
+      puntos: prueba.rutometro.puntos?.map((p, i, todos) => ({
+        ...p,
+        descripcion: (p.descripcion ?? "").trim(),
+        notas: sinRepetir(p.notas),
+        kmParcial: i > 0 ? Math.round((p.km - todos[i - 1].km) * 1000) / 1000 : p.km,
+      })),
     },
   };
 }
