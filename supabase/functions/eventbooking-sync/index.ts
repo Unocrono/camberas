@@ -340,7 +340,9 @@ async function sincronizarCarrera(service: any, cfg: any, modo: "cron" | "boton"
         ...new Set(eventos.flatMap((e) => [...e.mapa.values(), ...(e.distance_id ? [e.distance_id] : [])])),
       ])
       .eq("is_system_field", false)
-      .is("profile_field", null);
+      .is("profile_field", null)
+      // Un comentario solo muestra texto: no se casa con nada de EventBooking
+      .neq("field_type", "comment");
     const camposPorRecorrido = new Map<string, any[]>();
     for (const f of camposForm ?? []) {
       camposPorRecorrido.set(f.race_distance_id, [...(camposPorRecorrido.get(f.race_distance_id) ?? []), f]);

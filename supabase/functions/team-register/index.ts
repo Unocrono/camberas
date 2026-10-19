@@ -374,6 +374,7 @@ serve(async (req) => {
         const regId = regIdByMember.get(p.teamMemberId);
         if (!regId) continue;
         for (const f of fields) {
+          if (f.field_type === "comment") continue; // solo muestra texto, no guarda respuesta
           const v = p.formData[f.field_name];
           if (v !== undefined && v !== "" && v !== null) {
             responses.push({ registration_id: regId, field_id: f.id, field_value: String(v) });

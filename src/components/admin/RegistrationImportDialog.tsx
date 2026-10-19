@@ -435,6 +435,8 @@ export function RegistrationImportDialog({
         .select("id, field_name, field_label, profile_field, is_system_field, race_distance_id")
         .or(filtro)
         .eq("is_visible", true)
+        // Un comentario no se importa: no tiene respuesta
+        .neq("field_type", "comment")
         .order("field_order");
 
       if (formFields) {
@@ -653,6 +655,8 @@ export function RegistrationImportDialog({
       .select("field_label, is_required")
       .or(`race_id.eq.${raceId}${selectedDistanceId ? `,race_distance_id.eq.${selectedDistanceId}` : ""}`)
       .eq("is_visible", true)
+      // El título de un comentario no es una columna de la plantilla
+      .neq("field_type", "comment")
       .order("field_order");
 
     // Base columns for template

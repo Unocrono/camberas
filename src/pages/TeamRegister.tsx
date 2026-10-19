@@ -227,7 +227,7 @@ const TeamRegister = () => {
         const fd = formularios[id] ?? {};
         // Un campo condicional oculto (militar = No → sin unidad) no se exige
         const faltan = camposVisibles(fields ?? [], fd)
-          .filter((f: any) => f.is_required)
+          .filter((f: any) => f.is_required && f.field_type !== "comment")
           .filter((f: any) => {
             const v = fd[f.field_name];
             return v === undefined || v === null || v === "";

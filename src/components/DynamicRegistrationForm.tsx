@@ -126,6 +126,8 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
     const faltan = visibles
       .filter((f) => f.is_required && f.is_visible !== false)
       .filter((f) => f.field_type !== "readonly" || f.field_name === "category")
+      // Un comentario solo muestra texto: nunca obligatorio
+      .filter((f) => f.field_type !== "comment")
       .filter((f) => {
         const v = formData[f.field_name];
         if (f.field_type === "checkbox") {
@@ -216,7 +218,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
       if (profile) {
         // For each field that has a profile_field mapping, set the value
         fields.forEach(field => {
-          if (field.profile_field && profile[field.profile_field as keyof typeof profile]) {
+          if (field.field_type !== "comment" && field.profile_field && profile[field.profile_field as keyof typeof profile]) {
             const profileValue = profile[field.profile_field as keyof typeof profile];
             // Only set if formData doesn't already have a value
             if (!formData[field.field_name]) {
@@ -471,6 +473,17 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
             </RadioGroup>
             {field.help_text && (
               <p className="text-sm text-muted-foreground">{field.help_text}</p>
+            )}
+          </div>
+        );
+
+      case "comment":
+        // Solo texto informativo: no pide nada ni guarda valor
+        return (
+          <div key={field.id} className="space-y-1 rounded-md border bg-muted/40 p-3">
+            <p className="font-semibold">{field.field_label}</p>
+            {field.help_text && (
+              <p className="text-sm whitespace-pre-line break-words">{field.help_text}</p>
             )}
           </div>
         );

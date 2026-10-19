@@ -371,6 +371,8 @@ serve(async (req) => {
     // para que nunca se quede sin respuestas
     if (fields && fields.length > 0) {
       const responses = fields
+        // Un comentario solo muestra texto: nunca guarda respuesta
+        .filter((f) => f.field_type !== "comment")
         .filter((f) => formData[f.field_name] !== undefined && formData[f.field_name] !== "" && formData[f.field_name] !== null)
         .map((f) => ({
           registration_id: registration.id,

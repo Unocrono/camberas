@@ -72,10 +72,11 @@ export function camposVisibles<T extends CampoFormulario>(campos: T[], valores: 
  * Importe de un campo según su respuesta:
  *  - select/radio: fees[] paralelo a options
  *  - number: fee_amount × valor · checkbox/otros: fee_amount si se marca
+ *  - comment: nunca (solo muestra texto, aunque arrastre importes de otro tipo)
  */
 export function importeCampo(f: CampoFormulario | null | undefined, value: unknown): number {
   const o = f?.field_options;
-  if (!f || !o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
+  if (!f || f.field_type === "comment" || !o || Array.isArray(o) || o.fee_enabled !== true || value == null || value === "") return 0;
   if (Array.isArray(o.options) && Array.isArray(o.fees)) {
     const idx = o.options.indexOf(String(value));
     return idx >= 0 ? Number(o.fees[idx]) || 0 : 0;

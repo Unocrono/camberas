@@ -190,6 +190,8 @@ export function DynamicEditRegistrationForm({
 
         // Add response values for custom fields
         fieldsToUse.forEach(field => {
+          // Un comentario no tiene respuesta que cargar (ni que volver a guardar)
+          if (field.field_type === 'comment') return;
           const responseValue = responsesMap.get(field.id);
           if (responseValue !== undefined) {
             // For profile-mapped fields, prefer registration column
@@ -336,6 +338,17 @@ export function DynamicEditRegistrationForm({
   };
 
   const renderFormField = (field: FormField) => {
+    // Un comentario solo muestra su texto: ni se edita ni se guarda
+    if (field.field_type === 'comment') {
+      return (
+        <div key={field.id} className="space-y-1 rounded-md border bg-muted/40 p-3">
+          <p className="text-sm font-semibold">{field.field_label}</p>
+          {field.help_text && (
+            <p className="text-xs text-muted-foreground whitespace-pre-line break-words">{field.help_text}</p>
+          )}
+        </div>
+      );
+    }
     // Determine the field key - use profile_field if it maps to registration column
     let fieldKey = field.field_name;
     if (field.profile_field && PROFILE_TO_REGISTRATION_MAP[field.profile_field]) {

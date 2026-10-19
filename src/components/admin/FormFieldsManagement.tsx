@@ -42,9 +42,9 @@ const fieldSchema = z.object({
     .trim()
     .min(1, "La etiqueta es requerida")
     .max(200, "Máximo 200 caracteres"),
-  field_type: z.enum(["text", "email", "tel", "url", "number", "date", "textarea", "select", "checkbox", "radio"]),
+  field_type: z.enum(["text", "email", "tel", "url", "number", "date", "textarea", "select", "checkbox", "radio", "comment"]),
   placeholder: z.string().max(200, "Máximo 200 caracteres").optional(),
-  help_text: z.string().max(500, "Máximo 500 caracteres").optional(),
+  help_text: z.string().max(3000, "Máximo 3000 caracteres").optional(),
   is_required: z.boolean(),
 });
 
@@ -197,7 +197,7 @@ function SortableFieldItem({ field, fieldTypeLabels, onEdit, onDelete, onToggleV
                 </p>
               )}
               {field.help_text && (
-                <p className="text-sm text-muted-foreground mt-2">{field.help_text}</p>
+                <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line line-clamp-4">{field.help_text}</p>
               )}
               {options.length > 0 && (
                 <div className="mt-2">
@@ -712,6 +712,8 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
   // field_options JSONB: opciones + configuración de suplementos.
   // select/radio → fees[] paralelo a options; checkbox/number/text → fee_amount
   const buildFieldOptions = (): any => {
+    // Un comentario solo muestra texto: ni opciones ni importe
+    if (formData.field_type === "comment") return null;
     const hasOptions = ["select", "radio"].includes(formData.field_type);
     // Un campo condicional también puede llevar importe: el servidor solo lo
     // cobra si el campo está a la vista con las respuestas dadas
@@ -776,6 +778,16 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
 
         const fieldOptions = buildFieldOptions();
 
+        // Un comentario no tiene respuesta: si otros campos dependen de este,
+        // quedarían ocultos para siempre
+        if (
+          editingField &&
+          validatedData.field_type === "comment" &&
+          fields.some((x) => x.depends_on_field_id === editingField.id)
+        ) {
+          throw new Error("Otros campos dependen de este: un comentario no tiene respuesta. Quita antes esas condiciones.");
+        }
+
         // Condición: si hay controlador, tiene que haber valor
         if (esCondicional && !formData.depends_on_value) {
           throw new Error(
@@ -797,9 +809,9 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                 ? validatedData.placeholder || null
                 : null,
               help_text: validatedData.help_text || null,
-              is_required: validatedData.is_required,
+              is_required: validatedData.field_type === "comment" ? false : validatedData.is_required,
               field_options: fieldOptions,
-              profile_field: formData.profile_field || null,
+              profile_field: validatedData.field_type === "comment" ? null : formData.profile_field || null,
               ...condicion,
             })
             .eq("id", editingField.id);
@@ -828,11 +840,11 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                 ? validatedData.placeholder || null
                 : null,
               help_text: validatedData.help_text || null,
-              is_required: validatedData.is_required,
+              is_required: validatedData.field_type === "comment" ? false : validatedData.is_required,
               field_options: fieldOptions,
               is_system_field: false,
               is_visible: true,
-              profile_field: formData.profile_field || null,
+              profile_field: validatedData.field_type === "comment" ? null : formData.profile_field || null,
               ...condicion,
             }]);
 
@@ -945,6 +957,8 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
     select: "Lista desplegable",
     checkbox: "Casilla de verificación",
     radio: "Opción múltiple",
+    comment: "Comentario (solo texto)",
+    readonly: "Solo lectura (sistema)",
   };
 
   if (loading) {
@@ -1011,15 +1025,17 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                       disabled={!!editingField || isSystemFieldEditing}
                     />
                     <p className="text-xs text-muted-foreground">
-                      {isSystemFieldEditing 
+                      {isSystemFieldEditing
                         ? "No se puede cambiar en campos del sistema."
-                        : "Solo letras, números y guiones bajos. No se puede cambiar después."
+                        : formData.field_type === "comment"
+                          ? "Identificador interno (p. ej. aviso_seguro). No guarda ninguna respuesta."
+                          : "Solo letras, números y guiones bajos. No se puede cambiar después."
                       }
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="field_label">Etiqueta Visible *</Label>
+                    <Label htmlFor="field_label">{formData.field_type === "comment" ? "Título (en negrita) *" : "Etiqueta Visible *"}</Label>
                     <Input
                       id="field_label"
                       value={formData.field_label}
@@ -1035,14 +1051,23 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                     <Label htmlFor="field_type">Tipo de Campo *</Label>
                     <Select
                       value={formData.field_type}
-                      onValueChange={(value) => setFormData({ ...formData, field_type: value, options: [] })}
+                      onValueChange={(value) =>
+                        setFormData({
+                          ...formData,
+                          field_type: value,
+                          options: [],
+                          ...(value === "comment"
+                            ? { is_required: false, profile_field: "", fee_enabled: false, fees: [], fee_amount: "", placeholder: "" }
+                            : {}),
+                        })
+                      }
                       disabled={isSystemFieldEditing}
                     >
                       <SelectTrigger id="field_type">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(fieldTypeLabels).map(([value, label]) => (
+                        {Object.entries(fieldTypeLabels).filter(([value]) => value !== "readonly").map(([value, label]) => (
                           <SelectItem key={value} value={value}>
                             {label}
                           </SelectItem>
@@ -1070,16 +1095,22 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
 
                 {/* La ayuda es solo texto: también en los campos del sistema */}
                 <div className="space-y-2">
-                  <Label htmlFor="help_text">Texto de ayuda</Label>
+                  <Label htmlFor="help_text">{formData.field_type === "comment" ? "Texto del comentario" : "Texto de ayuda"}</Label>
                   <Textarea
                     id="help_text"
                     value={formData.help_text}
                     onChange={(e) => setFormData({ ...formData, help_text: e.target.value })}
-                    placeholder="Información adicional para el usuario"
-                    rows={2}
+                    placeholder={
+                      formData.field_type === "comment"
+                        ? "Texto que verá el corredor (respeta los saltos de línea)"
+                        : "Información adicional para el usuario"
+                    }
+                    rows={formData.field_type === "comment" ? 6 : 2}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Sale debajo del campo, siempre visible.
+                    {formData.field_type === "comment"
+                      ? "Se muestra tal cual en el formulario; el corredor no tiene que responder nada."
+                      : "Sale debajo del campo, siempre visible."}
                   </p>
                 </div>
 
@@ -1242,7 +1273,7 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                {!isSystemFieldEditing && (
+                {!isSystemFieldEditing && formData.field_type !== "comment" && (
                   <div className="space-y-2">
                     <Label htmlFor="profile_field">Vincular a campo de Perfil</Label>
                     <Select
@@ -1267,16 +1298,18 @@ export function FormFieldsManagement({ isOrganizer = false, distanceId, raceId }
                   </div>
                 )}
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="is_required"
-                    checked={formData.is_required}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked as boolean })}
-                  />
-                  <Label htmlFor="is_required" className="cursor-pointer">
-                    Campo obligatorio
-                  </Label>
-                </div>
+                {formData.field_type !== "comment" && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="is_required"
+                      checked={formData.is_required}
+                      onCheckedChange={(checked) => setFormData({ ...formData, is_required: checked as boolean })}
+                    />
+                    <Label htmlFor="is_required" className="cursor-pointer">
+                      Campo obligatorio
+                    </Label>
+                  </div>
+                )}
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? "Guardando..." : editingField ? "Actualizar Campo" : "Crear Campo"}

@@ -425,7 +425,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // registration_responses. El dorsal va el primero y, tras una raya, lo que no es
   // del formulario (dorsal, fecha, origen, distancia, estado, pago…).
   const camposDelEvento = useMemo(
-    () => formFields.filter((f) => f.field_name && f.is_visible !== false && (!distanciaFiltro || f.race_distance_id === distanciaFiltro)),
+    // Sin comentarios: solo muestran texto, no tienen columna ni valor que exportar
+    () => formFields.filter((f) => f.field_name && f.field_type !== "comment" && f.is_visible !== false && (!distanciaFiltro || f.race_distance_id === distanciaFiltro)),
     [formFields, distanciaFiltro],
   );
   const menuFormulario = useMemo(() => {
@@ -1271,7 +1272,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       // Fetch form fields for all distances
       const { data: fieldsData } = await supabase
         .from("registration_form_fields")
-        .select("id, field_name, field_label, profile_field, race_distance_id, is_system_field, is_visible, field_order")
+        .select("id, field_name, field_label, field_type, profile_field, race_distance_id, is_system_field, is_visible, field_order")
         .in("race_distance_id", distanceIds)
         .order("field_order", { ascending: true });
       
@@ -1843,6 +1844,8 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
       // Upsert responses for fields that are not denormalized
       for (const field of camposCargados) {
+        // Un comentario no guarda nada: ni upsert ni el borrado de los ocultos
+        if (field.field_type === "comment") continue;
         if (!idsVisibles.has(field.id)) {
           if (field.depends_on_field_id && idsCargados.has(field.depends_on_field_id)) {
             await supabase
