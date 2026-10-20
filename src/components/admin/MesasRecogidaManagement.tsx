@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Plus, Search, Ticket, X } from "lucide-react";
+import { CheckCircle2, Copy, ExternalLink, FileSpreadsheet, Loader2, Pencil, Plus, Search, Ticket, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { mesaAtendiendo, numerarMesas, textoMesa as textoMesaComun } from "@/lib/mesasRecogida";
 import { hoyLocal } from "@/lib/timezoneUtils";
@@ -67,7 +67,7 @@ export function MesasRecogidaManagement({ raceId }: Props) {
     try {
       const { data, error } = await db.rpc("generar_token_mesa_recogida", {
         p_race_id: raceId,
-        p_nombre: nombre.trim() || "Mesa",
+        p_nombre: nombre.trim() || `Mesa ${mesas.length + 1}`,
       });
       if (error) throw error;
       setNombre("");
@@ -80,6 +80,18 @@ export function MesasRecogidaManagement({ raceId }: Props) {
     } finally {
       setCreando(false);
     }
+  };
+
+  const renombrar = async (m: Mesa) => {
+    const nuevo = window.prompt(`Nombre de la mesa (p. ej. «Dorsales 1-200», «Carpa federados»):`, m.nombre);
+    if (nuevo === null || nuevo.trim() === "" || nuevo.trim() === m.nombre) return;
+    const { error } = await db.rpc("renombrar_mesa_recogida", { p_id: m.id, p_nombre: nuevo.trim() });
+    if (error) {
+      toast({ title: "No se pudo renombrar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Mesa renombrada", description: "La tablet de la mesa lo enseña al recargar." });
+    cargar();
   };
 
   const revocar = async (m: Mesa) => {
@@ -98,6 +110,7 @@ export function MesasRecogidaManagement({ raceId }: Props) {
   if (cargando) return null;
 
   const vivas = mesas.filter((m) => m.activa);
+  const numeros = numerarMesas(mesas);
 
   return (
     <div className="space-y-6">
@@ -142,7 +155,7 @@ export function MesasRecogidaManagement({ raceId }: Props) {
               >
                 <div className="min-w-0">
                   <p className="font-semibold flex items-center gap-2">
-                    {m.nombre}
+                    {numeros[m.id] ? textoMesaComun(numeros[m.id].numero, m.nombre) : m.nombre}
                     {enMarcha(m.last_seen_at) ? (
                       <Badge variant="default" className="gap-1">
                         <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
@@ -177,6 +190,9 @@ export function MesasRecogidaManagement({ raceId }: Props) {
                     onClick={() => window.open(url(m.token), "_blank", "noopener")}
                   >
                     <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button variant="ghost" size="icon" title="Cambiar el nombre" onClick={() => renombrar(m)}>
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <Button variant="ghost" size="icon" title="Revocar" onClick={() => revocar(m)}>
                     <X className="h-4 w-4 text-destructive" />
