@@ -212,6 +212,9 @@ Consúltala antes de rehacer análisis:
   credenciales de Postgres**, así que no hay `pg_dump`: la copia sale del export nativo de Lovable
   y `scripts/copia-seguridad.ps1` la verifica y archiva fuera del repo (lleva datos personales de
   inscritos y pagos). Los secrets y el Storage no van en el export.
+- **`docs/montar-una-carrera.md`** — cómo se monta una carrera de principio a fin (recorridos,
+  plazos, precios, web propia, rutómetro, trámites, comprobaciones), las trampas que no se ven a
+  simple vista y cómo trabajar con el promotor. **Léelo antes de dar de alta o retocar una carrera.**
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
 - **`receptor-ultra/README.md`** — lecturas del RFID Ultra sin Outreach: un programa Python en el
@@ -244,7 +247,10 @@ o en las tablas GPS afectan a todos: comprueba los lectores antes de tocar.
   `net.http_get` desde la base de datos). Las edge functions se despliegan aparte desde Lovable.
 - Las migraciones se prueban primero en seco (`BEGIN … ROLLBACK`) contra la base de datos de
   producción con la consulta de Lovable y, si pasan, se aplican en firme en la misma sesión.
-  Si alguna queda sin aplicar, se dice explícitamente al terminar.
+  Si alguna queda sin aplicar, se dice explícitamente al terminar. Al contar un ensayo, di que en
+  la base no queda nada: una vez «marcha atrás» se entendió como deshacer sus datos.
+- Los mensajes del promotor a veces llegan repetidos (la app los reenvía sola unos segundos
+  después de cada respuesta): uno repetido no es una respuesta nueva a lo que se le preguntó.
 - Rama de trabajo merged = rama acabada: el trabajo siguiente arranca de `main` con el mismo
   nombre de rama (`git checkout -B <rama> origin/main`) y abre un PR nuevo.
 
