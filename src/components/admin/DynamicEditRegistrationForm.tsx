@@ -285,7 +285,7 @@ export function DynamicEditRegistrationForm({
             <Label>{field.label}</Label>
             <Select value={value} onValueChange={(v) => handleChange(field.name, v)}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder={distances.length ? "Elige el recorrido" : "Cargando recorridos…"} />
               </SelectTrigger>
               <SelectContent>
                 {distances.map((d) => (
@@ -295,6 +295,15 @@ export function DynamicEditRegistrationForm({
                 ))}
               </SelectContent>
             </Select>
+            {/* Cambio de recorrido: lo que NO se hace solo */}
+            {value && registration.race_distance_id && value !== registration.race_distance_id && (
+              <p className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
+                Cambio de recorrido: la categoría se recalcula al guardar. Revisa el <strong>dorsal</strong> (es del rango
+                del recorrido anterior), la <strong>diferencia de precio</strong> y, si hay seguimiento, su{" "}
+                <strong>QR GPS</strong>. Si viene de uno.es o RockTheSport, cámbialo también allí o la sincronización lo
+                devolverá.
+              </p>
+            )}
           </div>
         );
       

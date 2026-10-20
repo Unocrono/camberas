@@ -1908,6 +1908,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   const openEditDialog = (reg: Registration) => {
     setEditingRegistration(reg);
     setEditFormData({}); // Will be populated by DynamicEditRegistrationForm
+    // Los recorridos de SU carrera para el desplegable «Recorrido»: antes solo
+    // se cargaban con el diálogo de alta y al editar salía vacío (no se podía
+    // cambiar de recorrido, ni como admin ni como organizador)
+    if (reg.race_id) fetchFormDistances(reg.race_id);
     setIsEditOpen(true);
   };
 
