@@ -3,7 +3,7 @@
  * Crear, listar, revocar y sacar el QR de activación de cada dorsal
  * (patrón token de la casa: la identidad es el DORSAL, no la persona).
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -58,16 +58,32 @@ export function GpsTokensManagement({ selectedRaceId }: { selectedRaceId: string
       supabase.from("race_distances").select("id, name, gps_tracking_enabled").eq("race_id", selectedRaceId)
         .order("display_order", { ascending: true, nullsFirst: false }),
     ]);
-    setTokens(((t.data as unknown) as TokenRow[]) ?? []);
-    const dists = d.data ?? [];
-    setDistances(dists);
-    if (!distId && dists.length > 0) setDistId(dists[0].id);
+    // El dorsal llega como texto y la RPC lo ordena como texto (10, 100, 101…
+    // 11): aquí, por número (2, 10, 100); los no numéricos, detrás
+    const porNumero = new Intl.Collator("es", { numeric: true });
+    setTokens(
+      [...(((t.data as unknown) as TokenRow[]) ?? [])].sort((a, b) => {
+        const na = /^\d+$/.test(String(a.bib).trim()), nb = /^\d+$/.test(String(b.bib).trim());
+        if (na !== nb) return na ? -1 : 1;
+        return porNumero.compare(String(a.bib).trim(), String(b.bib).trim());
+      }),
+    );
+    setDistances(d.data ?? []);
     setLoading(false);
-  }, [selectedRaceId, distId]);
+  }, [selectedRaceId]);
+
+  // El desplegable de evento filtra la lista y es el evento de los dorsales
+  // nuevos ("" = todos los eventos: para crear hay que elegir uno)
+  const visibles = useMemo(() => (distId ? tokens.filter((t) => t.distance_id === distId) : tokens), [tokens, distId]);
 
   useEffect(() => {
     if (selectedRaceId) cargar();
   }, [selectedRaceId, cargar]);
+
+  // Otra carrera: el evento elegido de la anterior no vale
+  useEffect(() => {
+    setDistId("");
+  }, [selectedRaceId]);
 
   const crear = async () => {
     setCreando(true);
@@ -235,16 +251,21 @@ Vacio = quitar del grafismo.`,
           <CardDescription>Se crea con su token listo para el QR</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Select value={distId} onValueChange={setDistId}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Evento" /></SelectTrigger>
+          <Select value={distId || "todos"} onValueChange={(v) => setDistId(v === "todos" ? "" : v)}>
+            <SelectTrigger className="w-[200px]"><SelectValue placeholder="Evento" /></SelectTrigger>
             <SelectContent>
+              <SelectItem value="todos">Todos los eventos</SelectItem>
               {distances.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Input className="w-24" placeholder="Dorsal" value={bib} onChange={(e) => setBib(e.target.value)} />
           <Input className="flex-1 min-w-[160px]" placeholder="Nombre (opcional)" value={nombre} onChange={(e) => setNombre(e.target.value)} />
           <Input className="w-32" type="number" min={1} max={120} placeholder="Interv. (15s)" value={intervalo} onChange={(e) => setIntervalo(e.target.value)} title="Segundos entre posiciones GPS (vacio = 15 s)" />
-          <Button onClick={crear} disabled={creando || !bib.trim() || !distId}>
+          <Button
+            onClick={crear}
+            disabled={creando || !bib.trim() || !distId}
+            title={!distId ? "Elige el evento del dorsal en el desplegable" : undefined}
+          >
             {creando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Crear"}
           </Button>
           <Button
@@ -260,7 +281,16 @@ Vacio = quitar del grafismo.`,
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Dorsales ({tokens.length})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>
+            Dorsales ({distId ? `${visibles.length} de ${tokens.length}` : tokens.length})
+          </CardTitle>
+          {distId && (
+            <CardDescription>
+              Solo {distances.find((d) => d.id === distId)?.name ?? "el evento elegido"}: cambia el desplegable de arriba a «Todos los eventos» para verlos todos.
+            </CardDescription>
+          )}
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -271,7 +301,7 @@ Vacio = quitar del grafismo.`,
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tokens.map((row) => (
+              {visibles.map((row) => (
                 <TableRow key={row.token_row_id}>
                   <TableCell className="font-bold">{row.bib}</TableCell>
                   <TableCell>{row.nombre}</TableCell>
