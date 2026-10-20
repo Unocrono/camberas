@@ -48,6 +48,8 @@ interface SosAlert {
 
 /** Sin actualización GPS en este tiempo → corredor "sin señal" */
 const STALE_MS = 5 * 60 * 1000;
+// Dorsales como número (2, 10, 100) y no como texto (10, 100, 2); CP1, CP2, CP10…
+const POR_DORSAL = new Intl.Collator('es', { numeric: true });
 
 interface RunnerTrackPoint {
   latitude: number;
@@ -1415,12 +1417,16 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
   const isStale = (runner: RunnerPosition) =>
     replayPositions == null && Date.now() - new Date(runner.timestamp).getTime() > STALE_MS;
 
-  // Orden: primero por km recorridos (clasificación virtual), sin progreso al final
+  // Orden: primero por km recorridos (clasificación virtual), sin progreso al
+  // final. En empate (sin ruta o sin progreso) por dorsal COMO NÚMERO: el
+  // servidor lo da como texto (1, 10, 100, 11, 2) y era el que mandaba
   const sortedRunners = useMemo(() => {
     return [...displayPositions].sort((a, b) => {
       const pa = progressByRunner.get(a.registration_id)?.km ?? -1;
       const pb = progressByRunner.get(b.registration_id)?.km ?? -1;
-      return pb - pa;
+      if (pb !== pa) return pb - pa;
+      if (!a.bib_number || !b.bib_number) return a.bib_number ? -1 : b.bib_number ? 1 : 0;
+      return POR_DORSAL.compare(String(a.bib_number), String(b.bib_number));
     });
   }, [displayPositions, progressByRunner]);
 
