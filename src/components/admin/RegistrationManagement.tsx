@@ -15,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuCheckboxItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
-import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2, Undo2, AlertTriangle } from "lucide-react";
+import { Download, FileSpreadsheet, Filter, Hash, Plus, Pencil, Trash2, Upload, ChevronDown, CheckCircle, CreditCard, Route, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, Users, Tag, RefreshCw, QrCode, Mail, Loader2, Undo2, AlertTriangle, ArrowLeftRight } from "lucide-react";
 import * as XLSX from "xlsx";
 import { qrConLogo } from "@/lib/qrConLogo";
 import { calculateCategoryByAge, RaceCategory } from "@/lib/categoryUtils";
@@ -27,6 +27,7 @@ import { RegistrationImportDialog } from "./RegistrationImportDialog";
 import { DynamicEditRegistrationForm } from "./DynamicEditRegistrationForm";
 import { AltaCorredor } from "@/components/org/AltaCorredor";
 import { DevolucionDialog } from "./DevolucionDialog";
+import { CambiarRecorridoDialog, type CorredorACambiar } from "./CambiarRecorridoDialog";
 import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface Registration {
@@ -252,6 +253,19 @@ interface ResumenDevoluciones {
   devueltoCent: number;
 }
 
+// Devolución que dejó un cambio de recorrido y espera al admin
+interface CambioPendiente {
+  id: string;
+  registration_id: string;
+  race_id: string;
+  desde_nombre: string | null;
+  hasta_nombre: string | null;
+  importe_decision: number;
+  created_at: string;
+  nota: string | null;
+  registration: { first_name: string | null; last_name: string | null } | null;
+}
+
 export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: RegistrationManagementProps) {
   // QR del dorsal GPS: reutiliza (o crea) el token del corredor y abre el QR
   const abrirQrDorsal = async (reg: any) => {
@@ -362,6 +376,12 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     () => new Map(),
   );
   const [devolucionesSinConfirmar, setDevolucionesSinConfirmar] = useState<string[]>([]);
+  // Cambio de recorrido (botón ⇄ de la fila) y las devoluciones que deja
+  // pedidas: el admin las hace (con el importe ya puesto) o las descarta
+  const [cambioCorredor, setCambioCorredor] = useState<CorredorACambiar | null>(null);
+  const [devolucionCambio, setDevolucionCambio] = useState<{ cambioId: string; importeCent: number; motivo: string } | null>(null);
+  const [cambiosPendientes, setCambiosPendientes] = useState<CambioPendiente[]>([]);
+  const [resolviendoCambio, setResolviendoCambio] = useState<string | null>(null);
   const [bulkStatus, setBulkStatus] = useState("confirmed");
   const [bulkPaymentStatus, setBulkPaymentStatus] = useState("paid");
   const [bulkDistanceId, setBulkDistanceId] = useState("");
@@ -679,16 +699,38 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
     setBulkActionLoading(true);
     try {
+      // Una a una por cambiar_recorrido (dorsal, QR, respuestas y registro).
+      // Las que tienen diferencia de precio piden decidir el dinero: no se
+      // tocan aquí, se hacen con el botón ⇄ de la fila
       const ids = Array.from(selectedRows);
-      const { error } = await supabase
-        .from("registrations")
-        .update({ race_distance_id: bulkDistanceId })
-        .in("id", ids);
-      if (error) throw error;
-      toast({ title: `Recorrido actualizado en ${ids.length} inscripciones` });
+      let hechas = 0;
+      const conDinero: string[] = [];
+      const fallos: string[] = [];
+      for (const id of ids) {
+        const reg = registrations.find((r) => r.id === id);
+        if (!reg || reg.race_distance_id === bulkDistanceId) continue;
+        const nombre = `${reg.first_name ?? ""} ${reg.last_name ?? ""}`.trim() || id.slice(0, 8);
+        const { error } = await supabase.rpc("cambiar_recorrido" as never, {
+          p_registration_id: id,
+          p_hasta: bulkDistanceId,
+          p_modo_dorsal: reg.bib_number != null ? "siguiente" : "ninguno",
+        } as never);
+        if (!error) hechas++;
+        else if (/^Sale a (cobrar|devolver)|otra plataforma/.test(error.message)) conDinero.push(nombre);
+        else fallos.push(`${nombre}: ${error.message}`);
+      }
+      toast({
+        title: `Recorrido cambiado en ${hechas} de ${ids.length}`,
+        description: [
+          conDinero.length ? `Con diferencia de precio (hazlas con ⇄ en la fila): ${conDinero.join(", ")}.` : "",
+          fallos.length ? `No se pudo: ${fallos.join(" · ")}` : "",
+        ].filter(Boolean).join(" ") || undefined,
+        variant: conDinero.length || fallos.length ? "destructive" : undefined,
+      });
       setSelectedRows(new Set());
       setBulkDistanceDialog(false);
       fetchData();
+      cargarCambiosPendientes();
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -1022,8 +1064,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
 
   const plantillaElegida = plantillasEmail.find((p) => p.clave === reenvioPlantilla) ?? null;
 
-  const abrirReenvio = async () => {
-    const ids = Array.from(selectedRows);
+  // Sin argumentos, la selección de la tabla; tras un cambio de recorrido,
+  // ese corredor y la plantilla que toca ('dorsal' o 'track')
+  const abrirReenvio = async (idsElegidos?: string[], plantillaPreferida?: string) => {
+    const ids = idsElegidos ?? Array.from(selectedRows);
     setReenvioIds(ids);
     setReenvioExternas(false);
     setReenvioMensaje("");
@@ -1055,7 +1099,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       const r = registrations.find((x) => x.id === id);
       return r?.payment_status === "pending" && r?.status === "pending";
     });
-    const preferida = todasPendientes ? "recordatorio_pago" : "comprobante";
+    const preferida = plantillaPreferida ?? (todasPendientes ? "recordatorio_pago" : "comprobante");
     const clave = lista.some((p) => p.clave === preferida)
       ? preferida
       : lista.some((p) => p.clave === "comprobante")
@@ -1224,6 +1268,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   useEffect(() => {
     fetchData();
     cargarDevoluciones();
+    cargarCambiosPendientes();
     if (selectedRaceId) {
       fetchFormFieldsAndResponses(selectedRaceId);
       fetchCategories(selectedRaceId);
@@ -1256,6 +1301,52 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     }
     setDevolucionesPorInscripcion(porInscripcion);
     setDevolucionesSinConfirmar(sinConfirmar);
+  };
+
+  // Devoluciones pedidas en cambios de recorrido. El organizador ve las de sus
+  // carreras (RLS) para saber que siguen pendientes; el admin, todas
+  const cargarCambiosPendientes = async () => {
+    const { data, error } = await (supabase as any)
+      .from("cambios_recorrido")
+      .select("id, registration_id, race_id, desde_nombre, hasta_nombre, importe_decision, created_at, nota, registration:registrations(first_name, last_name)")
+      .eq("decision", "devolucion_pedida")
+      .order("created_at", { ascending: true });
+    if (error) return;
+    setCambiosPendientes((data ?? []) as CambioPendiente[]);
+  };
+
+  // El admin cierra una devolución pedida. «Ya devuelta»: si consta una
+  // devolución hecha de esa inscripción después del cambio, salió por la
+  // pasarela (ya cuenta en devoluciones); si no, se devolvió fuera
+  const resolverCambio = async (c: Pick<CambioPendiente, "id" | "registration_id" | "created_at">, decision: "devuelto" | "no_se_devuelve", importeCent?: number) => {
+    setResolviendoCambio(c.id);
+    try {
+      let fuera = false;
+      if (decision === "devuelto" && importeCent == null) {
+        const { data } = await supabase
+          .from("devoluciones")
+          .select("id")
+          .eq("registration_id", c.registration_id)
+          .eq("estado", "hecha")
+          .gte("created_at", c.created_at)
+          .limit(1);
+        fuera = (data ?? []).length === 0;
+      }
+      const { error } = await supabase.rpc("resolver_cambio_recorrido" as never, {
+        p_cambio_id: c.id,
+        p_decision: decision,
+        p_importe: importeCent != null ? importeCent / 100 : null,
+        p_nota: decision === "devuelto" && fuera ? "devuelta fuera de Camberas" : null,
+        p_fuera: fuera,
+      } as never);
+      if (error) throw error;
+      toast({ title: decision === "devuelto" ? "Devolución apuntada" : "Marcada: no se devuelve" });
+      cargarCambiosPendientes();
+    } catch (e: any) {
+      toast({ title: "No se pudo guardar", description: e.message, variant: "destructive" });
+    } finally {
+      setResolviendoCambio(null);
+    }
   };
 
   const fetchFormFieldsAndResponses = async (raceId: string) => {
@@ -1768,7 +1859,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         status: editFormData.status,
         payment_status: editFormData.payment_status,
         bib_number: editFormData.bib_number ? parseInt(editFormData.bib_number) : null,
-        race_distance_id: editFormData.race_distance_id,
+        // El recorrido no se toca aquí: «Cambiar de recorrido» (cambiar_recorrido)
       };
 
       const { error } = await supabase
@@ -2208,6 +2299,81 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         </div>
       )}
 
+      {/* Devoluciones pedidas en cambios de recorrido: las hace el admin */}
+      {(() => {
+        const carrera = selectedRaceId || (selectedRace !== "all" ? selectedRace : "");
+        const lista = cambiosPendientes.filter((c) => !carrera || c.race_id === carrera);
+        if (lista.length === 0) return null;
+        return (
+          <div className="space-y-2 rounded-md border border-amber-500 p-3 text-sm" role="status">
+            <p className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+              {lista.length === 1
+                ? "1 devolución pendiente por cambio de recorrido"
+                : `${lista.length} devoluciones pendientes por cambio de recorrido`}
+              {isOrganizer && <span className="font-normal text-muted-foreground">· las hace el admin</span>}
+            </p>
+            <ul className="space-y-1.5">
+              {lista.map((c) => {
+                const quien = `${c.registration?.first_name ?? ""} ${c.registration?.last_name ?? ""}`.trim() || "Corredor";
+                return (
+                  <li key={c.id} className="flex flex-wrap items-center gap-2">
+                    <span className="flex-1 min-w-0">
+                      <strong>{quien}</strong> · {c.desde_nombre} → {c.hasta_nombre} ·{" "}
+                      <strong>{eurosDeCentimos(Math.round(Number(c.importe_decision) * 100))}</strong> · pedida el{" "}
+                      {new Date(c.created_at).toLocaleDateString("es-ES")}
+                      {c.nota ? ` · ${c.nota}` : ""}
+                    </span>
+                    {!isOrganizer && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={resolviendoCambio === c.id}
+                          onClick={() => {
+                            setDevolucionCambio({
+                              cambioId: c.id,
+                              importeCent: Math.round(Number(c.importe_decision) * 100),
+                              motivo: `Cambio de recorrido: ${c.desde_nombre} → ${c.hasta_nombre}`,
+                            });
+                            setDevolucionId(c.registration_id);
+                          }}
+                        >
+                          Devolver
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={resolviendoCambio === c.id}
+                          title="Ya se la has devuelto (por la pasarela, en efectivo o por transferencia)"
+                          onClick={() => {
+                            if (window.confirm(`¿Ya le has devuelto ${eurosDeCentimos(Math.round(Number(c.importe_decision) * 100))} a ${quien}?`)) {
+                              resolverCambio(c, "devuelto");
+                            }
+                          }}
+                        >
+                          Ya devuelta
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={resolviendoCambio === c.id}
+                          onClick={() => {
+                            if (window.confirm(`¿No se le devuelve nada a ${quien}?`)) resolverCambio(c, "no_se_devuelve");
+                          }}
+                        >
+                          No se devuelve
+                        </Button>
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      })()}
+
       {/* Import Dialog */}
       <RegistrationImportDialog
         open={isImportOpen}
@@ -2319,7 +2485,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 <Hash className="h-4 w-4 mr-2" />
                 Asignar dorsales automáticamente
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={abrirReenvio}>
+              <DropdownMenuItem onClick={() => abrirReenvio()}>
                 <Mail className="h-4 w-4 mr-2" />
                 Enviar email a los seleccionados…
               </DropdownMenuItem>
@@ -2816,6 +2982,15 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 <Pencil className="h-4 w-4" />
                               </Button>
 
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title="Cambiar de recorrido"
+                                onClick={() => setCambioCorredor(reg)}
+                              >
+                                <ArrowLeftRight className="h-4 w-4" />
+                              </Button>
+
                               {/* Devolver por Redsys: solo admin (el dinero sale del TPV de UNO), solo
                                   lo cobrado por la pasarela de Camberas; también las reembolsadas,
                                   para ver su historial, y cualquiera con una devolución sin confirmar */}
@@ -2997,13 +3172,40 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       {!isOrganizer && (
         <DevolucionDialog
           registrationId={devolucionId}
-          onOpenChange={(open) => !open && setDevolucionId(null)}
+          onOpenChange={(open) => {
+            if (open) return;
+            setDevolucionId(null);
+            setDevolucionCambio(null);
+          }}
           onCambio={() => {
             fetchData();
             cargarDevoluciones();
+            cargarCambiosPendientes();
+          }}
+          propuesta={devolucionCambio}
+          onHecha={(cent) => {
+            // Salió por la pasarela: ya cuenta en devoluciones (no «fuera»)
+            if (devolucionCambio && devolucionId) {
+              resolverCambio({ id: devolucionCambio.cambioId, registration_id: devolucionId, created_at: "" }, "devuelto", cent);
+            }
           }}
         />
       )}
+
+      <CambiarRecorridoDialog
+        corredor={cambioCorredor}
+        esAdmin={!isOrganizer}
+        onOpenChange={(open) => !open && setCambioCorredor(null)}
+        onCambiado={() => {
+          fetchData();
+          cargarCambiosPendientes();
+        }}
+        onDevolverAhora={(registrationId, cambioId, importe, motivo) => {
+          setDevolucionCambio({ cambioId, importeCent: Math.round(importe * 100), motivo });
+          setDevolucionId(registrationId);
+        }}
+        onEnviarCorreo={(registrationId, plantilla) => abrirReenvio([registrationId], plantilla)}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
@@ -3026,6 +3228,11 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 categories={categories}
                 formData={editFormData}
                 onFormDataChange={setEditFormData}
+                onCambiarRecorrido={() => {
+                  const reg = editingRegistration;
+                  setIsEditOpen(false);
+                  setCambioCorredor(reg);
+                }}
               />
             )}
           </div>
@@ -3108,7 +3315,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
           <DialogHeader>
             <DialogTitle>Cambiar recorrido masivo</DialogTitle>
             <DialogDescription>
-              Cambiar el recorrido de {selectedRows.size} inscripciones seleccionadas
+              Cambiar el recorrido de {selectedRows.size} inscripciones seleccionadas. Las que tienen dorsal reciben el
+              siguiente libre del recorrido nuevo y su QR GPS se mueve. Las que tengan diferencia de precio no se tocan:
+              hazlas con el botón ⇄ de la fila.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

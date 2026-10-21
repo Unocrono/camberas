@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,6 +68,8 @@ interface DynamicEditRegistrationFormProps {
   categories: { id: string; name: string; race_distance_id: string | null }[];
   onFormDataChange: (data: Record<string, any>) => void;
   formData: Record<string, any>;
+  /** El recorrido no se cambia aquí: este botón abre «Cambiar de recorrido» */
+  onCambiarRecorrido?: () => void;
 }
 
 // System fields that are always shown at the top
@@ -102,6 +105,7 @@ export function DynamicEditRegistrationForm({
   categories,
   onFormDataChange,
   formData,
+  onCambiarRecorrido,
 }: DynamicEditRegistrationFormProps) {
   const [fields, setFields] = useState<FormField[]>([]);
   const [loading, setLoading] = useState(true);
@@ -279,33 +283,25 @@ export function DynamicEditRegistrationForm({
           </div>
         );
       
-      case 'distance_select':
+      case 'distance_select': {
+        // Solo se ve: cambiarlo aquí dejaba el dorsal, el QR GPS, las
+        // respuestas y el dinero del recorrido viejo. «Cambiar de recorrido»
+        // lo hace todo de una vez
+        const actual = distances.find((d) => d.id === registration.race_distance_id);
         return (
           <div key={field.name} className="space-y-2">
             <Label>{field.label}</Label>
-            <Select value={value} onValueChange={(v) => handleChange(field.name, v)}>
-              <SelectTrigger>
-                <SelectValue placeholder={distances.length ? "Elige el recorrido" : "Cargando recorridos…"} />
-              </SelectTrigger>
-              <SelectContent>
-                {distances.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name} ({d.distance_km}km)
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {/* Cambio de recorrido: lo que NO se hace solo */}
-            {value && registration.race_distance_id && value !== registration.race_distance_id && (
-              <p className="rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs text-amber-800 dark:text-amber-300">
-                Cambio de recorrido: la categoría se recalcula al guardar. Revisa el <strong>dorsal</strong> (es del rango
-                del recorrido anterior), la <strong>diferencia de precio</strong> y, si hay seguimiento, su{" "}
-                <strong>QR GPS</strong>. Si viene de uno.es o RockTheSport, cámbialo también allí o la sincronización lo
-                devolverá.
-              </p>
-            )}
+            <div className="flex gap-2">
+              <Input value={actual ? `${actual.name} (${actual.distance_km}km)` : distances.length ? "—" : "Cargando…"} disabled />
+              {onCambiarRecorrido && (
+                <Button type="button" variant="outline" onClick={onCambiarRecorrido} className="shrink-0">
+                  Cambiar de recorrido
+                </Button>
+              )}
+            </div>
           </div>
         );
+      }
       
       case 'status_select':
         return (

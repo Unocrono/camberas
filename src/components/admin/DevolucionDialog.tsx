@@ -252,9 +252,14 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Tras cualquier envío (salga como salga): para refrescar la tabla */
   onCambio?: () => void;
+  /** Abierto tras un cambio de recorrido: importe y motivo puestos, y sin
+   *  anular la inscripción (sigue corriendo, en el otro recorrido) */
+  propuesta?: { importeCent: number; motivo: string } | null;
+  /** Cuando una devolución pedida desde este diálogo queda hecha */
+  onHecha?: (importeCent: number) => void;
 }
 
-export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Props) {
+export function DevolucionDialog({ registrationId, onOpenChange, onCambio, propuesta, onHecha }: Props) {
   const [info, setInfo] = useState<Info | null>(null);
   const [cargando, setCargando] = useState(false);
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
@@ -279,6 +284,11 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
   // error y no hay fila, así que no llegó a pedir nada a Redsys
   const [falloEnvio, setFalloEnvio] = useState<{ texto: string; sinRedsys: boolean } | null>(null);
   const [resolviendo, setResolviendo] = useState<{ id: string; estado: "hecha" | "rechazada" } | null>(null);
+
+  // La propuesta se lee al cargar, sin que cambie la identidad de cargar()
+  const propuestaRef = useRef(propuesta);
+  propuestaRef.current = propuesta;
+  const avisadaHecha = useRef<string | null>(null);
 
   // Para descartar respuestas tardías de otra inscripción
   const cargaActual = useRef(0);
@@ -315,11 +325,18 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     if (primeraCarga.current) {
       primeraCarga.current = false;
       const yaAnulada = i.inscripcion.status === "cancelled";
-      // Con el dorsal cedido o con varios cobros, anular no es lo normal
-      setCancelar(yaAnulada || (!i.cedida && i.cobros.length <= 1));
       setNotificar(!i.cedida);
-      // Si ya se devolvió algo, no se propone devolver el resto de golpe
-      if (devolvible && devolvible.devuelto_cent === 0) setImporteTexto(aTexto(devolvible.disponible_cent));
+      const p = propuestaRef.current;
+      if (p) {
+        // Cambio de recorrido: devuelve la diferencia y sigue inscrito
+        setCancelar(yaAnulada);
+        if (devolvible) setImporteTexto(aTexto(Math.min(p.importeCent, devolvible.disponible_cent)));
+      } else {
+        // Con el dorsal cedido o con varios cobros, anular no es lo normal
+        setCancelar(yaAnulada || (!i.cedida && i.cobros.length <= 1));
+        // Si ya se devolvió algo, no se propone devolver el resto de golpe
+        if (devolvible && devolvible.devuelto_cent === 0) setImporteTexto(aTexto(devolvible.disponible_cent));
+      }
     }
     return i;
   }, [registrationId]);
@@ -332,7 +349,7 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
     setCobroId(null);
     setExterna(false);
     setImporteTexto("");
-    setMotivo("");
+    setMotivo(propuestaRef.current?.motivo ?? "");
     setCancelar(true);
     setNotificar(true);
     setPaso("form");
@@ -404,6 +421,15 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio }: Pro
   }, [info, paso, peticionId, resultado]);
 
   const filaPeticion = info?.devoluciones.find((d) => d.id === peticionId) ?? null;
+
+  // Hecha (al momento o al contestar Redsys más tarde): se avisa una vez
+  useEffect(() => {
+    if (paso !== "resultado" || !peticionId || resultado?.estado !== "hecha") return;
+    if (avisadaHecha.current === peticionId) return;
+    avisadaHecha.current = peticionId;
+    const cent = filaPeticion?.importe_cent ?? importe;
+    if (cent) onHecha?.(cent);
+  }, [paso, peticionId, resultado, filaPeticion, importe, onHecha]);
 
   const cerrar = () => {
     if (enviando) return;
