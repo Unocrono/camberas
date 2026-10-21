@@ -615,6 +615,22 @@ export function CamberasTrackMap({
     // Intentar encontrar roadbook via race_distances → roadbooks
     // O buscar directamente si el eventId está en roadbooks o race_distances
     const findRoadbook = async () => {
+      // 0. Si hay GPX, manda el GPX: es el trazado completo. La línea del
+      //    rutómetro une solo sus puntos (salida, avituallamientos…) y sale a
+      //    tramos rectos; con «Todos los eventos» se veía esa y con un evento
+      //    concreto el GPX detallado (Entre Viñedos, 21-oct)
+      const { data: conGpx } = await supabase
+        .from('race_distances')
+        .select('id')
+        .or(`race_id.eq.${eventId},id.eq.${eventId}`)
+        .not('gpx_file_url', 'is', null)
+        .limit(1);
+      if (cancelled) return;
+      if (conGpx && conGpx.length > 0) {
+        setDetectedRoadbookId('');
+        return;
+      }
+
       // 1. Buscar race_distances con race_id = eventId
       const { data: dists } = await supabase
         .from('race_distances')
