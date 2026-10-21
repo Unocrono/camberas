@@ -201,12 +201,15 @@ function positionCamera(
 
   // Suavizado exponencial de TODO (posición, altitud, rumbo y pitch):
   // el zigzag del GPX no debe traducirse en golpes de cámara
-  const primera = !cam.initialized;
-  if (primera) {
-    cam.lng = behind.lng;
-    cam.lat = behind.lat;
-    cam.alt = rawAlt;
+  if (!cam.initialized) {
+    // Arranque: vista cenital sobre la salida. Al echar a andar, el propio
+    // suavizado baja la cámara y la coloca detrás del corredor
+    const salida = sampleAt(idx, Math.max(0, km));
+    cam.lng = salida.lng;
+    cam.lat = salida.lat;
+    cam.alt = groundElevation(map, salida) + 1200;
     cam.bearing = rawBearing;
+    cam.pitch = 8;
     cam.initialized = true;
   } else {
     const kPos = 0.05;
@@ -238,9 +241,7 @@ function positionCamera(
     25,
     Math.min(83, (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI),
   );
-  // La primera vez, ya mirando a su sitio (antes arrancaba a 60° y tardaba
-  // en levantar la vista)
-  cam.pitch = primera ? rawPitch : cam.pitch + (rawPitch - cam.pitch) * 0.06;
+  cam.pitch += (rawPitch - cam.pitch) * 0.06;
 
   const camera = map.getFreeCameraOptions();
   camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
@@ -331,6 +332,8 @@ export default function RouteFlight({
   const idxRef = useRef<TrackIndex | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number | null>(null);
+  // Fotograma (ts) hasta el que la cámara se queda quieta en la salida
+  const esperaRef = useRef<number | null>(null);
   const kmRef = useRef(0);
   const frameRef = useRef(0);
   const camRef = useRef<CamState>({
@@ -509,6 +512,19 @@ export default function RouteFlight({
     const step = (ts: number) => {
       let dtSec: number;
 
+      // En la salida, dos segundos quietos desde arriba para verla (y que
+      // carguen las teselas). Se mide aquí, con el reloj de los fotogramas:
+      // un setTimeout en el efecto se reiniciaba cada vez que la ficha de la
+      // carrera se volvía a pintar (pace es un array nuevo en cada render) y
+      // el vuelo no arrancaba nunca (21-oct)
+      if (!deterministic && kmRef.current === 0) {
+        if (esperaRef.current === null) esperaRef.current = ts + 2000;
+        if (ts < esperaRef.current) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+      }
+
       if (deterministic) {
         dtSec = 1 / captureFps;
         frameRef.current += 1;
@@ -537,15 +553,14 @@ export default function RouteFlight({
       rafRef.current = requestAnimationFrame(step);
     };
 
-    // En la salida, un momento quieto para verla (y que carguen las teselas)
-    const espera = !deterministic && kmRef.current === 0 ? 1500 : 0;
-    const arranque = setTimeout(() => {
-      rafRef.current = requestAnimationFrame(step);
-    }, espera);
+    rafRef.current = requestAnimationFrame(step);
     return () => {
-      clearTimeout(arranque);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      lastTsRef.current = null;
+      // El reloj entre fotogramas NO se pone a cero: la ficha de la carrera
+      // se vuelve a pintar varias veces por segundo y este efecto se
+      // reinicia con ella; con el reloj a cero cada vez, dt salía 0 en casi
+      // todos los fotogramas y el vuelo no avanzaba (21-oct). Un parón
+      // largo (pestaña oculta) lo absorbe el tope de 0,25 s de arriba
     };
   }, [
     ready, playing, controlled, pace, timeScale,

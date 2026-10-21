@@ -5,7 +5,7 @@
  * distancia del track.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseGpxFile } from "@/lib/gpxParser";
 import RouteFlight, { type TrackCoord } from "@/components/RouteFlight";
@@ -81,6 +81,10 @@ export function RouteFlightViewer({ gpxUrl, llenar = false }: RouteFlightViewerP
     };
   }, [gpxUrl]);
 
+  // Misma referencia en cada render: como prop de RouteFlight, un array nuevo
+  // reiniciaba el bucle del vuelo cada vez que la ficha se repintaba
+  const pace = useMemo(() => [{ km: 0, kmh: PACE_KMH }], []);
+
   const alto = llenar ? "h-full" : "h-64";
 
   if (error) {
@@ -109,7 +113,7 @@ export function RouteFlightViewer({ gpxUrl, llenar = false }: RouteFlightViewerP
       <RouteFlight
         track={track}
         accessToken={token}
-        pace={[{ km: 0, kmh: PACE_KMH }]}
+        pace={pace}
         timeScale={timeScale}
         autoPlay
         showHud
