@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Calendar, MapPin, Users, Clock, Mountain as MountainIcon, Radio, Globe, Mail, Download, Image as ImageIcon, TrendingUp, Navigation, Map, BarChart3, CreditCard, ArrowLeft, Plane, SearchCheck } from "lucide-react";
 import { formatLocalTime, paredAMs, ahoraParedMs, hoyLocal } from "@/lib/timezoneUtils";
 import { formatearTiempoLimite } from "@/lib/tiempoLimite";
+import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -125,6 +126,7 @@ const RaceDetail = () => {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [faqs, setFaqs] = useState<any[]>([]);
   const [roadbooks, setRoadbooks] = useState<Record<string, any[]>>({});
+  const [descargandoGpx, setDescargandoGpx] = useState<string | null>(null);
   
   // Payment state
   const [registrationStep, setRegistrationStep] = useState<'form' | 'payment'>('form');
@@ -1356,17 +1358,28 @@ const RaceDetail = () => {
                             </Button>
                           )}
                           
+                          {/* Con los PC y destacados del rutómetro como waypoints */}
                           {distance.gpx_file_url && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="w-full"
-                              asChild
+                              disabled={descargandoGpx === distance.id}
+                              onClick={async () => {
+                                setDescargandoGpx(distance.id);
+                                try {
+                                  await descargarGpxConPuntos(
+                                    distance.gpx_file_url,
+                                    roadbooks[distance.id]?.[0]?.id ?? null,
+                                    `${race.name} - ${distance.name}`,
+                                  );
+                                } finally {
+                                  setDescargandoGpx(null);
+                                }
+                              }}
                             >
-                              <a href={distance.gpx_file_url} download>
-                                <Download className="h-4 w-4 mr-2" />
-                                Descargar GPX
-                              </a>
+                              <Download className="h-4 w-4 mr-2" />
+                              Descargar GPX
                             </Button>
                           )}
 
