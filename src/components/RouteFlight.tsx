@@ -201,15 +201,15 @@ function positionCamera(
 
   // Suavizado exponencial de TODO (posición, altitud, rumbo y pitch):
   // el zigzag del GPX no debe traducirse en golpes de cámara
-  if (!cam.initialized) {
-    // Arranque: vista cenital sobre la salida. Al echar a andar, el propio
-    // suavizado baja la cámara y la coloca detrás del corredor
-    const salida = sampleAt(idx, Math.max(0, km));
-    cam.lng = salida.lng;
-    cam.lat = salida.lat;
-    cam.alt = groundElevation(map, salida) + 1200;
+  const primera = !cam.initialized;
+  if (primera) {
+    // Arranque ya en su sitio: detrás de la salida y mirando hacia delante.
+    // (Se probó una vista cenital sobre la salida que bajaba al echar a
+    // andar: el salto era muy brusco. Quitada el 21-oct)
+    cam.lng = behind.lng;
+    cam.lat = behind.lat;
+    cam.alt = rawAlt;
     cam.bearing = rawBearing;
-    cam.pitch = 8;
     cam.initialized = true;
   } else {
     const kPos = 0.05;
@@ -241,7 +241,9 @@ function positionCamera(
     25,
     Math.min(83, (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI),
   );
-  cam.pitch += (rawPitch - cam.pitch) * 0.06;
+  // La primera vez, ya mirando a su sitio (antes arrancaba a 60° y tardaba
+  // en levantar la vista)
+  cam.pitch = primera ? rawPitch : cam.pitch + (rawPitch - cam.pitch) * 0.06;
 
   const camera = map.getFreeCameraOptions();
   camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
