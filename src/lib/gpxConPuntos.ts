@@ -92,11 +92,25 @@ export async function descargarGpxConPuntos(gpxUrl: string, roadbookId: string |
       return el;
     };
 
-    // Los que ya traía el archivo: no se repiten
+    // Los que ya traía el archivo (p. ej. de una descarga anterior): el que
+    // esté a menos de 25 m de un punto del rutómetro se actualiza con lo que
+    // diga el rutómetro ahora (nombre, km, tipo), no se repite
     const yaEstan = Array.from(gpx.getElementsByTagNameNS(ns ?? "*", "wpt")).map((w) => ({
+      el: w,
       lat: Number(w.getAttribute("lat")),
       lon: Number(w.getAttribute("lon")),
+      usado: false,
     }));
+    const hijo = (w: Element, tag: string) => Array.from(w.children).find((c) => c.localName === tag) ?? null;
+    const poner = (w: Element, tag: string, valor: string | null) => {
+      const actual = hijo(w, tag);
+      if (valor == null) {
+        actual?.remove();
+        return;
+      }
+      if (actual) actual.textContent = valor;
+      else w.appendChild(nuevo(tag, valor));
+    };
     // En GPX 1.1 los <wpt> van antes de <rte> y <trk>
     const antesDe = Array.from(gpx.children).find((c) => c.localName === "rte" || c.localName === "trk" || c.localName === "extensions") ?? null;
 
@@ -105,18 +119,30 @@ export async function descargarGpxConPuntos(gpxUrl: string, roadbookId: string |
       const lat = Number(p.latitude);
       const lon = Number(p.longitude);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      if (yaEstan.some((w) => metros(w.lat, w.lon, lat, lon) < 25)) continue;
       const tipo = p.item_type && p.item_type !== "point" ? etiqueta.get(p.item_type) ?? null : null;
       const km = p.km_total != null ? `km ${Number(p.km_total).toLocaleString("es-ES", { maximumFractionDigits: 2 })}` : null;
+      const nombre = (p.description ?? "").trim() || tipo || km || "Punto";
+      const desc = [p.is_checkpoint ? "PC" : null, tipo, km].filter(Boolean).join(" · ") || null;
+      const sym = SIMBOLO[p.item_type ?? ""] ?? (p.is_checkpoint ? "Flag, Blue" : "Waypoint");
+      const type = tipo || p.is_checkpoint ? tipo ?? "PC" : null;
+      const existente = yaEstan.find((w) => !w.usado && metros(w.lat, w.lon, lat, lon) < 25);
+      if (existente) {
+        existente.usado = true;
+        poner(existente.el, "name", nombre);
+        poner(existente.el, "desc", desc);
+        poner(existente.el, "sym", sym);
+        poner(existente.el, "type", type);
+        añadidos++;
+        continue;
+      }
       const wpt = nuevo("wpt");
       wpt.setAttribute("lat", lat.toFixed(6));
       wpt.setAttribute("lon", lon.toFixed(6));
       if (p.altitude != null && Number.isFinite(Number(p.altitude))) wpt.appendChild(nuevo("ele", String(Number(p.altitude))));
-      wpt.appendChild(nuevo("name", (p.description ?? "").trim() || tipo || km || "Punto"));
-      const desc = [p.is_checkpoint ? "PC" : null, tipo, km].filter(Boolean).join(" · ");
+      wpt.appendChild(nuevo("name", nombre));
       if (desc) wpt.appendChild(nuevo("desc", desc));
-      wpt.appendChild(nuevo("sym", SIMBOLO[p.item_type ?? ""] ?? (p.is_checkpoint ? "Flag, Blue" : "Waypoint")));
-      if (tipo || p.is_checkpoint) wpt.appendChild(nuevo("type", tipo ?? "PC"));
+      wpt.appendChild(nuevo("sym", sym));
+      if (type) wpt.appendChild(nuevo("type", type));
       gpx.insertBefore(wpt, antesDe);
       añadidos++;
     }

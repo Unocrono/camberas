@@ -4,6 +4,7 @@ import type { RutasWeb } from "@/eventos/menu";
 import { resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
 import { PerfilGpxSvg, usePerfilGpx } from "./PerfilGpx";
+import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
 
 interface Props {
   evento: EventoPublico;
@@ -201,11 +202,17 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
             Vuelo 3D
           </a>
         )}
+        {/* Con los PC y destacados del rutómetro como waypoints */}
         {prueba.track?.gpx && (
-          <a href={prueba.track.gpx} download className="inline-flex items-center gap-2 text-[15px] font-semibold no-underline" style={{ color }}>
+          <button
+            type="button"
+            onClick={() => descargarGpxConPuntos(prueba.track!.gpx!, prueba.rutometro?.id ?? null, `${evento.nombre} - ${prueba.nombre}`)}
+            className="inline-flex cursor-pointer items-center gap-2 border-0 bg-transparent p-0 text-[15px] font-semibold"
+            style={{ color, font: "inherit", fontWeight: 600 }}
+          >
             <Download size={18} strokeWidth={2} aria-hidden="true" />
             GPX
-          </a>
+          </button>
         )}
         {prueba.plazasLibres != null && evento.inscripcion.mostrarPlazas && (
           <span className="text-sm">{prueba.plazasLibres} plazas libres</span>

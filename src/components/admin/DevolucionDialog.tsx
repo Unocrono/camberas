@@ -501,7 +501,15 @@ export function DevolucionDialog({ registrationId, onOpenChange, onCambio, propu
     huboEnvio.current = true;
     try {
       const r = await llamarFuncion({ accion: "resolver", id: objetivo.id, estado: objetivo.estado });
-      await cargar();
+      const i = await cargar();
+      // Confirmada a mano como hecha la que pidió un cambio de recorrido
+      if (objetivo.estado === "hecha" && propuestaRef.current && avisadaHecha.current !== objetivo.id) {
+        const fila = i?.devoluciones.find((d) => d.id === objetivo.id);
+        if (fila) {
+          avisadaHecha.current = objetivo.id;
+          onHecha?.(fila.importe_cent);
+        }
+      }
       // Un reintento de una marca que sí se guardó contesta "ya resuelta" con
       // el mismo estado: eso es un éxito, no un error
       const yaEstaba = r.motivo === "ya_resuelta" && r.estado === objetivo.estado;

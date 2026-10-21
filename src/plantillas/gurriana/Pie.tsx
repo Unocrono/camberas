@@ -2,6 +2,7 @@ import type { EventoPublico } from "@/eventos/tipos";
 import type { RutasWeb } from "@/eventos/menu";
 import { useTenant } from "@/tenant/TenantContext";
 import { FormularioContacto } from "./FormularioContacto";
+import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
 
 function Titulo({ children }: { children: string }) {
   return (
@@ -93,7 +94,16 @@ export function Pie({ evento, rutas }: { evento: EventoPublico; rutas: RutasWeb 
                 </li>
               ))}
               {evento.pruebas.filter((p) => p.track?.gpx).map((p) => (
-                <li key={p.id}><a href={p.track!.gpx} download className="no-underline hover:underline" style={{ color: "inherit" }}>Track {p.nombre} (GPX)</a></li>
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => descargarGpxConPuntos(p.track!.gpx!, p.rutometro?.id ?? null, `${evento.nombre} - ${p.nombre}`)}
+                    className="cursor-pointer border-0 bg-transparent p-0 hover:underline"
+                    style={{ color: "inherit", font: "inherit" }}
+                  >
+                    Track {p.nombre} (GPX)
+                  </button>
+                </li>
               ))}
               <li><a href={rutas.a("/aviso-legal")} className="no-underline hover:underline" style={{ color: "inherit" }}>Aviso legal y privacidad</a></li>
             </ul>

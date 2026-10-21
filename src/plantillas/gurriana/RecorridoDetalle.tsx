@@ -8,6 +8,7 @@ import { useTenant } from "@/tenant/TenantContext";
 import type { LibroDiseno, SeccionEventoId } from "@/plantillas/libroDiseno";
 import { ESTADO_BOTON, PerfilAltimetria } from "./Recorridos";
 import { iconoRutometro } from "@/lib/iconosRutometro";
+import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
 import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, ritmosDe } from "@/lib/ritmos";
 
 // Mapbox y el visor 3D solo se descargan cuando la sección está activa
@@ -169,10 +170,16 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
               <Plane size={18} strokeWidth={2} aria-hidden="true" />
               Vuelo 3D
             </a>
-            <a href={gpx} download className="wp-btn-outline" style={{ color: "var(--wp-ink)" }}>
+            {/* Con los PC y destacados del rutómetro como waypoints */}
+            <button
+              type="button"
+              onClick={() => descargarGpxConPuntos(gpx, prueba.rutometro?.id ?? null, `${evento.nombre} - ${prueba.nombre}`)}
+              className="wp-btn-outline cursor-pointer"
+              style={{ color: "var(--wp-ink)", font: "inherit" }}
+            >
               <Download size={18} strokeWidth={2} aria-hidden="true" />
               Descargar GPX
-            </a>
+            </button>
           </>
         )}
         {prueba.rutometro && (

@@ -132,6 +132,7 @@ export function CambiarRecorridoDialog({ corredor, esAdmin, onOpenChange, onCamb
     setRecorridos(null);
     setHasta(null);
     setVista(null);
+    setCargando(false);
     setError(null);
     setNota("");
     setHecho(null);
@@ -149,7 +150,7 @@ export function CambiarRecorridoDialog({ corredor, esAdmin, onOpenChange, onCamb
   }, [corredor]);
 
   const elegir = async (id: string) => {
-    if (!corredor) return;
+    if (!corredor || enviando) return;
     setHasta(id);
     setVista(null);
     setError(null);
@@ -167,15 +168,14 @@ export function CambiarRecorridoDialog({ corredor, esAdmin, onOpenChange, onCamb
     }
     const v = data as unknown as Vista;
     setVista(v);
-    // Si ya recogió el dorsal, lo normal es que se quede con el suyo
+    // Si ya recogió el dorsal, lo normal es que se quede con el suyo; sin
+    // dorsal (p. ej. pendiente de pago) sigue sin él hasta que se decida
     setModoDorsal(
-      v.entregado && corredor.bib_number != null
-        ? "mismo"
-        : v.hasta.bib_start != null
-          ? "siguiente"
-          : corredor.bib_number != null
-            ? "mismo"
-            : "ninguno",
+      corredor.bib_number == null
+        ? "ninguno"
+        : v.entregado || v.hasta.bib_start == null
+          ? "mismo"
+          : "siguiente",
     );
     setDorsalManual("");
     setForzar(false);
@@ -350,7 +350,7 @@ export function CambiarRecorridoDialog({ corredor, esAdmin, onOpenChange, onCamb
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {recorridos.map((r) => (
-                    <button key={r.id} type="button" onClick={() => elegir(r.id)} className={chip(hasta === r.id)}>
+                    <button key={r.id} type="button" disabled={enviando} onClick={() => elegir(r.id)} className={chip(hasta === r.id)}>
                       {r.name}
                       {r.distance_km ? ` · ${r.distance_km} km` : ""}
                     </button>

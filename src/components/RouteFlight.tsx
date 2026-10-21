@@ -104,6 +104,23 @@ function sampleAt(idx: TrackIndex, km: number) {
   return { lng, lat, ele, km: clamped };
 }
 
+/**
+ * Como sampleAt, pero antes de la salida (km < 0) prolonga el track hacia
+ * atrás en línea recta, con el rumbo de arranque. La cámara va siempre por
+ * detrás del corredor: sin esto, en la salida no había track detrás, se
+ * ponía ENCIMA de ella mirando hacia delante y la salida quedaba debajo,
+ * fuera de cuadro, durante el primer kilómetro y medio.
+ */
+function sampleOrBefore(idx: TrackIndex, km: number) {
+  if (km >= 0) return sampleAt(idx, km);
+  const start = sampleAt(idx, 0);
+  const ref = sampleAt(idx, Math.min(0.3, idx.totalKm));
+  const heading = turf.bearing(turf.point([start.lng, start.lat]), turf.point([ref.lng, ref.lat]));
+  const p = turf.destination(turf.point([start.lng, start.lat]), -km, heading + 180, { units: 'kilometers' });
+  const [lng, lat] = p.geometry.coordinates;
+  return { lng, lat, ele: start.ele, km };
+}
+
 function gradientAt(idx: TrackIndex, km: number, windowKm = 0.25) {
   const a = sampleAt(idx, km - windowKm);
   const b = sampleAt(idx, km + windowKm);
@@ -166,13 +183,13 @@ function positionCamera(
   const lookaheadKm = 0.5 + Math.max(0, -g) * 0.05;
   const heightM = 340 + Math.max(0, g) * 25;
 
-  const behind = sampleAt(idx, km - trailKm);
+  const behind = sampleOrBefore(idx, km - trailKm);
   const ahead = sampleAt(idx, km + lookaheadKm);
 
   // Terreno bajo la cámara y crestas entre la cámara y el corredor
   let ground = groundElevation(map, behind);
   for (let f = 0.25; f <= 1.001; f += 0.25) {
-    ground = Math.max(ground, groundElevation(map, sampleAt(idx, km - trailKm * (1 - f))));
+    ground = Math.max(ground, groundElevation(map, sampleOrBefore(idx, km - trailKm * (1 - f))));
   }
   const targetAlt = groundElevation(map, ahead);
   const rawAlt = Math.max(ground + heightM, targetAlt + MIN_CLEARANCE_M);
@@ -184,12 +201,12 @@ function positionCamera(
 
   // Suavizado exponencial de TODO (posición, altitud, rumbo y pitch):
   // el zigzag del GPX no debe traducirse en golpes de cámara
-  if (!cam.initialized) {
+  const primera = !cam.initialized;
+  if (primera) {
     cam.lng = behind.lng;
     cam.lat = behind.lat;
     cam.alt = rawAlt;
     cam.bearing = rawBearing;
-    cam.pitch = 60;
     cam.initialized = true;
   } else {
     const kPos = 0.05;
@@ -221,7 +238,9 @@ function positionCamera(
     25,
     Math.min(83, (Math.atan2(distM, alt - targetAlt) * 180) / Math.PI),
   );
-  cam.pitch += (rawPitch - cam.pitch) * 0.06;
+  // La primera vez, ya mirando a su sitio (antes arrancaba a 60° y tardaba
+  // en levantar la vista)
+  cam.pitch = primera ? rawPitch : cam.pitch + (rawPitch - cam.pitch) * 0.06;
 
   const camera = map.getFreeCameraOptions();
   camera.position = mapboxgl.MercatorCoordinate.fromLngLat(
@@ -518,8 +537,13 @@ export default function RouteFlight({
       rafRef.current = requestAnimationFrame(step);
     };
 
-    rafRef.current = requestAnimationFrame(step);
+    // En la salida, un momento quieto para verla (y que carguen las teselas)
+    const espera = !deterministic && kmRef.current === 0 ? 1500 : 0;
+    const arranque = setTimeout(() => {
+      rafRef.current = requestAnimationFrame(step);
+    }, espera);
     return () => {
+      clearTimeout(arranque);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       lastTsRef.current = null;
     };

@@ -706,27 +706,54 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       let hechas = 0;
       const conDinero: string[] = [];
       const fallos: string[] = [];
+      // Lo que el cambio hace sin preguntar y conviene saber: QR nuevo (hay
+      // que mandárselo), QR apagado, se queda sin dorsal, o cualquier aviso
+      const avisos: string[] = [];
+      const qrNuevo: string[] = [];
       for (const id of ids) {
         const reg = registrations.find((r) => r.id === id);
         if (!reg || reg.race_distance_id === bulkDistanceId) continue;
         const nombre = `${reg.first_name ?? ""} ${reg.last_name ?? ""}`.trim() || id.slice(0, 8);
-        const { error } = await supabase.rpc("cambiar_recorrido" as never, {
+        // Con el dorsal ya recogido (o sin rango en el nuevo) se queda con el suyo
+        const { data: info } = await supabase.rpc("cambio_recorrido_info" as never, {
           p_registration_id: id,
           p_hasta: bulkDistanceId,
-          p_modo_dorsal: reg.bib_number != null ? "siguiente" : "ninguno",
         } as never);
-        if (!error) hechas++;
-        else if (/^Sale a (cobrar|devolver)|otra plataforma/.test(error.message)) conDinero.push(nombre);
-        else fallos.push(`${nombre}: ${error.message}`);
+        const v = info as { entregado?: boolean; hasta?: { bib_start: number | null } } | null;
+        const modo =
+          reg.bib_number == null ? "ninguno" : v?.entregado || v?.hasta?.bib_start == null ? "mismo" : "siguiente";
+        const { data, error } = await supabase.rpc("cambiar_recorrido" as never, {
+          p_registration_id: id,
+          p_hasta: bulkDistanceId,
+          p_modo_dorsal: modo,
+        } as never);
+        if (error) {
+          if (/^Sale a (cobrar|devolver)|otra plataforma/.test(error.message)) conDinero.push(nombre);
+          else fallos.push(`${nombre}: ${error.message}`);
+          continue;
+        }
+        hechas++;
+        const h = data as { qr?: string; dorsal?: number | null; avisos?: string[] } | null;
+        if (h?.qr === "nuevo") qrNuevo.push(id);
+        if (h?.qr === "nuevo") avisos.push(`${nombre}: QR GPS nuevo, hay que mandárselo`);
+        if (h?.qr === "desactivado") avisos.push(`${nombre}: su QR GPS se ha apagado`);
+        if (reg.bib_number != null && h?.dorsal == null) avisos.push(`${nombre}: se queda sin dorsal`);
+        else if (reg.bib_number != null && h?.dorsal !== reg.bib_number) avisos.push(`${nombre}: dorsal ${reg.bib_number} → ${h?.dorsal}`);
+        for (const a of h?.avisos ?? []) avisos.push(`${nombre}: ${a}`);
       }
       toast({
         title: `Recorrido cambiado en ${hechas} de ${ids.length}`,
         description: [
+          avisos.length ? avisos.join(" · ") + "." : "",
           conDinero.length ? `Con diferencia de precio (hazlas con ⇄ en la fila): ${conDinero.join(", ")}.` : "",
           fallos.length ? `No se pudo: ${fallos.join(" · ")}` : "",
         ].filter(Boolean).join(" ") || undefined,
         variant: conDinero.length || fallos.length ? "destructive" : undefined,
+        duration: avisos.length || conDinero.length || fallos.length ? 20000 : undefined,
       });
+      if (qrNuevo.length > 0 && window.confirm(`${qrNuevo.length} corredor(es) tienen QR GPS nuevo. ¿Mandárselo ahora por email?`)) {
+        abrirReenvio(qrNuevo, "track");
+      }
       setSelectedRows(new Set());
       setBulkDistanceDialog(false);
       fetchData();
@@ -1325,12 +1352,22 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
       if (decision === "devuelto" && importeCent == null) {
         const { data } = await supabase
           .from("devoluciones")
-          .select("id")
+          .select("id, estado, importe_cent")
           .eq("registration_id", c.registration_id)
-          .eq("estado", "hecha")
-          .gte("created_at", c.created_at)
-          .limit(1);
-        fuera = (data ?? []).length === 0;
+          .in("estado", ["hecha", "pendiente", "dudosa"])
+          .gte("created_at", c.created_at);
+        // Una devolución por la pasarela aún sin respuesta: no se sabe si salió
+        if ((data ?? []).some((d) => d.estado !== "hecha")) {
+          toast({
+            title: "Hay una devolución sin confirmar",
+            description: "Resuélvela primero desde el botón Devolver de la inscripción; después se marca este cambio.",
+            variant: "destructive",
+          });
+          return;
+        }
+        const hecha = (data ?? []).find((d) => d.estado === "hecha");
+        if (hecha) importeCent = hecha.importe_cent;
+        fuera = !hecha;
       }
       const { error } = await supabase.rpc("resolver_cambio_recorrido" as never, {
         p_cambio_id: c.id,
@@ -3230,6 +3267,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                 onFormDataChange={setEditFormData}
                 onCambiarRecorrido={() => {
                   const reg = editingRegistration;
+                  if (!window.confirm("Se cierra Editar sin guardar lo que hayas cambiado aquí. ¿Ir a cambiar de recorrido?")) return;
                   setIsEditOpen(false);
                   setCambioCorredor(reg);
                 }}
@@ -3316,8 +3354,9 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             <DialogTitle>Cambiar recorrido masivo</DialogTitle>
             <DialogDescription>
               Cambiar el recorrido de {selectedRows.size} inscripciones seleccionadas. Las que tienen dorsal reciben el
-              siguiente libre del recorrido nuevo y su QR GPS se mueve. Las que tengan diferencia de precio no se tocan:
-              hazlas con el botón ⇄ de la fila.
+              siguiente libre del recorrido nuevo (si ya lo recogieron, se quedan con el suyo). Su QR GPS se mueve; a
+              quien ya activó la app se le hace uno nuevo y habrá que mandárselo. Las que tengan diferencia de precio
+              no se tocan: hazlas con el botón ⇄ de la fila.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
