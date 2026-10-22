@@ -83,8 +83,10 @@ export function Cabecera({ evento, rutas, compacta = false, onInscribirse }: Pro
   );
 
   // En la portada abre el formulario; en las páginas interiores (sin
-  // onInscribirse) lleva a la inscripción de la portada
-  const cta = abierta && (onInscribirse ? (
+  // onInscribirse) lleva a la inscripción de la portada. Con la inscripción
+  // cerrada, lo que busca la gente son las clasificaciones: ese es el botón
+  const clasificaciones = !abierta ? evento.clasificaciones?.url : undefined;
+  const cta = abierta ? (onInscribirse ? (
     <button type="button" onClick={onInscribirse} className="wp-btn text-base" style={{ minHeight: 44 }}>
       Inscríbete
     </button>
@@ -92,7 +94,16 @@ export function Cabecera({ evento, rutas, compacta = false, onInscribirse }: Pro
     <a href={rutas.ancla("inscripcion")} className="wp-btn text-base no-underline" style={{ minHeight: 44 }}>
       Inscríbete
     </a>
-  ));
+  )) : clasificaciones ? (
+    <a
+      href={clasificaciones}
+      className="wp-btn text-base no-underline"
+      style={{ minHeight: 44 }}
+      {...(esExterno(clasificaciones) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
+      Clasificaciones
+    </a>
+  ) : null;
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b bg-white" style={{ borderColor: "var(--wp-border)" }}>

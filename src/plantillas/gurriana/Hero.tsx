@@ -140,11 +140,24 @@ export function Hero({ evento, tokens, onInscribirse, hrefRecorridos }: Props) {
                   Inscríbete ahora
                 </button>
               ) : (
-                ESTADO_TEXTO[evento.estado] && (
-                  <span className="wp-btn" style={{ background: "rgba(255,255,255,0.15)", color: "inherit", cursor: "default" }}>
-                    {ESTADO_TEXTO[evento.estado]}
-                  </span>
-                )
+                <>
+                  {ESTADO_TEXTO[evento.estado] && (
+                    <span className="wp-btn" style={{ background: "rgba(255,255,255,0.15)", color: "inherit", cursor: "default" }}>
+                      {ESTADO_TEXTO[evento.estado]}
+                    </span>
+                  )}
+                  {/* Inscripción cerrada: al lado del estado, las clasificaciones */}
+                  {evento.clasificaciones?.url && (
+                    <a
+                      href={evento.clasificaciones.url}
+                      className="wp-btn no-underline"
+                      style={{ background: "#fff", color: "var(--wp-ink)" }}
+                      {...(/^https?:\/\//.test(evento.clasificaciones.url) ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    >
+                      Clasificaciones{evento.clasificaciones.tiempoReal ? " en directo" : ""}
+                    </a>
+                  )}
+                </>
               )}
               <a href={hrefRecorridos} className="wp-btn-outline" style={{ color: foto ? "#fff" : "var(--wp-marca-texto)" }}>
                 Ver {evento.pruebas.length > 1 ? "recorridos" : "recorrido"}
