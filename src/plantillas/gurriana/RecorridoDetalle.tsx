@@ -9,6 +9,7 @@ import type { LibroDiseno, SeccionEventoId } from "@/plantillas/libroDiseno";
 import { ESTADO_BOTON, PerfilAltimetria } from "./Recorridos";
 import { iconoRutometro } from "@/lib/iconosRutometro";
 import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
+import { hoyLocal } from "@/lib/timezoneUtils";
 import { RITMO_CORTE, RITMO_PRIMERO, horaDePaso, ritmoATexto, ritmosDe } from "@/lib/ritmos";
 
 // Mapbox y el visor 3D solo se descargan cuando la sección está activa
@@ -60,6 +61,8 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
     { results_url: prueba.resultadosUrl },
     evento.clasificaciones?.urlCamberas ?? evento.clasificaciones?.url ?? "",
   );
+  // Como en la tarjeta: también el día de la carrera, no solo al día siguiente
+  const conResultados = !!resultados.href && (estado === "celebrada" || evento.fecha === hoyLocal());
   const color = prueba.color ?? "var(--wp-marca)";
   const tarifas: Tarifa[] = evento.inscripcion.tarifas.filter((t) => t.pruebas.includes(prueba.id) || t.id === prueba.id);
   const categorias = prueba.categorias?.length ? prueba.categorias : (evento.categorias ?? []);
@@ -151,7 +154,7 @@ export function RecorridoDetalle({ evento, prueba, rutas, tokens }: PropsRecorri
 
     botones: () => (
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        {estado === "celebrada" && resultados.href ? (
+        {conResultados ? (
           <a href={resultados.href} {...atributosEnlace(resultados)} className="wp-btn">Ver resultados</a>
         ) : abierta ? (
           <a href={`${rutas.a("/") || "/"}?inscribir=${prueba.id}`} className="wp-btn">Inscribirme en {prueba.nombre}</a>

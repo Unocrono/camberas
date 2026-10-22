@@ -5,6 +5,7 @@ import { resultadosDeRecorrido, atributosEnlace } from "@/lib/resultados";
 import { formatoPrecio } from "@/eventos/useEventoPublico";
 import { PerfilGpxSvg, usePerfilGpx } from "./PerfilGpx";
 import { descargarGpxConPuntos } from "@/lib/gpxConPuntos";
+import { hoyLocal } from "@/lib/timezoneUtils";
 
 interface Props {
   evento: EventoPublico;
@@ -87,6 +88,9 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
     { results_url: prueba.resultadosUrl },
     evento.clasificaciones?.urlCamberas ?? evento.clasificaciones?.url ?? "",
   );
+  // El servidor solo da 'celebrada' al día siguiente; el día de la carrera
+  // los resultados ya van llegando y el botón tiene que llevar a ellos
+  const conResultados = !!resultados.href && (estado === "celebrada" || evento.fecha === hoyLocal());
   const color = prueba.color ?? "var(--wp-marca)";
   const cortes = (prueba.avituallamientos ?? []).filter((a) => a.corte);
   return (
@@ -183,7 +187,7 @@ function TarjetaPrueba({ prueba, evento, rutas, onInscribirse }: { prueba: Prueb
       )}
 
       <div className="mt-8 flex flex-wrap items-center gap-3">
-        {estado === "celebrada" && resultados.href ? (
+        {conResultados ? (
           <a href={resultados.href} {...atributosEnlace(resultados)} className="wp-btn">Ver resultados</a>
         ) : (
           <button type="button" className="wp-btn" disabled={!abierta} onClick={() => onInscribirse(prueba.id)}>
