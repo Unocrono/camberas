@@ -187,7 +187,7 @@ def limpiar_lectores(lista):
 def cargar_config(ruta):
     with open(ruta, encoding="utf-8") as f:
         cfg = json.load(f)
-    cfg.setdefault("puerto", 23023)
+    cfg.setdefault("puerto", 11111)
     cfg.setdefault("puerto_pc", 23024)
     cfg.setdefault("carpeta", "/root/ultra")
     cfg["tokens"] = {int(k): v for k, v in cfg.get("tokens", {}).items()}

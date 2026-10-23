@@ -87,10 +87,13 @@ Ultra. Todo en `pc/README.md`.
    systemctl daemon-reload && systemctl enable --now receptor-ultra
    journalctl -u receptor-ultra -f
    ```
-4. Puertos abiertos en el cortafuegos de IONOS: TCP 23023 (el Ultra) y
-   TCP 23024 (el PC de RaceTec).
-5. En el Ultra, Settings › Remote: LAN, URL = IP del VPS, Port = 23023,
-   «Send data to remote server» marcado.
+4. Puertos abiertos en el cortafuegos de IONOS: TCP 11111 (el Ultra) y
+   TCP 23024 (el PC de RaceTec). Antes, `ss -ltnp | grep 11111` en el VPS
+   para ver que nadie más lo usa.
+5. En el Ultra, Settings › Remote: LAN, URL = IP del VPS, Port = 11111,
+   «Send data to remote server» marcado. Es el mismo puerto que Outreach:
+   para volver a Outreach si el receptor falla, basta con poner su IP
+   (82.113.145.105) y dejar el puerto.
 
 ## Reenviar un día a Camberas
 
