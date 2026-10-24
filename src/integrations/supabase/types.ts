@@ -311,6 +311,113 @@ export type Database = {
         }
         Relationships: []
       }
+      cambios_recorrido: {
+        Row: {
+          created_at: string
+          decision: string
+          desde_distance_id: string | null
+          desde_nombre: string | null
+          devuelto_fuera: boolean
+          diferencia: number | null
+          dorsal_antes: number | null
+          dorsal_despues: number | null
+          hasta_distance_id: string | null
+          hasta_nombre: string | null
+          hecho_por: string | null
+          id: string
+          importe_decision: number | null
+          nota: string | null
+          pagado: number | null
+          precio_nuevo: number | null
+          qr: string | null
+          race_id: string
+          registration_id: string
+          respuestas_quitadas: Json | null
+          resuelto_at: string | null
+          resuelto_por: string | null
+          tipo_dinero: string | null
+        }
+        Insert: {
+          created_at?: string
+          decision: string
+          desde_distance_id?: string | null
+          desde_nombre?: string | null
+          devuelto_fuera?: boolean
+          diferencia?: number | null
+          dorsal_antes?: number | null
+          dorsal_despues?: number | null
+          hasta_distance_id?: string | null
+          hasta_nombre?: string | null
+          hecho_por?: string | null
+          id?: string
+          importe_decision?: number | null
+          nota?: string | null
+          pagado?: number | null
+          precio_nuevo?: number | null
+          qr?: string | null
+          race_id: string
+          registration_id: string
+          respuestas_quitadas?: Json | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          tipo_dinero?: string | null
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          desde_distance_id?: string | null
+          desde_nombre?: string | null
+          devuelto_fuera?: boolean
+          diferencia?: number | null
+          dorsal_antes?: number | null
+          dorsal_despues?: number | null
+          hasta_distance_id?: string | null
+          hasta_nombre?: string | null
+          hecho_por?: string | null
+          id?: string
+          importe_decision?: number | null
+          nota?: string | null
+          pagado?: number | null
+          precio_nuevo?: number | null
+          qr?: string | null
+          race_id?: string
+          registration_id?: string
+          respuestas_quitadas?: Json | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          tipo_dinero?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cambios_recorrido_desde_distance_id_fkey"
+            columns: ["desde_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_recorrido_hasta_distance_id_fkey"
+            columns: ["hasta_distance_id"]
+            isOneToOne: false
+            referencedRelation: "race_distances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_recorrido_race_id_fkey"
+            columns: ["race_id"]
+            isOneToOne: false
+            referencedRelation: "races"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_recorrido_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       category_template_items: {
         Row: {
           age_calculation_method: string
@@ -5979,6 +6086,10 @@ export type Database = {
         Args: { p_registration_id: string }
         Returns: number
       }
+      asignar_dorsal_siguiente: {
+        Args: { p_registration_id: string }
+        Returns: number
+      }
       assign_next_bib: { Args: { p_distance_id: string }; Returns: number }
       avisos_pago_pendientes: {
         Args: never
@@ -6059,6 +6170,27 @@ export type Database = {
       cambiar_intervalo_token: {
         Args: { p_intervalo: number; p_token_row_id: string }
         Returns: undefined
+      }
+      cambiar_recorrido: {
+        Args: {
+          p_decision?: string
+          p_dorsal?: number
+          p_forzar_plazas?: boolean
+          p_hasta: string
+          p_importe?: number
+          p_modo_dorsal: string
+          p_nota?: string
+          p_registration_id: string
+        }
+        Returns: Json
+      }
+      cambio_recorrido_calculo: {
+        Args: { p_hasta: string; p_registration_id: string }
+        Returns: Json
+      }
+      cambio_recorrido_info: {
+        Args: { p_hasta: string; p_registration_id: string }
+        Returns: Json
       }
       carrera_por_dominio: {
         Args: { p_hostname: string; p_solo_verificados?: boolean }
@@ -6579,6 +6711,10 @@ export type Database = {
         }[]
       }
       plazas_libres: { Args: { p_distance_id: string }; Returns: number }
+      precio_recorrido_en: {
+        Args: { p_distance_id: string; p_pared: string }
+        Returns: number
+      }
       preparar_recordatorio_pago: {
         Args: { p_registration_id: string }
         Returns: Json
@@ -6646,6 +6782,10 @@ export type Database = {
         Args: { p_ventana_horas?: number }
         Returns: number
       }
+      renombrar_mesa_recogida: {
+        Args: { p_id: string; p_nombre: string }
+        Returns: undefined
+      }
       reservar_consulta_inscripcion: {
         Args: {
           p_clave_dato: string
@@ -6656,6 +6796,16 @@ export type Database = {
           p_tipo: string
         }
         Returns: number
+      }
+      resolver_cambio_recorrido: {
+        Args: {
+          p_cambio_id: string
+          p_decision: string
+          p_fuera?: boolean
+          p_importe?: number
+          p_nota?: string
+        }
+        Returns: undefined
       }
       resolver_inscripcion_previa: {
         Args: {
@@ -6677,6 +6827,10 @@ export type Database = {
       respuestas_editables_por_corredor: {
         Args: { p_registration_id: string }
         Returns: boolean
+      }
+      respuestas_guardadas: {
+        Args: { p_registration_id: string }
+        Returns: Json
       }
       resumen_cesiones: {
         Args: { p_race_id: string }
@@ -6716,6 +6870,10 @@ export type Database = {
       }
       seed_requisitos_documentales: {
         Args: { p_race_id: string }
+        Returns: number
+      }
+      suplemento_en_recorrido: {
+        Args: { p_distance_id: string; p_registration_id: string }
         Returns: number
       }
       token_recuperacion_inscripcion: {
