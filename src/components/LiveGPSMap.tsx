@@ -1031,7 +1031,15 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
       )
       .subscribe();
 
+    // gps_positions no está publicada en tiempo real (a propósito, ver
+    // 20260717120000): sin sondeo el mapa se quedaba con la primera carga.
+    // Cada 15 s con la pestaña visible, por el mismo freno de 10 s.
+    const sondeo = window.setInterval(() => {
+      if (document.visibilityState === 'visible') onNewPosition();
+    }, 15000);
+
     return () => {
+      window.clearInterval(sondeo);
       supabase.removeChannel(channel);
       supabase.removeChannel(appChannel);
       if (recargaPendienteRef.current !== null) {
