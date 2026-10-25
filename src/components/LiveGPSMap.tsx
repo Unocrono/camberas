@@ -941,15 +941,21 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     }
 
     // Ventana de captura cerrada: modo finalizado — participantes con track
-    // (7 días tras el evento) para poder ver y reproducir los recorridos
-    if (!data || data.length === 0) {
+    // (7 días tras el evento) para poder ver y reproducir los recorridos.
+    // Se decide por los CORREDORES: los GPS de organización (motos, escoba)
+    // siguen saliendo en vivo 24 h, y si mandaran ellos el mapa se quedaría
+    // con la moto sola y sin corredores (Entre Viñedos, 25-oct).
+    const hayCorredores = (data ?? []).some(
+      (p: { source?: string | null }) => p.source !== 'moto' && p.source !== 'organizacion',
+    );
+    if (!hayCorredores) {
       const replay = await supabase.rpc('get_event_participants_replay', {
         p_race_id: raceId,
         p_distance_id: distanceId || null,
       });
       if (mia !== cargaPosicionesRef.current) return;
       if (!replay.error && replay.data && replay.data.length > 0) {
-        data = replay.data;
+        data = [...(data ?? []), ...replay.data];
         setFinalizadoMode(true);
       } else {
         setFinalizadoMode(false);
