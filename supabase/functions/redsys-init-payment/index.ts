@@ -48,13 +48,34 @@ serve(async (req) => {
     const supabaseAuth = createClient(SUPABASE_URL!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? SUPABASE_ANON_KEY!);
     const { data: registration, error: regErr } = await supabaseAuth
       .from("registrations")
-      .select("id, race_distance_id, race_id, email, coupon_id, races(slug)")
+      .select("id, race_distance_id, race_id, email, coupon_id, payment_status, races(slug)")
       .eq("id", registrationId)
       .single();
     if (regErr || !registration) {
       return new Response(
         JSON.stringify({ error: "Registration not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Ya pagada: no se abre otro cobro. Pasó en Monte Tejas (26-oct): pagó desde
+    // la web de la carrera y, 10 s después, desde otra pantalla que aún la creía
+    // pendiente, y Redsys cobró dos veces. Las pantallas miran el estado al
+    // cargar; solo aquí se cierra seguro. Va con 200 y success:false para que
+    // RedsysPaymentForm enseñe el mensaje (con un 4xx solo saldría el genérico)
+    const { count: cobrosHechos } = await supabaseAuth
+      .from("payment_intents")
+      .select("id", { count: "exact", head: true })
+      .eq("registration_id", registrationId)
+      .eq("status", "completed");
+    if (registration.payment_status === "paid" || registration.payment_status === "not_required" || (cobrosHechos ?? 0) > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          code: "YA_PAGADA",
+          error: "Esta inscripción ya está pagada: no hace falta volver a pagar.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     const raceId: string | null = registration.race_id ?? null;

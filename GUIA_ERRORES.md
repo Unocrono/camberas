@@ -305,6 +305,32 @@ LIMIT 10;
 
 ---
 
+## Errores de Pagos
+
+### Dos cobros de Redsys para la misma inscripción
+
+**Mensaje mostrado:** ninguno. El corredor ve dos cargos en su banco y en Redsys salen dos
+operaciones aprobadas con referencias distintas.
+
+**Causa:** `redsys-init-payment` abría un cobro nuevo aunque la inscripción ya estuviera pagada. Las
+pantallas que cobran (web de la carrera, ficha, `/retomar-pago`) miran el estado al cargar; con dos
+pestañas, o con una pantalla cargada antes de que llegara el primer pago, se podía pagar otra vez.
+
+**Contexto:** II Trail Navideño Monte Tejas, dorsal 43, 26-oct-2026. El primer pago salió de la web de
+la carrera (vuelve a `/{slug}/inscripcion/ok`) y el segundo, 10 s después de completarse el primero,
+de una pantalla que vuelve a `/dashboard`. Es el único caso en la base hasta esa fecha.
+
+**Solución:** `redsys-init-payment` ya no abre cobro si la inscripción está pagada o tiene un cobro
+completado: contesta `success: false`, `code: "YA_PAGADA"`. Para encontrar otros casos:
+`payment_intents` con `status = 'completed'`, agrupados por `registration_id`, con más de uno. El
+cobro de más se devuelve desde el panel (Inscripciones › Devolver dinero, eligiendo esa referencia
+y sin anular la inscripción). Si se devuelve en el portal de Redsys, se apunta en el mismo diálogo
+como devolución externa para que la recaudación cuadre.
+
+**Estado:** ✅ Corregido (26-oct-2026, hay que desplegar `redsys-init-payment` desde Lovable)
+
+---
+
 ## 🆘 ¿Error no documentado?
 
 Si encuentras un error que no está en esta guía:
