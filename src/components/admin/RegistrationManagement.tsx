@@ -29,6 +29,7 @@ import { AltaCorredor } from "@/components/org/AltaCorredor";
 import { DevolucionDialog } from "./DevolucionDialog";
 import { CambiarRecorridoDialog, type CorredorACambiar } from "./CambiarRecorridoDialog";
 import { hoyLocal } from "@/lib/timezoneUtils";
+import { rpcSinTipos } from "@/eventos/rpc";
 
 interface Registration {
   id: string;
@@ -128,7 +129,7 @@ const emptyFormData: RegistrationFormData = {
 // Las columnas fijas de la tabla más los campos PROPIOS del formulario de la
 // carrera ("campo:<field_name>"): empadronado, talla, modalidad… Se ofrecen en
 // «Columnas» cuando hay una carrera elegida y se leen de registration_responses.
-type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "origen" | "distance" | "status" | "payment" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions" | `campo:${string}`;
+type ColumnKey = "bib_number" | "participant" | "email" | "dni" | "phone" | "type" | "origen" | "distance" | "status" | "payment" | "importe" | "gender" | "category" | "club" | "team" | "country" | "birth_date" | "created_at" | "actions" | `campo:${string}`;
 
 const PREFIJO_CAMPO = "campo:";
 
@@ -145,7 +146,7 @@ const FIJA_DE_CAMPO: Record<string, ColumnKey> = {
   club: "club", team: "team", country: "country",
 };
 // Columnas que no son del formulario (dorsal, fecha, origen, estado, pago…)
-const COLUMNAS_INSCRIPCION: ColumnKey[] = ["bib_number", "created_at", "origen", "type", "distance", "status", "payment", "actions"];
+const COLUMNAS_INSCRIPCION: ColumnKey[] = ["bib_number", "created_at", "origen", "type", "distance", "status", "payment", "importe", "actions"];
 function columnaInscripcion(f: { field_name?: string | null; profile_field?: string | null }): string | null {
   if (f.field_name === "category") return "category";
   if (f.profile_field && COLUMNAS_REGISTRO.has(f.profile_field)) return f.profile_field;
@@ -171,10 +172,11 @@ const ALL_COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "distance", label: "Distancia" },
   { key: "status", label: "Estado" },
   { key: "payment", label: "Pago" },
+  { key: "importe", label: "Importe" },
   { key: "actions", label: "Acciones" },
 ];
 
-const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "origen", "status", "payment", "actions"];
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ["bib_number", "participant", "gender", "category", "club", "team", "distance", "created_at", "origen", "status", "payment", "importe", "actions"];
 
 // De dónde viene cada inscripción: pasarela de Camberas, alta manual del
 // organizador, gratuita, o sincronizada desde EventBooking (UNO.es) o
@@ -245,6 +247,19 @@ const MOTIVOS_OMISION: Record<string, string> = {
 /** 12,50 € a partir de céntimos */
 const eurosDeCentimos = (cent: number) =>
   (cent / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+// Importe de una inscripción (RPC importes_inscripciones): c cobrado por la
+// pasarela, n número de cobros, d devuelto, m cobrado a mano
+interface ImporteInscripcion {
+  c?: number;
+  n?: number;
+  d?: number;
+  m?: number;
+}
+
+/** Lo que de verdad ha pagado: pasarela menos lo devuelto, más lo cobrado a mano */
+const importeNeto = (i: ImporteInscripcion | undefined): number | null =>
+  i ? Number(i.c ?? 0) - Number(i.d ?? 0) + Number(i.m ?? 0) : null;
 
 // Devoluciones de una inscripción (solo admin): las que siguen sin confirmar
 // (quizá movieron dinero) y lo ya devuelto
@@ -376,6 +391,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     () => new Map(),
   );
   const [devolucionesSinConfirmar, setDevolucionesSinConfirmar] = useState<string[]>([]);
+  const [importes, setImportes] = useState<Map<string, ImporteInscripcion>>(new Map());
   // Cambio de recorrido (botón ⇄ de la fila) y las devoluciones que deja
   // pedidas: el admin las hace (con el importe ya puesto) o las descarta
   const [cambioCorredor, setCambioCorredor] = useState<CorredorACambiar | null>(null);
@@ -1296,11 +1312,25 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     fetchData();
     cargarDevoluciones();
     cargarCambiosPendientes();
+    cargarImportes();
     if (selectedRaceId) {
       fetchFormFieldsAndResponses(selectedRaceId);
       fetchCategories(selectedRaceId);
     }
   }, [selectedRaceId]);
+
+  // Importe de cada inscripción. payment_intents y devoluciones solo los lee el
+  // admin, así que va por una RPC que también contesta al organizador
+  const cargarImportes = async () => {
+    try {
+      const datos = await rpcSinTipos<Record<string, ImporteInscripcion>>("importes_inscripciones", {
+        p_race_id: selectedRaceId ?? null,
+      });
+      setImportes(new Map(Object.entries(datos ?? {})));
+    } catch (error) {
+      console.error("Error cargando importes:", error);
+    }
+  };
 
   // Una devolución 'dudosa' (o 'pendiente' de más de 10 minutos, que ya no va a
   // contestar) pudo mover dinero sin tocar la inscripción ni avisar al
@@ -2133,6 +2163,10 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         case "distance": return `${reg.race_distance.name} (${reg.race_distance.distance_km}km)`;
         case "status": return ESTADO_CSV[reg.status] ?? reg.status;
         case "payment": return PAGO_CSV[reg.payment_status] ?? reg.payment_status;
+        case "importe": {
+          const neto = importeNeto(importes.get(reg.id));
+          return neto === null ? "" : neto.toFixed(2).replace(".", ",");
+        }
         default:
           // Campo propio del formulario: su respuesta
           if (!col.startsWith(PREFIJO_CAMPO)) return "";
@@ -2822,6 +2856,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                       </DropdownMenu>
                     </TableHead>
                   )}
+                  {columnasEfectivas.has("importe") && <TableHead className="text-right">Importe</TableHead>}
                   {camposVisibles.map((c) => (
                     <TableHead key={c.key}>{c.label}</TableHead>
                   ))}
@@ -2956,6 +2991,31 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                 Devuelto {eurosDeCentimos(devolucionesPorInscripcion.get(reg.id)?.devueltoCent ?? 0)}
                               </Badge>
                             ) : null}
+                          </TableCell>
+                        )}
+                        {columnasEfectivas.has("importe") && (
+                          <TableCell className="text-right tabular-nums whitespace-nowrap">
+                            {(() => {
+                              const imp = importes.get(reg.id);
+                              const neto = importeNeto(imp);
+                              if (neto === null) return <span className="text-muted-foreground">-</span>;
+                              const detalle = [
+                                imp?.c ? `Pasarela: ${eurosDeCentimos(Math.round(Number(imp.c) * 100))}${(imp.n ?? 0) > 1 ? ` en ${imp.n} cobros` : ""}` : null,
+                                imp?.d ? `Devuelto: ${eurosDeCentimos(Math.round(Number(imp.d) * 100))}` : null,
+                                imp?.m ? `A mano: ${eurosDeCentimos(Math.round(Number(imp.m) * 100))}` : null,
+                              ].filter(Boolean).join(" · ");
+                              return (
+                                <span title={detalle}>
+                                  {eurosDeCentimos(Math.round(neto * 100))}
+                                  {/* Más de un cobro sin nada devuelto: posible doble cobro */}
+                                  {(imp?.n ?? 0) > 1 && !imp?.d && (
+                                    <Badge variant="outline" className="ml-1 border-amber-500 text-amber-700">
+                                      {imp?.n} cobros
+                                    </Badge>
+                                  )}
+                                </span>
+                              );
+                            })()}
                           </TableCell>
                         )}
                         {camposVisibles.map((c) => (
@@ -3218,6 +3278,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
             fetchData();
             cargarDevoluciones();
             cargarCambiosPendientes();
+            cargarImportes();
           }}
           propuesta={devolucionCambio}
           onHecha={(cent) => {
