@@ -2,9 +2,10 @@
  * Inscripciones — pantalla PROPIA de Camberas Org (formato móvil).
  *
  * Las gestiones de móvil, con el corredor delante o al teléfono:
- * buscar (nombre, dorsal, DNI, email), ver la ficha, marcar pagado y
- * asignar dorsal. La edición completa, los borrados y los exports
- * viven en el panel de escritorio.
+ * buscar (nombre, dorsal, DNI, email), ver la ficha, marcar pagado,
+ * asignar dorsal (a mano o el siguiente libre, avisando si ya lo lleva
+ * otro) y cambiar de recorrido (mismo diálogo que el panel). La edición
+ * completa, los borrados y los exports viven en el panel de escritorio.
  *
  * Mismas tablas que el panel: registrations (+ race_distances para el
  * nombre del recorrido). La RLS del organizador ya permite leer y
@@ -14,10 +15,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { rpcSinTipos } from "@/eventos/rpc";
+import { CambiarRecorridoDialog, type CorredorACambiar } from "@/components/admin/CambiarRecorridoDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Loader2, Search, Phone, Mail, ChevronDown, CheckCircle2, Hash,
+  Loader2, Search, Phone, Mail, ChevronDown, CheckCircle2, Hash, ArrowLeftRight, AlertTriangle,
 } from "lucide-react";
 
 interface RegistrationRow {
@@ -30,6 +34,7 @@ interface RegistrationRow {
   bib_number: number | null;
   payment_status: string;
   status: string;
+  race_id: string;
   race_distance_id: string;
   tshirt_size: string | null;
   club: string | null;
@@ -69,8 +74,10 @@ const isPaid = (r: RegistrationRow) =>
 
 export const OrgRegistrations = ({ raceId }: Props) => {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   const [rows, setRows] = useState<RegistrationRow[] | null>(null);
+  const [cambioCorredor, setCambioCorredor] = useState<CorredorACambiar | null>(null);
   const [distances, setDistances] = useState<DistanceOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState("");
@@ -91,7 +98,7 @@ export const OrgRegistrations = ({ raceId }: Props) => {
       const { data, error: err } = await supabase
         .from("registrations")
         .select(
-          "id, first_name, last_name, email, phone, dni_passport, bib_number, payment_status, status, race_distance_id, tshirt_size, club, source, external_id, created_at",
+          "id, first_name, last_name, email, phone, dni_passport, bib_number, payment_status, status, race_id, race_distance_id, tshirt_size, club, source, external_id, created_at",
         )
         .eq("race_id", raceId)
         .neq("status", "cancelled")
@@ -155,9 +162,21 @@ export const OrgRegistrations = ({ raceId }: Props) => {
     cargar();
   };
 
+  /** Quién lleva ya ese dorsal en la carrera (otra inscripción, no cancelada) */
+  const dorsalOcupadoPor = (bib: number, propia: RegistrationRow): string | null => {
+    const otra = (rows ?? []).find((x) => x.id !== propia.id && x.bib_number === bib);
+    return otra ? `${otra.first_name ?? ""} ${otra.last_name ?? ""}`.trim() || "otro corredor" : null;
+  };
+
   const guardarDorsal = async (r: RegistrationRow) => {
     const bib = bibDraft.trim() ? parseInt(bibDraft.trim()) : null;
     if (bibDraft.trim() && Number.isNaN(bib)) return;
+    // Ya lo lleva otro: el panel dejó guardar el 104 dos veces (Monte Tejas, 26-oct)
+    const quien = bib != null ? dorsalOcupadoPor(bib, r) : null;
+    if (quien) {
+      toast({ title: `El dorsal ${bib} ya lo lleva ${quien}`, description: "Elige otro o pide el siguiente libre.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const { error: err } = await supabase
       .from("registrations")
@@ -170,6 +189,26 @@ export const OrgRegistrations = ({ raceId }: Props) => {
     }
     toast({ title: bib ? `Dorsal ${bib} asignado` : "Dorsal quitado" });
     cargar();
+  };
+
+  // El siguiente del contador del recorrido (siguiente_dorsal_libre, salta
+  // los ocupados): también para cambiar uno que ya tiene
+  const siguienteDorsal = async (r: RegistrationRow) => {
+    setSaving(true);
+    try {
+      const bib = await rpcSinTipos<number | null>("siguiente_dorsal_libre", { p_registration_id: r.id });
+      if (bib == null) {
+        toast({ title: "Sin dorsales libres", description: "El recorrido no tiene rango o se ha agotado. Ponlo a mano.", variant: "destructive" });
+        return;
+      }
+      toast({ title: `Dorsal ${bib} asignado` });
+      setBibDraft(String(bib));
+      cargar();
+    } catch (e) {
+      toast({ title: "No se pudo asignar el dorsal", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!raceId) {
@@ -318,12 +357,50 @@ export const OrgRegistrations = ({ raceId }: Props) => {
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={saving || bibDraft === (r.bib_number?.toString() ?? "")}
+                        disabled={
+                          saving ||
+                          bibDraft === (r.bib_number?.toString() ?? "") ||
+                          (!!bibDraft.trim() && !Number.isNaN(parseInt(bibDraft)) && !!dorsalOcupadoPor(parseInt(bibDraft), r))
+                        }
                         onClick={() => guardarDorsal(r)}
                       >
                         Guardar
                       </Button>
+                      <Button size="sm" variant="outline" disabled={saving} onClick={() => siguienteDorsal(r)} title="El siguiente libre del recorrido">
+                        Siguiente
+                      </Button>
                     </div>
+                    {(() => {
+                      const n = parseInt(bibDraft);
+                      const quien = bibDraft.trim() && !Number.isNaN(n) ? dorsalOcupadoPor(n, r) : null;
+                      return quien ? (
+                        <p className="flex items-center gap-1 text-xs text-destructive">
+                          <AlertTriangle className="h-3.5 w-3.5" /> El {n} ya lo lleva {quien}
+                        </p>
+                      ) : null;
+                    })()}
+
+                    {/* Cambiar de recorrido: el mismo diálogo que el panel
+                        (dorsal, QR, respuestas y dinero de una vez) */}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-1.5"
+                      disabled={saving || distances.length < 2}
+                      onClick={() =>
+                        setCambioCorredor({
+                          id: r.id,
+                          race_id: r.race_id,
+                          race_distance_id: r.race_distance_id,
+                          first_name: r.first_name,
+                          last_name: r.last_name,
+                          bib_number: r.bib_number,
+                        })
+                      }
+                    >
+                      <ArrowLeftRight className="h-4 w-4" />
+                      Cambiar de recorrido
+                    </Button>
 
                     {/* Pago */}
                     {!isPaid(r) && (
@@ -343,6 +420,13 @@ export const OrgRegistrations = ({ raceId }: Props) => {
       <p className="text-center text-xs text-muted-foreground">
         Edición completa, borrados y exports: Inscripciones del panel de escritorio.
       </p>
+
+      <CambiarRecorridoDialog
+        corredor={cambioCorredor}
+        esAdmin={isAdmin}
+        onOpenChange={(open) => !open && setCambioCorredor(null)}
+        onCambiado={() => cargar()}
+      />
     </div>
   );
 };
