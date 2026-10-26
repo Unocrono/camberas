@@ -655,9 +655,17 @@ export function DistanceManagement({ isOrganizer = false, selectedRaceId }: Dist
       let distanceId = editingDistance?.id;
 
       if (editingDistance) {
+        // El contador «Siguiente dorsal» lo mueven los pagos mientras el
+        // formulario está abierto: guardarlo tal cual se cargó lo hacía volver
+        // atrás y repetir dorsales (Monte Tejas, 26-oct: el 103 y el 104 dos
+        // veces). Al editar, solo se escribe si se ha cambiado a mano
+        const datosAGuardar: Partial<typeof distanceData> = { ...distanceData };
+        if (editingDistance.next_bib != null && formData.next_bib === editingDistance.next_bib.toString()) {
+          delete datosAGuardar.next_bib;
+        }
         const { error } = await supabase
           .from("race_distances")
-          .update(distanceData)
+          .update(datosAGuardar)
           .eq("id", editingDistance.id);
 
         if (error) throw error;
