@@ -252,6 +252,11 @@ o en las tablas GPS afectan a todos: comprueba los lectores antes de tocar.
   la base no queda nada: una vez «marcha atrás» se entendió como deshacer sus datos.
 - Los mensajes del promotor a veces llegan repetidos (la app los reenvía sola unos segundos
   después de cada respuesta): uno repetido no es una respuesta nueva a lo que se le preguntó.
+- **Consultas a la base de datos: sin pedir permiso.** El promotor las da todas por aceptadas
+  (26-oct-2026). `query_database` está en `permissions.allow` de `.claude/settings.json`; en el
+  modo Auto de las sesiones en la nube el clasificador puede preguntar igualmente, y entonces la
+  frase «no me preguntes por las consultas» al empezar la sesión lo corta. Claude no añade
+  preguntas propias por una consulta: la hace y cuenta el resultado.
 - Rama de trabajo merged = rama acabada: el trabajo siguiente arranca de `main` con el mismo
   nombre de rama (`git checkout -B <rama> origin/main`) y abre un PR nuevo.
 
