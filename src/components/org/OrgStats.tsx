@@ -44,6 +44,10 @@ interface ResumenRecuperacion {
   avisadas: number;
   recuperadas: number;
   importe_recuperado: number;
+  /** De los abandonos, los que acabaron pagando por el camino que fuera (20261026235000) */
+  pagaron_al_final?: number;
+  /** Y los que siguen pendientes de pago */
+  siguen_sin_pagar?: number;
 }
 
 /** Números clave del informe (los mismos del RPC de la portada) */
@@ -260,7 +264,16 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Abandonos</p>
               <p className="font-archivo text-3xl text-primary">{recuperacion.detectadas}</p>
-              <p className="text-xs text-muted-foreground">{recuperacion.avisadas} avisados</p>
+              {/* Es un histórico: quien tardó más de 30 min entra y no sale
+                  aunque luego pague. Lo que importa es cuántos siguen sin pagar */}
+              {recuperacion.siguen_sin_pagar != null ? (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">{recuperacion.siguen_sin_pagar} siguen sin pagar</span>
+                  {" · "}{recuperacion.pagaron_al_final ?? 0} ya pagaron · {recuperacion.avisadas} avisados
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">{recuperacion.avisadas} avisados</p>
+              )}
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Rescatados</p>
@@ -269,8 +282,9 @@ export const OrgStats = ({ raceId, totals, bySource }: Props) => {
             </div>
           </div>
           <p className="mt-1.5 text-xs text-muted-foreground">
-            Quien empieza a inscribirse y no termina el pago recibe dos avisos, a las 2 h y a las
-            24 h. Solo cuenta como rescatado lo que se pagó después del primer aviso.
+            Entra aquí quien lleva más de 30 min sin terminar el pago, y no sale aunque luego
+            pague. Recibe dos avisos, a las 2 h y a las 24 h; solo cuenta como rescatado lo que
+            se pagó después del primero.
           </p>
         </section>
       )}
