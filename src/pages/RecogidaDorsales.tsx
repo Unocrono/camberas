@@ -59,6 +59,10 @@ interface Ficha {
   entregado_at: string | null;
   entregado_mesa: string | null;
   recogido_por: string | null;
+  // Desde 20261027090000: lo que la mesa necesita ver de un vistazo
+  genero?: string | null;
+  categoria?: string | null;
+  equipo?: string | null;
 }
 
 const hora = (iso: string) =>
@@ -400,38 +404,47 @@ const RecogidaDorsales = () => {
       {ficha && (
         <div className="fixed inset-0 z-40 bg-black/60 flex items-end sm:items-center justify-center"
              onClick={() => setFicha(null)}>
-          <div className="w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl p-5 space-y-4"
+          {/* En grande: la mesa lo lee de pie, con cola, a un brazo de distancia */}
+          <div className="w-full sm:max-w-lg bg-background rounded-t-2xl sm:rounded-2xl p-6 space-y-5"
                onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-3xl font-bold font-mono leading-none">
+              <div className="min-w-0">
+                <p className="text-6xl font-bold font-mono leading-none">
                   {ficha.dorsal ?? "—"}
                 </p>
-                <h2 className="text-lg font-semibold mt-1">{ficha.nombre} {ficha.apellidos}</h2>
-                <p className="text-sm text-muted-foreground">
+                <h2 className="text-2xl font-semibold mt-2 leading-tight">{ficha.nombre} {ficha.apellidos}</h2>
+                <p className="text-lg text-muted-foreground mt-1">
                   {ficha.recorrido}
                   {ficha.talla ? ` · Camiseta ${ficha.talla}` : ""}
                   {ficha.dni_final ? ` · DNI …${ficha.dni_final}` : ""}
                 </p>
+                {(ficha.genero || ficha.categoria) && (
+                  <p className="text-lg text-muted-foreground">
+                    {[ficha.genero, ficha.categoria].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                {ficha.equipo && (
+                  <p className="text-lg text-muted-foreground">{ficha.equipo}</p>
+                )}
               </div>
-              <button onClick={() => setFicha(null)}><X className="h-5 w-5 text-muted-foreground" /></button>
+              <button onClick={() => setFicha(null)} className="shrink-0 p-1"><X className="h-6 w-6 text-muted-foreground" /></button>
             </div>
 
             {/* Los avisos que importan, en grande */}
             {!pagoOk && (
-              <p className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-3 py-2 text-sm font-semibold">
+              <p className="flex items-center gap-2 rounded-lg bg-destructive/10 text-destructive px-4 py-3 text-base font-semibold">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 Pendiente de pago: no se entrega. Que pase por la organización.
               </p>
             )}
             {esMenor && (
-              <p className="flex items-center gap-2 rounded-lg bg-secondary/10 text-secondary px-3 py-2 text-sm font-semibold">
+              <p className="flex items-center gap-2 rounded-lg bg-secondary/10 text-secondary px-4 py-3 text-base font-semibold">
                 <AlertTriangle className="h-4 w-4 shrink-0" />
                 Menor de edad ({ficha.edad_carrera} años): pedir autorización del tutor.
               </p>
             )}
             {ficha.entregado_at && (
-              <p className="flex items-center gap-2 rounded-lg bg-primary/10 text-primary px-3 py-2 text-sm font-semibold">
+              <p className="flex items-center gap-2 rounded-lg bg-primary/10 text-primary px-4 py-3 text-base font-semibold">
                 <CheckCircle2 className="h-4 w-4 shrink-0" />
                 Ya entregado a las {hora(ficha.entregado_at)}
                 {ficha.entregado_mesa ? ` en ${ficha.entregado_mesa}` : ""}
@@ -449,12 +462,12 @@ const RecogidaDorsales = () => {
                   value={recogidoPor}
                   onChange={(e) => setRecogidoPor(e.target.value)}
                   placeholder="¿Recoge otra persona? Su nombre y DNI (opcional)"
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm"
+                  className="w-full rounded-lg border border-border bg-card px-4 py-3 text-base"
                 />
                 <button
                   onClick={entregar}
                   disabled={entregando}
-                  className="w-full rounded-xl bg-primary py-4 text-primary-foreground text-lg font-bold uppercase tracking-wide disabled:opacity-50"
+                  className="w-full rounded-xl bg-primary py-5 text-primary-foreground text-xl font-bold uppercase tracking-wide disabled:opacity-50"
                 >
                   {entregando ? "Entregando…" : "Entregar dorsal"}
                 </button>
