@@ -60,6 +60,7 @@ import BlogPostsManagement from "@/components/admin/BlogPostsManagement";
 import NewsletterSubscribersManagement from "@/components/admin/NewsletterSubscribersManagement";
 import NewsletterCampaignsManagement from "@/components/admin/NewsletterCampaignsManagement";
 import { CamberasTrackMap } from "@/components/CamberasTrackMap";
+import { OrganizerDashboardHome } from "@/components/organizer/OrganizerDashboardHome";
 import { Loader2, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -230,6 +231,11 @@ const AdminDashboard = () => {
           </header>
 
           <main className="flex-1 p-6">
+            {/* Lo que ve el organizador al entrar en su panel, con la carrera
+                elegida arriba: para revisarlo y mejorarlo desde aquí */}
+            {currentView === "panel-organizador" && (
+              <OrganizerDashboardHome selectedRaceId={selectedRaceId} raceName={selectedRace?.name} />
+            )}
             {currentView === "races" && <RaceManagement />}
             {currentView === "distances" && <DistanceManagement isOrganizer={false} selectedRaceId={selectedRaceId} />}
             {currentView === "timing-points" && (
