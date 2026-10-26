@@ -355,6 +355,7 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
   // Bib assignment
   const [assigningBib, setAssigningBib] = useState<string | null>(null);
   const [bibNumber, setBibNumber] = useState("");
+  const [pidiendoDorsal, setPidiendoDorsal] = useState(false);
   
   // Import dialog
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -2081,6 +2082,43 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
     setIsCreateOpen(true);
   };
 
+  /** Nombre de quien lleva ese dorsal en la misma carrera (otra inscripción, no cancelada) */
+  const dorsalOcupadoPor = (bib: number, registrationId: string): string | null => {
+    const propia = registrations.find((r) => r.id === registrationId);
+    if (!propia) return null;
+    const otra = registrations.find(
+      (r) => r.id !== registrationId && r.race_id === propia.race_id && r.bib_number === bib && r.status !== "cancelled",
+    );
+    if (!otra) return null;
+    const nombre = `${otra.first_name || otra.profiles?.first_name || ""} ${otra.last_name || otra.profiles?.last_name || ""}`.trim();
+    return nombre || "otro corredor";
+  };
+
+  // El siguiente libre del contador del recorrido (siguiente_dorsal_libre,
+  // 20261026230000): lo asigna la base y salta los que ya estén ocupados
+  const pedirSiguienteDorsal = async (registrationId: string) => {
+    setPidiendoDorsal(true);
+    try {
+      const bib = await rpcSinTipos<number | null>("siguiente_dorsal_libre", { p_registration_id: registrationId });
+      if (bib == null) {
+        toast({
+          title: "Sin dorsales libres",
+          description: "El recorrido no tiene rango de dorsales o se ha agotado. Tecléalo a mano.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({ title: "Dorsal asignado", description: `Se ha asignado el dorsal #${bib}` });
+      setAssigningBib(null);
+      setBibNumber("");
+      fetchData();
+    } catch (error) {
+      toast({ title: "Error al asignar dorsal", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    } finally {
+      setPidiendoDorsal(false);
+    }
+  };
+
   const handleAssignBib = async (registrationId: string) => {
     try {
       const bibNum = parseInt(bibNumber);
@@ -2088,6 +2126,17 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
         toast({
           title: "Número inválido",
           description: "Ingresa un número de dorsal válido",
+          variant: "destructive",
+        });
+        return;
+      }
+      // Ya lo lleva otro corredor de la carrera: esta noche (Monte Tejas,
+      // 26-oct) el cuadro dejó guardar el 104 dos veces sin decir nada
+      const ocupadoPor = dorsalOcupadoPor(bibNum, registrationId);
+      if (ocupadoPor) {
+        toast({
+          title: `El dorsal ${bibNum} ya está asignado`,
+          description: `Lo lleva ${ocupadoPor}. Elige otro o pulsa «Siguiente libre».`,
           variant: "destructive",
         });
         return;
@@ -3063,10 +3112,39 @@ export function RegistrationManagement({ isOrganizer = false, selectedRaceId }: 
                                         onChange={(e) => setBibNumber(e.target.value)}
                                         placeholder="Ej: 123"
                                       />
+                                      {(() => {
+                                        const n = parseInt(bibNumber);
+                                        const quien = isNaN(n) ? null : dorsalOcupadoPor(n, reg.id);
+                                        return quien ? (
+                                          <p className="flex items-center gap-1 text-sm text-destructive">
+                                            <AlertTriangle className="h-4 w-4" />
+                                            El {n} ya lo lleva {quien}
+                                          </p>
+                                        ) : null;
+                                      })()}
                                     </div>
-                                    <Button onClick={() => handleAssignBib(reg.id)} className="w-full">
-                                      Asignar
-                                    </Button>
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        disabled={pidiendoDorsal}
+                                        onClick={() => pedirSiguienteDorsal(reg.id)}
+                                        title="El siguiente del contador del recorrido, saltando los ocupados"
+                                      >
+                                        {pidiendoDorsal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Hash className="mr-2 h-4 w-4" />}
+                                        Siguiente libre
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleAssignBib(reg.id)}
+                                        className="flex-1"
+                                        disabled={(() => {
+                                          const n = parseInt(bibNumber);
+                                          return !isNaN(n) && !!dorsalOcupadoPor(n, reg.id);
+                                        })()}
+                                      >
+                                        Asignar
+                                      </Button>
+                                    </div>
                                   </div>
                                 </DialogContent>
                               </Dialog>
