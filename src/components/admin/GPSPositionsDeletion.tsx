@@ -11,6 +11,20 @@ import { Label } from "@/components/ui/label";
 import { Trash2, ChevronLeft, ChevronRight, Loader2, Search, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
+/**
+ * Borrado de posiciones GPS (admin).
+ *
+ * Hasta el 27-oct-2026 leía gps_tracking y moto_gps_tracking, la tubería
+ * anterior a la app: estaban vacías y el panel decía «no se encontraron
+ * lecturas» para cualquier carrera. La app Camberas Track escribe en
+ * gps_positions desde julio, una fila por posición con su token (dorsal) y el
+ * event_id de la distancia. Aquí se filtra por distancia (event_id) y por tipo
+ * de dorsal: corredor, moto (race_motos) u organización (es_organizacion).
+ *
+ * El admin lee por la política «Admins read gps_positions» y borra por
+ * «Admins delete gps_positions» (migración 20261028000000).
+ */
+
 interface Race {
   id: string;
   name: string;
@@ -26,42 +40,70 @@ interface RaceDistance {
 interface Moto {
   id: string;
   name: string;
-  race_id: string;
+  token_id: string | null;
+}
+
+type TipoDorsal = 'corredor' | 'moto' | 'organizacion';
+
+interface Dorsal {
+  token_id: string;
+  bib_number: string;
+  participant_name: string;
+  tipo: TipoDorsal;
 }
 
 interface GPSReading {
   id: string;
-  type: 'runner' | 'moto';
-  identifier: string;
-  latitude: number;
-  longitude: number;
+  token_id: string;
+  lat: number;
+  lng: number;
   timestamp: string;
-  race_id: string;
+  battery: number | null;
 }
 
+type TrackingType = 'all' | 'runners' | 'motos' | 'organizacion';
+
+// Lo mínimo que usamos del constructor de consultas de supabase-js. Se tipa
+// así, y no con el genérico real, porque PostgrestFilterBuilder hace que tsc
+// se pierda («type instantiation is excessively deep») al inferirlo.
+type Filtrable = {
+  in: (col: string, vals: string[]) => Filtrable;
+  eq: (col: string, val: string) => Filtrable;
+  not: (col: string, op: string, val: string) => Filtrable;
+};
+
 const PAGE_SIZE = 100;
+
+const ETIQUETA: Record<TipoDorsal, { icono: string; texto: string; clase: string }> = {
+  corredor: { icono: '🏃', texto: 'Corredor', clase: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  moto: { icono: '🏍️', texto: 'Moto', clase: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+  organizacion: { icono: '🦺', texto: 'Organización', clase: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
+};
 
 export default function GPSPositionsDeletion() {
   const [races, setRaces] = useState<Race[]>([]);
   const [distances, setDistances] = useState<RaceDistance[]>([]);
   const [motos, setMotos] = useState<Moto[]>([]);
-  
-  const [trackingType, setTrackingType] = useState<'all' | 'runners' | 'motos'>('all');
+  // Dorsales de la carrera (gps_tokens), por token: para etiquetar cada fila
+  // y para separar corredores / motos / organización en los filtros
+  const [dorsales, setDorsales] = useState<Map<string, Dorsal>>(new Map());
+
+  const [trackingType, setTrackingType] = useState<TrackingType>('all');
   const [selectedRaceId, setSelectedRaceId] = useState<string>('');
   const [selectedDistanceId, setSelectedDistanceId] = useState<string>('');
   const [selectedMotoId, setSelectedMotoId] = useState<string>('');
-  
+
   const [readings, setReadings] = useState<GPSReading[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleteSelectedOpen, setIsDeleteSelectedOpen] = useState(false);
   const [isDeleteAllOpen, setIsDeleteAllOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Load races
+  // Carreras
   useEffect(() => {
     const fetchRaces = async () => {
       const { data } = await supabase
@@ -73,187 +115,119 @@ export default function GPSPositionsDeletion() {
     fetchRaces();
   }, []);
 
-  // Load distances when race changes
+  // Distancias, motos y dorsales de la carrera elegida
   useEffect(() => {
     if (!selectedRaceId) {
       setDistances([]);
-      return;
-    }
-    const fetchDistances = async () => {
-      const { data } = await supabase
-        .from('race_distances')
-        .select('id, name, race_id')
-        .eq('race_id', selectedRaceId)
-        .order('distance_km');
-      if (data) setDistances(data);
-    };
-    fetchDistances();
-  }, [selectedRaceId]);
-
-  // Load motos when race changes
-  useEffect(() => {
-    if (!selectedRaceId) {
       setMotos([]);
+      setDorsales(new Map());
       return;
     }
-    const fetchMotos = async () => {
-      const { data } = await supabase
-        .from('race_motos')
-        .select('id, name, race_id')
-        .eq('race_id', selectedRaceId)
-        .order('moto_order');
-      if (data) setMotos(data);
+    const fetchDeLaCarrera = async () => {
+      const [{ data: dists }, { data: ms }] = await Promise.all([
+        supabase
+          .from('race_distances')
+          .select('id, name, race_id')
+          .eq('race_id', selectedRaceId)
+          .order('distance_km'),
+        supabase
+          .from('race_motos')
+          .select('id, name, token_id')
+          .eq('race_id', selectedRaceId)
+          .order('moto_order'),
+      ]);
+      setDistances(dists ?? []);
+      setMotos(ms ?? []);
+
+      const distanceIds = (dists ?? []).map((d) => d.id);
+      if (distanceIds.length === 0) {
+        setDorsales(new Map());
+        return;
+      }
+      const { data: tokens } = await supabase
+        .from('gps_tokens')
+        .select('id, bib_number, participant_name, es_organizacion')
+        .in('event_id', distanceIds);
+      const motoTokens = new Set((ms ?? []).map((m) => m.token_id).filter(Boolean));
+      const mapa = new Map<string, Dorsal>();
+      for (const t of tokens ?? []) {
+        mapa.set(t.id, {
+          token_id: t.id,
+          bib_number: t.bib_number ?? '?',
+          participant_name: t.participant_name ?? '',
+          tipo: motoTokens.has(t.id) ? 'moto' : t.es_organizacion ? 'organizacion' : 'corredor',
+        });
+      }
+      setDorsales(mapa);
     };
-    fetchMotos();
+    fetchDeLaCarrera();
   }, [selectedRaceId]);
 
-  // Fetch readings with pagination
+  /**
+   * Filtros comunes a la lectura y al borrado masivo, sobre gps_positions:
+   * event_id (la distancia; siempre informado y siempre igual al del token)
+   * y token_id según el tipo de dorsal. Devuelve null si el filtro no puede
+   * dar nada (p. ej. «motos» en una carrera sin motos con token).
+   */
+  const aplicarFiltros = useCallback((q: Filtrable): Filtrable | null => {
+    const distanceIds = distances.map((d) => d.id);
+    if (distanceIds.length === 0) return null;
+    q = selectedDistanceId ? q.eq('event_id', selectedDistanceId) : q.in('event_id', distanceIds);
+
+    const porTipo = (tipo: TipoDorsal) => [...dorsales.values()].filter((d) => d.tipo === tipo).map((d) => d.token_id);
+    if (trackingType === 'motos') {
+      if (selectedMotoId) {
+        const moto = motos.find((m) => m.id === selectedMotoId);
+        if (!moto?.token_id) return null;
+        return q.eq('token_id', moto.token_id);
+      }
+      const ids = porTipo('moto');
+      return ids.length ? q.in('token_id', ids) : null;
+    }
+    if (trackingType === 'organizacion') {
+      const ids = porTipo('organizacion');
+      return ids.length ? q.in('token_id', ids) : null;
+    }
+    if (trackingType === 'runners') {
+      // Corredores = todo lo que no es moto ni organización (pocos ids)
+      const fuera = [...porTipo('moto'), ...porTipo('organizacion')];
+      return fuera.length ? q.not('token_id', 'in', `(${fuera.join(',')})`) : q;
+    }
+    return q;
+  }, [distances, dorsales, motos, selectedDistanceId, selectedMotoId, trackingType]);
+
+  // Lecturas, paginadas, con el total exacto
   const fetchReadings = useCallback(async () => {
     if (!selectedRaceId) {
       setReadings([]);
       setTotalCount(0);
       return;
     }
-
     setLoading(true);
-    const offset = (currentPage - 1) * PAGE_SIZE;
-    const combinedReadings: GPSReading[] = [];
-    let totalRunners = 0;
-    let totalMotos = 0;
-
     try {
-      // Fetch runner GPS if applicable
-      if (trackingType === 'all' || trackingType === 'runners') {
-        let runnerQuery = supabase
-          .from('gps_tracking')
-          .select('id, latitude, longitude, timestamp, race_id, registration_id', { count: 'exact' })
-          .eq('race_id', selectedRaceId);
-
-        if (selectedDistanceId) {
-          // Get registrations for this distance
-          const { data: regs } = await supabase
-            .from('registrations')
-            .select('id, bib_number')
-            .eq('race_distance_id', selectedDistanceId);
-          
-          if (regs && regs.length > 0) {
-            const regIds = regs.map(r => r.id);
-            runnerQuery = runnerQuery.in('registration_id', regIds);
-          }
-        }
-
-        const { count: runnerCount } = await runnerQuery;
-        totalRunners = runnerCount || 0;
-
-        if (trackingType === 'runners' || (trackingType === 'all' && offset < totalRunners)) {
-          const runnerOffset = trackingType === 'all' ? offset : offset;
-          const runnerLimit = trackingType === 'all' ? Math.min(PAGE_SIZE, totalRunners - offset) : PAGE_SIZE;
-          
-          if (runnerLimit > 0 && runnerOffset < totalRunners) {
-            let dataQuery = supabase
-              .from('gps_tracking')
-              .select(`
-                id, latitude, longitude, timestamp, race_id,
-                registrations!inner(bib_number)
-              `)
-              .eq('race_id', selectedRaceId)
-              .order('timestamp', { ascending: false })
-              .range(runnerOffset, runnerOffset + runnerLimit - 1);
-
-            if (selectedDistanceId) {
-              const { data: regs } = await supabase
-                .from('registrations')
-                .select('id')
-                .eq('race_distance_id', selectedDistanceId);
-              if (regs && regs.length > 0) {
-                dataQuery = dataQuery.in('registration_id', regs.map(r => r.id));
-              }
-            }
-
-            const { data: runnerData } = await dataQuery;
-            if (runnerData) {
-              runnerData.forEach((r: any) => {
-                combinedReadings.push({
-                  id: r.id,
-                  type: 'runner',
-                  identifier: `#${r.registrations?.bib_number || '?'}`,
-                  latitude: r.latitude,
-                  longitude: r.longitude,
-                  timestamp: r.timestamp,
-                  race_id: r.race_id
-                });
-              });
-            }
-          }
-        }
+      const desde = (currentPage - 1) * PAGE_SIZE;
+      const base = supabase
+        .from('gps_positions')
+        .select('id, token_id, lat, lng, timestamp, battery', { count: 'exact' });
+      const q = aplicarFiltros(base as unknown as Filtrable) as unknown as typeof base | null;
+      if (!q) {
+        setReadings([]);
+        setTotalCount(0);
+        return;
       }
-
-      // Fetch moto GPS if applicable
-      if (trackingType === 'all' || trackingType === 'motos') {
-        let motoQuery = supabase
-          .from('moto_gps_tracking')
-          .select('id', { count: 'exact' })
-          .eq('race_id', selectedRaceId);
-
-        if (selectedMotoId) {
-          motoQuery = motoQuery.eq('moto_id', selectedMotoId);
-        }
-
-        const { count: motoCount } = await motoQuery;
-        totalMotos = motoCount || 0;
-
-        const motoOffset = trackingType === 'motos' ? offset : Math.max(0, offset - totalRunners);
-        const remainingSlots = PAGE_SIZE - combinedReadings.length;
-        
-        if (remainingSlots > 0 && (trackingType === 'motos' || (trackingType === 'all' && offset + PAGE_SIZE > totalRunners))) {
-          let dataQuery = supabase
-            .from('moto_gps_tracking')
-            .select(`
-              id, latitude, longitude, timestamp, race_id, moto_id,
-              race_motos!inner(name)
-            `)
-            .eq('race_id', selectedRaceId)
-            .order('timestamp', { ascending: false })
-            .range(trackingType === 'motos' ? offset : motoOffset, (trackingType === 'motos' ? offset : motoOffset) + remainingSlots - 1);
-
-          if (selectedMotoId) {
-            dataQuery = dataQuery.eq('moto_id', selectedMotoId);
-          }
-
-          const { data: motoData } = await dataQuery;
-          if (motoData) {
-            motoData.forEach((m: any) => {
-              combinedReadings.push({
-                id: m.id,
-                type: 'moto',
-                identifier: m.race_motos?.name || 'Moto',
-                latitude: m.latitude,
-                longitude: m.longitude,
-                timestamp: m.timestamp,
-                race_id: m.race_id
-              });
-            });
-          }
-        }
-      }
-
-      // Set total count based on type
-      if (trackingType === 'runners') {
-        setTotalCount(totalRunners);
-      } else if (trackingType === 'motos') {
-        setTotalCount(totalMotos);
-      } else {
-        setTotalCount(totalRunners + totalMotos);
-      }
-
-      setReadings(combinedReadings);
+      const { data, count, error } = await q
+        .order('timestamp', { ascending: false })
+        .range(desde, desde + PAGE_SIZE - 1);
+      if (error) throw error;
+      setReadings((data ?? []) as GPSReading[]);
+      setTotalCount(count ?? 0);
     } catch (error) {
       console.error('Error fetching readings:', error);
       toast.error('Error al cargar las lecturas');
     } finally {
       setLoading(false);
     }
-  }, [selectedRaceId, selectedDistanceId, selectedMotoId, trackingType, currentPage]);
+  }, [selectedRaceId, currentPage, aplicarFiltros]);
 
   const handleApplyFilters = () => {
     setCurrentPage(1);
@@ -265,176 +239,80 @@ export default function GPSPositionsDeletion() {
     if (selectedRaceId) {
       fetchReadings();
     }
-  }, [currentPage, fetchReadings]);
+  }, [selectedRaceId, currentPage, fetchReadings]);
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(readings.map(r => `${r.type}:${r.id}`)));
-    } else {
-      setSelectedIds(new Set());
-    }
+    setSelectedIds(checked ? new Set(readings.map((r) => r.id)) : new Set());
   };
 
   const handleSelectOne = (reading: GPSReading, checked: boolean) => {
-    const key = `${reading.type}:${reading.id}`;
     const newSet = new Set(selectedIds);
-    if (checked) {
-      newSet.add(key);
-    } else {
-      newSet.delete(key);
-    }
+    if (checked) newSet.add(reading.id);
+    else newSet.delete(reading.id);
     setSelectedIds(newSet);
   };
 
   const handleDeleteSelected = async () => {
     if (selectedIds.size === 0) return;
-    
     setDeleting(true);
     try {
-      const runnerIds: string[] = [];
-      const motoIds: string[] = [];
-      
-      selectedIds.forEach(key => {
-        const [type, id] = key.split(':');
-        if (type === 'runner') runnerIds.push(id);
-        else if (type === 'moto') motoIds.push(id);
-      });
-
-      // Delete in batches of 100
+      const ids = [...selectedIds];
       const batchSize = 100;
-      
-      for (let i = 0; i < runnerIds.length; i += batchSize) {
-        const batch = runnerIds.slice(i, i + batchSize);
+      for (let i = 0; i < ids.length; i += batchSize) {
         const { error } = await supabase
-          .from('gps_tracking')
+          .from('gps_positions')
           .delete()
-          .in('id', batch);
+          .in('id', ids.slice(i, i + batchSize));
         if (error) throw error;
       }
-
-      for (let i = 0; i < motoIds.length; i += batchSize) {
-        const batch = motoIds.slice(i, i + batchSize);
-        const { error } = await supabase
-          .from('moto_gps_tracking')
-          .delete()
-          .in('id', batch);
-        if (error) throw error;
-      }
-
-      toast.success(`${selectedIds.size} registros eliminados`);
+      toast.success(`${ids.length} posiciones eliminadas`);
       setSelectedIds(new Set());
       fetchReadings();
     } catch (error) {
       console.error('Error deleting:', error);
-      toast.error('Error al eliminar registros');
+      toast.error('Error al eliminar posiciones');
     } finally {
       setDeleting(false);
       setIsDeleteSelectedOpen(false);
     }
   };
 
+  // Borrado de todo lo filtrado: los mismos filtros, en una sola orden al
+  // servidor (sin traerse los ids), que devuelve cuántas borró
   const handleDeleteAllFiltered = async () => {
     setDeleting(true);
     try {
-      let deletedCount = 0;
-      const batchSize = 1000;
-
-      // Delete runner GPS
-      if (trackingType === 'all' || trackingType === 'runners') {
-        let hasMore = true;
-        while (hasMore) {
-          let query = supabase
-            .from('gps_tracking')
-            .select('id')
-            .eq('race_id', selectedRaceId)
-            .limit(batchSize);
-
-          if (selectedDistanceId) {
-            const { data: regs } = await supabase
-              .from('registrations')
-              .select('id')
-              .eq('race_distance_id', selectedDistanceId);
-            if (regs && regs.length > 0) {
-              query = query.in('registration_id', regs.map(r => r.id));
-            }
-          }
-
-          const { data: idsToDelete } = await query;
-          
-          if (!idsToDelete || idsToDelete.length === 0) {
-            hasMore = false;
-          } else {
-            const ids = idsToDelete.map(r => r.id);
-            for (let i = 0; i < ids.length; i += 100) {
-              const batch = ids.slice(i, i + 100);
-              const { error } = await supabase
-                .from('gps_tracking')
-                .delete()
-                .in('id', batch);
-              if (error) throw error;
-              deletedCount += batch.length;
-            }
-          }
-        }
+      const base = supabase.from('gps_positions').delete({ count: 'exact' });
+      const q = aplicarFiltros(base as unknown as Filtrable) as unknown as typeof base | null;
+      if (!q) {
+        toast.info('No hay posiciones que borrar con estos filtros');
+        return;
       }
-
-      // Delete moto GPS
-      if (trackingType === 'all' || trackingType === 'motos') {
-        let hasMore = true;
-        while (hasMore) {
-          let query = supabase
-            .from('moto_gps_tracking')
-            .select('id')
-            .eq('race_id', selectedRaceId)
-            .limit(batchSize);
-
-          if (selectedMotoId) {
-            query = query.eq('moto_id', selectedMotoId);
-          }
-
-          const { data: idsToDelete } = await query;
-          
-          if (!idsToDelete || idsToDelete.length === 0) {
-            hasMore = false;
-          } else {
-            const ids = idsToDelete.map(r => r.id);
-            for (let i = 0; i < ids.length; i += 100) {
-              const batch = ids.slice(i, i + 100);
-              const { error } = await supabase
-                .from('moto_gps_tracking')
-                .delete()
-                .in('id', batch);
-              if (error) throw error;
-              deletedCount += batch.length;
-            }
-          }
-        }
-      }
-
-      toast.success(`${deletedCount} registros eliminados`);
+      const { count, error } = await q;
+      if (error) throw error;
+      toast.success(`${(count ?? 0).toLocaleString()} posiciones eliminadas`);
       setSelectedIds(new Set());
       setCurrentPage(1);
       fetchReadings();
     } catch (error) {
       console.error('Error deleting all:', error);
-      toast.error('Error al eliminar registros');
+      toast.error('Error al eliminar posiciones');
     } finally {
       setDeleting(false);
       setIsDeleteAllOpen(false);
     }
   };
 
-  const formatDateTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString('es-ES', {
+  const formatDateTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     });
-  };
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <Card>
@@ -444,18 +322,18 @@ export default function GPSPositionsDeletion() {
           Borrado de Posiciones GPS
         </CardTitle>
         <CardDescription>
-          Gestiona y elimina lecturas GPS de corredores y motos
+          Posiciones enviadas por la app Camberas Track: corredores, motos y organización
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Filters */}
+        {/* Filtros */}
         <div className="grid gap-4 p-4 border rounded-lg bg-muted/30">
           <div className="space-y-2">
-            <Label>Tipo de seguimiento</Label>
+            <Label>Tipo de dorsal</Label>
             <RadioGroup
               value={trackingType}
-              onValueChange={(v) => setTrackingType(v as 'all' | 'runners' | 'motos')}
-              className="flex gap-4"
+              onValueChange={(v) => { setTrackingType(v as TrackingType); setSelectedMotoId(''); }}
+              className="flex gap-4 flex-wrap"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="all" id="all" />
@@ -469,6 +347,10 @@ export default function GPSPositionsDeletion() {
                 <RadioGroupItem value="motos" id="motos" />
                 <Label htmlFor="motos" className="cursor-pointer">Motos</Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="organizacion" id="organizacion" />
+                <Label htmlFor="organizacion" className="cursor-pointer">Organización</Label>
+              </div>
             </RadioGroup>
           </div>
 
@@ -479,13 +361,15 @@ export default function GPSPositionsDeletion() {
                 setSelectedRaceId(v === 'none' ? '' : v);
                 setSelectedDistanceId('');
                 setSelectedMotoId('');
+                setReadings([]);
+                setTotalCount(0);
               }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar carrera" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Seleccionar carrera</SelectItem>
-                  {races.filter(race => race.id).map(race => (
+                  {races.filter((race) => race.id).map((race) => (
                     <SelectItem key={race.id} value={race.id}>
                       {race.name}
                     </SelectItem>
@@ -494,26 +378,24 @@ export default function GPSPositionsDeletion() {
               </Select>
             </div>
 
-            {(trackingType === 'all' || trackingType === 'runners') && (
-              <div className="space-y-2">
-                <Label>Evento (opcional)</Label>
-                <Select value={selectedDistanceId || 'all'} onValueChange={(v) => setSelectedDistanceId(v === 'all' ? '' : v)} disabled={!selectedRaceId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos los eventos" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos los eventos</SelectItem>
-                    {distances.filter(d => d.id).map(d => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Evento (opcional)</Label>
+              <Select value={selectedDistanceId || 'all'} onValueChange={(v) => setSelectedDistanceId(v === 'all' ? '' : v)} disabled={!selectedRaceId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos los eventos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los eventos</SelectItem>
+                  {distances.filter((d) => d.id).map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            {(trackingType === 'all' || trackingType === 'motos') && (
+            {trackingType === 'motos' && (
               <div className="space-y-2">
                 <Label>Moto (opcional)</Label>
                 <Select value={selectedMotoId || 'all'} onValueChange={(v) => setSelectedMotoId(v === 'all' ? '' : v)} disabled={!selectedRaceId}>
@@ -522,9 +404,9 @@ export default function GPSPositionsDeletion() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas las motos</SelectItem>
-                    {motos.filter(m => m.id).map(m => (
+                    {motos.filter((m) => m.id).map((m) => (
                       <SelectItem key={m.id} value={m.id}>
-                        {m.name}
+                        {m.name}{m.token_id ? '' : ' (sin dorsal GPS)'}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -539,7 +421,7 @@ export default function GPSPositionsDeletion() {
           </Button>
         </div>
 
-        {/* Actions */}
+        {/* Acciones */}
         {readings.length > 0 && (
           <div className="flex gap-2 flex-wrap">
             <Button
@@ -563,7 +445,7 @@ export default function GPSPositionsDeletion() {
           </div>
         )}
 
-        {/* Table */}
+        {/* Tabla */}
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -581,51 +463,54 @@ export default function GPSPositionsDeletion() {
                       />
                     </TableHead>
                     <TableHead>Tipo</TableHead>
-                    <TableHead>ID/Dorsal</TableHead>
+                    <TableHead>Dorsal</TableHead>
+                    <TableHead>Nombre</TableHead>
                     <TableHead>Latitud</TableHead>
                     <TableHead>Longitud</TableHead>
-                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Hora</TableHead>
+                    <TableHead>Batería</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {readings.map((reading) => (
-                    <TableRow key={`${reading.type}:${reading.id}`}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(`${reading.type}:${reading.id}`)}
-                          onCheckedChange={(checked) => handleSelectOne(reading, !!checked)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                          reading.type === 'runner' 
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
-                        }`}>
-                          {reading.type === 'runner' ? '🏃' : '🏍️'}
-                          {reading.type === 'runner' ? 'GPS' : 'Moto'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-mono">{reading.identifier}</TableCell>
-                      <TableCell className="font-mono text-sm">{reading.latitude.toFixed(6)}</TableCell>
-                      <TableCell className="font-mono text-sm">{reading.longitude.toFixed(6)}</TableCell>
-                      <TableCell className="text-sm">{formatDateTime(reading.timestamp)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {readings.map((reading) => {
+                    const dorsal = dorsales.get(reading.token_id);
+                    const et = ETIQUETA[dorsal?.tipo ?? 'corredor'];
+                    return (
+                      <TableRow key={reading.id}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(reading.id)}
+                            onCheckedChange={(checked) => handleSelectOne(reading, !!checked)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${et.clase}`}>
+                            {et.icono} {et.texto}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-mono">{dorsal?.bib_number ?? '?'}</TableCell>
+                        <TableCell className="text-sm">{dorsal?.participant_name ?? ''}</TableCell>
+                        <TableCell className="font-mono text-sm">{reading.lat.toFixed(6)}</TableCell>
+                        <TableCell className="font-mono text-sm">{reading.lng.toFixed(6)}</TableCell>
+                        <TableCell className="text-sm">{formatDateTime(reading.timestamp)}</TableCell>
+                        <TableCell className="text-sm">{reading.battery != null ? `${reading.battery} %` : ''}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
 
-            {/* Pagination */}
+            {/* Paginación */}
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Página {currentPage} de {totalPages} ({totalCount.toLocaleString()} registros)
+                Página {currentPage} de {totalPages} ({totalCount.toLocaleString()} posiciones)
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1 || loading}
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
@@ -634,8 +519,8 @@ export default function GPSPositionsDeletion() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages || loading}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages || loading}
                 >
                   Siguiente
                   <ChevronRight className="h-4 w-4 ml-1" />
@@ -645,21 +530,21 @@ export default function GPSPositionsDeletion() {
           </>
         ) : selectedRaceId ? (
           <p className="text-center py-8 text-muted-foreground">
-            No se encontraron lecturas con los filtros seleccionados
+            No se encontraron posiciones con los filtros seleccionados
           </p>
         ) : (
           <p className="text-center py-8 text-muted-foreground">
-            Selecciona una carrera y aplica los filtros para ver las lecturas
+            Selecciona una carrera y aplica los filtros para ver las posiciones
           </p>
         )}
 
-        {/* Delete Selected Dialog */}
+        {/* Borrar seleccionadas */}
         <AlertDialog open={isDeleteSelectedOpen} onOpenChange={setIsDeleteSelectedOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>¿Eliminar {selectedIds.size} registros?</AlertDialogTitle>
+              <AlertDialogTitle>¿Eliminar {selectedIds.size} posiciones?</AlertDialogTitle>
               <AlertDialogDescription>
-                Esta acción no se puede deshacer. Se eliminarán permanentemente las {selectedIds.size} lecturas GPS seleccionadas.
+                Esta acción no se puede deshacer. Se eliminarán permanentemente las {selectedIds.size} posiciones GPS seleccionadas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -676,16 +561,16 @@ export default function GPSPositionsDeletion() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Delete All Dialog */}
+        {/* Borrar todo lo filtrado */}
         <AlertDialog open={isDeleteAllOpen} onOpenChange={setIsDeleteAllOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2 text-destructive">
                 <AlertTriangle className="h-5 w-5" />
-                ¿Eliminar TODOS los {totalCount.toLocaleString()} registros?
+                ¿Eliminar TODAS las {totalCount.toLocaleString()} posiciones?
               </AlertDialogTitle>
               <AlertDialogDescription>
-                <strong className="text-destructive">¡ATENCIÓN!</strong> Esta acción eliminará permanentemente TODAS las lecturas GPS que coinciden con los filtros actuales. Esta operación no se puede deshacer.
+                <strong className="text-destructive">¡ATENCIÓN!</strong> Esta acción eliminará permanentemente TODAS las posiciones GPS que coinciden con los filtros actuales (carrera, evento y tipo de dorsal). Esta operación no se puede deshacer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
