@@ -1,4 +1,4 @@
-import { Home, ChevronDown, UserCircle, RectangleHorizontal } from "lucide-react";
+import { Home, ChevronDown, UserCircle } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -153,14 +153,6 @@ export function OrganizerSidebar({ currentView, onViewChange }: OrganizerSidebar
                   <Link to="/organizer-profile" onClick={() => setOpenMobile(false)}>
                     <UserCircle />
                     <span>Mi Perfil</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild tooltip="Diseñador de Dorsales">
-                  <Link to="/organizer/bib-designer" onClick={() => setOpenMobile(false)}>
-                    <RectangleHorizontal />
-                    <span>Diseñador de Dorsales</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
