@@ -68,7 +68,7 @@ const acortar = (n) =>
 let PUNTOS = [];
 let SUELTOS = [];
 const VEHICULOS = [
-  { en: 0.93, nombre: 'Moto cámara', color: C.lima, icono: 'camara' },
+  { en: 0.93, nombre: 'Cámara runner', color: C.lima, icono: 'camara' },
   { en: 0.64, nombre: 'Ambulancia', color: C.rojo, icono: 'cruz' },
   { en: 0.26, nombre: 'Cierre', color: C.naranja, icono: 'coche', estela: true },
 ];

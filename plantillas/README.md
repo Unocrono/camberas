@@ -255,7 +255,7 @@ Un circular compacto como la Picota es lo que mejor encaja.
 ### La simulación
 
 Con `--video` el mapa deja de ser una foto: la escoba recorre la traza, el
-pelotón va por delante, la moto cámara abre carrera y **los avituallamientos
+pelotón va por delante, la cámara runner abre carrera y **los avituallamientos
 se apagan según pasa el cierre**, que es literalmente lo que cuenta el
 carrusel.
 
