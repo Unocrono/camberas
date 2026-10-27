@@ -163,25 +163,24 @@ function icono(tipo, color) {
 }
 
 /*
- * Los pines normales son anillos. El sanitario va en disco crema con la cruz
- * encima: es el único que interesa reconocer de un vistazo y sin leer.
+ * Todos los pines son anillos. El sanitario va más grande y más grueso: es el
+ * único que interesa reconocer de un vistazo y sin leer la etiqueta.
+ *
+ * La cruz roja va sobre el verde del mapa, no sobre un disco blanco: la cruz
+ * roja sobre fondo blanco es el emblema protegido por los Convenios de
+ * Ginebra. Y en verde tampoco, que aquí una cruz verde es una farmacia.
  */
-const pin = (x, y, color, tipo, r = 30) =>
-  tipo === 'cruz'
-    ? `
+const pin = (x, y, color, tipo, r = 30) => {
+  const radio = tipo === 'cruz' ? r + 5 : r;
+  const grosor = tipo === 'cruz' ? 7 : 5;
+  return `
   <g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">
-    <circle r="${r + 5}" fill="${C.fondo}"/>
-    <circle r="${r}" fill="${C.crema}"/>
-    ${icono(tipo, color)}
-  </g>`
-    : `
-  <g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">
-    <circle r="${r + 5}" fill="${C.fondo}"/>
-    <circle r="${r}" fill="none" stroke="${color}" stroke-width="5"/>
+    <circle r="${radio + 5}" fill="${C.fondo}"/>
+    <circle r="${radio}" fill="none" stroke="${color}" stroke-width="${grosor}"/>
     ${icono(tipo, color)}
   </g>`;
+};
 
-/* Con placa detrás: sin ella el texto se pierde en cuanto cae sobre la traza. */
 const etiqueta = (x, y, texto, color, r = 30) => {
   const ancho = texto.length * 22 + 34;
   return `
