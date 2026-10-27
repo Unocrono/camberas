@@ -171,8 +171,17 @@ export const OrgCupones = ({ raceId }: Props) => {
                     −{textoDescuento(c)}
                     {c.distance_name ? ` · solo ${c.distance_name}` : " · toda la carrera"}
                   </p>
+                  {/* Invitaciones con plaza reservada: que se vea de un vistazo si
+                      el invitado paga o no (Monte Tejas reparte de los dos tipos) */}
                   {c.reserva_plaza && (
-                    <p className="text-xs font-semibold text-secondary">Reserva plaza aunque esté completo</p>
+                    <p className="text-xs font-semibold text-secondary">
+                      {c.discount_type === "percent" && Number(c.discount_value) >= 100
+                        ? "Invitación gratis"
+                        : Number(c.discount_value) === 0
+                          ? "Invitación de pago (paga el precio normal)"
+                          : "Invitación con descuento"}
+                      {" · entra aunque esté completo"}
+                    </p>
                   )}
                   {c.notes && (
                     <p className="text-xs text-muted-foreground truncate">{c.notes}</p>
