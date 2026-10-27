@@ -1,0 +1,52 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Documentos y *permisos*",
+  "titulo": "Lo que te deja sin dormir",
+  "web": "camberas.com/organizadores",
+  "slides": [
+    {
+      "etiqueta": "La verdad",
+      "pregunta": "La carrera no se cae por el cronómetro",
+      "respuesta": "Se cae porque falta un permiso, porque el seguro venció el jueves o porque nadie encuentra la autorización del parque natural."
+    },
+    {
+      "etiqueta": "Dónde está hoy",
+      "pregunta": "En el correo de alguien",
+      "respuesta": "Un PDF en una cadena de correos de marzo, otro en el WhatsApp del presidente, y el bueno en el escritorio de un portátil que hoy no ha venido."
+    },
+    {
+      "etiqueta": "La lista",
+      "pregunta": "Un checklist de lo que hace falta",
+      "respuesta": "Cada trámite con su nombre, sin tener que acordarte tú de que este año también toca el de medio ambiente."
+    },
+    {
+      "etiqueta": "Las fechas",
+      "pregunta": "Cada papel sabe cuándo caduca",
+      "respuesta": "El seguro, la autorización, el permiso de paso. Si algo está a punto de vencer lo ves antes de que te pille, no después."
+    },
+    {
+      "etiqueta": "El estado",
+      "pregunta": "Pedido, presentado, concedido",
+      "respuesta": "De un vistazo sabes qué falta por mandar y qué está esperando respuesta. Sin reconstruirlo de memoria en cada reunión."
+    },
+    {
+      "etiqueta": "Varios por trámite",
+      "pregunta": "La solicitud y la respuesta, juntas",
+      "respuesta": "Un trámite rara vez es un solo papel: va la instancia, lo que te contestan y el anexo que te piden luego. Todo en el mismo sitio."
+    },
+    {
+      "etiqueta": "ETRAZA",
+      "pregunta": "Y la traza de la DGT, con el resto",
+      "respuesta": "No en una carpeta aparte porque sea de tráfico: al lado de todo lo demás, con su fecha y su estado."
+    },
+    {
+      "etiqueta": "Importante",
+      "pregunta": "Esto no es público, y se nota",
+      "respuesta": "Los documentos de tu carrera llevan datos sensibles. Se guardan en privado y no se llega a ellos por una dirección suelta.",
+      "nota": "No es una carpeta compartida con enlace: se abre desde dentro y caduca."
+    }
+  ],
+  "cta": "Ten los papeles donde los encuentres"
+}

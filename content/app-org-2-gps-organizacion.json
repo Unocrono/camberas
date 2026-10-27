@@ -1,0 +1,53 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "GPS *Organización*",
+  "titulo": "Y la ambulancia, ¿dónde está?",
+  "web": "camberas.com/organizadores",
+  "slides": [
+    {
+      "etiqueta": "El problema",
+      "pregunta": "Sabes dónde va el primero. ¿Y la ambulancia?",
+      "respuesta": "El seguimiento de corredores está resuelto. Lo que nadie te enseña es dónde está tu propio dispositivo de seguridad cuando hace falta."
+    },
+    {
+      "etiqueta": "Qué entra",
+      "pregunta": "Moto cámara, ambulancia, cierre y escoba",
+      "respuesta": "Cada vehículo de organización lleva su móvil con la app, y sale en el mapa con su nombre y su color. No son puntos anónimos."
+    },
+    {
+      "etiqueta": "Cómo se monta",
+      "pregunta": "Un QR por vehículo y listo",
+      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana.",
+      "nota": "Si el móvil cambia de manos a mitad de carrera, da igual: el puesto sigue siendo el mismo."
+    },
+    {
+      "etiqueta": "Cada segundo",
+      "pregunta": "Se actualizan una vez por segundo",
+      "respuesta": "Mucho más fino que el seguimiento de un corredor, porque un vehículo se mueve rápido y lo quieres ver moverse, no a saltos."
+    },
+    {
+      "etiqueta": "Sin ventanas",
+      "pregunta": "Emiten aunque no haya empezado la carrera",
+      "respuesta": "Los corredores solo emiten dentro de la ventana de la prueba. La organización, no: mientras su código esté activo, está en el mapa.",
+      "nota": "Así los tienes situados en el reconocimiento de la víspera y en el barrido de después."
+    },
+    {
+      "etiqueta": "Para qué sirve",
+      "pregunta": "Saber cuánto tarda el médico en llegar",
+      "respuesta": "Cuando entra un aviso en el kilómetro 22, no preguntas por radio dónde anda la ambulancia: lo ves, y mandas a la que está más cerca."
+    },
+    {
+      "etiqueta": "El cierre",
+      "pregunta": "La escoba te dice por dónde va la carrera de verdad",
+      "respuesta": "Mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta. Deja de ser una conversación y pasa a ser una posición."
+    },
+    {
+      "etiqueta": "Y en pantalla",
+      "pregunta": "La moto cámara también es un punto en el mapa",
+      "respuesta": "Sabes desde dónde está entrando la imagen y a qué altura del recorrido, que es lo que necesita quien está realizando."
+    }
+  ],
+  "cta": "Pon a tu organización en el mapa"
+}

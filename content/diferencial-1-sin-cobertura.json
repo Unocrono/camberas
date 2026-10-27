@@ -13,40 +13,35 @@
     },
     {
       "etiqueta": "Lo que no sirve",
-      "pregunta": "Un sistema que necesita señal para anotar un paso",
-      "respuesta": "En un paseo marítimo hay 4G de sobra. En un cortafuegos a 1.400 metros, no. Y el corredor cruza igual."
-    },
-    {
-      "etiqueta": "El cronometraje",
-      "pregunta": "Se marca igual, haya red o no",
-      "respuesta": "Cada paso se guarda en el propio móvil, en una cola. Cuando vuelve la señal suben solos y en orden.",
-      "nota": "El cronometrador no tiene que hacer nada distinto, ni acordarse de nada después."
-    },
-    {
-      "etiqueta": "Antes de salir",
-      "pregunta": "El puesto se lleva la carrera dentro",
-      "respuesta": "Al activarse, el móvil se guarda su punto de control y la lista de salida. Si luego se queda sin red, sigue teniendo a todos los corredores delante."
+      "pregunta": "Un seguimiento que se cae cuando más falta hace",
+      "respuesta": "En un paseo marítimo hay 4G de sobra. En un cortafuegos a 1.400 metros, no. Y es justo ahí donde quieres saber dónde está la gente."
     },
     {
       "etiqueta": "En el bolsillo del corredor",
-      "pregunta": "El GPS hace lo mismo",
-      "respuesta": "La app guarda las posiciones mientras no hay señal y las suelta al recuperarla. En carreras reales ha recuperado tramos de más de una hora de golpe."
-    },
-    {
-      "etiqueta": "No es fe",
-      "pregunta": "Lo que falta por subir se ve en pantalla",
-      "respuesta": "El corredor ve cuántas posiciones tiene pendientes y el cronometrador ve su cola. Sabes qué queda por llegar en vez de suponerlo."
+      "pregunta": "El móvil sigue grabando aunque no haya señal",
+      "respuesta": "Las posiciones se guardan dentro del teléfono y se sueltan en cuanto vuelve la cobertura. En carreras reales ha recuperado tramos de más de una hora de golpe."
     },
     {
       "etiqueta": "Mientras tanto",
       "pregunta": "Nadie desaparece del mapa",
-      "respuesta": "Aunque un corredor esté en zona muerta, en el control sigue estando en su última posición conocida. No se borra de la pantalla."
+      "respuesta": "Aunque un corredor esté en zona muerta, en el control sigue estando en su última posición conocida, con la hora a la que se le vio.",
+      "nota": "No se borra de la pantalla ni se queda en blanco."
+    },
+    {
+      "etiqueta": "No es fe",
+      "pregunta": "Lo que falta por subir se ve en pantalla",
+      "respuesta": "El corredor ve cuántas posiciones tiene pendientes de enviar. Sabes que el sistema está trabajando en vez de suponerlo."
+    },
+    {
+      "etiqueta": "Cuando vuelve",
+      "pregunta": "El recorrido se rellena entero, hacia atrás",
+      "respuesta": "No aparece solo el punto donde recuperó la señal: entra todo el tramo que estuvo a ciegas, en su hora. La traza queda completa."
     },
     {
       "etiqueta": "Lo que te ahorra",
-      "pregunta": "Nadie vuelve a dictar tiempos por teléfono",
-      "respuesta": "Ni libretas que se pasan a limpio por la noche, ni un parcial perdido porque en ese collado no había red."
+      "pregunta": "Dejas de llamar al avituallamiento",
+      "respuesta": "Esa llamada de «¿ha pasado ya el 212?» a un sitio donde tampoco hay cobertura, con todo el mundo esperando."
     }
   ],
-  "cta": "Cronometra donde no llega la red"
+  "cta": "Sigue a tu gente donde no llega la red"
 }

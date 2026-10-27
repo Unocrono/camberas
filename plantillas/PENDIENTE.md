@@ -13,11 +13,20 @@ ya resueltas están en `plantillas/TRASPASO.md`.
 | La plataforma (pilares) | `plataforma-1..5` | Naranja | 5 carruseles, completos |
 | Camberas Track (app) | `track-1..2` | Lima | 2 carruseles, completos |
 | GPX (pareja con humor) | `gpx-1..2` | Naranja | 2 carruseles, completos |
-| Diferenciación | `diferencial-1..3` | Naranja | 3 carruseles, completos |
+| Diferenciación | `diferencial-1`, `diferencial-3` | Naranja | 2 carruseles, completos |
+| Plataforma / app Org | `app-org-1..3` | Naranja | 3 carruseles, completos |
 | Sueltos | `faq-corredores`, `manual-seguimiento-gps` | Lima | Ver pendientes |
 
 Retirado en `content/retirados/`: `manual-grupetta.json` y
-`faq-organizadores.json`, que solapaban con las series.
+`faq-organizadores.json`, que solapaban con las series, y —por decisión del
+cliente el 27-oct— **todo lo que vende cronometraje**:
+`plataforma-5-cronometraje.json`, `organizadores-5-cronometraje-qr.json` y
+`diferencial-2-que-entra-en-el-precio.json` (que era el plan Crono
+Profesional). `diferencial-1` y `diferencial-3` se reescribieron para
+quitarles el cronometraje.
+
+**No se vende cronometraje.** El foco es la app del organizador, el
+seguimiento GPS de corredores y de organización, y la documentación.
 
 ## Pendientes
 

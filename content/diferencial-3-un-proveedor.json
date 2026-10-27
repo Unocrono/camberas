@@ -8,23 +8,23 @@
   "slides": [
     {
       "etiqueta": "Lo habitual",
-      "pregunta": "Uno inscribe, otro cronometra, otro pone el GPS",
+      "pregunta": "Uno inscribe, otro pone el GPS, otro lleva los papeles",
       "respuesta": "Y tú en medio, exportando una hoja de cada uno para que los dorsales cuadren entre ellos."
     },
     {
       "etiqueta": "Lo que se rompe",
       "pregunta": "El dorsal 212 no es el mismo en todas partes",
-      "respuesta": "Alguien se da de baja, otro se cambia de distancia, y la lista que mandaste al cronometrador ya está vieja."
+      "respuesta": "Alguien se da de baja, otro se cambia de distancia, y la lista que repartiste a la organización ya está vieja."
     },
     {
       "etiqueta": "Aquí",
       "pregunta": "El corredor se da de alta una vez",
-      "respuesta": "Y ese mismo registro es el dorsal que se imprime, el que cronometra, el que va en el mapa y el que sale en los resultados."
+      "respuesta": "Y ese mismo registro es el dorsal que se imprime, el que va en el mapa, el que recoge en la mesa y el que sale en los resultados."
     },
     {
       "etiqueta": "Sin exportar",
       "pregunta": "No hay ningún fichero que mandar a nadie",
-      "respuesta": "El puesto de cronometraje carga él solo la lista de salida, actualizada, del mismo sitio donde entran las inscripciones."
+      "respuesta": "Quien está en campo abre la app y ve la lista actualizada, del mismo sitio donde entran las inscripciones."
     },
     {
       "etiqueta": "Los papeles",
@@ -34,8 +34,8 @@
     },
     {
       "etiqueta": "En vivo",
-      "pregunta": "El mapa y los resultados beben de lo mismo",
-      "respuesta": "El seguimiento va sobre tu propio GPX y los parciales entran según se marcan. No se montan después con lo que mandó cada uno."
+      "pregunta": "El mapa y la mesa de dorsales beben de lo mismo",
+      "respuesta": "El seguimiento va sobre tu propio GPX y quien entrega dorsales marca sobre la misma inscripción. No se cuadra después."
     },
     {
       "etiqueta": "En pantalla",

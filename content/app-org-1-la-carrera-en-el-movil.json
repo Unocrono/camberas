@@ -1,0 +1,53 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Camberas *Org*",
+  "titulo": "La carrera te cabe en el móvil",
+  "web": "camberas.com/organizadores",
+  "slides": [
+    {
+      "etiqueta": "Qué es",
+      "pregunta": "Una app para ti, no una web que se ve pequeña",
+      "respuesta": "Camberas Org se instala en tu teléfono como una app más, con su icono. Y la usas desde el día que creas la carrera, no solo el domingo.",
+      "nota": "No hay que pasar por ninguna tienda: se instala desde la propia web."
+    },
+    {
+      "etiqueta": "Dónde se nota",
+      "pregunta": "El trabajo de verdad no se hace sentado",
+      "respuesta": "Se hace en el monte marcando el recorrido, en la mesa de dorsales y en la salida. Ahí es donde tienes el móvil y no el portátil."
+    },
+    {
+      "etiqueta": "En campo",
+      "pregunta": "Marcas los puntos pisándolos",
+      "respuesta": "Vas al avituallamiento, al cruce malo, al punto de control, y lo marcas ahí mismo sobre el mapa. No lo colocas a ojo desde casa."
+    },
+    {
+      "etiqueta": "En la mesa",
+      "pregunta": "«¿Ha pasado ya el 137?»",
+      "respuesta": "Buscas por dorsal o por nombre y lo sabes al momento. Quien entrega dorsales va marcando y todos ven lo mismo, sin listas en papel por duplicado."
+    },
+    {
+      "etiqueta": "A última hora",
+      "pregunta": "Das de alta al que aparece sin inscribir",
+      "respuesta": "Desde el móvil, con su tarifa y su dorsal, que sale del rango que tú fijaste. Sin abrir el ordenador ni llamar a nadie."
+    },
+    {
+      "etiqueta": "Los voluntarios",
+      "pregunta": "Quién está, dónde y con qué coche",
+      "respuesta": "Nombre, teléfono, carnet, vehículo y matrícula, cada uno asignado a su puesto y con su acreditación.",
+      "nota": "El día de la carrera eso es saber a quién llamar, no un listado bonito."
+    },
+    {
+      "etiqueta": "Sin abrirla",
+      "pregunta": "Te avisa cuando entra una inscripción pagada",
+      "respuesta": "Aviso en el móvil con la app cerrada. Te enteras de cómo va el llenado sin estar mirando el panel cada hora."
+    },
+    {
+      "etiqueta": "Y además",
+      "pregunta": "Lo que miras de camino",
+      "respuesta": "Inscripciones y cupones, estadísticas, la documentación de la carrera, los resultados y el seguimiento GPS. Todo en la misma app."
+    }
+  ],
+  "cta": "Llévate la carrera en el bolsillo"
+}
