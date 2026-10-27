@@ -65,6 +65,8 @@ interface Coupon {
   valid_from: string | null;
   valid_until: string | null;
   active: boolean;
+  /** Entra aunque el recorrido esté completo: el tope lo ponen los usos */
+  reserva_plaza?: boolean;
   notes: string | null;
   uses?: number;
 }
@@ -85,6 +87,7 @@ const emptyForm = {
   valid_from: "",
   valid_until: "",
   active: true,
+  reserva_plaza: false,
   notes: "",
 };
 
@@ -167,6 +170,7 @@ export function CouponsManagement({ selectedRaceId }: CouponsManagementProps) {
       valid_from: toLocalInput(coupon.valid_from),
       valid_until: toLocalInput(coupon.valid_until),
       active: coupon.active,
+      reserva_plaza: !!coupon.reserva_plaza,
       notes: coupon.notes || "",
     });
     setDialogOpen(true);
@@ -206,6 +210,7 @@ export function CouponsManagement({ selectedRaceId }: CouponsManagementProps) {
         valid_from: formData.valid_from ? new Date(formData.valid_from).toISOString() : null,
         valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
         active: formData.active,
+        reserva_plaza: formData.reserva_plaza,
         notes: formData.notes.trim() || null,
       };
 
@@ -543,6 +548,20 @@ export function CouponsManagement({ selectedRaceId }: CouponsManagementProps) {
                 onCheckedChange={(v) => setFormData({ ...formData, active: v })}
               />
               <Label htmlFor="coupon-active">Activo</Label>
+            </div>
+            <div className="flex items-start gap-2">
+              <Switch
+                id="coupon-reserva"
+                checked={formData.reserva_plaza}
+                onCheckedChange={(v) => setFormData({ ...formData, reserva_plaza: v })}
+              />
+              <div>
+                <Label htmlFor="coupon-reserva">Reserva plaza aunque el recorrido esté completo</Label>
+                <p className="text-xs text-muted-foreground">
+                  Para repartir a gente concreta cuando ya no quedan plazas: quien llegue con el enlace del
+                  cupón se inscribe igual. El tope lo ponen los usos del cupón.
+                </p>
+              </div>
             </div>
           </div>
 

@@ -63,7 +63,10 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
     inscripcionDirectaHecha.current = true;
     const prueba = evento.pruebas.find((p) => p.id === inscribirDeUrl);
     if (!prueba) return;
-    if (prueba.estado && prueba.estado !== "abierta") {
+    // Con cupón en el enlace, un recorrido completo se abre igual: el cupón
+    // puede reservar plaza (coupons.reserva_plaza) y lo decide el servidor
+    const completoConCupon = prueba.estado === "agotada" && !!cuponDeUrl;
+    if (prueba.estado && prueba.estado !== "abierta" && !completoConCupon) {
       toast({
         title: prueba.estado === "agotada" ? "Recorrido completo" : "Inscripción no disponible",
         description: `${prueba.nombre}: ahora mismo no admite inscripciones.`,
@@ -80,6 +83,20 @@ export default function PaginaCarrera({ evento: eventoDado }: { evento?: EventoP
     abrirInscripcion(prueba.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inscribirDeUrl, evento, toast]);
+
+  // ?cupon=CODIGO con el recorrido completo: los botones de la plantilla
+  // están deshabilitados, así que se abre el formulario desde aquí. Si el
+  // cupón reserva plaza, el servidor deja inscribirse; si no, lo rechaza por
+  // aforo igual que siempre. Con un solo recorrido no hay que elegir
+  const cuponAbierto = useRef(false);
+  useEffect(() => {
+    if (!cuponDeUrl || inscribirDeUrl || cuponAbierto.current || !evento) return;
+    const agotadas = evento.pruebas.filter((p) => (p.estado ?? evento.estado) === "agotada");
+    if (agotadas.length !== 1) return;
+    cuponAbierto.current = true;
+    abrirInscripcion(agotadas[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cuponDeUrl, inscribirDeUrl, evento]);
 
   // SEO por carrera: título, description, OG, canonical (su dominio si lo
   // tiene) y JSON-LD SportsEvent. Se restaura al salir de la página.

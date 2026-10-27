@@ -165,6 +165,8 @@ serve(async (req) => {
       supplement,
       discount,
       newTotal,
+      // Entra aunque el recorrido esté completo (coupons.reserva_plaza)
+      reservaPlaza: !!coupon.reserva_plaza,
     });
   } catch (error: any) {
     if (error instanceof z.ZodError) {

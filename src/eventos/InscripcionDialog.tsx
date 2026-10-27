@@ -37,6 +37,8 @@ interface CuponAplicado {
   code: string;
   couponId?: string;
   discount?: number;
+  /** Entra aunque el recorrido esté completo (coupons.reserva_plaza) */
+  reservaPlaza?: boolean;
 }
 
 export function InscripcionDialog({ evento, prueba, abierto, onOpenChange, cuponInicial, onInscrito }: Props) {
@@ -196,7 +198,9 @@ export function InscripcionDialog({ evento, prueba, abierto, onOpenChange, cupon
           </DialogTitle>
           <DialogDescription>
             {paso === "form"
-              ? "Completa tus datos para inscribirte. Recibirás la confirmación por email."
+              ? cupon?.reservaPlaza
+                ? "Tienes plaza reservada con tu código aunque el recorrido esté completo. Completa tus datos para inscribirte."
+                : "Completa tus datos para inscribirte. Recibirás la confirmación por email."
               : "Completa el pago con tarjeta para confirmar tu inscripción"}
           </DialogDescription>
         </DialogHeader>
