@@ -1,0 +1,53 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Lo que nos diferencia",
+  "titulo": "700 € y esto es lo que *entra*",
+  "web": "camberas.com/planes",
+  "slides": [
+    {
+      "etiqueta": "Cómo se cobra",
+      "pregunta": "Por evento, no por corredor",
+      "respuesta": "El precio de tu carrera no sube porque se apunten cien más. Sabes lo que vas a pagar antes de abrir inscripciones."
+    },
+    {
+      "etiqueta": "El escalón de entrada",
+      "pregunta": "Empezar cuesta cero",
+      "respuesta": "Una grupetta de hasta 20 es gratis, para siempre, sin publicidad y sin pedirle el correo a nadie.",
+      "nota": "Es el mismo mapa y la misma app que usarás cuando montes la carrera de verdad."
+    },
+    {
+      "etiqueta": "El segundo escalón",
+      "pregunta": "50 € la quedada, hasta 50 participantes",
+      "respuesta": "Con inscripciones online, pasarela de pago, app de organizador, app de seguimiento, dorsales y clasificaciones en vivo.",
+      "nota": "Es el plan para probar tu carrera en pequeño antes de montarla en grande."
+    },
+    {
+      "etiqueta": "El profesional",
+      "pregunta": "700 € hasta 500 dorsales",
+      "respuesta": "Todo lo anterior, más cronometraje electrónico en meta y en un punto intermedio, cronómetro-reloj y puntos manuales sin límite."
+    },
+    {
+      "etiqueta": "Dentro van",
+      "pregunta": "500 chips desechables",
+      "respuesta": "Incluidos en el precio. No se cuentan aparte, no hay que devolverlos y no hay fianza."
+    },
+    {
+      "etiqueta": "Dentro va",
+      "pregunta": "Un técnico de cronometraje en tu carrera",
+      "respuesta": "Una persona nuestra, el día del evento, en el sitio. No un teléfono de soporte a doscientos kilómetros."
+    },
+    {
+      "etiqueta": "Dentro va",
+      "pregunta": "El streaming con gráfica",
+      "respuesta": "Cámara en la línea de meta y en los puntos intermedios, con el grafismo de la carrera encima y los datos en vivo."
+    },
+    {
+      "etiqueta": "Y lo que no entra",
+      "pregunta": "Un 4 % por inscripción, más la pasarela",
+      "respuesta": "Te lo decimos aquí y no en una nota al pie. Es lo único que se suma al precio del evento."
+    }
+  ],
+  "cta": "Mira los tres planes"
+}

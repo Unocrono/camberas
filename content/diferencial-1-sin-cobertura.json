@@ -1,0 +1,52 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Lo que nos diferencia",
+  "titulo": "En el monte no hay *cobertura*",
+  "web": "camberas.com/organizadores",
+  "slides": [
+    {
+      "etiqueta": "El punto de partida",
+      "pregunta": "Tu carrera pasa donde no hay raya",
+      "respuesta": "Kilómetro 18, collado, dos barras cruzadas. En las carreras de montaña eso no es la excepción: es la mitad del recorrido."
+    },
+    {
+      "etiqueta": "Lo que no sirve",
+      "pregunta": "Un sistema que necesita señal para anotar un paso",
+      "respuesta": "En un paseo marítimo hay 4G de sobra. En un cortafuegos a 1.400 metros, no. Y el corredor cruza igual."
+    },
+    {
+      "etiqueta": "El cronometraje",
+      "pregunta": "Se marca igual, haya red o no",
+      "respuesta": "Cada paso se guarda en el propio móvil, en una cola. Cuando vuelve la señal suben solos y en orden.",
+      "nota": "El cronometrador no tiene que hacer nada distinto, ni acordarse de nada después."
+    },
+    {
+      "etiqueta": "Antes de salir",
+      "pregunta": "El puesto se lleva la carrera dentro",
+      "respuesta": "Al activarse, el móvil se guarda su punto de control y la lista de salida. Si luego se queda sin red, sigue teniendo a todos los corredores delante."
+    },
+    {
+      "etiqueta": "En el bolsillo del corredor",
+      "pregunta": "El GPS hace lo mismo",
+      "respuesta": "La app guarda las posiciones mientras no hay señal y las suelta al recuperarla. En carreras reales ha recuperado tramos de más de una hora de golpe."
+    },
+    {
+      "etiqueta": "No es fe",
+      "pregunta": "Lo que falta por subir se ve en pantalla",
+      "respuesta": "El corredor ve cuántas posiciones tiene pendientes y el cronometrador ve su cola. Sabes qué queda por llegar en vez de suponerlo."
+    },
+    {
+      "etiqueta": "Mientras tanto",
+      "pregunta": "Nadie desaparece del mapa",
+      "respuesta": "Aunque un corredor esté en zona muerta, en el control sigue estando en su última posición conocida. No se borra de la pantalla."
+    },
+    {
+      "etiqueta": "Lo que te ahorra",
+      "pregunta": "Nadie vuelve a dictar tiempos por teléfono",
+      "respuesta": "Ni libretas que se pasan a limpio por la noche, ni un parcial perdido porque en ese collado no había red."
+    }
+  ],
+  "cta": "Cronometra donde no llega la red"
+}

@@ -1,0 +1,52 @@
+{
+  "audiencia": "organizadores",
+  "marca": "camberas",
+  "tipo": "faq",
+  "antetitulo": "Lo que nos diferencia",
+  "titulo": "Un proveedor, no *cuatro*",
+  "web": "camberas.com/organizadores",
+  "slides": [
+    {
+      "etiqueta": "Lo habitual",
+      "pregunta": "Uno inscribe, otro cronometra, otro pone el GPS",
+      "respuesta": "Y tú en medio, exportando una hoja de cada uno para que los dorsales cuadren entre ellos."
+    },
+    {
+      "etiqueta": "Lo que se rompe",
+      "pregunta": "El dorsal 212 no es el mismo en todas partes",
+      "respuesta": "Alguien se da de baja, otro se cambia de distancia, y la lista que mandaste al cronometrador ya está vieja."
+    },
+    {
+      "etiqueta": "Aquí",
+      "pregunta": "El corredor se da de alta una vez",
+      "respuesta": "Y ese mismo registro es el dorsal que se imprime, el que cronometra, el que va en el mapa y el que sale en los resultados."
+    },
+    {
+      "etiqueta": "Sin exportar",
+      "pregunta": "No hay ningún fichero que mandar a nadie",
+      "respuesta": "El puesto de cronometraje carga él solo la lista de salida, actualizada, del mismo sitio donde entran las inscripciones."
+    },
+    {
+      "etiqueta": "Los papeles",
+      "pregunta": "La documentación, en el mismo panel",
+      "respuesta": "Permisos, seguros y la traza ETRAZA de la DGT, con sus fechas y su estado, al lado de todo lo demás.",
+      "nota": "Se guardan en privado: a los documentos de tu carrera no llega nadie por una dirección pública."
+    },
+    {
+      "etiqueta": "En vivo",
+      "pregunta": "El mapa y los resultados beben de lo mismo",
+      "respuesta": "El seguimiento va sobre tu propio GPX y los parciales entran según se marcan. No se montan después con lo que mandó cada uno."
+    },
+    {
+      "etiqueta": "En pantalla",
+      "pregunta": "Y el grafismo, también",
+      "respuesta": "Los overlays de retransmisión leen los datos en directo. No hay nadie tecleando posiciones en una esquina de la sala."
+    },
+    {
+      "etiqueta": "Lo que ganas",
+      "pregunta": "Una llamada cuando algo falla",
+      "respuesta": "No cuatro, cada una diciéndote que el problema lo tiene el otro."
+    }
+  ],
+  "cta": "Deja de cuadrar hojas de cálculo"
+}

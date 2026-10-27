@@ -12,6 +12,8 @@ ya resueltas están en `plantillas/TRASPASO.md`.
 | Organizadores (recorrido) | `organizadores-1..6` | Naranja | 6 carruseles, completos |
 | La plataforma (pilares) | `plataforma-1..5` | Naranja | 5 carruseles, completos |
 | Camberas Track (app) | `track-1..2` | Lima | 2 carruseles, completos |
+| GPX (pareja con humor) | `gpx-1..2` | Naranja | 2 carruseles, completos |
+| Diferenciación | `diferencial-1..3` | Naranja | 3 carruseles, completos |
 | Sueltos | `faq-corredores`, `manual-seguimiento-gps` | Lima | Ver pendientes |
 
 Retirado en `content/retirados/`: `manual-grupetta.json` y
@@ -25,10 +27,11 @@ Retirado en `content/retirados/`: `manual-grupetta.json` y
    portada de `grupetta-6-seguridad.json`. El carrusel del pinchazo se quedó
    en 9 slides, con margen de uno hasta el tope de Instagram.
 
-2. **«Sin comisión por inscripción»** no está escrito en ningún carrusel
-   porque no se ha podido confirmar. Si no hay comisión sobre el precio de
-   la inscripción, es el argumento más fuerte de
-   `plataforma-1-que-es-camberas.json` y de `organizadores-1`.
+2. **«Sin comisión por inscripción»: resuelto, y es que NO.** `OrganizersLanding.tsx`
+   (en `main`) dice **4 % + gastos de pasarela**. Esa frase no se puede
+   escribir en ningún sitio. El argumento bueno es otro: se paga **por
+   evento, no por corredor**, y lo que entra en los 700 € del plan
+   profesional. Así se cuenta en `diferencial-2`.
 
 3. **`faq-corredores.json`** es la FAQ suelta del principio, sin gancho.
    Conviene reescribirla como recorrido de corredor: inscribirse sin
