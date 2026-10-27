@@ -37,6 +37,13 @@ const C = {
 const LADO = 1080;
 const MARGEN = 96;
 
+/*
+ * Vertical para reel/story: 1080×1920 con el mapa arriba, el titular debajo y
+ * el pie. Instagram pinta su interfaz ENCIMA del vídeo, unos 250 px arriba y
+ * otros tantos abajo, así que nada importante sale de la franja 280–1640.
+ */
+const REEL = { ancho: 1080, alto: 1920, mapa: 860, mapaY: 640 };
+
 /** Posición de cada cosa, en fracción del recorrido (0 = salida, 1 = meta). */
 /*
  * Los puntos salen de los <wpt> del propio GPX, que es donde los pone quien
@@ -46,6 +53,9 @@ const MARGEN = 96;
  * Lo de la zona de meta —parkings, duchas, baños, comedor— se deja fuera por
  * defecto: son quince chinchetas en el mismo sitio y tapan el dibujo.
  */
+/** Lo rellena el CLI según el formato. */
+let LIENZO = { mapa: LADO };
+
 const CATEGORIAS = {
   'Picnic Area':    { grupo: 'avituallamiento', icono: 'vaso',  color: 'crema' },
   'Drinking Water': { grupo: 'avituallamiento', icono: 'vaso',  color: 'crema' },
@@ -106,11 +116,11 @@ function proyectar(pts) {
   const ys = pts.map(p => -p.lat);
   const [x0, x1] = [Math.min(...xs), Math.max(...xs)];
   const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
-  const util = LADO - MARGEN * 2;
+  const util = LIENZO.mapa - MARGEN;
   const escala = Math.min(util / (x1 - x0 || 1), util / (y1 - y0 || 1));
   // Centrado: lo que sobra del lado más corto se reparte a los dos lados
-  const dx = (LADO - (x1 - x0) * escala) / 2;
-  const dy = (LADO - (y1 - y0) * escala) / 2;
+  const dx = (LIENZO.mapa - (x1 - x0) * escala) / 2;
+  const dy = (LIENZO.mapa - (y1 - y0) * escala) / 2;
   const proy = (lat, lon) => [
     (lon * k - x0) * escala + dx,
     (-lat - y0) * escala + dy,
@@ -257,6 +267,40 @@ function construir(xy, acc, t = null) {
   return [...trazas, ...pines, ...etiquetas].join('\n');
 }
 
+/** Parte el titular en líneas sin cortar palabras. */
+function partir(texto, porLinea = 15) {
+  const lineas = [];
+  let act = '';
+  for (const palabra of texto.split(/\s+/)) {
+    if (!act) act = palabra;
+    else if ((act + ' ' + palabra).length <= porLinea) act += ' ' + palabra;
+    else { lineas.push(act); act = palabra; }
+  }
+  if (act) lineas.push(act);
+  return lineas;
+}
+
+/** El mapa dentro del lienzo vertical, con marca, titular y pie. */
+function marcoReel(mapaSvg, titulo, pie) {
+  const lineas = partir(titulo.toUpperCase());
+  const interlinea = 88;
+  const yTitulo = REEL.mapaY - 70 - (lineas.length - 1) * interlinea;
+
+  return `
+  <rect width="${REEL.ancho}" height="${REEL.alto}" fill="${C.fondo}"/>
+  <text x="${MARGEN}" y="360" font-family="Archivo Black" font-size="46"
+        letter-spacing="4" fill="${C.crema}">CAMBERAS</text>
+  ${lineas.map((l, i) => `
+  <text x="${MARGEN}" y="${yTitulo + i * interlinea}" font-family="Archivo Black"
+        font-size="92" fill="${C.crema}">${l}</text>`).join('')}
+  <svg x="${(REEL.ancho - REEL.mapa) / 2}" y="${REEL.mapaY}"
+       width="${REEL.mapa}" height="${REEL.mapa}"
+       viewBox="0 0 ${REEL.mapa} ${REEL.mapa}">${mapaSvg}</svg>
+  <text x="${MARGEN}" y="${REEL.mapaY + REEL.mapa + 86}" font-family="Barlow Semi Condensed"
+        font-weight="700" font-size="40" letter-spacing="4"
+        fill="${C.naranja}">${pie.toUpperCase()}</text>`;
+}
+
 const args = process.argv.slice(2);
 const [entrada, salida] = args.filter((a) => !a.startsWith('--'));
 const opcion = (n) => (args.find((a) => a.startsWith(`--${n}=`)) ?? '').split('=').slice(1).join('=');
@@ -266,13 +310,27 @@ if (!entrada || !salida) {
     'Uso: node plantillas/herramientas/mapa.mjs <ruta.gpx> <salida.png> \\\n' +
     '       [--mostrar=avituallamiento,sanitario,control,cruce] [--sin-etiquetas]\\\n' +
     '       [--avituallamientos="0.2,0.44,0.8"]  (fracciones, para trazas sin waypoints)\\\n' +
-    '       [--video=simulacion.mp4] [--segundos=10]  (la escoba recorriendo la traza)'
+    '       [--video=simulacion.mp4] [--segundos=10]  (la escoba recorriendo la traza)\\\n' +
+    '       [--reel] [--titulo="..."] [--pie="..."]    (1080×1920 con titular)'
   );
   process.exit(1);
 }
 
 const video = opcion('video') || null;
 const segundos = Number(opcion('segundos') || 10);
+const reel = args.includes('--reel');
+const titulo = opcion('titulo') || '¿Dónde está el cierre?';
+const pie = opcion('pie') || 'GPS Organización · camberas.com';
+
+LIENZO = { mapa: reel ? REEL.mapa : LADO };
+const ANCHO = reel ? REEL.ancho : LADO;
+const ALTO = reel ? REEL.alto : LADO;
+
+/** El dibujo del mapa, envuelto en el lienzo que toque. */
+const lienzo = (t = null) =>
+  reel
+    ? marcoReel(construir(xy, acc, t), titulo, pie)
+    : `<rect width="${LADO}" height="${LADO}" fill="${C.fondo}"/>` + construir(xy, acc, t);
 
 const grupos = (opcion('mostrar') || GRUPOS_POR_DEFECTO.join(',')).split(',').map((g) => g.trim());
 const conEtiquetas = !args.includes('--sin-etiquetas');
@@ -308,9 +366,8 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
 html,body{margin:0;padding:0;background:${C.fondo}}
 svg{display:block}
 </style></head><body>
-<svg xmlns="http://www.w3.org/2000/svg" width="${LADO}" height="${LADO}" viewBox="0 0 ${LADO} ${LADO}">
-  <rect width="${LADO}" height="${LADO}" fill="${C.fondo}"/>
-  ${construir(xy, acc)}
+<svg xmlns="http://www.w3.org/2000/svg" width="${ANCHO}" height="${ALTO}" viewBox="0 0 ${ANCHO} ${ALTO}">
+  ${lienzo()}
 </svg></body></html>`;
 
 /** Igual que en video.mjs: el ffmpeg de Playwright no trae libx264. */
@@ -338,7 +395,7 @@ const navegador = await chromium.launch(
 );
 try {
   const pagina = await navegador.newPage({
-    viewport: { width: LADO, height: LADO },
+    viewport: { width: ANCHO, height: ALTO },
     deviceScaleFactor: 1,
   });
   await pagina.goto(`file://${tmp}`);
@@ -346,11 +403,12 @@ try {
   // con la de reserva y el PNG sale en serif sin avisar de nada.
   await pagina.evaluate(async () => {
     await document.fonts.load('700 26px "Barlow Semi Condensed"');
+    await document.fonts.load('400 92px "Archivo Black"');
     await document.fonts.ready;
   });
   const destino = resolve(process.cwd(), salida);
-  await pagina.locator('svg').screenshot({ path: destino });
-  console.log(`✔ ${salida} · ${LADO}×${LADO}`);
+  await pagina.locator('svg').first().screenshot({ path: destino });
+  console.log(`✔ ${salida} · ${ANCHO}×${ALTO}`);
 
   if (video) {
     const fps = 20;
@@ -361,10 +419,9 @@ try {
       // la página, que con doscientos fotogramas se nota mucho.
       await pagina.evaluate(
         (m) => { document.querySelector('svg').innerHTML = m; },
-        `<rect width="${LADO}" height="${LADO}" fill="${C.fondo}"/>` +
-          construir(xy, acc, i / (total - 1))
+        lienzo(i / (total - 1))
       );
-      await pagina.locator('svg').screenshot({
+      await pagina.locator('svg').first().screenshot({
         path: join(carpeta, `f-${String(i).padStart(4, '0')}.png`),
       });
     }

@@ -264,7 +264,17 @@ node plantillas/herramientas/mapa.mjs ruta.gpx mapa.png \
   --avituallamientos="0.20,0.44,0.80" --video=out/simulacion.mp4 --segundos=11
 ```
 
-Sale a 1080×1080, 20 fps, H.264. Los fotogramas no recargan la página: se
+Con `--reel` sale en **1080×1920** con la marca, el titular y el pie, todo
+dentro de la franja 280–1640 que Instagram no tapa con su interfaz:
+
+```sh
+node plantillas/herramientas/mapa.mjs ruta.gpx mapa-reel.png \
+  --avituallamientos="0.20,0.44,0.80" --reel \
+  --titulo="¿Dónde está el cierre?" --pie="GPS Organización · camberas.com" \
+  --video=out/simulacion-reel.mp4 --segundos=11
+```
+
+Sin `--reel` sale a 1080×1080, 20 fps, H.264. Los fotogramas no recargan la página: se
 le cambia el contenido al SVG y se vuelve a capturar, que con doscientos
 fotogramas la diferencia se nota mucho.
 
