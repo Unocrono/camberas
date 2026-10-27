@@ -40,6 +40,8 @@ interface Cupon {
   max_uses: number | null;
   race_distance_id: string | null;
   notes: string | null;
+  /** Entra aunque el recorrido esté completo (el tope lo ponen los usos) */
+  reserva_plaza?: boolean;
   usos?: number;
   distance_name?: string | null;
 }
@@ -68,7 +70,7 @@ export const OrgCupones = ({ raceId }: Props) => {
       supabase.from("races").select("slug, name").eq("id", raceId).single(),
       supabase
         .from("coupons")
-        .select("id, code, discount_type, discount_value, active, valid_from, valid_until, max_uses, race_distance_id, notes")
+        .select("id, code, discount_type, discount_value, active, valid_from, valid_until, max_uses, race_distance_id, notes, reserva_plaza")
         .eq("race_id", raceId)
         .order("created_at", { ascending: false }),
       supabase.from("race_distances").select("id, name").eq("race_id", raceId),
@@ -169,6 +171,9 @@ export const OrgCupones = ({ raceId }: Props) => {
                     −{textoDescuento(c)}
                     {c.distance_name ? ` · solo ${c.distance_name}` : " · toda la carrera"}
                   </p>
+                  {c.reserva_plaza && (
+                    <p className="text-xs font-semibold text-secondary">Reserva plaza aunque esté completo</p>
+                  )}
                   {c.notes && (
                     <p className="text-xs text-muted-foreground truncate">{c.notes}</p>
                   )}

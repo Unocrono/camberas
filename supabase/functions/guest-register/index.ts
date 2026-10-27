@@ -167,11 +167,26 @@ serve(async (req) => {
       pendienteBib = pend.bib_number ?? null;
     }
 
+    // Cupón que reserva plaza (coupons.reserva_plaza): el organizador lo
+    // reparte a gente concreta cuando el recorrido ya está completo (Monte
+    // Tejas, 27-oct). Aquí solo se mira la marca; el cupón se revalida entero
+    // más abajo, y el tope lo ponen sus usos. Si no vale, se corta allí.
+    let cuponReservaPlaza = false;
+    if (couponCode) {
+      const { data: marca } = await supabase
+        .from("coupons")
+        .select("reserva_plaza, active")
+        .eq("race_id", raceId)
+        .eq("code", couponCode.toUpperCase().replace(/\s/g, ""))
+        .maybeSingle();
+      cuponReservaPlaza = !!marca?.reserva_plaza && !!marca?.active;
+    }
+
     // Aforo, comprobado en servidor (la UI sola no basta: se podría
     // saltar llamando directamente a la función). Ocupan plaza las de
     // pago resuelto y las pendientes recientes (reserva de 30 min
     // mientras se paga); los carritos abandonados no.
-    if (distance.max_participants) {
+    if (distance.max_participants && !cuponReservaPlaza) {
       const holdCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       let aforo = supabase
         .from("registrations")
