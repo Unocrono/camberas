@@ -12,43 +12,38 @@
       "respuesta": "El seguimiento de corredores está resuelto. Lo que nadie te enseña es dónde anda tu propia gente: la que cierra, la que asiste y la que graba."
     },
     {
-      "etiqueta": "La respuesta",
-      "pregunta": "Detrás del último va tu escoba",
-      "respuesta": "No hace falta perseguir al último corredor: miras dónde está el cierre y ya sabes por dónde va el final de tu carrera.",
-      "nota": "Y mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta."
+      "etiqueta": "Qué es",
+      "pregunta": "Cada vehículo lleva su móvil y sale en el mapa",
+      "respuesta": "Escoba, ambulancia y moto cámara, cada uno con su nombre y su color, mandando su posición una vez por segundo.",
+      "nota": "No hay que comprar ni alquilar ningún aparato: es el teléfono del conductor."
     },
     {
-      "etiqueta": "Cómo lo sabemos",
-      "pregunta": "El cierre lleva un móvil emitiendo",
-      "respuesta": "No hay que comprar ni alquilar ningún aparato: es el teléfono del conductor mandando su posición una vez por segundo.",
-      "nota": "Cada segundo, no cada minuto. Un coche se mueve rápido y lo quieres ver moverse, no a saltos."
-    },
-    {
-      "etiqueta": "Paso 1",
-      "pregunta": "Das de alta tus vehículos",
-      "respuesta": "En el panel, GPS de Organización. A cada uno su nombre —Escoba, Ambulancia 1, Moto cámara—, su color y el recorrido al que va."
-    },
-    {
-      "etiqueta": "Paso 2",
-      "pregunta": "Sacas un QR por vehículo",
-      "respuesta": "Un código para cada uno. El móvil que lo escanea es ese vehículo, así que no tienes que dar de alta a ningún conductor.",
+      "etiqueta": "Cómo se monta",
+      "pregunta": "Un QR por vehículo y listo",
+      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana.",
       "nota": "Si pierdes un móvil, regeneras ese QR y el anterior queda revocado al momento."
     },
     {
-      "etiqueta": "Paso 3",
-      "pregunta": "El conductor lo escanea y se olvida",
-      "respuesta": "Abre la app, apunta al código y el teléfono ya está emitiendo. Nada que configurar, nadie a quien formar a las siete de la mañana."
+      "etiqueta": "Lo que haces tú",
+      "pregunta": "Dos minutos en el panel",
+      "respuesta": "Das de alta cada vehículo con su nombre, su color y el recorrido al que va, sacas su QR y lo repartes. Se acabó tu parte."
     },
     {
-      "etiqueta": "Paso 4",
-      "pregunta": "Y tú los ves desde tu móvil",
-      "respuesta": "En Camberas Org, en Seguimiento GPS. Cada vehículo sale con su nombre y su color, no como un punto anónimo.",
-      "nota": "Están en el mapa aunque no haya empezado la carrera: también en el reconocimiento de la víspera y en el barrido de después."
+      "etiqueta": "Dónde lo ves",
+      "pregunta": "En tu móvil, el día de la carrera",
+      "respuesta": "En Camberas Org, en Seguimiento GPS, y ahí están todos.",
+      "nota": "También antes de empezar: en el reconocimiento de la víspera y en el barrido de después."
     },
     {
       "etiqueta": "Para qué sirve",
       "pregunta": "Mandas a la que está más cerca",
       "respuesta": "Cuando entra un aviso en el kilómetro 22 no preguntas por radio dónde anda la ambulancia. Lo ves, y mandas a la que menos tarda."
+    },
+    {
+      "etiqueta": "El cierre",
+      "pregunta": "Detrás del último va tu escoba",
+      "respuesta": "Miras dónde está el cierre y ya sabes por dónde va el final de tu carrera. No hace falta perseguir al último corredor.",
+      "nota": "Y mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta."
     }
   ],
   "cta": "Pon a tu organización en el mapa"
