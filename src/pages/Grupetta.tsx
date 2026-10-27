@@ -66,13 +66,12 @@ const Grupetta = () => {
     else setMisSalidas([]);
   }, [session, cargarMisSalidas]);
 
-  // Descarga el track propio como GPX (las posiciones ya son del usuario)
+  // Descarga el track propio como GPX: recorrido_privado solo lo da al dueño
+  // del dorsal (o a quien gestiona la salida); un jsonb, sin el corte de 1.000 filas
   const descargarGpx = async (s: MiSalida) => {
-    const { data, error } = await supabase
-      .from("gps_positions")
-      .select("lat,lng,altitude,timestamp")
-      .eq("token_id", s.token_id)
-      .order("timestamp", { ascending: true });
+    const { data: puntos, error } = await supabase.rpc("recorrido_privado" as never, { p_token_id: s.token_id } as never);
+    const data = (puntos as unknown as { lat: number; lng: number; altitude: number | null; ts: string }[] | null)
+      ?.map((p) => ({ lat: p.lat, lng: p.lng, altitude: p.altitude, timestamp: p.ts }));
     if (error || !data?.length) {
       toast({ title: "Sin posiciones que descargar", variant: "destructive" });
       return;

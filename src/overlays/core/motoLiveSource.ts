@@ -3,7 +3,8 @@
  *
  *  - 'app'      → la app de móvil GPS ORGANIZACIÓN emite a gps_positions
  *                 por token (race_motos.token_id, tubería común de
- *                 camberas-track). Solo trae posición/velocidad crudas.
+ *                 camberas-track), y se lee con la RPC posiciones_motos.
+ *                 Solo trae posición/velocidad crudas.
  *  - 'hardware' → rastreadores GPS vía webhook a moto_gps_tracking, con
  *                 las distancias que calcula process-moto-gps.
  *
@@ -46,15 +47,12 @@ export async function fetchMotoLive(
       .limit(1)
       .maybeSingle()
       .then((r) => r.data),
+    // gps_positions ya no se lee a pelo: posiciones_motos solo responde por
+    // tokens de moto (race_motos.token_id)
     tokenId
       ? supabase
-          .from('gps_positions')
-          .select('lat, lng, speed, timestamp')
-          .eq('token_id', tokenId)
-          .order('timestamp', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-          .then((r) => r.data)
+          .rpc('posiciones_motos' as never, { p_token_ids: [tokenId] } as never)
+          .then((r) => ((r.data as unknown as { lat: number; lng: number; speed: number | null; timestamp: string }[] | null) ?? [])[0] ?? null)
       : Promise.resolve(null),
   ]);
 

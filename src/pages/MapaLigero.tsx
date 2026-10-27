@@ -30,15 +30,15 @@ const COLORES = ["#EC7C2B", "#235940", "#2563EB", "#9333EA", "#C8E85C"];
 
 interface Carrera { id: string; name: string; date: string; slug: string }
 interface Recorrido { id: string; name: string; gpx_file_url: string | null }
+/** Fila de mapa_publico: dorsal y «Laura G.», sin batería ni ids internos */
 interface Posicion {
-  registration_id: string;
-  latitude: number;
-  longitude: number;
-  gps_timestamp: string;
-  bib_number: string | null;
-  runner_name: string | null;
-  race_distance_id: string | null;
-  source: string;
+  clave: string;
+  lat: number;
+  lng: number;
+  ts: string;
+  dorsal: string | null;
+  nombre: string | null;
+  recorrido: string | null;
 }
 
 const hora = (d: Date) => d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -142,23 +142,23 @@ const MapaLigero = () => {
       const ahora = Date.now();
       const limites = new mapboxgl.LngLatBounds();
       posiciones.forEach((p) => {
-        if (p.latitude == null || p.longitude == null) return;
-        vistos.add(p.registration_id);
-        limites.extend([p.longitude, p.latitude]);
-        const antiguo = ahora - new Date(p.gps_timestamp).getTime() > SIN_SENAL_MS;
-        let mk = marcadores.current.get(p.registration_id);
+        if (p.lat == null || p.lng == null) return;
+        vistos.add(p.clave);
+        limites.extend([p.lng, p.lat]);
+        const antiguo = ahora - new Date(p.ts).getTime() > SIN_SENAL_MS;
+        let mk = marcadores.current.get(p.clave);
         if (!mk) {
           const el = document.createElement("div");
           el.className = "ml-marca";
-          mk = new mapboxgl.Marker({ element: el }).setLngLat([p.longitude, p.latitude]).addTo(m);
-          marcadores.current.set(p.registration_id, mk);
+          mk = new mapboxgl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(m);
+          marcadores.current.set(p.clave, mk);
         } else {
-          mk.setLngLat([p.longitude, p.latitude]);
+          mk.setLngLat([p.lng, p.lat]);
         }
         const el = mk.getElement();
-        el.textContent = p.bib_number || "·";
-        el.title = `${p.bib_number || ""} ${p.runner_name || ""}`.trim();
-        el.style.background = colorDe.current.get(p.race_distance_id || "") || COLORES[0];
+        el.textContent = p.dorsal || "·";
+        el.title = `${p.dorsal || ""} ${p.nombre || ""}`.trim();
+        el.style.background = colorDe.current.get(p.recorrido || "") || COLORES[0];
         el.style.opacity = antiguo ? "0.35" : "1";
       });
       // Quien ya no está en la respuesta, fuera del mapa
@@ -173,7 +173,7 @@ const MapaLigero = () => {
 
     const pedir = async () => {
       if (!vivo || document.visibilityState !== "visible") return;
-      const { data, error: e } = await supabase.rpc("get_live_gps_positions", { p_race_id: carrera.id });
+      const { data, error: e } = await supabase.rpc("mapa_publico" as never, { p_race_id: carrera.id } as never);
       if (!vivo) return;
       if (!e && Array.isArray(data)) {
         pintar(data as unknown as Posicion[]);
