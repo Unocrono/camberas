@@ -9,40 +9,17 @@
     {
       "etiqueta": "El problema",
       "pregunta": "Sabes dónde va el primero. ¿Y el último?",
-      "respuesta": "El seguimiento de corredores está resuelto. Lo que nadie te enseña es dónde anda tu propia gente: la que cierra, la que asiste y la que graba."
-    },
-    {
-      "etiqueta": "Qué es",
-      "pregunta": "Cada vehículo lleva su móvil y sale en el mapa",
-      "respuesta": "Escoba, ambulancia y moto cámara, cada uno con su nombre y su color, mandando su posición una vez por segundo.",
-      "nota": "No hay que comprar ni alquilar ningún aparato: es el teléfono del conductor."
+      "respuesta": "Cada vehículo de organización lleva su móvil con la app, y sale en el mapa con su nombre y su color."
     },
     {
       "etiqueta": "Cómo se monta",
       "pregunta": "Un QR por vehículo y listo",
-      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana.",
-      "nota": "Si pierdes un móvil, regeneras ese QR y el anterior queda revocado al momento."
-    },
-    {
-      "etiqueta": "Lo que haces tú",
-      "pregunta": "Dos minutos en el panel",
-      "respuesta": "Das de alta cada vehículo con su nombre, su color y el recorrido al que va, sacas su QR y lo repartes. Se acabó tu parte."
-    },
-    {
-      "etiqueta": "Dónde lo ves",
-      "pregunta": "En tu móvil, el día de la carrera",
-      "respuesta": "En Camberas Org, en Seguimiento GPS, y ahí están todos.",
-      "nota": "También antes de empezar: en el reconocimiento de la víspera y en el barrido de después."
-    },
-    {
-      "etiqueta": "Para qué sirve",
-      "pregunta": "Mandas a la que está más cerca",
-      "respuesta": "Cuando entra un aviso en el kilómetro 22 no preguntas por radio dónde anda la ambulancia. Lo ves, y mandas a la que menos tarda."
+      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana."
     },
     {
       "etiqueta": "El cierre",
       "pregunta": "Detrás del último va tu escoba",
-      "respuesta": "Miras dónde está el cierre y ya sabes por dónde va el final de tu carrera. No hace falta perseguir al último corredor.",
+      "respuesta": "Miras dónde está el cierre y ya sabes por dónde va el final de tu carrera.",
       "nota": "Y mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta."
     }
   ],
