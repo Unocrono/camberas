@@ -340,6 +340,20 @@ Cada slide se queda el tiempo de leerlo: 2,6 s la portada, 4 s los de
 contenido y 3,4 s el cierre. Un carrusel de 7 sale en unos 24 s, que es
 buena duración de Reel.
 
+`--sustituir=4:simulacion.mp4` cambia ese slide por un vídeo. Es lo que
+permite meter la simulación del mapa dentro del reel, en el sitio del slide
+que llevaba el mapa quieto:
+
+```sh
+node plantillas/herramientas/video.mjs out/corredores/<slug>/story reel.mp4 \
+  --ritmo=1.3 --sustituir=4:out/simulacion-reel.mp4
+```
+
+Todas las entradas se igualan antes de encadenarlas (`settb`, `setpts`,
+`format` y `fps` **el último**, que si no el enlace pierde la tasa y xfade
+se planta con «current rate of 1/0 is invalid»). Los PNG en bucle llevan su
+`-framerate` en la entrada por lo mismo.
+
 `--ritmo=N` estira o encoge todos los tiempos a la vez, fundido incluido.
 Con `1.3` el mismo carrusel de 7 se va a 31 s, que se lee mucho más
 tranquilo; con `0.8` queda más nervioso.

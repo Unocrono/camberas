@@ -22,6 +22,16 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const PLANTILLA = join(RAIZ, 'plantillas', 'carrusel-faq.html');
+
+/* El logo vive una sola vez, en la plantilla del carrusel: se lee de ahí en
+   vez de hacer otra copia (ya hay una en CamberasLogo.tsx). */
+async function logo() {
+  const html = await readFile(PLANTILLA, 'utf8');
+  const m = html.match(/const LOGO = `([\s\S]*?)`;/);
+  if (!m) throw new Error('no encuentro el logo en plantillas/carrusel-faq.html');
+  return m[1].trim();
+}
 
 /* Todo de docs/paleta-camberas.md. Nada de colores sueltos. */
 const C = {
@@ -281,14 +291,15 @@ function partir(texto, porLinea = 15) {
 }
 
 /** El mapa dentro del lienzo vertical, con marca, titular y pie. */
-function marcoReel(mapaSvg, titulo, pie) {
+function marcoReel(mapaSvg, titulo, pie, marcaSvg) {
   const lineas = partir(titulo.toUpperCase());
   const interlinea = 88;
   const yTitulo = REEL.mapaY - 70 - (lineas.length - 1) * interlinea;
 
   return `
   <rect width="${REEL.ancho}" height="${REEL.alto}" fill="${C.fondo}"/>
-  <text x="${MARGEN}" y="360" font-family="Archivo Black" font-size="46"
+  <svg x="${MARGEN}" y="304" width="74" height="74">${marcaSvg}</svg>
+  <text x="${MARGEN + 100}" y="360" font-family="Archivo Black" font-size="46"
         letter-spacing="4" fill="${C.crema}">CAMBERAS</text>
   ${lineas.map((l, i) => `
   <text x="${MARGEN}" y="${yTitulo + i * interlinea}" font-family="Archivo Black"
@@ -327,9 +338,10 @@ const ANCHO = reel ? REEL.ancho : LADO;
 const ALTO = reel ? REEL.alto : LADO;
 
 /** El dibujo del mapa, envuelto en el lienzo que toque. */
+const marcaSvg = reel ? await logo() : '';
 const lienzo = (t = null) =>
   reel
-    ? marcoReel(construir(xy, acc, t), titulo, pie)
+    ? marcoReel(construir(xy, acc, t), titulo, pie, marcaSvg)
     : `<rect width="${LADO}" height="${LADO}" fill="${C.fondo}"/>` + construir(xy, acc, t);
 
 const grupos = (opcion('mostrar') || GRUPOS_POR_DEFECTO.join(',')).split(',').map((g) => g.trim());

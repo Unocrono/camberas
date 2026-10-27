@@ -41,7 +41,20 @@ function ejecutar(bin, args) {
     let err = '';
     p.stderr.on('data', (d) => { err += d; });
     p.on('error', mal);
-    p.on('close', (c) => (c === 0 ? ok() : mal(new Error(err.slice(-1500)))));
+    p.on('close', (c) => (c === 0 ? ok() : mal(new Error(err.slice(-3500)))));
+  });
+}
+
+/** Duración de un vídeo, leída del propio ffmpeg. */
+function duracion(bin, fichero) {
+  return new Promise((ok) => {
+    const p = spawn(bin, ['-i', fichero], { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('close', () => {
+      const m = err.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
+      ok(m ? +m[1] * 3600 + +m[2] * 60 + +m[3] : null);
+    });
   });
 }
 
@@ -50,7 +63,10 @@ const [ carpeta, destino ] = args.filter((a) => !a.startsWith('--'));
 const ritmo = Number((args.find((a) => a.startsWith('--ritmo=')) ?? '').split('=')[1] ?? 1);
 
 if (!carpeta || !destino) {
-  console.error('Uso: node plantillas/herramientas/video.mjs <carpeta-de-slides> <salida.mp4> [--ritmo=N]');
+  console.error(
+    'Uso: node plantillas/herramientas/video.mjs <carpeta-de-slides> <salida.mp4> \\\n' +
+    '       [--ritmo=N] [--sustituir=4:simulacion.mp4]'
+  );
   process.exit(1);
 }
 if (!Number.isFinite(ritmo) || ritmo <= 0) {
@@ -65,33 +81,69 @@ if (!(await stat(carpeta).catch(() => null))?.isDirectory()) {
 const slides = (await readdir(carpeta)).filter((f) => f.endsWith('.png')).sort();
 if (!slides.length) { console.error(`✖ ${carpeta} no tiene PNG`); process.exit(1); }
 
+/*
+ * --sustituir=4:simulacion.mp4 cambia ese slide por un vídeo. Sirve para
+ * meter la simulación del mapa dentro del reel, en el sitio del slide que
+ * llevaba el mapa quieto.
+ */
+const bin = await buscarFfmpeg();
+const sust = (args.find((a) => a.startsWith('--sustituir=')) ?? '').split('=')[1];
+let cambio = null;
+if (sust) {
+  const i = sust.indexOf(':');
+  const n = Number(sust.slice(0, i));
+  const ruta = sust.slice(i + 1);
+  if (!Number.isInteger(n) || n < 1 || n > slides.length) {
+    console.error(`✖ --sustituir: el slide ${n} no existe (hay ${slides.length})`);
+    process.exit(1);
+  }
+  const d = await duracion(bin, ruta);
+  if (!d) { console.error(`✖ no puedo leer la duración de ${ruta}`); process.exit(1); }
+  cambio = { i: n - 1, ruta, d };
+}
+
 const fundido = FUNDIDO * ritmo;
 const dur = slides.map((_, i) =>
-  (i === 0 ? SEG_PORTADA : i === slides.length - 1 ? SEG_CIERRE : SEG_CONTENIDO) * ritmo
+  cambio && i === cambio.i
+    ? cambio.d
+    : (i === 0 ? SEG_PORTADA : i === slides.length - 1 ? SEG_CIERRE : SEG_CONTENIDO) * ritmo
 );
 
 // Una entrada por slide, cada una congelada su duración (+ el fundido, que
 // se solapa con la siguiente y si no se comería el final del clip)
-const entradas = slides.flatMap((f, i) => [
-  '-loop', '1', '-t', String(dur[i] + fundido), '-i', join(carpeta, f),
-]);
+const entradas = slides.flatMap((f, i) =>
+  cambio && i === cambio.i
+    ? ['-i', cambio.ruta]
+    // -framerate en la entrada: sin él, un PNG en bucle llega con tasa 1/0 y
+    // xfade lo rechaza por no ser constante
+    : ['-loop', '1', '-framerate', '30', '-t', String(dur[i] + fundido), '-i', join(carpeta, f)]
+);
+
+/*
+ * xfade exige que todas las entradas vengan igualadas: mismo fps, mismo
+ * formato y el reloj a cero. Un PNG entra a 25 fps y la simulación a 20, y
+ * sin normalizar ffmpeg se planta.
+ */
+const FPS = 30;
+let filtro = slides
+  .map((_, i) => `[${i}:v]settb=AVTB,setpts=PTS-STARTPTS,format=yuv420p,fps=${FPS}[n${i}];`)
+  .join('');
 
 // Cadena de fundidos: el desplazamiento de cada uno descuenta los anteriores
-let filtro = '', etiqueta = '[0:v]', acumulado = 0;
+let etiqueta = '[n0]', acumulado = 0;
 for (let i = 1; i < slides.length; i++) {
   acumulado += dur[i - 1];
   const off = (acumulado - fundido * (i - 1)).toFixed(3);
   const salida = i === slides.length - 1 ? '[v]' : `[x${i}]`;
-  filtro += `${etiqueta}[${i}:v]xfade=transition=fade:duration=${fundido.toFixed(3)}:offset=${off}${salida};`;
+  filtro += `${etiqueta}[n${i}]xfade=transition=fade:duration=${fundido.toFixed(3)}:offset=${off}${salida};`;
   etiqueta = salida;
 }
 filtro = filtro.replace(/;$/, '');
 
-const bin = await buscarFfmpeg();
 await ejecutar(bin, [
   '-y', ...entradas,
   ...(slides.length > 1 ? ['-filter_complex', filtro, '-map', '[v]'] : []),
-  '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+  '-r', String(FPS), '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
   '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
   destino,
 ]);
