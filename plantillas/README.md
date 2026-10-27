@@ -218,10 +218,25 @@ sin recorte ni marco. **No es un pantallazo de Mapbox a propósito**: el mapa
 real mete su propio gris y su interfaz, y a tamaño de Instagram no se lee
 nada.
 
-Dónde va cada cosa se fija arriba del fichero, en fracción del recorrido
-(`0` salida, `1` meta): `AVITUALLAMIENTOS`, `VEHICULOS` y `CORREDORES`. Hay
-que tocarlos a ojo según la forma de la traza, porque dos marcadores en
-fracciones lejanas pueden caer pegados en el dibujo.
+Los avituallamientos se pasan **por kilómetro y con su nombre**, que es como
+los define una carrera de verdad (`docs/eventos/eventos/*.json`), junto con
+el total del recorrido:
+
+```sh
+node plantillas/herramientas/mapa.mjs ruta.gpx capturas/mapa.png \
+  --km=37.2 --avituallamientos="4:El Palo,9:La Pedraje,21:Bustriguado,32:Cortafuegos"
+```
+
+El de meta se descarta solo: en un circular cae encima de la salida.
+
+Los vehículos y el pelotón siguen fijados arriba del fichero en fracción del
+recorrido (`VEHICULOS`, `CORREDORES`). Hay que tocarlos a ojo según la forma
+de la traza, porque dos marcadores en fracciones lejanas pueden caer pegados
+en el dibujo.
+
+El dibujo va en tres capas —trazas, pines y etiquetas— y las etiquetas van
+siempre las últimas: si se mezclan, un punto de corredor o un pin cae encima
+de una etiqueta y se come media palabra.
 
 Dos cosas que ya costaron una vuelta:
 

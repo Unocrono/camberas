@@ -36,7 +36,13 @@ const LADO = 1080;
 const MARGEN = 96;
 
 /** Posición de cada cosa, en fracción del recorrido (0 = salida, 1 = meta). */
-const AVITUALLAMIENTOS = [0.20, 0.44, 0.80];
+/*
+ * Los avituallamientos van por kilómetro y con su nombre, que es como los
+ * define una carrera de verdad (ver docs/eventos/eventos/*.json). Se pasan
+ * con --avituallamientos "4:El Palo,9:La Pedraje" y el total del recorrido
+ * con --km. Sin ellos, se reparten tres sin nombre.
+ */
+let AVITUALLAMIENTOS = [{ f: 0.20 }, { f: 0.44 }, { f: 0.80 }];
 const VEHICULOS = [
   { en: 0.93, nombre: 'Moto cámara', color: C.lima, icono: 'camara' },
   { en: 0.64, nombre: 'Ambulancia', color: C.rojo, icono: 'cruz' },
@@ -132,56 +138,81 @@ const etiqueta = (x, y, texto, color, r = 30) => {
 };
 
 function construir(xy, acc) {
-  const partes = [];
+  // Tres capas. Si se mezclan, un punto de corredor o un pin cae encima de una
+  // etiqueta y se come media palabra: las etiquetas van siempre las últimas.
+  const trazas = [], pines = [], etiquetas = [];
 
-  partes.push(`<polyline points="${linea(xy)}" fill="none" stroke="${C.traza}"
+  trazas.push(`<polyline points="${linea(xy)}" fill="none" stroke="${C.traza}"
       stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>`);
 
-  // Estela: por dónde acaba de pasar el cierre
-  // A opacidad plena: el naranja translúcido sobre el verde tinta se vuelve
-  // marrón (está apuntado en docs/paleta-camberas.md). Para que se lea como
-  // «viene de ahí», la estela se estrecha hacia atrás en dos tramos.
+  // Estela a opacidad plena: el naranja translúcido sobre el verde tinta se
+  // vuelve marrón (apuntado en docs/paleta-camberas.md). Para que se lea la
+  // dirección, se estrecha hacia atrás en dos tramos.
   const cierre = VEHICULOS.find((v) => v.estela);
-  const desde = Math.max(cierre.en - 0.13, 0);
-  partes.push(`<polyline points="${linea(tramo(xy, acc, desde, cierre.en))}"
+  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierre.en - 0.13, 0), cierre.en))}"
       fill="none" stroke="${cierre.color}" stroke-width="9"
       stroke-linecap="round" stroke-linejoin="round"/>`);
-  partes.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierre.en - 0.06, 0), cierre.en))}"
+  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierre.en - 0.06, 0), cierre.en))}"
       fill="none" stroke="${cierre.color}" stroke-width="16"
       stroke-linecap="round" stroke-linejoin="round"/>`);
 
-  for (const f of AVITUALLAMIENTOS) {
-    const [x, y] = enFraccion(xy, acc, f);
-    partes.push(pin(x, y, C.crema, 'vaso', 24));
+  for (const a of AVITUALLAMIENTOS) {
+    const [x, y] = enFraccion(xy, acc, a.f);
+    pines.push(pin(x, y, C.crema, 'vaso', 24));
+    if (a.nombre) etiquetas.push(etiqueta(x, y, a.nombre, C.crema, 24));
   }
 
-  // El pelotón: por delante del cierre, para que se lea quién va detrás de quién
+  // El pelotón, por delante del cierre: así se lee quién va detrás de quién
   for (const f of CORREDORES) {
     const [x, y] = enFraccion(xy, acc, f);
-    partes.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11"
+    pines.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11"
         fill="${C.crema}" stroke="${C.fondo}" stroke-width="5"/>`);
   }
 
-  // Salida y meta coinciden en un circular
-  const [sx, sy] = xy[0];
   // En un circular la salida y la meta son el mismo punto
-  partes.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="20"
+  const [sx, sy] = xy[0];
+  pines.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="20"
       fill="${C.fondo}" stroke="${C.crema}" stroke-width="6"/>`);
-  partes.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="8" fill="${C.crema}"/>`);
+  pines.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="8" fill="${C.crema}"/>`);
 
-  // Todos los pines antes que las etiquetas: al revés, la placa de uno tapa
-  // el pin del siguiente
-  const sitios = VEHICULOS.map((v) => ({ v, p: enFraccion(xy, acc, v.en) }));
-  for (const { v, p } of sitios) partes.push(pin(p[0], p[1], v.color, v.icono));
-  for (const { v, p } of sitios) partes.push(etiqueta(p[0], p[1], v.nombre, v.color));
+  for (const v of VEHICULOS) {
+    const [x, y] = enFraccion(xy, acc, v.en);
+    pines.push(pin(x, y, v.color, v.icono));
+    etiquetas.push(etiqueta(x, y, v.nombre, v.color));
+  }
 
-  return partes.join('\n');
+  return [...trazas, ...pines, ...etiquetas].join('\n');
 }
 
-const [, , entrada, salida] = process.argv;
+const args = process.argv.slice(2);
+const [entrada, salida] = args.filter((a) => !a.startsWith('--'));
+const opcion = (n) => (args.find((a) => a.startsWith(`--${n}=`)) ?? '').split('=').slice(1).join('=');
+
 if (!entrada || !salida) {
-  console.error('Uso: node plantillas/herramientas/mapa.mjs <ruta.gpx> <salida.png>');
+  console.error(
+    'Uso: node plantillas/herramientas/mapa.mjs <ruta.gpx> <salida.png> \\\n' +
+    '       [--km=37.2] [--avituallamientos="4:El Palo,9:La Pedraje,15:Cortafuegos"]'
+  );
   process.exit(1);
+}
+
+const listaAvit = opcion('avituallamientos');
+if (listaAvit) {
+  const total = Number(opcion('km'));
+  if (!Number.isFinite(total) || total <= 0) {
+    console.error('✖ con --avituallamientos hace falta --km con el total del recorrido');
+    process.exit(1);
+  }
+  AVITUALLAMIENTOS = listaAvit.split(',').map((t) => {
+    const [km, ...resto] = t.split(':');
+    const f = Number(km) / total;
+    if (!Number.isFinite(f)) {
+      console.error(`✖ no entiendo el avituallamiento "${t}" (se espera km:Nombre)`);
+      process.exit(1);
+    }
+    // El de meta cae justo encima de la salida en un circular: no se pinta
+    return { f: Math.min(f, 1), nombre: resto.join(':').trim() || null };
+  }).filter((a) => a.f < 0.99);
 }
 
 const xml = await readFile(resolve(process.cwd(), entrada), 'utf8');
