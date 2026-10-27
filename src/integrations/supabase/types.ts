@@ -772,6 +772,7 @@ export type Database = {
           notes: string | null
           race_distance_id: string | null
           race_id: string
+          reserva_plaza: boolean
           updated_at: string
           valid_from: string | null
           valid_until: string | null
@@ -790,6 +791,7 @@ export type Database = {
           notes?: string | null
           race_distance_id?: string | null
           race_id: string
+          reserva_plaza?: boolean
           updated_at?: string
           valid_from?: string | null
           valid_until?: string | null
@@ -808,6 +810,7 @@ export type Database = {
           notes?: string | null
           race_distance_id?: string | null
           race_id?: string
+          reserva_plaza?: boolean
           updated_at?: string
           valid_from?: string | null
           valid_until?: string | null
@@ -6590,6 +6593,7 @@ export type Database = {
         Returns: string
       }
       hoy_local: { Args: never; Returns: string }
+      importes_inscripciones: { Args: { p_race_id?: string }; Returns: Json }
       inscripcion_ya_dentro: {
         Args: { p_registration_id: string }
         Returns: boolean
@@ -6734,11 +6738,14 @@ export type Database = {
         Args: { p_texto: string; p_token: string }
         Returns: {
           apellidos: string
+          categoria: string
           dni_final: string
           dorsal: number
           edad_carrera: number
           entregado_at: string
           entregado_mesa: string
+          equipo: string
+          genero: string
           nombre: string
           pago: string
           recogido_por: string
@@ -6764,11 +6771,14 @@ export type Database = {
         Args: { p_token: string; p_token_inscripcion: string }
         Returns: {
           apellidos: string
+          categoria: string
           dni_final: string
           dorsal: number
           edad_carrera: number
           entregado_at: string
           entregado_mesa: string
+          equipo: string
+          genero: string
           nombre: string
           pago: string
           recogido_por: string
@@ -6847,7 +6857,9 @@ export type Database = {
           avisadas: number
           detectadas: number
           importe_recuperado: number
+          pagaron_al_final: number
           recuperadas: number
+          siguen_sin_pagar: number
         }[]
       }
       revocar_token_corredor: {
@@ -6870,6 +6882,10 @@ export type Database = {
       }
       seed_requisitos_documentales: {
         Args: { p_race_id: string }
+        Returns: number
+      }
+      siguiente_dorsal_libre: {
+        Args: { p_registration_id: string }
         Returns: number
       }
       suplemento_en_recorrido: {
