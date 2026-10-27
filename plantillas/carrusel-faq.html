@@ -468,6 +468,15 @@ const ESCALA_MIN = 55;   // 0.55
 const ESCALA_MAX = 190;  // 1.90
 
 /*
+ * La portada tiene su propio tope, más bajo. Sin él, el titular crece hasta
+ * llenar el hueco y cada portada acaba con un cuerpo distinto según lo larga
+ * que sea la frase: «Sí, claro» gigante y «¿Dónde está el cierre?» mediano.
+ * Con tope, todas las portadas de la serie comparten tamaño máximo y las
+ * frases largas siguen encogiendo lo que haga falta para caber.
+ */
+const ESCALA_MAX_PORTADA = 112;  // 1.12
+
+/*
  * Hay que mirar las dos dimensiones. Una palabra larga que no puede
  * partirse —"INSCRIPCIONES?"— cabe de alto pero se sale por el lado y
  * overflow:hidden se la come: medir solo scrollHeight dejaba PNG con la
@@ -481,7 +490,8 @@ function cabe(caja) {
 }
 
 function ajustar(caja) {
-  let lo = ESCALA_MIN, hi = ESCALA_MAX, mejor = ESCALA_MIN;
+  const tope = caja.closest('.portada') ? ESCALA_MAX_PORTADA : ESCALA_MAX;
+  let lo = ESCALA_MIN, hi = tope, mejor = ESCALA_MIN;
   while (lo <= hi) {
     const medio = Math.floor((lo + hi) / 2);
     caja.style.setProperty('--escala', medio / 100);
