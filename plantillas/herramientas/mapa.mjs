@@ -37,12 +37,34 @@ const MARGEN = 96;
 
 /** Posición de cada cosa, en fracción del recorrido (0 = salida, 1 = meta). */
 /*
- * Los avituallamientos van por kilómetro y con su nombre, que es como los
- * define una carrera de verdad (ver docs/eventos/eventos/*.json). Se pasan
- * con --avituallamientos "4:El Palo,9:La Pedraje" y el total del recorrido
- * con --km. Sin ellos, se reparten tres sin nombre.
+ * Los puntos salen de los <wpt> del propio GPX, que es donde los pone quien
+ * marca el recorrido. Se agrupan por su <sym>, que es lo que rellenan los
+ * programas de rutas.
+ *
+ * Lo de la zona de meta —parkings, duchas, baños, comedor— se deja fuera por
+ * defecto: son quince chinchetas en el mismo sitio y tapan el dibujo.
  */
-let AVITUALLAMIENTOS = [{ f: 0.20 }, { f: 0.44 }, { f: 0.80 }];
+const CATEGORIAS = {
+  'Picnic Area':    { grupo: 'avituallamiento', icono: 'vaso',  color: 'crema' },
+  'Drinking Water': { grupo: 'avituallamiento', icono: 'vaso',  color: 'crema' },
+  Pharmacy:         { grupo: 'sanitario',       icono: 'cruz',  color: 'rojo'  },
+  Information:      { grupo: 'control',         icono: 'arco',  color: 'lima'  },
+  Crossing:         { grupo: 'cruce',           icono: 'vaso',  color: 'crema' },
+};
+const GRUPOS_POR_DEFECTO = ['avituallamiento', 'sanitario'];
+
+/** El GPX los nombra largo; en el dibujo sobra el prefijo. */
+const acortar = (n) =>
+  n.replace(/^(Avituallamiento|Control de paso cronometrado|Control cronometrado)\s+(de[l]?\s+|zona de\s+)?/i, '')
+   .replace(/\s*\(.*\)\s*$/, '')
+   .trim();
+
+/*
+ * Repuesto para trazas sin waypoints: se colocan a mano por fracción del
+ * recorrido. La Picota, por ejemplo, no trae ninguno.
+ */
+let PUNTOS = [];
+let SUELTOS = [];
 const VEHICULOS = [
   { en: 0.93, nombre: 'Moto cámara', color: C.lima, icono: 'camara' },
   { en: 0.64, nombre: 'Ambulancia', color: C.rojo, icono: 'cruz' },
@@ -51,6 +73,18 @@ const VEHICULOS = [
 /** El pelotón, por delante del cierre. */
 const CORREDORES = [0.31, 0.38, 0.46, 0.53, 0.68, 0.75, 0.82, 0.88];
 
+function leerWaypoints(xml, grupos) {
+  return [...xml.matchAll(/<wpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"[^>]*>([\s\S]*?)<\/wpt>/g)]
+    .map((m) => ({
+      lat: +m[1],
+      lon: +m[2],
+      nombre: (m[3].match(/<name>([^<]*)<\/name>/) || [])[1] ?? '',
+      sym: (m[3].match(/<sym>([^<]*)<\/sym>/) || [])[1] ?? '',
+    }))
+    .map((w) => ({ ...w, cat: CATEGORIAS[w.sym] }))
+    .filter((w) => w.cat && grupos.includes(w.cat.grupo));
+}
+
 function leerTraza(xml) {
   const pts = [...xml.matchAll(/<trkpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"/g)]
     .map((m) => ({ lat: +m[1], lon: +m[2] }));
@@ -58,7 +92,11 @@ function leerTraza(xml) {
   return pts;
 }
 
-/** Equirectangular con corrección de latitud, encajado en el lienzo. */
+/**
+ * Equirectangular con corrección de latitud, encajado en el lienzo. Devuelve
+ * la traza ya proyectada y la función, para poder situar los waypoints con
+ * exactamente la misma transformación.
+ */
 function proyectar(pts) {
   const latMedia = (Math.min(...pts.map(p => p.lat)) + Math.max(...pts.map(p => p.lat))) / 2;
   const k = Math.cos((latMedia * Math.PI) / 180);
@@ -71,10 +109,11 @@ function proyectar(pts) {
   // Centrado: lo que sobra del lado más corto se reparte a los dos lados
   const dx = (LADO - (x1 - x0) * escala) / 2;
   const dy = (LADO - (y1 - y0) * escala) / 2;
-  return xs.map((x, i) => [
-    (x - x0) * escala + dx,
-    (ys[i] - y0) * escala + dy,
-  ]);
+  const proy = (lat, lon) => [
+    (lon * k - x0) * escala + dx,
+    (-lat - y0) * escala + dy,
+  ];
+  return { xy: pts.map((p) => proy(p.lat, p.lon)), proy };
 }
 
 /** Longitudes acumuladas, para poder situar algo "al 26 % del recorrido". */
@@ -114,6 +153,9 @@ function icono(tipo, color) {
   if (tipo === 'coche')
     return `<g fill="${color}"><path d="M-13,3 l2.5,-7 h21 l2.5,7 v5 h-26 z"/>
       <circle cx="-7.5" cy="8.5" r="3.2"/><circle cx="7.5" cy="8.5" r="3.2"/></g>`;
+  if (tipo === 'arco')
+    return `<g fill="${color}"><rect x="-12" y="-10" width="24" height="5" rx="2"/>
+      <rect x="-11" y="-5" width="4.5" height="15"/><rect x="6.5" y="-5" width="4.5" height="15"/></g>`;
   // avituallamiento: vaso
   return `<path d="M-7,-8 h14 l-2,16 h-10 z" fill="${color}"/>`;
 }
@@ -156,7 +198,13 @@ function construir(xy, acc) {
       fill="none" stroke="${cierre.color}" stroke-width="16"
       stroke-linecap="round" stroke-linejoin="round"/>`);
 
-  for (const a of AVITUALLAMIENTOS) {
+  for (const p of PUNTOS) {
+    const color = C[p.cat.color];
+    pines.push(pin(p.x, p.y, color, p.cat.icono, 24));
+    if (p.etiqueta) etiquetas.push(etiqueta(p.x, p.y, p.etiqueta, color, 24));
+  }
+
+  for (const a of SUELTOS) {
     const [x, y] = enFraccion(xy, acc, a.f);
     pines.push(pin(x, y, C.crema, 'vaso', 24));
     if (a.nombre) etiquetas.push(etiqueta(x, y, a.nombre, C.crema, 24));
@@ -191,33 +239,35 @@ const opcion = (n) => (args.find((a) => a.startsWith(`--${n}=`)) ?? '').split('=
 if (!entrada || !salida) {
   console.error(
     'Uso: node plantillas/herramientas/mapa.mjs <ruta.gpx> <salida.png> \\\n' +
-    '       [--km=37.2] [--avituallamientos="4:El Palo,9:La Pedraje,15:Cortafuegos"]'
+    '       [--mostrar=avituallamiento,sanitario,control,cruce] [--sin-etiquetas]\\\n' +
+    '       [--avituallamientos="0.2,0.44,0.8"]  (fracciones, para trazas sin waypoints)'
   );
   process.exit(1);
 }
 
-const listaAvit = opcion('avituallamientos');
-if (listaAvit) {
-  const total = Number(opcion('km'));
-  if (!Number.isFinite(total) || total <= 0) {
-    console.error('✖ con --avituallamientos hace falta --km con el total del recorrido');
-    process.exit(1);
-  }
-  AVITUALLAMIENTOS = listaAvit.split(',').map((t) => {
-    const [km, ...resto] = t.split(':');
-    const f = Number(km) / total;
-    if (!Number.isFinite(f)) {
-      console.error(`✖ no entiendo el avituallamiento "${t}" (se espera km:Nombre)`);
-      process.exit(1);
-    }
-    // El de meta cae justo encima de la salida en un circular: no se pinta
-    return { f: Math.min(f, 1), nombre: resto.join(':').trim() || null };
-  }).filter((a) => a.f < 0.99);
-}
+const grupos = (opcion('mostrar') || GRUPOS_POR_DEFECTO.join(',')).split(',').map((g) => g.trim());
+const conEtiquetas = !args.includes('--sin-etiquetas');
 
 const xml = await readFile(resolve(process.cwd(), entrada), 'utf8');
-const xy = proyectar(leerTraza(xml));
+const { xy, proy } = proyectar(leerTraza(xml));
 const acc = acumulado(xy);
+
+PUNTOS = leerWaypoints(xml, grupos).map((w) => {
+  const [x, y] = proy(w.lat, w.lon);
+  return { ...w, x, y, etiqueta: conEtiquetas ? acortar(w.nombre) : null };
+});
+const manual = opcion('avituallamientos');
+if (manual) {
+  SUELTOS = manual.split(',').map((t) => {
+    const [f, ...resto] = t.split(':');
+    return { f: Number(f), nombre: resto.join(':').trim() || null };
+  }).filter((a) => Number.isFinite(a.f));
+}
+if (!PUNTOS.length && !SUELTOS.length)
+  console.warn(
+    `⚠ el GPX no trae waypoints de ${grupos.join(', ')}.\n` +
+    '  Colócalos a mano con --avituallamientos="0.2,0.44,0.8" (fracción del recorrido).'
+  );
 
 // Las fuentes van autoalojadas con nombre de fichero con hash, así que se
 // enlaza su propia hoja en vez de adivinar la ruta de cada .woff2. El HTML se

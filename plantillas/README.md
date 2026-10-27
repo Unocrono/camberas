@@ -218,21 +218,39 @@ sin recorte ni marco. **No es un pantallazo de Mapbox a propósito**: el mapa
 real mete su propio gris y su interfaz, y a tamaño de Instagram no se lee
 nada.
 
-Los avituallamientos se pasan **por kilómetro y con su nombre**, que es como
-los define una carrera de verdad (`docs/eventos/eventos/*.json`), junto con
-el total del recorrido:
+Los puntos salen de los **`<wpt>` del propio GPX**, agrupados por su `<sym>`,
+que es lo que rellenan los programas de rutas:
+
+| `sym` | Sale como |
+|---|---|
+| `Picnic Area`, `Drinking Water` | Avituallamiento |
+| `Pharmacy` | Ambulancia / médico |
+| `Information` | Control cronometrado |
+| `Crossing` | Cruce |
+
+Por defecto se dibujan avituallamientos y sanitarios. Lo de la zona de meta
+—parkings, duchas, baños, comedor— se deja fuera: son quince chinchetas en
+el mismo sitio y tapan el dibujo.
 
 ```sh
-node plantillas/herramientas/mapa.mjs ruta.gpx capturas/mapa.png \
-  --km=37.2 --avituallamientos="4:El Palo,9:La Pedraje,21:Bustriguado,32:Cortafuegos"
+node plantillas/herramientas/mapa.mjs public/gpx/gurriana-trail-2027-gt40.gpx capturas/mapa.png
+node plantillas/herramientas/mapa.mjs ruta.gpx mapa.png --mostrar=avituallamiento,sanitario,control
 ```
 
-El de meta se descarta solo: en un circular cae encima de la salida.
+**Si la traza no trae waypoints** —la Picota, por ejemplo— se colocan a mano
+por fracción del recorrido:
 
-Los vehículos y el pelotón siguen fijados arriba del fichero en fracción del
-recorrido (`VEHICULOS`, `CORREDORES`). Hay que tocarlos a ojo según la forma
-de la traza, porque dos marcadores en fracciones lejanas pueden caer pegados
-en el dibujo.
+```sh
+node plantillas/herramientas/mapa.mjs ruta.gpx mapa.png --avituallamientos="0.20,0.44,0.80"
+```
+
+Los vehículos y el pelotón siguen fijados arriba del fichero (`VEHICULOS`,
+`CORREDORES`), también en fracción.
+
+**Cuidado con la forma de la traza.** El lienzo es cuadrado, así que un
+recorrido mucho más ancho que alto sale como una tira y no se lee: el GT40
+de la Gurriana mide 0,16° de ancho por 0,03° de alto y no vale para esto.
+Un circular compacto como la Picota es lo que mejor encaja.
 
 El dibujo va en tres capas —trazas, pines y etiquetas— y las etiquetas van
 siempre las últimas: si se mezclan, un punto de corredor o un pin cae encima
