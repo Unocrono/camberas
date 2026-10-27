@@ -202,6 +202,37 @@ Para ponerlo en la portada de un carrusel:
 { "titulo": "…", "imagenPortada": "capturas/sos-boton-recorte.png" }
 ```
 
+## Mapa de una carrera desde su GPX
+
+`plantillas/herramientas/mapa.mjs` dibuja el recorrido con la paleta de
+Camberas: la traza, los avituallamientos, los vehículos de organización
+—cada uno con su color— y el pelotón, con el cierre detrás del último y su
+estela naranja, que es lo que hace que se lea «moviéndose».
+
+```sh
+node plantillas/herramientas/mapa.mjs public/gpx/desafio-picota-2027-trail.gpx capturas/mapa.png
+```
+
+Sale a 1080×1080 sobre el mismo verde tinta que los slides, así que encaja
+sin recorte ni marco. **No es un pantallazo de Mapbox a propósito**: el mapa
+real mete su propio gris y su interfaz, y a tamaño de Instagram no se lee
+nada.
+
+Dónde va cada cosa se fija arriba del fichero, en fracción del recorrido
+(`0` salida, `1` meta): `AVITUALLAMIENTOS`, `VEHICULOS` y `CORREDORES`. Hay
+que tocarlos a ojo según la forma de la traza, porque dos marcadores en
+fracciones lejanas pueden caer pegados en el dibujo.
+
+Dos cosas que ya costaron una vuelta:
+
+- El HTML se escribe **dentro de `plantillas/`** y se abre con `goto`. Con
+  `setContent` la página es `about:blank`, no resuelve el `file://` de la
+  hoja de fuentes y el PNG sale en serif sin avisar.
+- La estela va a **opacidad plena**. El naranja translúcido sobre el verde
+  tinta se vuelve marrón, igual que el rojo (está apuntado en
+  `docs/paleta-camberas.md`). Para que se lea la dirección, se estrecha
+  hacia atrás en dos tramos en vez de desvanecerse.
+
 ## Vídeo a partir de un carrusel
 
 `plantillas/herramientas/video.mjs` encadena los PNG ya renderizados en un
