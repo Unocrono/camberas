@@ -45,18 +45,19 @@
 <script>
 const URL_ = 'https://rsahtxjpisnldxnsmupk.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJzYWh0eGpwaXNubGR4bnNtdXBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2Mjg5MDAsImV4cCI6MjA3OTIwNDkwMH0.MwUTZs3BxPMsy0YtEgM92o4U3xw2SrMmpZ-GFNC03dE';
-// Qué vigilar, por la URL:
-//   ?event=<uuid>            → todos los dorsales de ese evento (se descubren solos)
-//   ?event=<uuid>&d=1,2,3    → solo esos dorsales del evento
-//   ?d=999:ANDROID,998:iPHONE → por dorsal suelto (prueba de mesa clásica)
-// El evento importa: los dorsales 1, 2, 3 existen en muchas carreras y sin
-// acotar se cuelan lecturas ajenas.
+// Qué vigilar, por la URL. Desde el 27-oct hace falta el token de una pantalla
+// de seguimiento de la carrera (panel del organizador › Pantallas): gps_positions
+// ya no se lee con la clave anónima y la RPC monitor_gps solo responde con él.
+//   ?pantalla=<token>                    → todos los dorsales de la carrera (se descubren solos)
+//   ?pantalla=<token>&event=<uuid>       → solo los de ese evento
+//   ?pantalla=<token>&d=999:ANDROID,998:iPHONE → solo esos dorsales (prueba de mesa clásica)
 const PARAMS = new URLSearchParams(location.search);
+const PANTALLA = PARAMS.get('pantalla');
 const EVENTO = PARAMS.get('event');
 
 const DISPOSITIVOS = (() => {
   const p = PARAMS.get('d');
-  if (!p) return EVENTO ? {} : { '999': 'ANDROID', '998': 'iPHONE', '997': 'WP18' };
+  if (!p) return {};
   const out = {};
   for (const trozo of p.split(',')) {
     const [bib, nombre] = trozo.split(':');
@@ -73,16 +74,21 @@ async function poll() {
   try {
     // Solo las lecturas de lo vigilado: si se piden las últimas del sistema,
     // el tráfico de otras carreras las tapa y salen "sin datos".
-    let filtro = EVENTO ? `&event_id=eq.${EVENTO}` : '';
+    if (!PANTALLA) {
+      document.getElementById('status').textContent = 'Falta ?pantalla=<token de una pantalla de seguimiento de la carrera>';
+      return;
+    }
     const bibs = Object.keys(DISPOSITIVOS);
-    if (bibs.length) filtro += `&bib_number=in.(${bibs.join(',')})`;
-    const r = await fetch(`${URL_}/rest/v1/gps_positions?select=bib_number,timestamp,uploaded_at,created_at,battery,accuracy&order=uploaded_at.desc.nullslast&limit=120${filtro}`, {
-      headers: { apikey: KEY, Authorization: `Bearer ${KEY}` }
+    const r = await fetch(`${URL_}/rest/v1/rpc/monitor_gps`, {
+      method: 'POST',
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: PANTALLA, p_distance_id: EVENTO || null, p_dorsales: bibs.length ? bibs : null })
     });
     const rows = await r.json();
+    if (!Array.isArray(rows)) throw new Error(rows.message || 'respuesta inesperada');
     const now = Date.now();
 
-    // Con ?event= y sin lista de dorsales, se descubren de las lecturas:
+    // Sin lista de dorsales, se descubren de las lecturas:
     // así el capo no necesita saber los números de su grupetta.
     const vigilados = { ...DISPOSITIVOS };
     if (Object.keys(vigilados).length === 0) {

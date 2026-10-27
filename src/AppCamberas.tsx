@@ -67,7 +67,6 @@ import LoteriaNavidad from "./pages/LoteriaNavidad";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import SimpleOverlayConfig from "./pages/SimpleOverlayConfig";
-import LiveTracking from "./pages/LiveTracking";
 // Web de la carrera con plantilla (src/plantillas): FichaCarrera elige entre
 // la plantilla y RaceDetail; el resto son sus páginas interiores
 import FichaCarrera from "./pages/web/FichaCarrera";
@@ -122,7 +121,8 @@ const AppCamberas = () => (
           <Route path="/cookies" element={<Cookies />} />
           <Route path="/planes" element={<Planes />} />
           <Route path="/start" element={<StartControl />} />
-          <Route path="/live" element={<LiveTracking />} />
+          {/* /live era una prueba de julio que leía gps_positions a pelo (EVENT_ID fijo): retirada el 27-oct */}
+          <Route path="/live" element={<Navigate to="/" replace />} />
           <Route path="/loteria" element={<LoteriaNavidad />} />
           <Route path="/noticias" element={<Blog />} />
           <Route path="/noticias/:slug" element={<BlogPost />} />

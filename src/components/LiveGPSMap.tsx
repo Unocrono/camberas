@@ -36,6 +36,22 @@ interface RunnerPosition {
   source: string | null;
 }
 
+/** Fila de mapa_publico / pantalla_posiciones (bateria solo en la carpa) */
+interface PosicionMapa {
+  clave: string;
+  dorsal: string | null;
+  nombre: string | null;
+  recorrido: string;
+  lat: number;
+  lng: number;
+  ts: string;
+  rumbo: number | null;
+  velocidad: number | null;
+  bateria?: number | null;
+  tipo: 'corredor' | 'moto' | 'organizacion';
+  finalizado: boolean;
+}
+
 interface SosAlert {
   id: string;
   lat: number;
@@ -465,38 +481,23 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
     setIsPlaybackMode(false);
   };
 
-  /** Carga el track completo de un corredor, del pipeline que corresponda */
+  /** Carga el track completo de un corredor por su clave pública */
   const loadTrackPoints = async (runner: RunnerPosition): Promise<RunnerTrackPoint[]> => {
-    // Los RPC "_full" devuelven UNA fila con todos los puntos dentro: el
+    // recorrido_publico devuelve UNA fila con todos los puntos dentro: el
     // API corta las consultas normales en 1.000 filas y las rutas largas
     // perdían el final (1.846 puntos → se veían 1.000, faltaba hora y media).
-    if (runner.source === 'app') {
-      // Pipeline app (camberas-track): registration_id es el token → RPC propio
-      const { data, error } = await supabase.rpc('get_token_track_full' as never, {
-        p_token_id: runner.registration_id,
-      } as never);
-      if (error) throw error;
-      return ((data as unknown as any[]) || []).map(point => ({
-        latitude: parseFloat(String(point.lat)),
-        longitude: parseFloat(String(point.lng)),
-        timestamp: point.ts,
-        speed: point.speed != null ? parseFloat(String(point.speed)) : null,
-        altitude: null,
-      }));
-    }
-    const { data, error } = await supabase.rpc('get_registration_track_full' as never, {
-      p_registration_id: runner.registration_id,
+    // registration_id es la clave opaca que da el mapa, no el token.
+    const { data, error } = await supabase.rpc('recorrido_publico' as never, {
       p_race_id: raceId,
+      p_clave: runner.registration_id,
     } as never);
-
     if (error) throw error;
-
     return ((data as unknown as any[]) || []).map(point => ({
       latitude: parseFloat(String(point.lat)),
       longitude: parseFloat(String(point.lng)),
       timestamp: point.ts,
       speed: point.speed != null ? parseFloat(String(point.speed)) : null,
-      altitude: point.altitude != null ? parseFloat(String(point.altitude)) : null,
+      altitude: null,
     }));
   };
 
@@ -928,11 +929,18 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
 
   const fetchInitialPositions = async () => {
     const mia = ++cargaPosicionesRef.current;
-    // Use RPC function to get positions with runner info (bypasses RLS)
-    let { data, error } = await supabase.rpc('get_live_gps_positions', {
-      p_race_id: raceId,
-      p_distance_id: distanceId || null
-    });
+    // El público ve dorsal y «Laura G.» (mapa_publico); la carpa, con su
+    // token, el nombre completo y la batería (pantalla_posiciones). Ninguna
+    // de las dos da ids internos: cada dorsal llega con una clave opaca.
+    const { data, error } = pantallaToken
+      ? await supabase.rpc('pantalla_posiciones' as never, {
+          p_token: pantallaToken,
+          p_distance_id: distanceId || null,
+        } as never)
+      : await supabase.rpc('mapa_publico' as never, {
+          p_race_id: raceId,
+          p_distance_id: distanceId || null,
+        } as never);
     if (mia !== cargaPosicionesRef.current) return;
 
     if (error) {
@@ -940,42 +948,25 @@ export function LiveGPSMap({ raceId, distanceId, mapboxToken, pantallaToken, seg
       return;
     }
 
-    // Ventana de captura cerrada: modo finalizado — participantes con track
-    // (7 días tras el evento) para poder ver y reproducir los recorridos.
-    // Se decide por los CORREDORES: los GPS de organización (motos, escoba)
-    // siguen saliendo en vivo 24 h, y si mandaran ellos el mapa se quedaría
-    // con la moto sola y sin corredores (Entre Viñedos, 25-oct).
-    const hayCorredores = (data ?? []).some(
-      (p: { source?: string | null }) => p.source !== 'moto' && p.source !== 'organizacion',
-    );
-    if (!hayCorredores) {
-      const replay = await supabase.rpc('get_event_participants_replay', {
-        p_race_id: raceId,
-        p_distance_id: distanceId || null,
-      });
-      if (mia !== cargaPosicionesRef.current) return;
-      if (!replay.error && replay.data && replay.data.length > 0) {
-        data = [...(data ?? []), ...replay.data];
-        setFinalizadoMode(true);
-      } else {
-        setFinalizadoMode(false);
-      }
-    } else {
-      setFinalizadoMode(false);
-    }
+    const filas = (data as unknown as PosicionMapa[] | null) ?? [];
+    // Ventana de captura cerrada: modo finalizado — el servidor da la última
+    // posición de cada corredor (7 días tras el evento) para poder ver y
+    // reproducir los recorridos. Lo deciden los CORREDORES: los GPS de
+    // organización (motos, escoba) siguen saliendo en vivo 24 h.
+    setFinalizadoMode(filas.some(f => f.tipo === 'corredor' && f.finalizado));
 
-    const positions: RunnerPosition[] = (data || []).map((item: any) => ({
-      id: item.gps_id,
-      registration_id: item.registration_id,
-      latitude: parseFloat(String(item.latitude)),
-      longitude: parseFloat(String(item.longitude)),
-      timestamp: item.gps_timestamp,
-      bib_number: item.bib_number != null ? String(item.bib_number) : null,
-      runner_name: item.runner_name || 'Corredor',
-      heading: item.heading != null ? parseFloat(String(item.heading)) : null,
-      speed: item.speed != null ? parseFloat(String(item.speed)) : null,
-      battery: item.battery != null ? parseFloat(String(item.battery)) : null,
-      source: item.source ?? null,
+    const positions: RunnerPosition[] = filas.map(item => ({
+      id: item.clave,
+      registration_id: item.clave,
+      latitude: Number(item.lat),
+      longitude: Number(item.lng),
+      timestamp: item.ts,
+      bib_number: item.dorsal != null ? String(item.dorsal) : null,
+      runner_name: item.nombre || 'Corredor',
+      heading: item.rumbo != null ? Number(item.rumbo) : null,
+      speed: item.velocidad != null ? Number(item.velocidad) : null,
+      battery: item.bateria != null ? Number(item.bateria) : null,
+      source: item.tipo === 'corredor' ? 'app' : item.tipo,
     }));
 
     setRunnerPositions(positions);

@@ -1,4 +1,8 @@
 -- ============================================================
+-- NO APLICAR: nunca llegó a producción y se la daba a cualquiera con la
+-- clave anónima. La sustituye 20261027200000_gps_publico_por_rpc.sql (solo
+-- para el organizador de la carrera o el admin).
+--
 -- ÚLTIMA POSICIÓN POR TOKEN, RESUELTA EN EL SERVIDOR (5-ago)
 --
 -- El mapa en vivo traía TODAS las posiciones del evento y se

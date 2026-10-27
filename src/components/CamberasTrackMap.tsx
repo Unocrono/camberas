@@ -345,11 +345,10 @@ export function CamberasTrackMap({
     return kind === 'corredores' ? !role : role === kind;
   }, [kind]);
 
-  // ── Fetch inicial de posiciones ───────────────────────────────────────────
-  // Con los intervalos cortos de la V25a (moto TV / rally a 1-2 s) traer el
-  // histórico entero y quedarse con la última en el cliente no escala: el
-  // RPC get_latest_gps_positions resuelve el DISTINCT ON en el servidor.
-  // Si el RPC aún no existe (migración sin aplicar), cae al camino antiguo.
+  // ── Posiciones ────────────────────────────────────────────────────────────
+  // get_latest_gps_positions da la última de cada dorsal, solo de las carreras
+  // de quien pregunta (organizador o admin). gps_positions ya no se lee a
+  // pelo: con la clave anónima se veía todo, de todas las carreras.
 
   // Caché token_id → datos del token, para no consultar en cada INSERT
   // del realtime (a 1 s por dispositivo eran N consultas por segundo)
@@ -359,38 +358,18 @@ export function CamberasTrackMap({
     if (effectiveEventIds === null) return; // aún resolviendo el filtro
     if (kind && catalogRoles === null) return; // catálogo aún cargando
 
-    let rows: any[] | null = null;
-
     const { data, error } = await (supabase as any).rpc('get_latest_gps_positions', {
       p_event_ids: effectiveEventIds.length > 0 ? effectiveEventIds : null,
     });
-    if (!error) {
-      rows = (data || []).map((r: any) => ({
-        token_id: r.token_id,
-        lat: r.lat, lng: r.lng, speed: r.speed, altitude: r.altitude,
-        battery: r.battery, timestamp: r.timestamp,
-        gps_tokens: { bib_number: r.bib_number, participant_name: r.participant_name, event_id: r.event_id },
-      }));
-    } else {
-      // Fallback: la consulta histórica (todas las filas, última en cliente)
-      let query = supabase
-        .from('gps_positions')
-        .select(`
-          token_id,
-          lat, lng, speed, altitude, battery, timestamp,
-          gps_tokens!inner(bib_number, participant_name, event_id, active)
-        `)
-        .eq('gps_tokens.active', true)
-        .order('timestamp', { ascending: false });
-      if (effectiveEventIds.length > 0) {
-        query = query.in('gps_tokens.event_id', effectiveEventIds);
-      }
-      const legacy = await query;
-      if (legacy.error) { console.error('[TrackMap] Error fetch:', legacy.error); return; }
-      rows = legacy.data || [];
-    }
+    if (error) { console.error('[TrackMap] Error fetch:', error); return; }
+    const rows = (data || []).map((r: any) => ({
+      token_id: r.token_id,
+      lat: r.lat, lng: r.lng, speed: r.speed, altitude: r.altitude,
+      battery: r.battery, timestamp: r.timestamp,
+      gps_tokens: { bib_number: r.bib_number, participant_name: r.participant_name, event_id: r.event_id },
+    }));
 
-    // Agrupar por token_id → solo la más reciente (el RPC ya viene única)
+    // Una fila por token (el RPC ya viene única)
     const byToken = new Map<string, TrackedRunner>();
     for (const row of rows) {
       const token = row.gps_tokens as any;
@@ -490,6 +469,12 @@ export function CamberasTrackMap({
   useEffect(() => {
     fetchPositions();
     fetchSOS();
+    // gps_positions no está publicada en tiempo real (ver LiveGPSMap): sin
+    // este sondeo el panel se quedaba con la primera carga
+    const sondeo = window.setInterval(() => {
+      if (document.visibilityState === 'visible') fetchPositions();
+    }, 15_000);
+    return () => window.clearInterval(sondeo);
   }, [fetchPositions, fetchSOS]);
 
   // ── Suscripción Realtime a nuevas posiciones ──────────────────────────────
@@ -882,26 +867,15 @@ export function CamberasTrackMap({
     });
   };
 
-  /** Track completo de un token, paginado (a 1-2 s puede haber miles de filas) */
+  /** Track completo de un token: un jsonb (el API corta las filas en 1.000) */
   const loadTrackPoints = async (tokenId: string): Promise<ReplayPoint[]> => {
-    const points: ReplayPoint[] = [];
-    let from = 0;
-    const pageSize = 1000;
-    while (true) {
-      const { data, error } = await supabase
-        .from('gps_positions')
-        .select('lat, lng, timestamp')
-        .eq('token_id', tokenId)
-        .order('timestamp', { ascending: true })
-        .range(from, from + pageSize - 1);
-      if (error || !data || data.length === 0) break;
-      for (const p of data) {
-        points.push({ t: new Date(p.timestamp).getTime(), lat: p.lat, lng: p.lng });
-      }
-      if (data.length < pageSize) break;
-      from += pageSize;
-    }
-    return points;
+    const { data, error } = await supabase.rpc('recorrido_privado' as never, { p_token_id: tokenId } as never);
+    if (error || !data) return [];
+    return (data as unknown as { lat: number; lng: number; ts: string }[]).map(p => ({
+      t: new Date(p.ts).getTime(),
+      lat: p.lat,
+      lng: p.lng,
+    }));
   };
 
   const startReplay = async () => {
