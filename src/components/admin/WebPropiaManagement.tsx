@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { useRaceWeb } from "@/eventos/useRaceWeb";
 import type { LibroDiseno } from "@/plantillas/libroDiseno";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,9 +21,15 @@ import { TpvManagement } from "./webpropia/TpvManagement";
  * Web propia de la carrera (panel del organizador y admin): plantilla y
  * libro de diseño, contenido, patrocinadores, dominio, TPV y publicación.
  * Todo se guarda en race_web / race_sponsors / race_domains / race_tpv.
+ *
+ * Dominio, TPV y Publicar son SOLO del admin (27-oct-2026): el organizador
+ * no ve esas pestañas, y la base tampoco le deja (race_tpv y race_domains
+ * solo admin, tpv_guardar solo admin, race_web.activa vigilada por el
+ * disparador race_web_publicar_solo_admin; migración 20261027090000).
  */
 export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string }) {
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
   const { web, cargando, guardando, error, guardar } = useRaceWeb(selectedRaceId);
   const [carrera, setCarrera] = useState<{ slug: string | null; name: string; is_visible: boolean | null } | null>(null);
 
@@ -58,7 +65,7 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
           <h2 className="text-2xl font-bold">Web propia · {carrera?.name}</h2>
           <p className="text-sm text-muted-foreground">
             {slug ? (
-              <>Se sirve en <a href={`/${slug}${web.activa ? "" : "?previa=1"}`} target="_blank" rel="noopener noreferrer" className="underline">camberas.com/{slug}</a>{web.activa ? "" : " (vista previa hasta que la publiques)"}.</>
+              <>Se sirve en <a href={`/${slug}${web.activa ? "" : "?previa=1"}`} target="_blank" rel="noopener noreferrer" className="underline">camberas.com/{slug}</a>{web.activa ? "" : isAdmin ? " (vista previa hasta que la publiques)" : " (vista previa: la publica Camberas cuando esté lista)"}.</>
             ) : (
               "La carrera necesita un slug (URL amigable) para tener web propia: ponlo en Datos de la carrera."
             )}
@@ -78,9 +85,13 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
           <TabsTrigger value="diseno-evento">Diseño evento</TabsTrigger>
           <TabsTrigger value="contenido">Contenido</TabsTrigger>
           <TabsTrigger value="patrocinadores">Patrocinadores</TabsTrigger>
-          <TabsTrigger value="dominio">Dominio</TabsTrigger>
-          <TabsTrigger value="tpv">TPV</TabsTrigger>
-          <TabsTrigger value="publicar">Publicar</TabsTrigger>
+          {isAdmin && (
+            <>
+              <TabsTrigger value="dominio">Dominio</TabsTrigger>
+              <TabsTrigger value="tpv">TPV</TabsTrigger>
+              <TabsTrigger value="publicar">Publicar</TabsTrigger>
+            </>
+          )}
         </TabsList>
         <TabsContent value="diseno" className="mt-4">
           <LibroDisenoEditor slug={slug} plantilla={web.plantilla} tema={web.tema} guardando={guardando} onGuardar={guardarDiseno} />
@@ -94,29 +105,33 @@ export function WebPropiaManagement({ selectedRaceId }: { selectedRaceId: string
         <TabsContent value="patrocinadores" className="mt-4">
           <PatrocinadoresManagement raceId={selectedRaceId} />
         </TabsContent>
-        <TabsContent value="dominio" className="mt-4">
-          <DominioManagement raceId={selectedRaceId} slug={slug} />
-        </TabsContent>
-        <TabsContent value="tpv" className="mt-4">
-          <TpvManagement raceId={selectedRaceId} />
-        </TabsContent>
-        <TabsContent value="publicar" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Publicar</CardTitle>
-              <CardDescription>Con la web publicada, camberas.com/{slug ?? "…"} muestra la plantilla en vez de la ficha clásica. El dominio propio, si está verificado, la muestra siempre.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between rounded-md border p-4">
-                <div>
-                  <Label className="text-base">Web con plantilla activa</Label>
-                  <p className="text-sm text-muted-foreground">{web.activa ? "Publicada." : "Desactivada: se ve la ficha clásica de Camberas."}</p>
-                </div>
-                <Switch checked={web.activa} disabled={guardando || !slug} onCheckedChange={publicar} />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {isAdmin && (
+          <>
+            <TabsContent value="dominio" className="mt-4">
+              <DominioManagement raceId={selectedRaceId} slug={slug} />
+            </TabsContent>
+            <TabsContent value="tpv" className="mt-4">
+              <TpvManagement raceId={selectedRaceId} />
+            </TabsContent>
+            <TabsContent value="publicar" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Publicar</CardTitle>
+                  <CardDescription>Con la web publicada, camberas.com/{slug ?? "…"} muestra la plantilla en vez de la ficha clásica. El dominio propio, si está verificado, la muestra siempre.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between rounded-md border p-4">
+                    <div>
+                      <Label className="text-base">Web con plantilla activa</Label>
+                      <p className="text-sm text-muted-foreground">{web.activa ? "Publicada." : "Desactivada: se ve la ficha clásica de Camberas."}</p>
+                    </div>
+                    <Switch checked={web.activa} disabled={guardando || !slug} onCheckedChange={publicar} />
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );
