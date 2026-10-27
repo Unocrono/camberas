@@ -105,7 +105,11 @@ if (sust) {
 const fundido = FUNDIDO * ritmo;
 const dur = slides.map((_, i) =>
   cambio && i === cambio.i
-    ? cambio.d
+    // Las imágenes se alargan el fundido (ver más abajo); al clip no se le
+    // puede alargar, así que se le descuenta: si no, se acaba justo cuando
+    // empieza la transición, no hay con qué mezclar y ffmpeg corta el vídeo
+    // ahí mismo. Pasó: el reel salía con la simulación y nada más.
+    ? cambio.d - fundido
     : (i === 0 ? SEG_PORTADA : i === slides.length - 1 ? SEG_CIERRE : SEG_CONTENIDO) * ritmo
 );
 
@@ -148,5 +152,7 @@ await ejecutar(bin, [
   destino,
 ]);
 
-const total = dur.reduce((a, b) => a + b, 0) - fundido * (slides.length - 1);
-console.log(`✔ ${destino} · ${slides.length} slides · ${total.toFixed(1)} s`);
+// La duración se mide del fichero, no del cálculo: ya hubo una vez en que
+// el cálculo decía 28,9 s y el MP4 duraba 11.
+const real = await duracion(bin, destino);
+console.log(`✔ ${destino} · ${slides.length} slides · ${(real ?? 0).toFixed(1)} s`);
