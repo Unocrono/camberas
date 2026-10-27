@@ -9,19 +9,19 @@
     {
       "etiqueta": "El problema",
       "pregunta": "Sabes dónde va el primero. ¿Y el último?",
-      "respuesta": "El seguimiento de corredores está resuelto. El de tu propia gente —la que cierra, la que asiste y la que graba— no lo tiene nadie."
+      "respuesta": "A los corredores los ves en el mapa. A los tuyos, no."
     },
     {
       "etiqueta": "Cómo se monta",
       "pregunta": "Un QR por vehículo y listo",
-      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Sale en el mapa con su nombre y su color, junto a la ambulancia y la moto cámara.",
-      "nota": "Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana."
+      "respuesta": "El conductor lo escanea y ese móvil ya es la escoba, con su nombre y su color en el mapa.",
+      "nota": "Ni altas, ni contraseñas."
     },
     {
       "etiqueta": "El cierre",
       "pregunta": "Detrás del último va tu escoba",
-      "respuesta": "Miras dónde está el cierre y ya sabes por dónde va el final de tu carrera.",
-      "nota": "Y mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta."
+      "respuesta": "Miras el cierre y sabes por dónde acaba tu carrera.",
+      "nota": "Y hasta que no pasa, el avituallamiento no se levanta."
     }
   ],
   "cta": "Pon a tu organización en el mapa"
