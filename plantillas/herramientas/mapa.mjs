@@ -169,12 +169,12 @@ const pin = (x, y, color, tipo, r = 30) => `
 
 /* Con placa detrás: sin ella el texto se pierde en cuanto cae sobre la traza. */
 const etiqueta = (x, y, texto, color, r = 30) => {
-  const ancho = texto.length * 17 + 28;
+  const ancho = texto.length * 22 + 34;
   return `
-  <g transform="translate(${x.toFixed(1)},${(y + r + 14).toFixed(1)})">
-    <rect x="${-ancho / 2}" y="0" width="${ancho}" height="42" rx="21" fill="${C.fondo}"/>
-    <text x="0" y="29" text-anchor="middle" font-family="Barlow Semi Condensed"
-          font-weight="700" font-size="26" letter-spacing="2.2"
+  <g transform="translate(${x.toFixed(1)},${(y + r + 12).toFixed(1)})">
+    <rect x="${-ancho / 2}" y="0" width="${ancho}" height="54" rx="27" fill="${C.fondo}"/>
+    <text x="0" y="37" text-anchor="middle" font-family="Barlow Semi Condensed"
+          font-weight="700" font-size="34" letter-spacing="2.4"
           fill="${color}">${texto.toUpperCase()}</text>
   </g>`;
 };

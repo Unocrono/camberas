@@ -15,13 +15,16 @@
       "etiqueta": "Cómo se monta",
       "pregunta": "Un QR por vehículo y listo",
       "respuesta": "El conductor lo escanea y ese móvil ya es la escoba, con su nombre y su color en el mapa.",
-      "nota": "Ni altas, ni contraseñas."
+      "nota": "Ni altas, ni contraseñas.",
+      "imagen": "capturas/qr-camberas.png"
     },
     {
       "etiqueta": "El cierre",
       "pregunta": "Detrás del último va tu escoba",
       "respuesta": "Miras el cierre y sabes por dónde acaba tu carrera.",
-      "nota": "Y hasta que no pasa, el avituallamiento no se levanta."
+      "nota": "Y hasta que no pasa, el avituallamiento no se levanta.",
+      "imagen": "capturas/mapa-organizacion.png",
+      "pantallazo": true
     }
   ],
   "cta": "Pon a tu organización en el mapa"
