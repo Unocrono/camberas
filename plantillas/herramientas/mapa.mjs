@@ -147,7 +147,7 @@ const linea = (pts) => pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).jo
 
 function icono(tipo, color) {
   if (tipo === 'cruz')
-    return `<path d="M-3.5,-11 h7 v7.5 h7.5 v7 h-7.5 v7.5 h-7 v-7.5 h-7.5 v-7 h7.5 z" fill="${color}"/>`;
+    return `<path d="M-4.5,-13 h9 v8.5 h8.5 v9 h-8.5 v8.5 h-9 v-8.5 h-8.5 v-9 h8.5 z" fill="${color}"/>`;
   if (tipo === 'camara')
     return `<g fill="${color}"><rect x="-12" y="-7" width="24" height="16" rx="3"/>
       <rect x="-5" y="-11" width="10" height="4" rx="1.5"/>
@@ -162,7 +162,19 @@ function icono(tipo, color) {
   return `<path d="M-7,-8 h14 l-2,16 h-10 z" fill="${color}"/>`;
 }
 
-const pin = (x, y, color, tipo, r = 30) => `
+/*
+ * Los pines normales son anillos. El sanitario va en disco crema con la cruz
+ * encima: es el único que interesa reconocer de un vistazo y sin leer.
+ */
+const pin = (x, y, color, tipo, r = 30) =>
+  tipo === 'cruz'
+    ? `
+  <g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">
+    <circle r="${r + 5}" fill="${C.fondo}"/>
+    <circle r="${r}" fill="${C.crema}"/>
+    ${icono(tipo, color)}
+  </g>`
+    : `
   <g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">
     <circle r="${r + 5}" fill="${C.fondo}"/>
     <circle r="${r}" fill="none" stroke="${color}" stroke-width="5"/>
