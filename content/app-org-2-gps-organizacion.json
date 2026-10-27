@@ -3,13 +3,13 @@
   "marca": "camberas",
   "tipo": "faq",
   "antetitulo": "GPS *Organización*",
-  "titulo": "Y la ambulancia, ¿dónde está?",
+  "titulo": "¿Dónde está el último?",
   "web": "camberas.com/organizadores",
   "slides": [
     {
       "etiqueta": "El problema",
-      "pregunta": "Sabes dónde va el primero. ¿Y la ambulancia?",
-      "respuesta": "El seguimiento de corredores está resuelto. Lo que nadie te enseña es dónde está tu propio dispositivo de seguridad cuando hace falta."
+      "pregunta": "Sabes dónde va el primero. ¿Y el último?",
+      "respuesta": "El seguimiento de corredores está resuelto. Lo que nadie te enseña es dónde anda tu propia gente: la que cierra, la que asiste y la que graba."
     },
     {
       "etiqueta": "Qué entra",
@@ -40,8 +40,9 @@
     },
     {
       "etiqueta": "El cierre",
-      "pregunta": "La escoba te dice por dónde va la carrera de verdad",
-      "respuesta": "Mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta. Deja de ser una conversación y pasa a ser una posición."
+      "pregunta": "Detrás del último va tu escoba",
+      "respuesta": "Así que no necesitas perseguir al último corredor: miras dónde está el cierre y ya sabes por dónde va el final de tu carrera.",
+      "nota": "Y mientras el cierre no pase un avituallamiento, ese avituallamiento no se levanta."
     },
     {
       "etiqueta": "Y en pantalla",
