@@ -252,6 +252,28 @@ recorrido mucho más ancho que alto sale como una tira y no se lee: el GT40
 de la Gurriana mide 0,16° de ancho por 0,03° de alto y no vale para esto.
 Un circular compacto como la Picota es lo que mejor encaja.
 
+### La simulación
+
+Con `--video` el mapa deja de ser una foto: la escoba recorre la traza, el
+pelotón va por delante, la moto cámara abre carrera y **los avituallamientos
+se apagan según pasa el cierre**, que es literalmente lo que cuenta el
+carrusel.
+
+```sh
+node plantillas/herramientas/mapa.mjs ruta.gpx mapa.png \
+  --avituallamientos="0.20,0.44,0.80" --video=out/simulacion.mp4 --segundos=11
+```
+
+Sale a 1080×1080, 20 fps, H.264. Los fotogramas no recargan la página: se
+le cambia el contenido al SVG y se vuelve a capturar, que con doscientos
+fotogramas la diferencia se nota mucho.
+
+La ambulancia no se mueve: es un puesto fijo, no un vehículo que siga a
+nadie.
+
+Hace falta el mismo ffmpeg con libx264 que el montador de vídeo — ver más
+abajo.
+
 El dibujo va en tres capas —trazas, pines y etiquetas— y las etiquetas van
 siempre las últimas: si se mezclan, un punto de corredor o un pin cae encima
 de una etiqueta y se come media palabra.

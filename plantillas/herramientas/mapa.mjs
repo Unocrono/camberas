@@ -13,7 +13,9 @@
  * estela, que es lo que hace que se lea «moviéndose».
  */
 
-import { readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile, writeFile, rm, mkdir, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -179,7 +181,7 @@ const etiqueta = (x, y, texto, color, r = 30) => {
   </g>`;
 };
 
-function construir(xy, acc) {
+function construir(xy, acc, t = null) {
   // Tres capas. Si se mezclan, un punto de corredor o un pin cae encima de una
   // etiqueta y se come media palabra: las etiquetas van siempre las últimas.
   const trazas = [], pines = [], etiquetas = [];
@@ -191,10 +193,12 @@ function construir(xy, acc) {
   // vuelve marrón (apuntado en docs/paleta-camberas.md). Para que se lea la
   // dirección, se estrecha hacia atrás en dos tramos.
   const cierre = VEHICULOS.find((v) => v.estela);
-  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierre.en - 0.13, 0), cierre.en))}"
+  // En simulación todo el mundo avanza; parado, cada uno se queda en su sitio
+  const cierreF = t === null ? cierre.en : 0.04 + t * 0.92;
+  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierreF - 0.13, 0), cierreF))}"
       fill="none" stroke="${cierre.color}" stroke-width="9"
       stroke-linecap="round" stroke-linejoin="round"/>`);
-  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierre.en - 0.06, 0), cierre.en))}"
+  trazas.push(`<polyline points="${linea(tramo(xy, acc, Math.max(cierreF - 0.06, 0), cierreF))}"
       fill="none" stroke="${cierre.color}" stroke-width="16"
       stroke-linecap="round" stroke-linejoin="round"/>`);
 
@@ -206,12 +210,16 @@ function construir(xy, acc) {
 
   for (const a of SUELTOS) {
     const [x, y] = enFraccion(xy, acc, a.f);
-    pines.push(pin(x, y, C.crema, 'vaso', 24));
-    if (a.nombre) etiquetas.push(etiqueta(x, y, a.nombre, C.crema, 24));
+    // Pasada la escoba, el avituallamiento se levanta: se apaga en el mapa
+    const levantado = t !== null && cierreF > a.f;
+    pines.push(`<g opacity="${levantado ? 0.22 : 1}">${pin(x, y, C.crema, 'vaso', 24)}</g>`);
+    if (a.nombre)
+      etiquetas.push(`<g opacity="${levantado ? 0.22 : 1}">${etiqueta(x, y, a.nombre, C.crema, 24)}</g>`);
   }
 
   // El pelotón, por delante del cierre: así se lee quién va detrás de quién
-  for (const f of CORREDORES) {
+  for (const [i, f0] of CORREDORES.entries()) {
+    const f = t === null ? f0 : Math.min(cierreF + 0.05 + i * 0.055, 0.995);
     const [x, y] = enFraccion(xy, acc, f);
     pines.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="11"
         fill="${C.crema}" stroke="${C.fondo}" stroke-width="5"/>`);
@@ -224,7 +232,13 @@ function construir(xy, acc) {
   pines.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="8" fill="${C.crema}"/>`);
 
   for (const v of VEHICULOS) {
-    const [x, y] = enFraccion(xy, acc, v.en);
+    let f = v.en;
+    if (t !== null) {
+      if (v.estela) f = cierreF;                                   // la escoba
+      else if (v.icono === 'camara') f = Math.min(cierreF + 0.55, 0.99); // delante
+      // la ambulancia es un puesto fijo: no se mueve
+    }
+    const [x, y] = enFraccion(xy, acc, f);
     pines.push(pin(x, y, v.color, v.icono));
     etiquetas.push(etiqueta(x, y, v.nombre, v.color));
   }
@@ -240,10 +254,14 @@ if (!entrada || !salida) {
   console.error(
     'Uso: node plantillas/herramientas/mapa.mjs <ruta.gpx> <salida.png> \\\n' +
     '       [--mostrar=avituallamiento,sanitario,control,cruce] [--sin-etiquetas]\\\n' +
-    '       [--avituallamientos="0.2,0.44,0.8"]  (fracciones, para trazas sin waypoints)'
+    '       [--avituallamientos="0.2,0.44,0.8"]  (fracciones, para trazas sin waypoints)\\\n' +
+    '       [--video=simulacion.mp4] [--segundos=10]  (la escoba recorriendo la traza)'
   );
   process.exit(1);
 }
+
+const video = opcion('video') || null;
+const segundos = Number(opcion('segundos') || 10);
 
 const grupos = (opcion('mostrar') || GRUPOS_POR_DEFECTO.join(',')).split(',').map((g) => g.trim());
 const conEtiquetas = !args.includes('--sin-etiquetas');
@@ -284,6 +302,23 @@ svg{display:block}
   ${construir(xy, acc)}
 </svg></body></html>`;
 
+/** Igual que en video.mjs: el ffmpeg de Playwright no trae libx264. */
+function buscarFfmpeg() {
+  if (process.env.FFMPEG_PATH) return process.env.FFMPEG_PATH;
+  const estatico = resolve(RAIZ, 'node_modules/ffmpeg-static/ffmpeg');
+  return existsSync(estatico) ? estatico : 'ffmpeg';
+}
+
+function ejecutar(bin, args) {
+  return new Promise((ok, mal) => {
+    const p = spawn(bin, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    let err = '';
+    p.stderr.on('data', (d) => { err += d; });
+    p.on('error', mal);
+    p.on('close', (c) => (c === 0 ? ok() : mal(new Error(err.slice(-1200)))));
+  });
+}
+
 const tmp = join(RAIZ, 'plantillas', `.mapa-${Date.now()}.html`);
 await writeFile(tmp, html);
 
@@ -305,6 +340,32 @@ try {
   const destino = resolve(process.cwd(), salida);
   await pagina.locator('svg').screenshot({ path: destino });
   console.log(`✔ ${salida} · ${LADO}×${LADO}`);
+
+  if (video) {
+    const fps = 20;
+    const total = Math.max(Math.round(segundos * fps), 2);
+    const carpeta = await mkdtemp(join(tmpdir(), 'mapa-'));
+    for (let i = 0; i < total; i++) {
+      // El SVG ya está montado: se le cambia el contenido en vez de recargar
+      // la página, que con doscientos fotogramas se nota mucho.
+      await pagina.evaluate(
+        (m) => { document.querySelector('svg').innerHTML = m; },
+        `<rect width="${LADO}" height="${LADO}" fill="${C.fondo}"/>` +
+          construir(xy, acc, i / (total - 1))
+      );
+      await pagina.locator('svg').screenshot({
+        path: join(carpeta, `f-${String(i).padStart(4, '0')}.png`),
+      });
+    }
+    await ejecutar(buscarFfmpeg(), [
+      '-y', '-framerate', String(fps), '-i', join(carpeta, 'f-%04d.png'),
+      '-c:v', 'libx264', '-preset', 'medium', '-crf', '20',
+      '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+      resolve(process.cwd(), video),
+    ]);
+    await rm(carpeta, { recursive: true, force: true });
+    console.log(`✔ ${video} · ${total} fotogramas · ${segundos} s`);
+  }
 } finally {
   await navegador.close();
   await rm(tmp, { force: true });
