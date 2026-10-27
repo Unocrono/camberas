@@ -248,6 +248,31 @@ Dos cosas que ya costaron una vuelta:
   `docs/paleta-camberas.md`). Para que se lea la dirección, se estrecha
   hacia atrás en dos tramos en vez de desvanecerse.
 
+## QR con el logo en el centro
+
+`plantillas/herramientas/qr.mjs` saca un QR en la identidad de Camberas:
+módulos en verde tinta sobre tarjeta crema, con el logo en el hueco central.
+
+```sh
+node plantillas/herramientas/qr.mjs https://camberas.com/organizadores capturas/qr.png
+```
+
+Va en corrección **H**, que tolera perder un 30 % del código: eso es lo que
+permite taparle el centro. El hueco es `LOGO_F` (0,23 del lado); por encima
+de 0,26 deja de leerse.
+
+**Oscuro sobre claro, no al revés.** Un QR en negativo lo rechazan bastantes
+lectores, y la gracia es que la gente lo escanee de la pantalla.
+
+El logo se lee de `plantillas/carrusel-faq.html` en vez de copiarlo otra
+vez: ya hay una copia en `src/components/CamberasLogo.tsx` y con tres sería
+cuestión de tiempo que se separasen.
+
+**Cada QR se decodifica antes de darlo por bueno.** Taparle el centro puede
+dejarlo ilegible sin que nada lo avise —el PNG sale precioso y no lo lee
+ningún móvil—, así que la herramienta lo lee y falla si no coincide con lo
+que se le pidió.
+
 ## Vídeo a partir de un carrusel
 
 `plantillas/herramientas/video.mjs` encadena los PNG ya renderizados en un
