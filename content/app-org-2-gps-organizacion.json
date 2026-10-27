@@ -9,12 +9,13 @@
     {
       "etiqueta": "El problema",
       "pregunta": "Sabes dónde va el primero. ¿Y el último?",
-      "respuesta": "Cada vehículo de organización lleva su móvil con la app, y sale en el mapa con su nombre y su color."
+      "respuesta": "El seguimiento de corredores está resuelto. El de tu propia gente —la que cierra, la que asiste y la que graba— no lo tiene nadie."
     },
     {
       "etiqueta": "Cómo se monta",
       "pregunta": "Un QR por vehículo y listo",
-      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana."
+      "respuesta": "Lo escanea el conductor y ese móvil ya es la escoba. Sale en el mapa con su nombre y su color, junto a la ambulancia y la moto cámara.",
+      "nota": "Ni altas, ni contraseñas, ni formar a nadie a las siete de la mañana."
     },
     {
       "etiqueta": "El cierre",
