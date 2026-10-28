@@ -1,0 +1,11 @@
+-- Loiu 500 Trail 2026: 3 inscritos nuevos de UNO (lista del 28-oct, tercera
+-- exportación), los tres en Martxa. Dorsales de UNO del 300 hacia abajo, a
+-- continuación del 254 y por orden de inscripción: 195270 → 253,
+-- 195271 → 252, 195274 → 251. external_id = ID de UNO, confirmados y
+-- pagados, DeLoiu = false (ninguno empadronado ni de Loiu).
+-- Criterio de dorsales del promotor (28-oct): RTS del 1 hacia arriba y UNO
+-- del 300 hacia abajo.
+-- Los datos personales no van al repositorio: se insertaron directamente
+-- con la consulta de Lovable.
+-- APLICADA el 28-oct-2026.
+SELECT 1;
