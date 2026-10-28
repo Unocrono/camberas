@@ -220,6 +220,19 @@ Consúltala antes de rehacer análisis:
   simple vista y cómo trabajar con el promotor. **Léelo antes de dar de alta o retocar una carrera.**
 - `docs/voluntarios-diseno.md`, `docs/gps-organizacion.md`, `docs/tokens-camberas.md`,
   `docs/traspaso-tokens-cronometrador.md`.
+- **`docs/libro-cronometraje.md`** — **la fuente de verdad de cómo cronometra Camberas**: alcance,
+  vocabulario (con la tabla de cada término), cómo entran las lecturas, reglas marcadas [PROD] /
+  [PR #11] / [PENDIENTE], el día de carrera paso a paso, clasificaciones, respaldo, plan de trabajo
+  y las decisiones del dueño con fecha. Antes de tocar cronometraje, léelo y mantenlo al día.
+- **`docs/camberas-app.md`** — la idea de Camberas.app: cinco apps (inscripciones, seguimiento,
+  cronometraje y resultados, grafismo, carreras y organización) separadas y unidas. Qué hay hoy de
+  cada una, qué las une (tokens, RPC, receptor) y qué se decide cuando se dé el paso.
+- **`docs/camberas-app-datos.md`** — la estructura de datos de Camberas.app: de qué app es cada tabla, el
+  núcleo común, la herramienta de conexión de Inscripciones (base y código propios), las reglas para que las
+  apps sigan unidas, el camino desde hoy y las decisiones pendientes del dueño. Léelo antes de mover tablas.
+- **`docs/analisis-wiclax.md`** — cómo cronometra Wiclax (modelo, reglas, tipos de prueba, día de
+  carrera) frente a Camberas, con las recomendaciones y el orden para reestructurar el cronometraje
+  y las preguntas al dueño. Léelo antes de tocar el motor o el modelo de lecturas/salidas.
 - **`receptor-ultra/README.md`** — lecturas del RFID Ultra sin Outreach: un programa Python en el
   VPS del streaming (212.227.159.123:11111, el mismo puerto que Outreach) que guarda, sube a
   Camberas (`ultra_registrar_lecturas`) y replica a otros servidores (pantalla admin «Receptor
