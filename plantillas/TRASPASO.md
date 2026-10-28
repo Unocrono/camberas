@@ -209,3 +209,117 @@ de decir qué quería con ellos. **No se analizaron, y no se pidió que se
 analizaran.** Hay que preguntar antes de suponer. Lo más plausible, y encaja
 con el punto 6: sacar de `following.json` una lista de organizadores a los
 que escribir directamente.
+
+---
+
+# Segunda tanda (27–28 de octubre)
+
+Lo de arriba es de agosto. Esto es lo que se hizo después, en la sesión en
+la nube «Carruseles de ayuda», y lo que queda abierto.
+
+## 1. Herramientas nuevas
+
+Todas en `plantillas/herramientas/`, documentadas en `plantillas/README.md`.
+
+**`mapa.mjs`** — dibuja el mapa de una carrera desde su GPX con la paleta de
+Camberas: traza, avituallamientos, vehículos de organización con su color y
+el pelotón, con el cierre y su estela. No es un pantallazo de Mapbox a
+propósito: el mapa real mete su gris y su interfaz y a tamaño de Instagram
+no se lee nada.
+
+- Lee los puntos de los **`<wpt>` del propio GPX**, agrupados por su `<sym>`
+  (`Picnic Area`/`Drinking Water` → avituallamiento, `Pharmacy` → sanitario,
+  `Information` → control). Para trazas sin waypoints, `--avituallamientos`
+  por fracción del recorrido.
+- **Si la traza trae horas, el avance va al ritmo real grabado.** La de la
+  Picota son 3624 posiciones con su hora, una por segundo, que es lo que
+  emite la app: el 50 % del vídeo es donde el corredor iba por la mitad de
+  su carrera, no por la mitad de los kilómetros.
+- `--video` saca la **simulación**: la escoba recorre la traza y los
+  avituallamientos se apagan según pasa. `--formato=reel|feed` la envuelve
+  con marca, titular y pie.
+
+**`qr.mjs`** — QR de marca con el logo en el centro, corrección H. **Se
+decodifica a sí mismo antes de darlo por bueno**: taparle el centro puede
+dejarlo ilegible sin que nada avise.
+
+**`video.mjs`** — ganó `--ritmo=N` y `--sustituir=N:clip.mp4`, que cambia un
+slide por un vídeo. Así el reel del cierre abre con la simulación en el
+sitio de la portada.
+
+**`demo/`** — graba la app de organizador con **datos simulados**: sesión
+sembrada en localStorage, `has_role` que contesta que sí a organizer, y las
+tablas y RPCs servidas desde `datos.mjs`. `sonda.mjs` apunta lo que pide
+cada pantalla, para saber qué falta por simular.
+
+## 2. Decisiones de contenido
+
+- **No se vende cronometraje** (27-oct). Retirados a `content/retirados/`:
+  `plataforma-5`, `organizadores-5` y `diferencial-2` (que era el plan Crono
+  Profesional de 700 €). `diferencial-1` y `diferencial-3` reescritos para
+  quitárselo.
+- **La comisión existe: 4 % + pasarela**, según `OrganizersLanding.tsx`.
+  Queda cerrado el pendiente que venía de agosto: «sin comisión» **no se
+  puede escribir**.
+- **`plataforma-1` reescrito** sobre `docs/que-es-camberas.md` (18-oct).
+- Series nuevas: `gpx-1/2` (la pareja con humor), `diferencial-1/3`,
+  `app-org-1/2/3`.
+- `*palabra*` en `antetitulo` o `titulo` resalta en portada. La portada
+  tiene además su propio tope de escala (1.12), así que todas comparten
+  tamaño máximo de titular.
+
+## 3. Piezas aprobadas
+
+En `piezas/`, con su receta en `piezas/LEEME.md`. Ahí está el reel del
+cierre en los dos formatos. **`out/` está ignorado por git**: lo que no se
+copie a `piezas/` muere con el contenedor.
+
+## 4. Lo que bloqueó esta sesión (y en local NO bloquea)
+
+La sesión corría en un contenedor en la nube, y su política de red rechaza:
+
+- **`supabase.co`** — de ahí que la app de organizador se grabara con datos
+  simulados y no con la carrera demo real.
+- **`api.mapbox.com`** — la pantalla de Seguimiento GPS monta un mapa de
+  Mapbox cuyo token sale de una Edge Function de Supabase. Sin los dos, esa
+  pantalla sale gris.
+- **`instagram.com`**.
+
+**En una sesión local esto desaparece.** Con Supabase alcanzable se puede
+grabar `/org` con la carrera demo de verdad (credenciales públicas en
+`supabase/seeds/carrera_demo.sql`: `organizadordemo@camberas.com` / `1234567`).
+
+## 5. Trampas del entorno
+
+- `npm run dev` falla: `vite.config.ts` pide `host: "::"` (IPv6). Arrancar
+  con `npm run dev -- --host 127.0.0.1`.
+- Playwright: `CHROMIUM_PATH=/opt/pw-browsers/chromium` en contenedor.
+- Vídeo: hace falta `ffmpeg-static` (el de Playwright no trae libx264).
+- **`xfade` exige entradas igualadas y `fps` tiene que ir EL ÚLTIMO** en la
+  cadena de filtros; puesto antes, el enlace pierde la tasa y ffmpeg corta
+  con «current rate of 1/0 is invalid».
+- **Un clip sustituido hay que descontarle el fundido**, no sumárselo: si no
+  se acaba cuando empieza la transición y el vídeo sale cortado. Pasó: el
+  reel salía con la simulación de 11 s y nada más. Por eso `video.mjs` ahora
+  mide la duración **del fichero**, no la del cálculo.
+- `recordVideo` de Playwright **no escala la página**: se graba al tamaño
+  del móvil y se sube con ffmpeg.
+
+## 6. Lo que queda abierto
+
+1. **Imágenes de carrera.** El cliente tiene la unidad **Oriko** con miles
+   de vídeos. Para `plataforma-1` hacen falta: plano abierto de carrera,
+   mesa de dorsales, alguien de organización con el móvil en el monte, y un
+   corredor en cresta para portada. Horizontales, mínimo 1080 de ancho,
+   mejor oscuras (van sobre verde tinta).
+2. **El reel de `/org`.** Hay un primer recorrido de 30,8 s grabado, pero le
+   falta guion, marco de marca y rellenar los datos de las pantallas que
+   salen vacías (pasar `sonda.mjs` por cada una).
+3. **Posiciones reales en `/org`.** En local se puede: Supabase alcanzable.
+4. **Reel del cierre**: el mapa sale dos veces (simulación + quieto en el
+   slide), 29,5 s es largo, y las etiquetas del cierre y la ambulancia se
+   cruzan un par de segundos.
+5. **La rama va ~200 commits por detrás de `main`.** Merge antes de abrir
+   el PR a revisión.
+6. Sigue sin decidirse si `organizadores-6-resultados` también sobra, al
+   vivir de los parciales.
