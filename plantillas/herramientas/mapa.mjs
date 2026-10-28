@@ -48,11 +48,15 @@ const LADO = 1080;
 const MARGEN = 96;
 
 /*
- * Vertical para reel/story: 1080×1920 con el mapa arriba, el titular debajo y
- * el pie. Instagram pinta su interfaz ENCIMA del vídeo, unos 250 px arriba y
- * otros tantos abajo, así que nada importante sale de la franja 280–1640.
+ * Marcos con marca, titular y pie. En story Instagram pinta su interfaz
+ * ENCIMA del vídeo, unos 250 px arriba y otros tantos abajo, así que nada
+ * importante sale de la franja 280–1640; en feed no hace falta ese respiro.
  */
-const REEL = { ancho: 1080, alto: 1920, mapa: 860, mapaY: 640 };
+const MARCOS = {
+  reel: { ancho: 1080, alto: 1920, mapa: 860, mapaY: 640, marcaY: 360 },
+  feed: { ancho: 1080, alto: 1350, mapa: 700, mapaY: 480, marcaY: 170 },
+};
+let REEL = MARCOS.reel;
 
 /** Posición de cada cosa, en fracción del recorrido (0 = salida, 1 = meta). */
 /*
@@ -340,11 +344,12 @@ function marcoReel(mapaSvg, titulo, pie, marcaSvg) {
   const lineas = partir(titulo.toUpperCase());
   const interlinea = 88;
   const yTitulo = REEL.mapaY - 70 - (lineas.length - 1) * interlinea;
+  const yMarca = REEL.marcaY;
 
   return `
   <rect width="${REEL.ancho}" height="${REEL.alto}" fill="${C.fondo}"/>
-  <svg x="${MARGEN}" y="304" width="74" height="74">${marcaSvg}</svg>
-  <text x="${MARGEN + 100}" y="360" font-family="Archivo Black" font-size="46"
+  <svg x="${MARGEN}" y="${yMarca - 56}" width="74" height="74">${marcaSvg}</svg>
+  <text x="${MARGEN + 100}" y="${yMarca}" font-family="Archivo Black" font-size="46"
         letter-spacing="4" fill="${C.crema}">CAMBERAS</text>
   ${lineas.map((l, i) => `
   <text x="${MARGEN}" y="${yTitulo + i * interlinea}" font-family="Archivo Black"
@@ -367,14 +372,22 @@ if (!entrada || !salida) {
     '       [--mostrar=avituallamiento,sanitario,control,cruce] [--sin-etiquetas]\\\n' +
     '       [--avituallamientos="0.2,0.44,0.8"]  (fracciones, para trazas sin waypoints)\\\n' +
     '       [--video=simulacion.mp4] [--segundos=10]  (la escoba recorriendo la traza)\\\n' +
-    '       [--reel] [--titulo="..."] [--pie="..."]    (1080×1920 con titular)'
+    '       [--formato=reel|feed] [--titulo="..."] [--pie="..."]  (con marca y titular)'
   );
   process.exit(1);
 }
 
 const video = opcion('video') || null;
 const segundos = Number(opcion('segundos') || 10);
-const reel = args.includes('--reel');
+const formato = opcion('formato') || (args.includes('--reel') ? 'reel' : '');
+const reel = formato === 'reel' || formato === 'feed';
+if (reel) {
+  if (!MARCOS[formato]) {
+    console.error(`✖ formato "${formato}" no válido. Usa reel o feed.`);
+    process.exit(1);
+  }
+  REEL = MARCOS[formato];
+}
 const titulo = opcion('titulo') || '¿Dónde está el cierre?';
 const pie = opcion('pie') || 'GPS Organización · camberas.com';
 

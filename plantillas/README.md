@@ -281,7 +281,8 @@ node plantillas/herramientas/mapa.mjs ruta.gpx mapa.png \
   --avituallamientos="0.20,0.44,0.80" --video=out/simulacion.mp4 --segundos=11
 ```
 
-Con `--reel` sale en **1080×1920** con la marca, el titular y el pie, todo
+Con `--formato=reel` sale en **1080×1920** y con `--formato=feed` en
+**1080×1350** con la marca, el titular y el pie, todo
 dentro de la franja 280–1640 que Instagram no tapa con su interfaz:
 
 ```sh
