@@ -1,38 +1,53 @@
 {
   "audiencia": "organizadores",
   "marca": "camberas",
-  "tipo": "manual",
-  "antetitulo": "La plataforma",
-  "titulo": "¿Qué es Camberas?",
-  "web": "camberas.com/planes",
+  "tipo": "faq",
+  "antetitulo": "¿Qué es *Camberas*?",
+  "titulo": "Tu carrera entera, en un sitio",
+  "web": "camberas.com/organizadores",
   "slides": [
     {
-      "etiqueta": "En corto",
-      "pregunta": "Todo lo que necesita una carrera",
-      "respuesta": "Documentación oficial y ETRAZA de la DGT, inscripciones, cronometraje, seguimiento GPS, resultados, foto y streaming. En un solo sitio y hablándose entre sí."
+      "etiqueta": "En una línea",
+      "pregunta": "Todo el ciclo de una carrera de trail",
+      "respuesta": "Desde que abres inscripciones hasta que publicas resultados. Y lo llevas tú: es autogestionable, no hay que pedir cita para cambiar una tarifa."
     },
     {
-      "etiqueta": "De dónde sale",
-      "pregunta": "De cronometrar carreras, no de un despacho",
-      "respuesta": "Detrás está UNO Cronometraje. Está pensado por gente que ha pasado frío en una meta a las siete de la mañana."
+      "etiqueta": "Lo primero",
+      "pregunta": "Tu carrera tiene su propia web",
+      "respuesta": "Nos das el cartel, el reglamento y los GPX de los recorridos. De ahí sale la web de la prueba, con la inscripción dentro.",
+      "nota": "No una ficha en el listado de otro: la web de tu carrera."
     },
     {
-      "etiqueta": "Lo que te quita",
-      "pregunta": "Cuadrar cinco herramientas a la vez",
-      "respuesta": "La hoja de inscripciones, el Excel de dorsales, el grupo de WhatsApp de los cronometradores y el PDF de resultados. Todo eso pasa a ser una sola cosa."
+      "etiqueta": "El dinero",
+      "pregunta": "Se cobra ahí mismo",
+      "respuesta": "Inscripción y pago con el motor de Camberas. El corredor no salta a un formulario de terceros a mitad de camino."
     },
     {
-      "etiqueta": "Para quién",
-      "pregunta": "Desde la salida del domingo hasta grandes eventos",
-      "respuesta": "Una grupetta entre amigos. Una quedada, sea la previa de una carrera o un evento propio de menos de 50 participantes. O una carrera cronometrada, desde el dorsal hasta el streaming.",
-      "nota": "Se paga por evento, no por corredor."
+      "etiqueta": "El control",
+      "pregunta": "Participantes, tarifas, plazos y listas de espera",
+      "respuesta": "En un solo panel. Sin cuadrar a mano lo que te manda cada proveedor en su propia hoja."
     },
     {
-      "etiqueta": "Desde el primer día",
-      "pregunta": "Con app propia, no con una hoja de cálculo",
-      "respuesta": "Camberas Org se instala en el móvil como una app más. Inscripciones, documentación, voluntarios y resultados, desde que creas la carrera hasta que publicas los tiempos.",
-      "nota": "Y el día de la prueba, los cronometradores entran escaneando un QR."
+      "etiqueta": "Los dorsales",
+      "pregunta": "Diseñados y numerados, listos para imprimir",
+      "respuesta": "Salen del mismo sitio donde viven las inscripciones, así que el 212 es el 212 en la web, en la mesa de recogida y en el mapa."
+    },
+    {
+      "etiqueta": "Los papeles",
+      "pregunta": "Permisos, seguros y la traza ETRAZA",
+      "respuesta": "Cada uno con su fecha y su estado. Es lo que de verdad tumba una carrera, y suele estar en el correo de alguien."
+    },
+    {
+      "etiqueta": "El día de la prueba",
+      "pregunta": "Ves dónde está todo el mundo",
+      "respuesta": "Los corredores y también tu propia gente: la escoba, la ambulancia y la cámara, cada uno en el mapa con su nombre."
+    },
+    {
+      "etiqueta": "Y en el bolsillo",
+      "pregunta": "La llevas en el móvil",
+      "respuesta": "Camberas Org se instala como una app. Marcas los puntos pisándolos en el monte, resuelves la mesa de dorsales y das de alta al que aparece sin inscribir.",
+      "nota": "Te avisa en el móvil cuando entra una inscripción pagada."
     }
   ],
-  "cta": "Mira qué plan te encaja"
+  "cta": "Monta tu carrera en Camberas"
 }
