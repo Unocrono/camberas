@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Trash2, RefreshCw, Plus, Pencil } from "lucide-react";
+import { Loader2, Search, Trash2, RefreshCw, Plus, Pencil, History } from "lucide-react";
+import {
+  type AccesoUsuario,
+  type UltimoAcceso,
+  DIAS_SESION_EN_USO,
+  describirDispositivo,
+  fechaHoraMadrid,
+  haceCuanto,
+  sesionEnUso,
+  textoIp,
+} from "@/lib/accesos";
+
+// Las funciones del registro de accesos aún no están en los tipos generados
+type RpcSinTipos = (
+  fn: string,
+  args?: Record<string, unknown>,
+) => Promise<{ data: unknown; error: { message: string } | null }>;
+const rpcAccesos = supabase.rpc.bind(supabase) as unknown as RpcSinTipos;
 
 interface UserWithProfile {
   id: string;
@@ -48,6 +65,9 @@ interface UserWithProfile {
   phone: string | null;
   created_at: string;
   roles: string[];
+  // Registro de accesos (null si no ha entrado nunca o no se pudo consultar)
+  ultimo_acceso: string | null;
+  accesos: number;
 }
 
 interface UserFormData {
@@ -92,6 +112,15 @@ export function UsersManagement() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [formData, setFormData] = useState<UserFormData>(initialFormData);
+  // Registro de accesos
+  const [accesosOk, setAccesosOk] = useState(true);
+  const [orden, setOrden] = useState<"registro" | "acceso">("registro");
+  const [usuarioAccesos, setUsuarioAccesos] = useState<UserWithProfile | null>(null);
+  const [historial, setHistorial] = useState<AccesoUsuario[] | null>(null);
+  const [historialError, setHistorialError] = useState<string | null>(null);
+  // Turno de la última petición de historial: descarta respuestas tardías,
+  // también las de una petición anterior del mismo usuario
+  const historialTurno = useRef(0);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,6 +163,20 @@ export function UsersManagement() {
         console.log("Could not fetch user emails");
       }
 
+      // Último acceso de cada usuario. Si falla, la lista sale igual sin él.
+      const accesoMap: Record<string, UltimoAcceso> = {};
+      try {
+        const { data: ultimos, error: accesosError } = await rpcAccesos("ultimos_accesos");
+        if (accesosError) throw accesosError;
+        (ultimos as UltimoAcceso[] | null)?.forEach((u) => {
+          accesoMap[u.user_id] = u;
+        });
+        setAccesosOk(true);
+      } catch (e) {
+        console.error("No se pudo leer el registro de accesos:", e);
+        setAccesosOk(false);
+      }
+
       const userList: UserWithProfile[] = (profiles || []).map(profile => {
         const userRoles = roles
           ?.filter(r => r.user_id === profile.id)
@@ -152,6 +195,8 @@ export function UsersManagement() {
           phone: profile.phone,
           created_at: profile.created_at,
           roles: userRoles,
+          ultimo_acceso: accesoMap[profile.id]?.ultimo_acceso ?? null,
+          accesos: accesoMap[profile.id]?.accesos ?? 0,
         };
       });
 
@@ -324,6 +369,28 @@ export function UsersManagement() {
     setShowCreateDialog(true);
   };
 
+  const abrirHistorial = async (user: UserWithProfile) => {
+    const turno = ++historialTurno.current;
+    setUsuarioAccesos(user);
+    setHistorial(null);
+    setHistorialError(null);
+    try {
+      const { data, error } = await rpcAccesos("accesos_usuario", { p_user_id: user.id, p_limite: 100 });
+      if (historialTurno.current !== turno) return;
+      if (error) throw error;
+      setHistorial((data as AccesoUsuario[] | null) ?? []);
+    } catch (e) {
+      if (historialTurno.current !== turno) return;
+      console.error("No se pudo leer el historial de accesos:", e);
+      setHistorialError("No se pudo leer el historial de accesos. Prueba otra vez en un momento.");
+    }
+  };
+
+  const cerrarHistorial = () => {
+    historialTurno.current++;
+    setUsuarioAccesos(null);
+  };
+
   const filteredUsers = users.filter(user => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -332,6 +399,19 @@ export function UsersManagement() {
       user.last_name?.toLowerCase().includes(searchLower)
     );
   });
+
+  // Por fecha de alta (como viene) o por último acceso, los que nunca han
+  // entrado al final
+  const instanteAcceso = (u: UserWithProfile) => (u.ultimo_acceso ? Date.parse(u.ultimo_acceso) : 0);
+  const usuariosVisibles =
+    orden === "acceso"
+      ? [...filteredUsers].sort((a, b) => instanteAcceso(b) - instanteAcceso(a))
+      : filteredUsers;
+
+  const nombreDe = (user: UserWithProfile) =>
+    user.first_name || user.last_name
+      ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
+      : null;
 
   const getRoleBadgeVariant = (role: string) => {
     if (role === "admin") return "destructive";
@@ -363,15 +443,32 @@ export function UsersManagement() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por email o nombre..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por email o nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Select value={orden} onValueChange={(v) => setOrden(v as "registro" | "acceso")}>
+          <SelectTrigger className="sm:w-[220px]" aria-label="Ordenar usuarios">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="registro">Últimos registrados</SelectItem>
+            <SelectItem value="acceso">Último acceso</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {!accesosOk && (
+        <p className="text-sm text-muted-foreground">
+          No se pudo leer el registro de accesos: la columna «Último acceso» sale vacía. Pulsa Actualizar para reintentar.
+        </p>
+      )}
 
       <div className="border rounded-lg">
         <Table>
@@ -382,25 +479,24 @@ export function UsersManagement() {
               <TableHead>Teléfono</TableHead>
               <TableHead>Roles</TableHead>
               <TableHead>Fecha registro</TableHead>
-              <TableHead className="w-[100px]">Acciones</TableHead>
+              <TableHead title="Puede ir hasta una hora por detrás: se apunta cuando el navegador renueva la sesión">
+                Último acceso
+              </TableHead>
+              <TableHead className="w-[140px]">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredUsers.length === 0 ? (
+            {usuariosVisibles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   No se encontraron usuarios
                 </TableCell>
               </TableRow>
             ) : (
-              filteredUsers.map((user) => (
+              usuariosVisibles.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.email}</TableCell>
-                  <TableCell>
-                    {user.first_name || user.last_name
-                      ? `${user.first_name || ""} ${user.last_name || ""}`.trim()
-                      : "—"}
-                  </TableCell>
+                  <TableCell>{nombreDe(user) ?? "—"}</TableCell>
                   <TableCell>{user.phone || "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -418,8 +514,33 @@ export function UsersManagement() {
                   <TableCell>
                     {new Date(user.created_at).toLocaleDateString("es-ES")}
                   </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {!accesosOk ? (
+                      "—"
+                    ) : user.ultimo_acceso ? (
+                      <button
+                        type="button"
+                        onClick={() => abrirHistorial(user)}
+                        title={fechaHoraMadrid(user.ultimo_acceso)}
+                        className="text-left hover:underline"
+                      >
+                        {haceCuanto(user.ultimo_acceso)}
+                      </button>
+                    ) : (
+                      <span className="text-muted-foreground">Nunca</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => abrirHistorial(user)}
+                        title="Ver accesos"
+                        aria-label="Ver accesos"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -447,8 +568,98 @@ export function UsersManagement() {
       </div>
 
       <p className="text-sm text-muted-foreground">
-        Total: {filteredUsers.length} usuarios
+        Total: {usuariosVisibles.length} usuarios
       </p>
+
+      {/* Historial de accesos */}
+      <Dialog open={!!usuarioAccesos} onOpenChange={(open) => { if (!open) cerrarHistorial(); }}>
+        <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Accesos</DialogTitle>
+            <DialogDescription>
+              {usuarioAccesos && (
+                <>
+                  {nombreDe(usuarioAccesos) ? `${nombreDe(usuarioAccesos)} · ` : ""}
+                  {usuarioAccesos.email}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {historialError ? (
+            <div className="space-y-3">
+              <p className="text-sm text-destructive">{historialError}</p>
+              <Button variant="outline" size="sm" onClick={() => usuarioAccesos && abrirHistorial(usuarioAccesos)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reintentar
+              </Button>
+            </div>
+          ) : historial === null ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : historial.length === 0 ? (
+            <p className="py-4 text-sm text-muted-foreground">
+              {usuarioAccesos?.ultimo_acceso
+                ? `No hay inicios de sesión guardados. Último acceso conocido: ${fechaHoraMadrid(usuarioAccesos.ultimo_acceso)}.`
+                : "No ha iniciado sesión nunca."}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {historial.map((a, i) => {
+                const siguioActivo =
+                  Date.parse(a.ultima_actividad) - Date.parse(a.inicio) > 2 * 60_000;
+                const ip = textoIp(a);
+                return (
+                  <li key={`${a.inicio}-${i}`} className="py-3 text-sm space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{fechaHoraMadrid(a.inicio)}</span>
+                      {sesionEnUso(a) ? (
+                        <Badge variant="secondary">Sesión abierta</Badge>
+                      ) : a.abierta ? (
+                        <Badge variant="outline" className="text-muted-foreground">Sin cerrar</Badge>
+                      ) : null}
+                    </div>
+                    {a.origen === "historico" ? (
+                      <p className="text-muted-foreground">
+                        Último inicio de sesión anterior al registro, sin dispositivo ni IP.
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground" title={a.user_agent ?? undefined}>
+                        {describirDispositivo(a.user_agent)}
+                        {ip ? ` · ${ip}` : ""}
+                      </p>
+                    )}
+                    {siguioActivo && (
+                      <p className="text-muted-foreground">
+                        Última actividad: {haceCuanto(a.ultima_actividad)} ({fechaHoraMadrid(a.ultima_actividad)})
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+
+          {historial && usuarioAccesos && usuarioAccesos.accesos > historial.length && (
+            <p className="text-xs text-muted-foreground">
+              Se ven los {historial.length} más recientes de {usuarioAccesos.accesos}.
+            </p>
+          )}
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>Se guarda cada inicio de sesión desde el 28 de octubre de 2026.</p>
+            <p>
+              La actividad se apunta cuando el navegador renueva la sesión, más o menos cada hora
+              con Camberas abierto, así que puede ir hasta una hora por detrás.
+            </p>
+            <p>
+              «Sesión abierta»: no se ha cerrado y se ha usado en los últimos {DIAS_SESION_EN_USO} días.
+              «Sin cerrar»: no se cerró, pero lleva más tiempo sin usarse; el dispositivo puede haberla
+              perdido.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create User Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
