@@ -107,10 +107,25 @@ function leerWaypoints(xml, grupos) {
     .filter((w) => w.cat && grupos.includes(w.cat.grupo));
 }
 
+/*
+ * Se lee también la hora de cada punto. Una traza grabada con la app trae
+ * una posición por segundo; con esas horas el recorrido se puede reproducir
+ * al ritmo REAL —frenando en las subidas, soltando en las bajadas— en vez de
+ * a velocidad constante inventada.
+ */
 function leerTraza(xml) {
-  const pts = [...xml.matchAll(/<trkpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"/g)]
-    .map((m) => ({ lat: +m[1], lon: +m[2] }));
-  if (pts.length < 2) throw new Error('el GPX no trae traza (menos de dos trkpt)');
+  const pts = [...xml.matchAll(/<trkpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"[^>]*>([\s\S]*?)<\/trkpt>/g)]
+    .map((m) => {
+      const t = (m[3].match(/<time>([^<]+)<\/time>/) || [])[1];
+      return { lat: +m[1], lon: +m[2], t: t ? Date.parse(t) : null };
+    });
+  if (pts.length < 2) {
+    // Algunos GPX cierran el trkpt en la misma etiqueta
+    const sueltos = [...xml.matchAll(/<trkpt[^>]*lat="([-\d.]+)"[^>]*lon="([-\d.]+)"/g)]
+      .map((m) => ({ lat: +m[1], lon: +m[2], t: null }));
+    if (sueltos.length >= 2) return sueltos;
+    throw new Error('el GPX no trae traza (menos de dos trkpt)');
+  }
   return pts;
 }
 
@@ -138,6 +153,20 @@ function proyectar(pts) {
   return { xy: pts.map((p) => proy(p.lat, p.lon)), proy };
 }
 
+/*
+ * Avance por el TIEMPO grabado. Con las horas de la traza, el 50 % de la
+ * simulación es el punto donde el corredor iba a la mitad de su carrera, no
+ * a la mitad de los kilómetros: en una subida el marcador se arrastra y en
+ * una bajada se suelta, como pasó de verdad.
+ */
+function porTiempo(pts) {
+  const con = pts.filter((p) => p.t !== null);
+  if (con.length < pts.length * 0.9) return null;  // traza sin horas fiables
+  const t0 = con[0].t, span = con[con.length - 1].t - t0;
+  if (!(span > 0)) return null;
+  return pts.map((p) => (p.t === null ? 0 : (p.t - t0) / span));
+}
+
 /** Longitudes acumuladas, para poder situar algo "al 26 % del recorrido". */
 function acumulado(xy) {
   const acc = [0];
@@ -148,7 +177,18 @@ function acumulado(xy) {
   return acc;
 }
 
+/*
+ * Si la traza trae horas, la fracción es de tiempo; si no, de distancia.
+ * RELOJ lo rellena el CLI una sola vez.
+ */
+let RELOJ = null;
+
 const enFraccion = (xy, acc, f) => {
+  if (RELOJ) {
+    let i = RELOJ.findIndex((v) => v >= f);
+    if (i < 1) i = 1;
+    return xy[i];
+  }
   const objetivo = acc[acc.length - 1] * f;
   let i = acc.findIndex((d) => d >= objetivo);
   if (i < 1) i = 1;
@@ -157,6 +197,11 @@ const enFraccion = (xy, acc, f) => {
 
 /** Trozo de traza entre dos fracciones: la estela del cierre. */
 function tramo(xy, acc, desde, hasta) {
+  if (RELOJ) {
+    const a = RELOJ.findIndex((v) => v >= desde);
+    const b = RELOJ.findIndex((v) => v >= hasta);
+    return xy.slice(Math.max(a, 0), Math.max(b, 1) + 1);
+  }
   const total = acc[acc.length - 1];
   const a = acc.findIndex((d) => d >= total * desde);
   const b = acc.findIndex((d) => d >= total * hasta);
@@ -348,8 +393,14 @@ const grupos = (opcion('mostrar') || GRUPOS_POR_DEFECTO.join(',')).split(',').ma
 const conEtiquetas = !args.includes('--sin-etiquetas');
 
 const xml = await readFile(resolve(process.cwd(), entrada), 'utf8');
-const { xy, proy } = proyectar(leerTraza(xml));
+const traza = leerTraza(xml);
+const { xy, proy } = proyectar(traza);
 const acc = acumulado(xy);
+
+RELOJ = args.includes('--sin-tiempo') ? null : porTiempo(traza);
+console.log(RELOJ
+  ? `  tiempo real: ${traza.length} posiciones grabadas, el avance va a su ritmo`
+  : '  la traza no trae horas: el avance va a ritmo constante');
 
 PUNTOS = leerWaypoints(xml, grupos).map((w) => {
   const [x, y] = proy(w.lat, w.lon);

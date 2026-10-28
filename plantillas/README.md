@@ -252,6 +252,23 @@ recorrido mucho más ancho que alto sale como una tira y no se lee: el GT40
 de la Gurriana mide 0,16° de ancho por 0,03° de alto y no vale para esto.
 Un circular compacto como la Picota es lo que mejor encaja.
 
+### Posiciones reales, no inventadas
+
+Si la traza trae la hora de cada punto —una grabada con la app trae **una
+posición por segundo**— el avance va a su **ritmo real**: el 50 % de la
+simulación es donde el corredor iba por la mitad de su carrera, no por la
+mitad de los kilómetros. En las subidas el marcador se arrastra y en las
+bajadas se suelta, como pasó de verdad.
+
+La herramienta lo dice al arrancar:
+
+```
+  tiempo real: 3624 posiciones grabadas, el avance va a su ritmo
+```
+
+Si la traza no trae horas —las rutas dibujadas y exportadas no suelen
+traerlas— avisa y vuelve al ritmo constante. `--sin-tiempo` lo fuerza.
+
 ### La simulación
 
 Con `--video` el mapa deja de ser una foto: la escoba recorre la traza, el
