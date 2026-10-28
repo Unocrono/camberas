@@ -20,7 +20,6 @@ import { TeamsManagement } from "@/components/admin/TeamsManagement";
 import { RaceDocumentsManagement } from "@/components/admin/RaceDocumentsManagement";
 import { ResultsManagement } from "@/components/admin/ResultsManagement";
 import { SplitTimesManagement } from "@/components/admin/SplitTimesManagement";
-import { EdgeFunctionsManagement } from "@/components/admin/EdgeFunctionsManagement";
 import OrganizerFaqsManagement from "@/components/admin/OrganizerFaqsManagement";
 import HelpContentManagement from "@/components/admin/HelpContentManagement";
 import RaceFaqsManagement from "@/components/admin/RaceFaqsManagement";
@@ -160,7 +159,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "receptor-ultra"];
+  const viewsWithoutRaceSelector = ["races", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "receptor-ultra"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -353,7 +352,6 @@ const AdminDashboard = () => {
                 </div>
               )
             )}
-            {currentView === "edge-functions" && <EdgeFunctionsManagement />}
             {currentView === "users" && <UsersManagement />}
             {currentView === "roadbook-item-types" && <RoadbookItemTypesManagement />}
             {currentView === "contact-settings" && <ContactSettingsManagement />}
