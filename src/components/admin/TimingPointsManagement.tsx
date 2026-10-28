@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Trash2, MapPin, Pencil, Map as MapIcon, Navigation, GripVertical, Loader2, QrCode, Smartphone } from "lucide-react";
-import QRCode from "qrcode";
+import { qrConLogo } from "@/lib/qrConLogo";
 import { rpc } from "@/lib/timingToken";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -456,14 +456,14 @@ export function TimingPointsManagement({ selectedRaceId }: TimingPointsManagemen
       tok = nuevo;
     }
     setQrDialogPoint(point);
-    setQrDataUrl(await QRCode.toDataURL(enlacePuesto(tok.token), { width: 360, margin: 1 }));
+    setQrDataUrl(await qrConLogo(enlacePuesto(tok.token)));
   };
 
   const regenerarToken = async () => {
     if (!qrDialogPoint) return;
     const tok = await generarToken(qrDialogPoint);
     if (tok) {
-      setQrDataUrl(await QRCode.toDataURL(enlacePuesto(tok.token), { width: 360, margin: 1 }));
+      setQrDataUrl(await qrConLogo(enlacePuesto(tok.token)));
       toast.success("Token regenerado — el anterior queda revocado");
     }
   };

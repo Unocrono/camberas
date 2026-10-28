@@ -44,6 +44,13 @@ query o texto suelto).
 del sistema en vez de con la app, llega a una página que le explica qué hacer,
 en lugar de a un texto sin sentido.
 
+**Todos los QR llevan el logo de Camberas en el centro**, con corrección de
+errores H para que el logo no rompa la lectura. En la web se generan solo con
+`qrConLogo` (`src/lib/qrConLogo.ts`; ESLint no deja importar `qrcode` en otro
+sitio) y en los correos con la edge function `qr-dorsal`, que compone el mismo
+logo dentro del PNG. Norma desde el 28-oct-2026, cuando un correo de prueba
+salió con el QR pelado.
+
 | Quién | Destino del QR | Dónde se genera |
 |---|---|---|
 | Corredor | `/activar.html?t=` | herramienta de dorsales / panel |

@@ -1,6 +1,11 @@
 /**
- * QR con el logo de Camberas Track en el centro (como los impresos).
+ * QR con el logo de Camberas en el centro (como los impresos).
  * Corrección de errores H para que el logo no rompa la lectura.
+ *
+ * NORMA DE LA CASA (28-oct-2026): todos los QR llevan el logo. En la web se
+ * generan solo con esta función (ESLint no deja importar `qrcode` en otro
+ * sitio); en los correos lo hace la edge function qr-dorsal, que compone el
+ * mismo logo dentro del PNG con las mismas proporciones.
  */
 import QRCode from "qrcode";
 

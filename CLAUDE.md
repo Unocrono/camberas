@@ -152,6 +152,9 @@ se reparte como QR, y el dispositivo que lo escanea *es* ese puesto. Sin altas n
   regex de UUID suelto — antes había cuatro copias que aceptaban cosas distintas.
 - Los QR llevan **URL, no el UUID pelado** (`/activar.html?t=`, `/timing?t=`), para que quien
   escanee con la cámara del sistema llegue a una página que le explica qué hacer.
+- **Todos los QR llevan el logo de Camberas en el centro** (norma del 28-oct-2026): en la web
+  solo con `qrConLogo` (`src/lib/qrConLogo.ts`; ESLint prohíbe importar `qrcode` fuera de ahí) y
+  en los correos con la edge function `qr-dorsal`, que lo compone dentro del PNG. Corrección H.
 - Vincular/desvincular: RPCs `link_gps_token` (devuelve `needs_transfer` si el token ya estaba en
   otro móvil) y `unlink_gps_token`.
 - **Regenerar un QR revoca el anterior** y deja huérfano al dispositivo que lo tuviera. Los
