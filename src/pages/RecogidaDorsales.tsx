@@ -2,7 +2,8 @@
  * Recogida de dorsales — la herramienta de la MESA, no del organizador.
  *
  * La identidad es el puesto: la URL lleva el token de la mesa (generado en
- * el panel, igual que las pantallas de seguimiento) y la tablet que la abre
+ * el panel de escritorio o en la app del organizador, Corredores › Mesas
+ * Dorsales, igual que las pantallas de seguimiento) y la tablet que la abre
  * ES esa mesa. Sin login, revocable al acabar.
  *
  * Pensada para cola y prisa: buscar (dorsal, nombre o DNI) o escanear el QR

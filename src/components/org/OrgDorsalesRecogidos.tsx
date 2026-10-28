@@ -199,7 +199,7 @@ export const OrgDorsalesRecogidos = ({ raceId, byDistance }: Props) => {
         <div className="rounded-xl border border-border bg-card p-4 text-center space-y-1">
           <Ticket className="h-7 w-7 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            No hay mesas de recogida abiertas. Se crean en el panel, en Organización › Mesas de recogida.
+            No hay mesas de recogida abiertas. Se crean en Corredores › Mesas Dorsales, que también manda el enlace a quien atiende.
           </p>
         </div>
       ) : (

@@ -28,6 +28,7 @@ import { OrgDistancesSummary } from "@/components/org/OrgDistancesSummary";
 import { OrgVolunteers } from "@/components/org/OrgVolunteers";
 import { OrgAddGuest } from "@/components/org/OrgAddGuest";
 import { OrgCupones } from "@/components/org/OrgCupones";
+import { OrgMesasRecogida } from "@/components/org/OrgMesasRecogida";
 import { OrgDorsalesRecogidos } from "@/components/org/OrgDorsalesRecogidos";
 import { OrgRegistrations } from "@/components/org/OrgRegistrations";
 import { OrgStats } from "@/components/org/OrgStats";
@@ -41,7 +42,7 @@ import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
-  Bike, ShieldCheck, Timer, TicketPercent, Ticket, LocateFixed } from "lucide-react";
+  Bike, ShieldCheck, Timer, TicketPercent, Ticket, LocateFixed, Store } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 import { asegurarManifest } from "@/lib/instalarPwa";
@@ -185,7 +186,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "recogidos" | "marcar";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "mesas" | "recogidos" | "marcar";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -221,8 +222,11 @@ const ORG_MENU: OrgMenuGroup[] = [
       { id: "guest-add", title: "Añadir corredor", icon: UserPlus, screen: "invitado" },
       { id: "registrations-app", title: "Inscripciones", icon: ClipboardList, screen: "inscripciones" },
       { id: "cupones-app", title: "Cupones", icon: TicketPercent, screen: "cupones" },
+      // Las mesas de recogida: crearlas y mandarle a quien atiende cada una
+      // su enlace (WhatsApp, copiar, QR), como se reparten los cupones
+      { id: "mesas-dorsales", title: "Mesas Dorsales", icon: Store, screen: "mesas" },
       // El día de la recogida: cuántos van, qué mesas atienden y quién ha
-      // pasado ya (las mesas se crean en el panel, Mesas de recogida)
+      // pasado ya
       { id: "dorsales-recogidos", title: "Dorsales recogidos", icon: Ticket, screen: "recogidos" },
     ],
   },
@@ -714,6 +718,8 @@ const OrganizerApp = () => {
                 <OrgRegistrations raceId={raceId} />
               ) : openScreen?.screen === "cupones" ? (
                 <OrgCupones raceId={raceId} />
+              ) : openScreen?.screen === "mesas" ? (
+                <OrgMesasRecogida raceId={raceId} />
               ) : openScreen?.screen === "recogidos" ? (
                 <OrgDorsalesRecogidos raceId={raceId} byDistance={summary?.by_distance ?? []} />
               ) : openScreen?.screen === "estadisticas" ? (
