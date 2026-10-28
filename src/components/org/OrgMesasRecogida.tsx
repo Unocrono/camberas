@@ -48,11 +48,14 @@ interface Mesa {
 
 interface Props {
   raceId: string | null;
+  /** Revocar mesas desde el móvil: solo el admin (el organizador, desde el
+   *  panel de escritorio, Organización › Mesas de recogida) */
+  puedeRevocar?: boolean;
 }
 
 const REFRESCO_MS = 60_000;
 
-export const OrgMesasRecogida = ({ raceId }: Props) => {
+export const OrgMesasRecogida = ({ raceId, puedeRevocar = false }: Props) => {
   const { toast } = useToast();
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [raceName, setRaceName] = useState("");
@@ -362,13 +365,15 @@ export const OrgMesasRecogida = ({ raceId }: Props) => {
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button
-                        onClick={() => setConfirmando(enConfirmacion ? null : m.id)}
-                        title="Revocar"
-                        className="rounded-lg border border-border p-2 text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {puedeRevocar && (
+                        <button
+                          onClick={() => setConfirmando(enConfirmacion ? null : m.id)}
+                          title="Revocar"
+                          className="rounded-lg border border-border p-2 text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -430,9 +435,12 @@ export const OrgMesasRecogida = ({ raceId }: Props) => {
       )}
 
       <p className="text-xs text-muted-foreground">
-        El enlace es la llave de la mesa: mándaselo solo a quien la atienda. Si se escapa, revoca la
-        mesa y crea otra. «Sin señal» es que lleva más de dos minutos sin dar noticias. Solo se
-        entrega a inscripciones pagadas; si recoge otra persona, la mesa anota quién.
+        El enlace es la llave de la mesa: mándaselo solo a quien la atienda. Si se escapa,{" "}
+        {puedeRevocar
+          ? "revoca la mesa y crea otra."
+          : "revócala desde el panel (Organización › Mesas de recogida) y crea otra."}{" "}
+        «Sin señal» es que lleva más de dos minutos sin dar noticias. Solo se entrega a
+        inscripciones pagadas; si recoge otra persona, la mesa anota quién.
       </p>
 
       {/* QR a pantalla: quien atiende lo escanea con su tablet y ya está dentro */}

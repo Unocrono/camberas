@@ -719,7 +719,7 @@ const OrganizerApp = () => {
               ) : openScreen?.screen === "cupones" ? (
                 <OrgCupones raceId={raceId} />
               ) : openScreen?.screen === "mesas" ? (
-                <OrgMesasRecogida raceId={raceId} />
+                <OrgMesasRecogida raceId={raceId} puedeRevocar={isAdmin} />
               ) : openScreen?.screen === "recogidos" ? (
                 <OrgDorsalesRecogidos raceId={raceId} byDistance={summary?.by_distance ?? []} />
               ) : openScreen?.screen === "estadisticas" ? (
