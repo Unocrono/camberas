@@ -12,7 +12,7 @@
 --     - UNO 39, external_id = ID de UNO. Los 6 «Organizador» (295 a 300) como
 --       invitaciones: uno-org-<dorsal>, not_required, importe 0.
 --     - Manuales 8 del Club Loiu Mendi Taldea, manual-loiu-<n>, Martxa,
---       dorsales 301 a 308, sin sexo ni nacimiento (no venían).
+--       dorsales 301 a 308 (luego 261 a 254, ver 20261028120000), sin sexo ni nacimiento (no venían).
 --     Sexo M y F. Tallas 2XL a XXL y las infantiles como «N Infantil».
 --     Población Loiu normalizada a «Loiu». Un teléfono que era un email, fuera.
 --     Los dorsales 99 y 100 (Dayana López Pérez, dos inscripciones) se dejan.
