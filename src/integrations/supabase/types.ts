@@ -1248,6 +1248,7 @@ export type Database = {
       }
       gps_sos_alerts: {
         Row: {
+          device_id: string | null
           false_alarm: boolean
           id: string
           lat: number
@@ -1258,6 +1259,7 @@ export type Database = {
           triggered_at: string | null
         }
         Insert: {
+          device_id?: string | null
           false_alarm?: boolean
           id?: string
           lat: number
@@ -1268,6 +1270,7 @@ export type Database = {
           triggered_at?: string | null
         }
         Update: {
+          device_id?: string | null
           false_alarm?: boolean
           id?: string
           lat?: number
@@ -6365,7 +6368,12 @@ export type Database = {
         Returns: undefined
       }
       detallar_sos: {
-        Args: { p_falsa?: boolean; p_motivo?: string; p_token_id: string }
+        Args: {
+          p_device_id?: string
+          p_falsa?: boolean
+          p_motivo?: string
+          p_token_id: string
+        }
         Returns: boolean
       }
       devolucion_info: { Args: { p_registration_id: string }; Returns: Json }
@@ -6398,6 +6406,17 @@ export type Database = {
       }
       documento_consulta: { Args: { p_doc: string }; Returns: string }
       dorsal_organizacion: { Args: { p_distance_id: string }; Returns: string }
+      dorsales_pantalla: {
+        Args: { p_token: string }
+        Returns: {
+          bib_number: string
+          lecturas_7d: number
+          movil: string
+          participant_name: string
+          token_id: string
+          ultima: string
+        }[]
+      }
       duplicar_carrera: {
         Args: {
           p_copiar_web?: boolean
@@ -6483,6 +6502,21 @@ export type Database = {
       get_gender_id_from_text: {
         Args: { gender_text: string }
         Returns: number
+      }
+      get_latest_gps_positions: {
+        Args: { p_event_ids?: string[] }
+        Returns: {
+          altitude: number
+          battery: number
+          bib_number: string
+          event_id: string
+          lat: number
+          lng: number
+          participant_name: string
+          speed: number
+          timestamp: string
+          token_id: string
+        }[]
       }
       get_live_gps_positions: {
         Args: { p_distance_id?: string; p_race_id: string }
@@ -6571,6 +6605,10 @@ export type Database = {
         Args: { p_cutoff: string; p_group: string }
         Returns: string
       }
+      gps_dispositivo_ok: {
+        Args: { p_device_id: string; p_token_id: string }
+        Returns: boolean
+      }
       guardia_horas: {
         Args: never
         Returns: {
@@ -6604,6 +6642,25 @@ export type Database = {
         Args: { _race_id: string; _user_id: string }
         Returns: boolean
       }
+      lecturas_pantalla: {
+        Args: {
+          p_desde?: string
+          p_dorsales?: string[]
+          p_hasta?: string
+          p_token: string
+          p_token_id?: string
+        }
+        Returns: {
+          accuracy: number
+          battery: number
+          bib_number: string
+          created_at: string
+          speed: number
+          timestamp: string
+          token_id: string
+          uploaded_at: string
+        }[]
+      }
       link_gps_token: {
         Args: { p_device_id: string; p_force?: boolean; p_token: string }
         Returns: {
@@ -6618,6 +6675,41 @@ export type Database = {
         }[]
       }
       link_team_members_by_dni: { Args: { p_user_id: string }; Returns: number }
+      mapa_carrera_interno: {
+        Args: { p_ahora: string; p_distance_id: string; p_race_id: string }
+        Returns: {
+          bateria: number
+          clave: string
+          dorsal: string
+          finalizado: boolean
+          lat: number
+          lng: number
+          nombre: string
+          nombre_corto: string
+          recorrido: string
+          rumbo: number
+          tipo: string
+          token_id: string
+          ts: string
+          velocidad: number
+        }[]
+      }
+      mapa_publico: {
+        Args: { p_distance_id?: string; p_race_id: string }
+        Returns: {
+          clave: string
+          dorsal: string
+          finalizado: boolean
+          lat: number
+          lng: number
+          nombre: string
+          recorrido: string
+          rumbo: number
+          tipo: string
+          ts: string
+          velocidad: number
+        }[]
+      }
       marcar_aviso_pago: {
         Args: { p_id: string; p_importe?: number; p_ronda: number }
         Returns: undefined
@@ -6658,6 +6750,14 @@ export type Database = {
         }[]
       }
       mi_dorsal_info: { Args: { p_token: string }; Returns: Json }
+      mi_recorrido: {
+        Args: { p_device_id: string; p_token_id: string }
+        Returns: {
+          lat: number
+          lng: number
+          ts: string
+        }[]
+      }
       mis_grupettas: {
         Args: never
         Returns: {
@@ -6689,8 +6789,40 @@ export type Database = {
           token_id: string
         }[]
       }
+      monitor_gps: {
+        Args: { p_distance_id?: string; p_dorsales?: string[]; p_token: string }
+        Returns: {
+          accuracy: number
+          battery: number
+          bib_number: string
+          created_at: string
+          timestamp: string
+          uploaded_at: string
+        }[]
+      }
       nombre_normalizado: { Args: { p: string }; Returns: string }
+      nombre_publico: {
+        Args: { p_apellidos?: string; p_completo: string; p_nombre?: string }
+        Returns: string
+      }
       pantalla_contexto: { Args: { p_token: string }; Returns: Json }
+      pantalla_posiciones: {
+        Args: { p_distance_id?: string; p_token: string }
+        Returns: {
+          bateria: number
+          clave: string
+          dorsal: string
+          finalizado: boolean
+          lat: number
+          lng: number
+          nombre: string
+          recorrido: string
+          rumbo: number
+          tipo: string
+          ts: string
+          velocidad: number
+        }[]
+      }
       pantalla_sos: {
         Args: { p_token: string }
         Returns: {
@@ -6715,6 +6847,17 @@ export type Database = {
         }[]
       }
       plazas_libres: { Args: { p_distance_id: string }; Returns: number }
+      posiciones_motos: {
+        Args: { p_token_ids: string[] }
+        Returns: {
+          battery: number
+          lat: number
+          lng: number
+          speed: number
+          timestamp: string
+          token_id: string
+        }[]
+      }
       precio_recorrido_en: {
         Args: { p_distance_id: string; p_pared: string }
         Returns: number
@@ -6786,6 +6929,11 @@ export type Database = {
           registration_id: string
           talla: string
         }[]
+      }
+      recorrido_privado: { Args: { p_token_id: string }; Returns: Json }
+      recorrido_publico: {
+        Args: { p_clave: string; p_race_id: string }
+        Returns: Json
       }
       recuperacion_pago_info: { Args: { p_token: string }; Returns: Json }
       registrar_pagos_a_medias: {
