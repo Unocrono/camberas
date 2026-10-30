@@ -806,6 +806,15 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     return "";
   };
 
+  // Máscara hh:mm:ss: se teclean solo cifras (003500 → 00:35:00)
+  const mascaraHora = (texto: string): string => {
+    const d = texto.replace(/\D/g, "").slice(0, 6);
+    if (d.length <= 2) return d;
+    if (d.length <= 4) return `${d.slice(0, 2)}:${d.slice(2)}`;
+    return `${d.slice(0, 2)}:${d.slice(2, 4)}:${d.slice(4)}`;
+  };
+  const horaValida = (t: string) => /^\d{2}:[0-5]\d:[0-5]\d$/.test(t);
+
   // Función para crear un nuevo timing_point con nombre y coordenadas del checkpoint
   const handleCreateTimingPoint = async () => {
     // Obtener el orden máximo actual
@@ -899,6 +908,19 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
     const longitude = formData.longitude ? parseFloat(formData.longitude) : null;
     const timing_point_id = formData.timing_point_id || null;
     
+    // Un tiempo a medio escribir no se guarda en silencio como vacío: se avisa
+    const tiempos = [
+      [formData.min_time, "Tiempo Mínimo"],
+      [formData.max_time, "Tiempo Máximo"],
+      [formData.min_lap_time, "Tiempo Mínimo Vuelta"],
+    ] as const;
+    for (const [valor, etiqueta] of tiempos) {
+      if (valor && !horaValida(valor)) {
+        toast.error(`${etiqueta}: escribe hh:mm:ss, por ejemplo 00:35:00`);
+        return;
+      }
+    }
+
     // Convertir tiempos a formato interval o null
     const min_time = formData.min_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.min_time) ? formData.min_time : null;
     const max_time = formData.max_time && /^\d{2}:\d{2}:\d{2}$/.test(formData.max_time) ? formData.max_time : null;
@@ -1897,8 +1919,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                                   id="min_lap_time"
                                   type="text"
                                   value={formData.min_lap_time}
-                                  onChange={(e) => setFormData({ ...formData, min_lap_time: e.target.value })}
-                                  placeholder="00:15:00"
+                                  onChange={(e) => setFormData({ ...formData, min_lap_time: mascaraHora(e.target.value) })}
+                                  inputMode="numeric"
+                                  maxLength={8}
+                                  placeholder="hh:mm:ss"
                                   pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
                                   className="font-mono"
                                 />
@@ -1924,15 +1948,17 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                               id="min_time"
                               type="text"
                               value={formData.min_time}
-                              onChange={(e) => setFormData({ ...formData, min_time: e.target.value })}
-                              placeholder="00:00:00"
+                              onChange={(e) => setFormData({ ...formData, min_time: mascaraHora(e.target.value) })}
+                              inputMode="numeric"
+                              maxLength={8}
+                              placeholder="hh:mm:ss"
                               pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
                               className={`font-mono ${isLapConfiguration && !formData.min_time ? 'border-destructive' : ''}`}
                             />
                             <p className="text-xs text-muted-foreground mt-0.5">
                               {isLapConfiguration 
                                 ? "Obligatorio: diferencia este paso del anterior en el mismo punto"
-                                : "Lecturas antes de este tiempo se ignoran"
+                                : "Lecturas antes de este tiempo se ignoran. Solo cifras: 003500 → 00:35:00"
                               }
                             </p>
                           </div>
@@ -1942,8 +1968,10 @@ export function CheckpointsManagement({ selectedRaceId, selectedDistanceId }: Ch
                               id="max_time"
                               type="text"
                               value={formData.max_time}
-                              onChange={(e) => setFormData({ ...formData, max_time: e.target.value })}
-                              placeholder="HH:MM:SS"
+                              onChange={(e) => setFormData({ ...formData, max_time: mascaraHora(e.target.value) })}
+                              inputMode="numeric"
+                              maxLength={8}
+                              placeholder="hh:mm:ss"
                               pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}"
                               className="font-mono"
                             />
