@@ -33,6 +33,7 @@ import { CheckpointsManagement } from "@/components/admin/CheckpointsManagement"
 import { UsersManagement } from "@/components/admin/UsersManagement";
 import { RoadbookItemTypesManagement } from "@/components/admin/RoadbookItemTypesManagement";
 import ContactSettingsManagement from "@/components/admin/ContactSettingsManagement";
+import WhatsappBotManagement from "@/components/admin/WhatsappBotManagement";
 import { TimerAssignmentsManagement } from "@/components/admin/TimerAssignmentsManagement";
 import { TimingReadingsManagement } from "@/components/admin/TimingReadingsManagement";
 import { TimingPointsManagement } from "@/components/admin/TimingPointsManagement";
@@ -160,7 +161,7 @@ const AdminDashboard = () => {
   }
 
   // Views that don't need race selector at all
-  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "receptor-ultra"];
+  const viewsWithoutRaceSelector = ["races", "edge-functions", "organizer-faqs", "organizer-approval", "users", "roadbook-item-types", "contact-settings", "whatsapp-bot", "results-status", "menu-management", "gps-deletion", "gps-devices", "blog-posts", "newsletter-subscribers", "newsletter-campaigns", "help-content", "plantillas-email", "receptor-ultra"];
   const showRaceSelector = !viewsWithoutRaceSelector.includes(currentView);
   
   // Views that need distance filter
@@ -357,6 +358,7 @@ const AdminDashboard = () => {
             {currentView === "users" && <UsersManagement />}
             {currentView === "roadbook-item-types" && <RoadbookItemTypesManagement />}
             {currentView === "contact-settings" && <ContactSettingsManagement />}
+            {currentView === "whatsapp-bot" && <WhatsappBotManagement />}
             {currentView === "menu-management" && <MenuManagement />}
             {currentView === "gps-tokens" && (
               selectedRaceId ? (
