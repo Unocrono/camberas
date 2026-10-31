@@ -221,9 +221,7 @@ export async function resolve(
  * El asistente es solo para usuarios registrados, del nivel que sea.
  */
 export const NOT_REGISTERED_REPLY =
-  "Este asistente es para usuarios de Camberas 🙂
-
-" +
+  "Este asistente es para usuarios de Camberas 🙂\n\n" +
   "Crea tu cuenta gratis en https://camberas.com/auth y guarda este número de teléfono en tu perfil. " +
   "Después vuelve a escribirme y te doy tiempos al momento.";
 
