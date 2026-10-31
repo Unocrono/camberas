@@ -1,0 +1,11 @@
+-- Loiu 500 Trail 2026: 10 inscritos nuevos de RockTheSport (exportación
+-- 63363 del 28-oct a las 18:40), dorsales 187 a 196. Los demás de ese
+-- fichero ya estaban (por localizador). Mismo criterio que 20261028100000:
+-- external_id rts-loc-<localizador>, confirmados y pagados, sexo M y F,
+-- DeLoiu = true para los de población Loiu (187, 188 y 189).
+-- 9 a Martxa y 1 a Trail (190). Un teléfono venía con el prefijo +34
+-- repetido (195) y se corrigió.
+-- Los datos personales no van al repositorio: se insertaron directamente
+-- con la consulta de Lovable.
+-- APLICADA el 28-oct-2026.
+SELECT 1;
