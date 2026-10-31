@@ -1,5 +1,6 @@
 /**
- * Webhook de WhatsApp Cloud API (WABA) — asistente para corredores y público.
+ * Webhook de WhatsApp Cloud API (WABA) — asistente de carrera para usuarios
+ * registrados en Camberas (su teléfono tiene que estar en el perfil).
  *
  * GET  → verificación del webhook (hub.challenge) al darlo de alta en Meta.
  * POST → mensaje entrante. Se valida la firma, se responde en segundo plano
@@ -18,8 +19,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMessages, type IncomingMessage, sendText, verifySignature } from "./graph.ts";
-import { getConfig } from "./data.ts";
-import { PRIVACY_NOTICE, resolve } from "./intents.ts";
+import { findUser, getConfig } from "./data.ts";
+import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "./intents.ts";
 
 const RATE_LIMIT_REPLY =
   "Has hecho muchas consultas seguidas 😅 Espera un momento y vuelve a escribirme.";
@@ -140,6 +141,18 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
           .from("wa_messages")
           .update({ intent: "rate_limited" })
           .eq("wam_id", msg.wamId);
+        continue;
+      }
+
+      // Solo usuarios registrados: el teléfono tiene que estar en un perfil.
+      const usuario = await findUser(sb, msg.from);
+      if (!usuario) {
+        await sendText(msg.from, NOT_REGISTERED_REPLY + (isFirst ? PRIVACY_NOTICE : ""));
+        await sb
+          .from("wa_messages")
+          .update({ intent: "no_registrado", reply_sent: true })
+          .eq("wam_id", msg.wamId);
+        console.log(`🚪 ${msg.from} · no registrado`);
         continue;
       }
 

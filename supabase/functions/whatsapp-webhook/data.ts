@@ -1,5 +1,8 @@
 /**
- * Consultas a las tablas del bridge de RaceTec.
+ * Consultas a las clasificaciones de Camberas (race_results, split_times,
+ * timing_readings). Si la carrera se cronometra con RaceTec, los tiempos
+ * llegan aquí por la importación de Resultados (racetec-importar), así que el
+ * bot siempre lee lo mismo que la web.
  *
  * Regla dura: aquí NO se inventa nada. Si no hay dato, se devuelve null y el
  * formateador lo dice. Un tiempo inventado en una carrera es peor que un
@@ -10,16 +13,19 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export interface BotConfig {
   enabled: boolean;
-  active_eid: string | null;
-  race_name: string;
+  /** Carrera en directo (races.id). Sin ella el bot está cerrado. */
   race_id: string | null;
+  /** Distancia concreta; null = todas las de la carrera. */
   distance_id: string | null;
+  race_name: string;
   live_url: string | null;
   results_url: string | null;
   info_url: string | null;
   race_info: string;
   position_mode: "split" | "off";
   rate_limit_hour: number;
+  /** Resto de la primera versión (RaceTec directo). Ya no se usa. */
+  active_eid: string | null;
 }
 
 export async function getConfig(sb: SupabaseClient): Promise<BotConfig | null> {
@@ -27,120 +33,101 @@ export async function getConfig(sb: SupabaseClient): Promise<BotConfig | null> {
   return (data as BotConfig) ?? null;
 }
 
-export type RunnerState = "finished" | "racing" | "registered" | "unknown";
+// ── Usuario registrado ───────────────────────────────────────────────────────
+
+export interface Usuario {
+  id: string;
+  first_name: string | null;
+}
+
+/**
+ * El asistente es solo para usuarios de Camberas, del nivel que sea: el
+ * teléfono de WhatsApp tiene que estar en su perfil.
+ *
+ * wa_id llega como «34600123456». En profiles.phone hay de todo («+34 600 12
+ * 34 56», «600123456»…), así que se comparan las 9 últimas cifras permitiendo
+ * cualquier cosa que no sea un dígito entre ellas.
+ */
+export async function findUser(sb: SupabaseClient, waId: string): Promise<Usuario | null> {
+  const digits = waId.replace(/\D/g, "");
+  if (digits.length < 9) return null;
+  const cola = digits.slice(-9);
+  const patron = cola.split("").join("\\D*") + "\\D*$";
+
+  const { data } = await sb
+    .from("profiles")
+    .select("id, first_name")
+    .filter("phone", "imatch", patron)
+    .limit(1)
+    .maybeSingle();
+
+  return (data as Usuario) ?? null;
+}
+
+// ── Corredor ─────────────────────────────────────────────────────────────────
+
+export type RunnerState = "finished" | "racing" | "retired" | "registered" | "unknown";
 
 export interface RunnerInfo {
   state: RunnerState;
   bib: string;
   name: string;
+  distance: string;
   category: string;
+  /** M / F / X según genders */
   gender: string;
-  /** Tiempo de meta (finished) o tiempo en el último control (racing) */
+  /** Tiempo de meta (finished) o tiempo en el último control (racing), h:mm:ss */
   time: string | null;
-  /** Diferencia con el líder, ya formateada por el bridge */
+  /** Diferencia con el líder, ya formateada */
   gap: string | null;
-  /** Puesto general — SOLO existe en resultados de meta */
+  /** Puesto general — solo en meta */
   overall: number | null;
-  /** Puesto por género */
   genderPos: number | null;
   catPos: number | null;
   /** Último control por el que ha pasado */
   lastSplit: string | null;
+  /** Hora de pared del paso, cuando no se puede calcular el tiempo */
+  passedAt: string | null;
+  /** DNF / DNS / DSQ */
+  statusLabel: string | null;
+}
+
+const GENDER_CODE: Record<number, string> = { 1: "M", 2: "F", 3: "X" };
+
+interface RegistrationRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  gender_id: number | null;
+  race_distance_id: string;
+  race_category: { name: string; short_name: string | null } | null;
+  race_distance: { name: string } | null;
+}
+
+interface ResultRow {
+  id: string;
+  finish_time: string;
+  status: string;
+  overall_position: number | null;
+  gender_position: number | null;
+  category_position: number | null;
+  race_distance_id: string;
 }
 
 /**
- * Busca un dorsal en cascada: meta → en carrera → inscrito.
- *
- * Ojo con racetec_leaderboard.position: el bridge la calcula POR GÉNERO
- * (parseLBRows asigna i+1 dentro de cada grupo), así que NO es la posición
- * general y no se puede publicar como tal. Por eso `overall` se queda a null
- * mientras el corredor está en carrera.
+ * Busca un dorsal en cascada: inscripción → resultado de meta → último split
+ * → última lectura de cronometraje.
  */
 export async function findRunner(
   sb: SupabaseClient,
-  eid: string,
+  cfg: BotConfig,
   bib: string,
 ): Promise<RunnerInfo> {
-  // 1) ¿Ha terminado?
-  const { data: result } = await sb
-    .from("racetec_results")
-    .select(
-      "bib, firstname, lastname, gender, category, position, gender_position, cat_position, gun_time_display, gap_display, last_split",
-    )
-    .eq("eid", eid)
-    .eq("bib", bib)
-    .maybeSingle();
-
-  if (result) {
-    return {
-      state: "finished",
-      bib,
-      name: fullName(result.firstname, result.lastname),
-      category: result.category ?? "",
-      gender: result.gender ?? "",
-      time: result.gun_time_display || null,
-      gap: result.gap_display || null,
-      overall: result.position ?? null,
-      genderPos: result.gender_position ?? null,
-      catPos: result.cat_position ?? null,
-      lastSplit: result.last_split || null,
-    };
-  }
-
-  // 2) ¿Está en carrera?
-  const { data: lb } = await sb
-    .from("racetec_leaderboard")
-    .select(
-      "bib, firstname, lastname, gender, category, gender_position, cat_position, gun_time_display, gap_display, last_split, status",
-    )
-    .eq("eid", eid)
-    .eq("bib", bib)
-    .maybeSingle();
-
-  if (lb) {
-    return {
-      state: "racing",
-      bib,
-      name: fullName(lb.firstname, lb.lastname),
-      category: lb.category ?? "",
-      gender: lb.gender ?? "",
-      time: lb.gun_time_display || null,
-      gap: lb.gap_display || null,
-      overall: null, // ← ver comentario de la función
-      genderPos: lb.gender_position ?? null,
-      catPos: lb.cat_position ?? null,
-      lastSplit: lb.last_split || null,
-    };
-  }
-
-  // 3) ¿Está inscrito pero sin pasar por ningún control?
-  const { data: athlete } = await sb
-    .from("racetec_athletes")
-    .select("bib, firstname, lastname, gender, category")
-    .eq("eid", eid)
-    .eq("bib", bib)
-    .maybeSingle();
-
-  if (athlete) {
-    return {
-      state: "registered",
-      bib,
-      name: fullName(athlete.firstname, athlete.lastname),
-      category: athlete.category ?? "",
-      gender: athlete.gender ?? "",
-      time: null,
-      gap: null,
-      overall: null,
-      genderPos: null,
-      catPos: null,
-      lastSplit: null,
-    };
-  }
-
-  return {
+  const base: RunnerInfo = {
     state: "unknown",
     bib,
     name: "",
+    distance: "",
     category: "",
     gender: "",
     time: null,
@@ -149,8 +136,120 @@ export async function findRunner(
     genderPos: null,
     catPos: null,
     lastSplit: null,
+    passedAt: null,
+    statusLabel: null,
   };
+
+  let q = sb
+    .from("registrations")
+    .select(
+      "id, first_name, last_name, gender_id, race_distance_id, race_category:race_categories(name, short_name), race_distance:race_distances(name)",
+    )
+    .eq("race_id", cfg.race_id!)
+    .eq("bib_number", Number(bib))
+    .neq("status", "cancelled");
+  if (cfg.distance_id) q = q.eq("race_distance_id", cfg.distance_id);
+  const { data: regData } = await q.limit(1).maybeSingle();
+  const reg = regData as unknown as RegistrationRow | null;
+  if (!reg) return base;
+
+  const info: RunnerInfo = {
+    ...base,
+    state: "registered",
+    name: fullName(reg.first_name, reg.last_name),
+    distance: reg.race_distance?.name ?? "",
+    category: reg.race_category?.short_name || reg.race_category?.name || "",
+    gender: reg.gender_id ? GENDER_CODE[reg.gender_id] ?? "" : "",
+  };
+
+  // 1) ¿Tiene resultado?
+  const { data: resData } = await sb
+    .from("race_results")
+    .select("id, finish_time, status, overall_position, gender_position, category_position, race_distance_id")
+    .eq("registration_id", reg.id)
+    .maybeSingle();
+  const res = resData as ResultRow | null;
+
+  if (res?.status === "FIN") {
+    const { data: leader } = await sb
+      .from("race_results")
+      .select("finish_time")
+      .eq("race_distance_id", res.race_distance_id)
+      .eq("status", "FIN")
+      .order("overall_position", { ascending: true, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    return {
+      ...info,
+      state: "finished",
+      time: formatInterval(res.finish_time),
+      gap: formatGap(intervalToSecs(res.finish_time), intervalToSecs(leader?.finish_time ?? null)),
+      overall: res.overall_position,
+      genderPos: res.gender_position,
+      catPos: res.category_position,
+    };
+  }
+
+  if (res && ["DNF", "DNS", "DSQ", "DQ"].includes(res.status)) {
+    return { ...info, state: "retired", statusLabel: res.status };
+  }
+
+  // 2) En carrera: último split calculado (si Resultados ha procesado tiempos)
+  if (res) {
+    const { data: split } = await sb
+      .from("split_times")
+      .select("checkpoint_name, split_time, gender_position, category_position")
+      .eq("race_result_id", res.id)
+      .order("checkpoint_order", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (split) {
+      return {
+        ...info,
+        state: "racing",
+        time: formatInterval(split.split_time),
+        lastSplit: split.checkpoint_name,
+        genderPos: split.gender_position,
+        catPos: split.category_position,
+      };
+    }
+  }
+
+  // 3) En carrera: última lectura cruda del cronometraje
+  const { data: reading } = await sb
+    .from("timing_readings")
+    .select("timing_timestamp, checkpoint:race_checkpoints(name)")
+    .eq("race_id", cfg.race_id!)
+    .eq("bib_number", Number(bib))
+    .is("status_code", null)
+    .order("timing_timestamp", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (reading) {
+    const checkpoint = (reading as unknown as { checkpoint: { name: string } | null }).checkpoint;
+    const { data: wave } = await sb
+      .from("race_waves")
+      .select("start_time")
+      .eq("race_distance_id", reg.race_distance_id)
+      .not("start_time", "is", null)
+      .order("start_time", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    const elapsed = elapsedSecs(wave?.start_time ?? null, reading.timing_timestamp);
+    return {
+      ...info,
+      state: "racing",
+      lastSplit: checkpoint?.name ?? null,
+      time: elapsed !== null ? secsToDisplay(elapsed) : null,
+      passedAt: elapsed === null ? horaPared(reading.timing_timestamp) : null,
+    };
+  }
+
+  return info;
 }
+
+// ── Clasificación ────────────────────────────────────────────────────────────
 
 export interface TopEntry {
   pos: number;
@@ -160,57 +259,111 @@ export interface TopEntry {
   finished: boolean;
 }
 
-/**
- * Top N. Si hay resultados de meta, mandan esos (posición general real).
- * Si todavía no hay nadie en meta, tira del leaderboard, donde el orden por
- * género ya viene resuelto por el bridge.
- */
+/** Top N de meta. Sin llegados devuelve [] y el formateador lo dice. */
 export async function getTop(
   sb: SupabaseClient,
-  eid: string,
+  cfg: BotConfig,
   gender: "M" | "F" | null,
   limit = 5,
 ): Promise<TopEntry[]> {
+  const distanceIds = await distanceIdsOf(sb, cfg);
+  if (!distanceIds.length) return [];
+
+  const genderId = gender === "F" ? 2 : gender === "M" ? 1 : null;
   let q = sb
-    .from("racetec_results")
-    .select("firstname, lastname, gender, position, gender_position, gun_time_display, gap_display")
-    .eq("eid", eid);
-
-  if (gender) q = q.eq("gender", gender);
-
-  const { data: results } = await q
-    .order(gender ? "gender_position" : "position", { ascending: true })
+    .from("race_results")
+    .select(
+      "finish_time, overall_position, gender_position, registration:registrations!inner(first_name, last_name, gender_id)",
+    )
+    .in("race_distance_id", distanceIds)
+    .eq("status", "FIN");
+  if (genderId) q = q.eq("registration.gender_id", genderId);
+  const { data } = await q
+    .order(genderId ? "gender_position" : "overall_position", { ascending: true, nullsFirst: false })
     .limit(limit);
 
-  if (results && results.length) {
-    return results.map((r) => ({
-      pos: (gender ? r.gender_position : r.position) ?? 0,
-      name: fullName(r.firstname, r.lastname),
-      time: r.gun_time_display || "",
-      gap: r.gap_display || "",
-      finished: true,
-    }));
-  }
+  const rows = (data ?? []) as unknown as {
+    finish_time: string;
+    overall_position: number | null;
+    gender_position: number | null;
+    registration: { first_name: string | null; last_name: string | null } | null;
+  }[];
+  if (!rows.length) return [];
 
-  // Nadie en meta todavía → leaderboard
-  let lq = sb
-    .from("racetec_leaderboard")
-    .select("firstname, lastname, gender, gender_position, gun_time_display, gap_display")
-    .eq("eid", eid);
-
-  if (gender) lq = lq.eq("gender", gender);
-
-  const { data: lb } = await lq.order("gender_position", { ascending: true }).limit(limit);
-
-  return (lb ?? []).map((r) => ({
-    pos: r.gender_position ?? 0,
-    name: fullName(r.firstname, r.lastname),
-    time: r.gun_time_display || "",
-    gap: r.gap_display || "",
-    finished: false,
+  const leaderSecs = intervalToSecs(rows[0].finish_time);
+  return rows.map((r, i) => ({
+    pos: (genderId ? r.gender_position : r.overall_position) ?? i + 1,
+    name: fullName(r.registration?.first_name ?? null, r.registration?.last_name ?? null),
+    time: formatInterval(r.finish_time) ?? "",
+    gap: i === 0 ? "LÍDER" : formatGap(intervalToSecs(r.finish_time), leaderSecs) ?? "",
+    finished: true,
   }));
 }
 
-function fullName(first?: string | null, last?: string | null): string {
+async function distanceIdsOf(sb: SupabaseClient, cfg: BotConfig): Promise<string[]> {
+  if (cfg.distance_id) return [cfg.distance_id];
+  const { data } = await sb.from("race_distances").select("id").eq("race_id", cfg.race_id!);
+  return (data ?? []).map((d: { id: string }) => d.id);
+}
+
+// ── Tiempos ──────────────────────────────────────────────────────────────────
+
+function fullName(first: string | null, last: string | null): string {
   return [first, last].filter(Boolean).join(" ").trim();
+}
+
+/** Interval de Postgres («01:03:33.8», «1 day 02:00:00») → segundos. */
+export function intervalToSecs(iv: string | null): number | null {
+  if (!iv) return null;
+  let secs = 0;
+  const days = iv.match(/(\d+)\s*day/);
+  if (days) secs += Number(days[1]) * 86400;
+  const hms = iv.match(/(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/);
+  if (!hms) return days ? secs : null;
+  secs += Number(hms[1]) * 3600 + Number(hms[2]) * 60 + Number(hms[3]);
+  return secs;
+}
+
+export function secsToDisplay(total: number): string {
+  const s = Math.floor(total);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const mm = String(m).padStart(2, "0");
+  const ss = String(sec).padStart(2, "0");
+  return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+
+function formatInterval(iv: string | null): string | null {
+  const s = intervalToSecs(iv);
+  return s === null ? null : secsToDisplay(s);
+}
+
+/** «+1:23» respecto al líder; null si falta alguno; «LÍDER» si es el primero. */
+function formatGap(secs: number | null, leader: number | null): string | null {
+  if (secs === null || leader === null) return null;
+  const diff = Math.max(0, secs - leader);
+  if (diff < 1) return "LÍDER";
+  return `+${secsToDisplay(diff)}`;
+}
+
+/**
+ * Tiempo transcurrido entre la salida de la oleada (hora de pared «HH:MM:SS»)
+ * y una lectura (hora de pared «YYYY-MM-DDTHH:MM:SS»). Todo en hora local, sin
+ * zonas horarias: así se guarda en Camberas.
+ */
+function elapsedSecs(start: string | null, reading: string): number | null {
+  if (!start) return null;
+  const a = start.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  const b = reading.match(/T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!a || !b) return null;
+  const s = Number(a[1]) * 3600 + Number(a[2]) * 60 + Number(a[3] ?? 0);
+  let r = Number(b[1]) * 3600 + Number(b[2]) * 60 + Number(b[3] ?? 0);
+  if (r < s) r += 86400; // pasó la medianoche
+  return r - s;
+}
+
+function horaPared(reading: string): string | null {
+  const m = reading.match(/T(\d{2}):(\d{2})/);
+  return m ? `${m[1]}:${m[2]}` : null;
 }

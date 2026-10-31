@@ -98,12 +98,13 @@ function runnerReply(r: RunnerInfo, cfg: BotConfig): string {
   } else {
     // En carrera. Nada de coordenadas: solo el control por el que ha pasado.
     if (cfg.position_mode === "split" && r.lastSplit) {
-      lines.push(`📍 Pasó por *${r.lastSplit}* · ${r.time ?? "—"}`);
+      const cuando = r.time ?? (r.passedAt ? `a las ${r.passedAt}` : "—");
+      lines.push(`📍 Pasó por *${r.lastSplit}* · ${cuando}`);
     } else {
-      lines.push(`🏃 En carrera · ${r.time ?? "—"}`);
+      lines.push(`🏃 En carrera${r.time ? ` · ${r.time}` : ""}`);
     }
-    // Su puesto general en vivo no es fiable (el bridge la calcula por género),
-    // así que solo damos género y categoría.
+    // El puesto general en carrera no se publica: los splits traen posición
+    // por sexo y categoría en ese control, que es lo que damos.
     const posBits: string[] = [];
     if (r.genderPos) posBits.push(`${r.genderPos}º ${r.gender === "F" ? "femenina" : "masculina"}`);
     if (r.catPos) posBits.push(`${r.catPos}º de categoría`);
@@ -163,7 +164,7 @@ export async function resolve(
   cfg: BotConfig | null,
   text: string,
 ): Promise<{ intent: Intent; reply: string }> {
-  if (!cfg || !cfg.enabled || !cfg.active_eid) {
+  if (!cfg || !cfg.enabled || !cfg.race_id) {
     return { intent: "unknown", reply: CLOSED_REPLY };
   }
 
@@ -171,23 +172,23 @@ export async function resolve(
 
   switch (intent) {
     case "dorsal": {
-      const runner = await findRunner(sb, cfg.active_eid, bib!);
+      const runner = await findRunner(sb, cfg, bib!);
       return { intent, reply: runnerReply(runner, cfg) };
     }
     case "top":
       return {
         intent,
-        reply: topReply(await getTop(sb, cfg.active_eid, null), cfg, "Clasificación general"),
+        reply: topReply(await getTop(sb, cfg, null), cfg, "Clasificación general"),
       };
     case "top_f":
       return {
         intent,
-        reply: topReply(await getTop(sb, cfg.active_eid, "F"), cfg, "Clasificación femenina"),
+        reply: topReply(await getTop(sb, cfg, "F"), cfg, "Clasificación femenina"),
       };
     case "top_m":
       return {
         intent,
-        reply: topReply(await getTop(sb, cfg.active_eid, "M"), cfg, "Clasificación masculina"),
+        reply: topReply(await getTop(sb, cfg, "M"), cfg, "Clasificación masculina"),
       };
     case "live":
       return {
@@ -214,6 +215,17 @@ export async function resolve(
       };
   }
 }
+
+/**
+ * Quien escribe desde un teléfono que no está en ningún perfil de Camberas.
+ * El asistente es solo para usuarios registrados, del nivel que sea.
+ */
+export const NOT_REGISTERED_REPLY =
+  "Este asistente es para usuarios de Camberas 🙂
+
+" +
+  "Crea tu cuenta gratis en https://camberas.com/auth y guarda este número de teléfono en tu perfil. " +
+  "Después vuelve a escribirme y te doy tiempos al momento.";
 
 /** Aviso RGPD que se añade a la primera respuesta a cada número. */
 export const PRIVACY_NOTICE =

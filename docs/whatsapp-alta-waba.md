@@ -5,6 +5,7 @@ ni introducir credenciales) y de cómo enchufarla al webhook ya escrito.
 
 Código: [`supabase/functions/whatsapp-webhook/`](../supabase/functions/whatsapp-webhook/)
 Migración: `supabase/migrations/20260804170000_whatsapp_bot.sql`
+Panel: Sistema › WhatsApp (`src/components/admin/WhatsappBotManagement.tsx`)
 
 ---
 
@@ -121,35 +122,34 @@ app (Configuración → Básica → URL de la política de privacidad).
 
 ## 7. Configurar la carrera en antena
 
-La función no tiene nada hardcodeado: lee la fila 1 de `wa_bot_config`.
+Desde el panel: **Sistema › WhatsApp**. Se elige la carrera de Camberas (y,
+si se quiere, una sola distancia), el nombre con el que contesta, el texto de
+«info», los enlaces y el interruptor de encendido. Con el bot apagado contesta
+que no hay carrera en directo, en vez de dar datos viejos. **Apágalo al
+terminar cada prueba.**
 
-```sql
-UPDATE public.wa_bot_config SET
-  enabled       = true,
-  active_eid    = '1',                       -- EID de RaceTec (racetec_*.eid)
-  race_name     = 'La Chuleta',
-  race_id       = '...uuid de races...',
-  distance_id   = '...uuid de race_distances...',
-  live_url      = 'https://.../live.html',
-  results_url   = 'https://camberas.com/...',
-  info_url      = 'https://camberas.com/...',
-  race_info     = 'Salida 9:00 · 21 km · 1.100 m D+',
-  position_mode = 'split',
-  updated_at    = now()
-WHERE id = 1;
-```
+Los tiempos salen de las clasificaciones de Camberas (`race_results`,
+`split_times`, `timing_readings`): lo mismo que ve la web. Si la carrera se
+cronometra con RaceTec, en **Resultados › Importar de RaceTec** se traen los
+tiempos de meta por la API (Edge Function `racetec-importar`) pegando la API
+key del evento; hay que repetir la importación cuando se quiera refrescar.
 
-Con `enabled = false` el bot contesta que no hay carrera en directo, en vez de
-dar datos viejos. **Apágalo al terminar cada prueba.**
+### Solo usuarios registrados
+
+El asistente contesta únicamente a teléfonos que estén en el perfil de un
+usuario de Camberas, del nivel que sea (corredor, capo, organizador, admin).
+A quien escribe desde otro número le dice que se cree la cuenta en
+camberas.com/auth y guarde el teléfono en su perfil. La comparación es por las
+nueve últimas cifras, así que da igual cómo esté escrito el número en el perfil.
 
 ## 8. Privacidad — decisiones ya tomadas en el código
 
 - `position_mode = 'split'`: el bot dice *"pasó por Laredo · 1:42:18"*, **nunca
   coordenadas GPS**. Misma utilidad para la familia, mucho menos útil para
   localizar a una persona.
-- El puesto general **no se publica mientras el corredor está en carrera**: el
-  `position` de `racetec_leaderboard` lo calcula el bridge por género, no es la
-  general, y publicarlo sería dar un dato falso.
+- El puesto general **no se publica mientras el corredor está en carrera**:
+  los splits traen posición por sexo y categoría en ese control, y eso es lo
+  que se da.
 - Aviso RGPD automático en la primera respuesta a cada número.
 - `wa_messages` guarda el teléfono (dato personal) y se purga a los 30 días con
   `purge_wa_messages()`. Conviene programarla con pg_cron.
@@ -171,4 +171,3 @@ dentro de ventana tienen límites distintos a las iniciadas, pero conviene:
   suelto no debe pasar por el modelo.
 - **F3**: avisos proactivos por plantilla (requiere aprobación de plantilla en
   Meta y sí tiene coste por mensaje).
-- Panel en `/organizer` para editar `wa_bot_config` sin SQL.

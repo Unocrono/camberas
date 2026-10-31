@@ -18,6 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import jsPDF from "jspdf";
 import { getGenderCode } from "@/lib/genderUtils";
 import { hoyLocal } from "@/lib/timezoneUtils";
+import { RaceTecImportDialog } from "@/components/admin/RaceTecImportDialog";
 
 interface RaceResult {
   id: string;
@@ -1183,6 +1184,12 @@ export function ResultsManagement({ isOrganizer = false, selectedRaceId: propSel
                 <Download className="h-4 w-4" />
                 Plantilla CSV
               </Button>
+
+              <RaceTecImportDialog
+                raceDistanceId={selectedDistance}
+                distanceName={distances.find((d) => d.id === selectedDistance)?.name}
+                onImported={fetchResults}
+              />
 
               <Dialog open={isCsvDialogOpen} onOpenChange={(open) => {
                 setIsCsvDialogOpen(open);

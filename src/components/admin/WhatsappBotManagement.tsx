@@ -1,10 +1,13 @@
 /**
  * Panel › WhatsApp: el asistente de carrera (whatsapp-webhook) sin SQL.
  *
- * Todo vive en la fila 1 de wa_bot_config: qué carrera está en directo (el EID
- * de RaceTec, que es lo único que el bot consulta), los enlaces y el texto que
- * devuelve. Con «Encendido» apagado o sin EID el bot contesta que no hay
- * carrera en directo, en vez de dar datos viejos: apagarlo al terminar.
+ * Todo vive en la fila 1 de wa_bot_config: qué carrera de Camberas está en
+ * directo (y, si se quiere, una sola distancia), los enlaces y el texto que
+ * devuelve. Los tiempos salen de race_results / split_times / timing_readings:
+ * lo mismo que ve la web. Con «Encendido» apagado o sin carrera el bot
+ * contesta que no hay carrera en directo, en vez de dar datos viejos.
+ *
+ * Solo contesta a teléfonos que estén en el perfil de un usuario registrado.
  *
  * Debajo, los últimos mensajes de wa_messages (solo admin, se purgan a los 30
  * días). El teléfono es dato personal: se enseña tapado.
@@ -28,10 +31,10 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Config = Tables<"wa_bot_config">;
 type Mensaje = Pick<Tables<"wa_messages">, "wam_id" | "wa_id" | "body" | "intent" | "reply_sent" | "error" | "created_at">;
-type EventoRacetec = Pick<Tables<"racetec_events">, "eid" | "name" | "event_date" | "distance">;
 type Carrera = Pick<Tables<"races">, "id" | "name" | "slug" | "date">;
+type Distancia = Pick<Tables<"race_distances">, "id" | "name" | "race_id">;
 
-const SIN_CARRERA = "__ninguna__";
+const TODAS = "__todas__";
 
 const NOMBRE_INTENT: Record<string, string> = {
   dorsal: "dorsal",
@@ -43,6 +46,7 @@ const NOMBRE_INTENT: Record<string, string> = {
   help: "ayuda",
   unknown: "no entendido",
   rate_limited: "demasiadas seguidas",
+  no_registrado: "sin cuenta en Camberas",
 };
 
 /** «34600123456» → «•••••••456». Basta para distinguir conversaciones. */
@@ -53,8 +57,8 @@ const formatInstante = (iso: string) =>
 
 export default function WhatsappBotManagement() {
   const [cfg, setCfg] = useState<Config | null>(null);
-  const [eventos, setEventos] = useState<EventoRacetec[]>([]);
   const [carreras, setCarreras] = useState<Carrera[]>([]);
+  const [distancias, setDistancias] = useState<Distancia[]>([]);
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,15 +74,15 @@ export default function WhatsappBotManagement() {
 
   const cargar = useCallback(async () => {
     setLoading(true);
-    const [{ data: c, error }, { data: ev }, { data: ca }] = await Promise.all([
+    const [{ data: c, error }, { data: ca }, { data: di }] = await Promise.all([
       supabase.from("wa_bot_config").select("*").eq("id", 1).maybeSingle(),
-      supabase.from("racetec_events").select("eid, name, event_date, distance").order("event_date", { ascending: false }),
       supabase.from("races").select("id, name, slug, date").order("date", { ascending: false }).limit(100),
+      supabase.from("race_distances").select("id, name, race_id").order("display_order"),
     ]);
     if (error) toast.error("No se pudo cargar la configuración del asistente");
     setCfg(c ?? null);
-    setEventos(ev ?? []);
     setCarreras(ca ?? []);
+    setDistancias(di ?? []);
     await cargarMensajes();
     setLoading(false);
   }, [cargarMensajes]);
@@ -90,20 +94,16 @@ export default function WhatsappBotManagement() {
   const set = <K extends keyof Config>(campo: K, valor: Config[K]) =>
     setCfg((prev) => (prev ? { ...prev, [campo]: valor } : prev));
 
-  const elegirEvento = (eid: string) => {
-    if (!cfg) return;
-    const ev = eventos.find((e) => e.eid === eid);
-    setCfg({ ...cfg, active_eid: eid, race_name: cfg.race_name || ev?.name || "" });
-  };
-
   const elegirCarrera = (id: string) => {
     if (!cfg) return;
-    if (id === SIN_CARRERA) {
-      setCfg({ ...cfg, race_id: null });
-      return;
-    }
     const carrera = carreras.find((c) => c.id === id);
-    setCfg({ ...cfg, race_id: id, race_name: cfg.race_name || carrera?.name || "" });
+    // Al cambiar de carrera, la distancia y el nombre dejan de valer.
+    setCfg({ ...cfg, race_id: id, distance_id: null, race_name: carrera?.name ?? cfg.race_name });
+  };
+
+  const elegirDistancia = (id: string) => {
+    if (!cfg) return;
+    setCfg({ ...cfg, distance_id: id === TODAS ? null : id });
   };
 
   /** Rellena los enlaces vacíos con las rutas públicas de la carrera elegida. */
@@ -125,8 +125,8 @@ export default function WhatsappBotManagement() {
   const guardar = async (cambios?: Partial<Config>) => {
     if (!cfg) return;
     const fila = { ...cfg, ...cambios };
-    if (fila.enabled && !fila.active_eid) {
-      toast.error("Para encenderlo hace falta el evento de RaceTec");
+    if (fila.enabled && !fila.race_id) {
+      toast.error("Para encenderlo hace falta elegir la carrera");
       return;
     }
     setSaving(true);
@@ -169,8 +169,8 @@ export default function WhatsappBotManagement() {
     );
   }
 
-  const enDirecto = cfg.enabled && !!cfg.active_eid;
-  const eidSinEvento = cfg.active_eid && !eventos.some((e) => e.eid === cfg.active_eid);
+  const enDirecto = cfg.enabled && !!cfg.race_id;
+  const distanciasDeCarrera = distancias.filter((d) => d.race_id === cfg.race_id);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -179,8 +179,9 @@ export default function WhatsappBotManagement() {
           <MessageCircle className="h-6 w-6" /> Asistente de WhatsApp
         </h2>
         <p className="text-muted-foreground">
-          Contesta a quien escribe con un dorsal, la clasificación, el mapa en vivo o la información de la carrera.
-          Las respuestas salen de RaceTec: si no hay dato, lo dice; nunca se inventa.
+          Contesta a los usuarios registrados que escriben un dorsal, piden la clasificación, el mapa en vivo o la
+          información de la carrera. Los tiempos son los de las clasificaciones de Camberas: si no hay dato, lo
+          dice; nunca se inventa.
         </p>
       </div>
 
@@ -191,8 +192,8 @@ export default function WhatsappBotManagement() {
             <CardDescription>
               {enDirecto ? (
                 <>
-                  Contestando sobre <span className="font-medium text-foreground">{cfg.race_name || "sin nombre"}</span>{" "}
-                  · EID {cfg.active_eid}
+                  Contestando sobre <span className="font-medium text-foreground">{cfg.race_name || "sin nombre"}</span>
+                  {cfg.distance_id ? ` · ${distanciasDeCarrera.find((d) => d.id === cfg.distance_id)?.name ?? ""}` : ""}
                 </>
               ) : (
                 "Apagado: contesta que no hay ninguna carrera en directo."
@@ -212,34 +213,12 @@ export default function WhatsappBotManagement() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Evento de RaceTec</Label>
-              <Select value={cfg.active_eid ?? undefined} onValueChange={elegirEvento}>
+              <Label>Carrera</Label>
+              <Select value={cfg.race_id ?? undefined} onValueChange={elegirCarrera}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Elige el evento" />
+                  <SelectValue placeholder="Elige la carrera" />
                 </SelectTrigger>
                 <SelectContent>
-                  {eventos.map((e) => (
-                    <SelectItem key={e.eid} value={e.eid}>
-                      {e.name || "Sin nombre"} · EID {e.eid}
-                      {e.event_date ? ` · ${e.event_date}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {eidSinEvento && (
-                <p className="text-xs text-muted-foreground">
-                  El EID {cfg.active_eid} no aparece entre los eventos sincronizados.
-                </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Carrera de Camberas</Label>
-              <Select value={cfg.race_id ?? SIN_CARRERA} onValueChange={elegirCarrera}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={SIN_CARRERA}>Ninguna</SelectItem>
                   {carreras.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.name} · {c.date}
@@ -247,7 +226,25 @@ export default function WhatsappBotManagement() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Solo sirve para rellenar los enlaces.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Distancia</Label>
+              <Select value={cfg.distance_id ?? TODAS} onValueChange={elegirDistancia} disabled={!cfg.race_id}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={TODAS}>Todas las de la carrera</SelectItem>
+                  {distanciasDeCarrera.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Si se cronometra con RaceTec, trae antes los tiempos en Resultados › Importar de RaceTec.
+              </p>
             </div>
           </div>
 
