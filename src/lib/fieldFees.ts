@@ -47,8 +47,10 @@ export const getFieldFee = (field: FeeConfigField, value: unknown): number => {
   }
   const amount = Number(o.fee_amount) || 0;
   if (field.field_type === "number") {
+    // Cantidad negativa = 0: si no, un -12 en una aportación libre a 1 €
+    // por unidad descontaría 12 € de la inscripción
     const n = parseFloat(String(value));
-    return isNaN(n) ? 0 : amount * n;
+    return isNaN(n) || n < 0 ? 0 : amount * n;
   }
   // checkbox (y cualquier otro tipo con importe fijo)
   const checked = value === true || value === "true" || value === "on" || value === "1";

@@ -331,6 +331,7 @@ export const DynamicRegistrationForm = ({ raceId, distanceId, formData, onChange
               id={field.field_name}
               name={field.field_name}
               type="number"
+              min={getFieldFee(field, 1) !== 0 ? 0 : undefined}
               placeholder={field.placeholder || ""}
               required={field.is_required}
               value={value}

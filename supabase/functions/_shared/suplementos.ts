@@ -83,8 +83,10 @@ export function importeCampo(f: CampoFormulario | null | undefined, value: unkno
   }
   const amount = Number(o.fee_amount) || 0;
   if (f.field_type === "number") {
+    // Cantidad negativa = 0 (misma regla que src/lib/fieldFees.ts): el
+    // descuento lo da un fee_amount negativo, nunca la cantidad que escribe
     const n = parseFloat(String(value));
-    return isNaN(n) ? 0 : amount * n;
+    return isNaN(n) || n < 0 ? 0 : amount * n;
   }
   const checked = value === true || value === "true" || value === "on" || value === "1";
   return checked ? amount : 0;
