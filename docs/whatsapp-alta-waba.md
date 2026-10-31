@@ -95,8 +95,28 @@ En la app → WhatsApp → **Configuración** → Webhook → Editar:
 - **Token de verificación**: el mismo `WHATSAPP_VERIFY_TOKEN` de arriba.
 
 Meta hace un `GET` inmediato; si el token cuadra, la función devuelve el
-`hub.challenge` y verás "Verificado". Después, **Administrar** → suscribirse al
-campo **`messages`**. Sin esa suscripción no llega nada.
+`hub.challenge` y verás "Verificado". Después, en **Campos de webhook**,
+activar el interruptor de **`messages`** (por defecto están todos en
+«Suscripción cancelada»). Sin esa suscripción no llega nada.
+
+### Y suscribir la app a la WABA (el paso que no está en la pantalla)
+
+Con la URL verificada y `messages` suscrito, Meta **sigue sin entregar los
+mensajes entrantes** hasta que la app esté suscrita a la cuenta de WhatsApp
+(`subscribed_apps`). El panel lo enseña en «Comprobar webhooks de prueba» como
+si los hubiera enviado, pero a la función no llega ninguna petición. Nos pasó
+el 31-oct-2026 y se tardó una mañana en dar con ello.
+
+Se hace con una llamada a la API, con un token que tenga
+`whatsapp_business_management` (el token temporal del Paso 1 NO lo tiene). Lo
+más cómodo: [Explorador de la Graph API](https://developers.facebook.com/tools/explorer/)
+→ app Camberas → permisos `whatsapp_business_management` y
+`whatsapp_business_messaging` → **Generate Access Token** → método **POST** →
+ruta `<WABA_ID>/subscribed_apps` → Enviar. Respuesta: `{"success": true}`.
+Comprobación: `GET <WABA_ID>/subscribed_apps` debe listar la app.
+
+Hay que repetirlo si se cambia de WABA (por ejemplo, al pasar del número de
+prueba a la cuenta definitiva).
 
 ### Pasar la app a modo Live
 
