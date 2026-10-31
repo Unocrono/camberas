@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      accesos_usuarios: {
+        Row: {
+          id: number
+          inicio: string
+          ip: unknown
+          ip_ultima: unknown
+          origen: string
+          session_id: string | null
+          ultima_actividad: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: never
+          inicio: string
+          ip?: unknown
+          ip_ultima?: unknown
+          origen?: string
+          session_id?: string | null
+          ultima_actividad: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: never
+          inicio?: string
+          ip?: unknown
+          ip_ultima?: unknown
+          origen?: string
+          session_id?: string | null
+          ultima_actividad?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       admin_notifications: {
         Row: {
           created_at: string | null
@@ -6072,6 +6108,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accesos_usuario: {
+        Args: { p_limite?: number; p_user_id: string }
+        Returns: {
+          abierta: boolean
+          inicio: string
+          ip: string
+          ip_ultima: string
+          origen: string
+          ultima_actividad: string
+          user_agent: string
+        }[]
+      }
       actualizar_grupetta: {
         Args: {
           p_desnivel?: number
@@ -7104,6 +7152,15 @@ export type Database = {
           p_titular?: string
         }
         Returns: Json
+      }
+      ultimos_accesos: {
+        Args: never
+        Returns: {
+          accesos: number
+          sesiones_abiertas: number
+          ultimo_acceso: string
+          user_id: string
+        }[]
       }
       ultra_receptor_sincronizar: {
         Args: { p_clave: string; p_estado?: Json }
