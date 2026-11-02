@@ -1,0 +1,577 @@
+{
+  "slug": "carrera-solidaria-guardia-civil-la-rioja-2026",
+  "tenant": "guardia-civil-la-rioja",
+  "nombre": "II Carrera Solidaria Guardia Civil La Rioja",
+  "nombreCorto": "Carrera Solidaria Guardia Civil",
+  "edicion": 2,
+  "subtitulo": "A favor de la esclerosis múltiple",
+  "descripcion": "Carrera solidaria de la 10ª Zona de la Guardia Civil en Haro a favor de ARDEM, Asociación Riojana de Esclerosis Múltiple.",
+  "deporte": "popular",
+  "competitivo": true,
+  "fecha": "2026-11-15",
+  "fechaTexto": "Domingo 15 de noviembre de 2026",
+  "lugar": {
+    "nombre": "Aparcamiento del polideportivo El Mazo",
+    "municipio": "Haro",
+    "provincia": "La Rioja"
+  },
+  "organizador": {
+    "nombre": "Guardia Civil · 10ª Zona de La Rioja",
+    "email": "lo-zon-carrerapopular@guardiacivil.org",
+    "telefono": "+34 941 22 99 00 ext. 1010317"
+  },
+  "beneficiario": {
+    "nombre": "ARDEM · Asociación Riojana de Esclerosis Múltiple",
+    "texto": "Asociación sin ánimo de lucro que defiende los derechos de las personas con patologías relacionadas con la esclerosis múltiple y sus familias, y gestiona servicios especializados para mejorar su calidad de vida y la de su entorno."
+  },
+  "estado": "cerrada",
+  "inscripcion": {
+    "apertura": "2026-09-18T00:00:00+02:00",
+    "cierre": "2026-11-01T23:59:00+01:00",
+    "cierreTexto": "Inscripciones cerradas desde el 1 de noviembre de 2026",
+    "plazasDisponibles": 1000,
+    "modalidades": [
+      "individual",
+      "solidario"
+    ],
+    "tarifas": [
+      {
+        "id": "6k",
+        "nombre": "Carrera 6K",
+        "pruebas": [
+          "K6"
+        ],
+        "destacada": true,
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 10
+          }
+        ],
+        "incluye": [
+          "Camiseta oficial",
+          "Dorsal con chip",
+          "Bolsa del corredor"
+        ]
+      },
+      {
+        "id": "caminata",
+        "nombre": "Caminata 6K",
+        "pruebas": [
+          "CAM6"
+        ],
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 10
+          }
+        ],
+        "incluye": [
+          "Camiseta oficial",
+          "Bolsa del corredor"
+        ]
+      },
+      {
+        "id": "1k",
+        "nombre": "Carrera 1K",
+        "pruebas": [
+          "K1"
+        ],
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 8
+          }
+        ],
+        "incluye": [
+          "Camiseta oficial",
+          "Bolsa del corredor",
+          "Medalla"
+        ]
+      },
+      {
+        "id": "500m",
+        "nombre": "Carrera 500 m",
+        "pruebas": [
+          "K500"
+        ],
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 8
+          }
+        ],
+        "incluye": [
+          "Camiseta oficial",
+          "Bolsa del corredor",
+          "Medalla"
+        ]
+      },
+      {
+        "id": "solidario",
+        "nombre": "Dorsal solidario",
+        "pruebas": [],
+        "modalidad": "solidario",
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 5
+          }
+        ],
+        "importesLibres": [
+          5,
+          10,
+          20,
+          50
+        ],
+        "incluye": [
+          "No da derecho a participar ni incluye camiseta ni bolsa"
+        ]
+      },
+      {
+        "id": "camiseta-solidaria",
+        "nombre": "Camiseta solidaria",
+        "pruebas": [],
+        "modalidad": "solidario",
+        "periodos": [
+          {
+            "hasta": "2026-11-01",
+            "precio": 10
+          }
+        ],
+        "incluye": [
+          "Camiseta oficial, sin participación"
+        ]
+      }
+    ],
+    "extras": [
+      {
+        "id": "talla",
+        "nombre": "Talla de camiseta",
+        "tipo": "talla",
+        "precio": 0,
+        "opciones": [
+          "4",
+          "8",
+          "12",
+          "16 (XS)",
+          "S",
+          "M",
+          "L",
+          "XL",
+          "XXL"
+        ],
+        "obligatorio": true
+      }
+    ],
+    "campos": [
+      {
+        "id": "ffccse",
+        "etiqueta": "Miembro de las FFCCSE",
+        "tipo": "si_no"
+      },
+      {
+        "id": "acepta-reglamento",
+        "etiqueta": "He leído y acepto el reglamento",
+        "tipo": "consentimiento",
+        "obligatorio": true
+      }
+    ],
+    "menores": {
+      "permitido": true,
+      "tutor": true
+    },
+    "nota": "La inscripción por edades depende del año de nacimiento. Dorsales el mismo día del evento; la organización podrá habilitar puntos de recogida previos.",
+    "pasarela": {
+      "proveedor": "rockthesport",
+      "url": "https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja",
+      "metodos": [
+        "tarjeta"
+      ]
+    }
+  },
+  "pruebas": [
+    {
+      "id": "K500",
+      "nombre": "Carrera 500 m",
+      "tipo": "infantil",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 500,
+      "distanciaTexto": "500 m",
+      "salida": "11:00",
+      "edad": {
+        "nacidosDesde": 2018,
+        "nacidosHasta": 2023
+      },
+      "descripcion": "Medalla conmemorativa para todos los participantes."
+    },
+    {
+      "id": "K1",
+      "nombre": "Carrera 1K",
+      "tipo": "infantil",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 1000,
+      "distanciaTexto": "1 km",
+      "salida": "11:15",
+      "edad": {
+        "nacidosDesde": 2014,
+        "nacidosHasta": 2017
+      },
+      "descripcion": "Medalla conmemorativa para todos los participantes."
+    },
+    {
+      "id": "K6",
+      "nombre": "Carrera 6K",
+      "tipo": "carrera",
+      "competitiva": true,
+      "chip": true,
+      "distancia": 6000,
+      "distanciaTexto": "6 km",
+      "salida": "12:00",
+      "limite": "13:00",
+      "edad": {
+        "nacidosHasta": 2013
+      },
+      "descripcion": "Dorsal con chip. Trofeo para los 3 primeros (masculino y femenino)."
+    },
+    {
+      "id": "CAM6",
+      "nombre": "Caminata 6K",
+      "tipo": "marcha",
+      "competitiva": false,
+      "chip": false,
+      "distancia": 6000,
+      "distanciaTexto": "6 km",
+      "salida": "12:01",
+      "limite": "13:00",
+      "descripcion": "Para todas las edades. Sale tras la Carrera 6K."
+    }
+  ],
+  "premios": [
+    {
+      "pruebas": [
+        "K500",
+        "K1"
+      ],
+      "premio": "Medalla",
+      "texto": "Medalla conmemorativa para todos los participantes"
+    },
+    {
+      "pruebas": [
+        "K6"
+      ],
+      "premio": "Trofeos",
+      "texto": "Para los tres primeros clasificados (masculino y femenino)"
+    },
+    {
+      "pruebas": [
+        "K6"
+      ],
+      "categoria": "FFCCSE",
+      "premio": "Trofeo honorífico",
+      "texto": "Primer clasificado masculino y femenino de las FFCCSE (no acumulable: el premiado elige uno y el otro pasa al siguiente)"
+    }
+  ],
+  "servicios": [
+    {
+      "nombre": "Hinchables y talleres",
+      "texto": "Animación infantil",
+      "icono": "child"
+    },
+    {
+      "nombre": "Degustaciones",
+      "texto": "Degustaciones al finalizar",
+      "icono": "utensils"
+    },
+    {
+      "nombre": "Ambiente musical",
+      "texto": "Música en salida y meta",
+      "icono": "music"
+    },
+    {
+      "nombre": "Exhibición de medios",
+      "texto": "Exhibición de medios de la Guardia Civil",
+      "icono": "newspaper"
+    },
+    {
+      "nombre": "Bolsa del corredor",
+      "texto": "Con obsequios de las empresas colaboradoras",
+      "icono": "gift"
+    },
+    {
+      "nombre": "Medición de tiempos",
+      "texto": "Con chip en la Carrera 6K",
+      "icono": "stopwatch"
+    }
+  ],
+  "camiseta": {
+    "incluida": true,
+    "texto": "Camiseta oficial del evento incluida en todas las inscripciones. También a la venta como «Camiseta solidaria» (10 €)."
+  },
+  "patrocinadores": [
+    {
+      "nombre": "Guardia Civil · Zona de La Rioja",
+      "nivel": "organiza"
+    },
+    {
+      "nombre": "Ayuntamiento de Haro",
+      "nivel": "institucional"
+    },
+    {
+      "nombre": "ARDEM · Asociación Riojana de Esclerosis Múltiple",
+      "nivel": "beneficiario"
+    },
+    {
+      "nombre": "Naturhouse",
+      "nivel": "principal"
+    },
+    {
+      "nombre": "Kraft Heinz",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Fotoadictos La Rioja",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Genergy",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Asider",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Fundación Guardia Civil",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Crown Sport Nutrition",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "EPC Groupe",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Coca-Cola",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Cruz Roja Española",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "La Rioja Cuida",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Peras de Rincón de Soto",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Harinera Riojana",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Nogués Talleres",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "UNIR",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Gurpegui",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Fiora",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Peñaclara",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Sensa Pack",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Sulema",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Renault Auto Urbión",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Grupo Alse",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Habecu",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Carnicería Bartolomé",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Martínez Lacuesta",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Centro Tecnológico del Champiñón",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "AEGC",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Centro de Fisioterapia Haro",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "León Foodtruck",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Finca Allende",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Caravant Norte",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "RECIRSA",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Ocisa",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Agrícola Obrino",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Dinastía Vivanco",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "La Cofradía del Renegado",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Serpicar",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Electricidad Montoya",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Martínez Somalo",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "La Vieja Bodega",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Expo-hogar",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Bodegas Lecea",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Segurmicex",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Autocentro Unisa",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "BigMat",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "El Ábside Rioja",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Baqué",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Argo",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Circuito de Navarra",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Pastelería Visan",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Cupani",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Calle Activa",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Juper",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Bodegas Roda",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Urbina",
+      "nivel": "colaborador"
+    },
+    {
+      "nombre": "Señorío de Líbano",
+      "nivel": "colaborador"
+    }
+  ],
+  "contacto": {
+    "email": "lo-zon-carrerapopular@guardiacivil.org",
+    "telefono": "+34 941 22 99 00 ext. 1010317",
+    "direccion": "C. Duques de Nájera, 147, 26005 Logroño",
+    "redes": {
+      "instagram": "https://www.instagram.com/gc_carrera_popular_la_rioja"
+    }
+  },
+  "imagenes": {
+    "cartel": "cartel.jpg"
+  },
+  "marca": {
+    "colorMarca": "#1B5E20",
+    "colorAccion": "#E8541E"
+  },
+  "fuente": {
+    "origen": "Reglamento (Anexo II) y certificado de seguro (Anexo III) en PDF + cartel + https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja",
+    "fecha": "2026-11-02",
+    "pendiente": [
+      "el reglamento aún pone «I Carrera» en el título y en protección de datos (es la II)",
+      "qué incluye cada tarifa (Rockthesport no lo detalla; el reglamento dice camiseta + bolsa para las 4 pruebas)",
+      "recorrido y GPX",
+      "web y logo de ARDEM y logos de patrocinadores",
+      "puntos y horarios de recogida de dorsales previos"
+    ]
+  }
+}
