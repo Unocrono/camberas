@@ -48,6 +48,9 @@ const TURNO_MS = 5 * 60_000;
 // Estados OFICIALES vistos en la API (idEstadoCabecera / estadoCabecera).
 // Uno que no esté aquí no se adivina: se reporta y la fila no se toca.
 const CABECERA_PAGADA = 2; // "Pagado TPV"
+// Las que da de alta el organizador desde su panel (invitaciones, pago en
+// mano o transferencia): Guardia Civil La Rioja 2026, 79 de 756
+const CABECERA_PAGADA_OTRAS = 3; // "Pagado otras formas de pago"
 const CABECERA_GRATUITA = 4; // "Finalizada gratuita"
 const LINEA_INSCRITO = 0; // estadoLinea "Inscrito"
 const RE_ANULADA = /anul|baja|cancel|devol/;
@@ -185,7 +188,7 @@ const estadoDe = (f: FilaRts): Estado => {
   if (linea !== LINEA_INSCRITO) return null;
   if (num(f.inscripcionFinalizado) !== 1) return "sin_terminar";
   const cab = num(f.idEstadoCabecera);
-  if (cab === CABECERA_PAGADA) return { status: "confirmed", payment_status: "paid" };
+  if (cab === CABECERA_PAGADA || cab === CABECERA_PAGADA_OTRAS) return { status: "confirmed", payment_status: "paid" };
   if (cab === CABECERA_GRATUITA) return { status: "confirmed", payment_status: "not_required" };
   return null;
 };
