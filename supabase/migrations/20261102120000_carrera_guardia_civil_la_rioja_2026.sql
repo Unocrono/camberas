@@ -27,7 +27,7 @@
 --   · el dorsal solidario (5, 10, 20, 50 € o donación libre) y la camiseta
 --     solidaria (10 €) no dan derecho a participar: no son recorridos, van
 --     en el texto de la web;
---   · las tallas de camiseta son las de 2025;
+--   · tallas de camiseta, las de Rockthesport (4, 8, 12, 16 (XS) y S a XXL);
 --   · no hay GPX ni rutómetro todavía.
 -- Nace OCULTA (is_visible = false) con la web activa: se ve con ?previa=1
 -- desde el panel. Cuando se quiera publicar, is_visible = true.
@@ -135,13 +135,14 @@ SELECT 'b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', 'fcse', '¿Eres miembro de las Fu
 WHERE NOT EXISTS (SELECT 1 FROM public.registration_form_fields
                    WHERE race_distance_id = 'b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e' AND field_name = 'fcse');
 
--- Todas: talla de camiseta (incluida en las cuatro pruebas)
-INSERT INTO public.registration_form_fields (race_distance_id, field_name, field_label, field_type, field_order, is_required, is_system_field, is_visible, field_options, help_text)
-SELECT d.id, 'talla_camiseta', 'Talla de camiseta', 'select', 21, true, false, true,
-       '["4 años", "6 años", "8 años", "10 años", "12 años", "14 años", "XS", "S", "M", "L", "XL", "XXL"]'::jsonb, NULL
+-- Todas: la talla de camiseta es el campo por defecto tshirt_size (va a
+-- registrations.tshirt_size), con las tallas de Rockthesport
+UPDATE public.registration_form_fields f
+   SET field_type = 'select',
+       field_options = '["4", "8", "12", "16 (XS)", "S", "M", "L", "XL", "XXL"]'::jsonb
   FROM public.race_distances d
- WHERE d.race_id = '182defd5-bb44-4f9d-951a-6876472a8f8c'
-   AND NOT EXISTS (SELECT 1 FROM public.registration_form_fields f WHERE f.race_distance_id = d.id AND f.field_name = 'talla_camiseta');
+ WHERE f.race_distance_id = d.id AND d.race_id = '182defd5-bb44-4f9d-951a-6876472a8f8c'
+   AND f.field_name = 'tshirt_size';
 
 -- Infantiles: tutor que autoriza
 INSERT INTO public.registration_form_fields (race_distance_id, field_name, field_label, field_type, field_order, is_required, is_system_field, is_visible, field_options, help_text)
@@ -227,7 +228,7 @@ INSERT INTO public.race_web (race_id, plantilla, activa, tema, contenido) VALUES
       {"nombre": "Bolsa del corredor", "texto": "Con obsequios de las empresas colaboradoras.", "icono": "gift"},
       {"nombre": "Cronometraje con chip", "texto": "En la Carrera 6K.", "icono": "stopwatch"}
     ],
-    "camiseta": {"incluida": true, "tallas": ["4 años", "6 años", "8 años", "10 años", "12 años", "14 años", "XS", "S", "M", "L", "XL", "XXL"], "texto": "Camiseta oficial incluida en las cuatro pruebas. También a la venta como «Camiseta solidaria» por 10 €."},
+    "camiseta": {"incluida": true, "tallas": ["4", "8", "12", "16 (XS)", "S", "M", "L", "XL", "XXL"], "texto": "Camiseta oficial incluida en las cuatro pruebas. También a la venta como «Camiseta solidaria» por 10 €."},
     "contacto": {"email": "lo-zon-carrerapopular@guardiacivil.org", "telefono": "941 22 99 00 (ext. 1010317)", "direccion": "C/ Duques de Nájera 147, 26005 Logroño", "redes": {"instagram": "https://www.instagram.com/gc_carrera_popular_la_rioja"}},
     "documentos": [{"nombre": "Cartel 2026", "url": "https://camberas.com/fotos/guardia-civil-la-rioja/cartel-2026.jpg"}],
     "pruebas": [
