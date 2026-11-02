@@ -6,6 +6,8 @@
 // solo la leen estas funciones (service_role) a través de tpv_de_carrera() y
 // clave_tpv(). El intent guarda con qué comercio se firmó (secret_ref) para
 // que el webhook verifique con esa clave aunque el organizador cambie de TPV.
+// esm.sh exporta default en ejecución, pero los tipos CommonJS no lo declaran.
+// @ts-expect-error TS1192: conservar el default real de esm.sh.
 import CryptoJS from "https://esm.sh/crypto-js@4.2.0";
 
 export type Entorno = "test" | "prod";

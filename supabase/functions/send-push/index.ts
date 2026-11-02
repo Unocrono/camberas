@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+// esm.sh exporta default en ejecución, pero los tipos CommonJS no lo declaran.
+// @ts-expect-error TS1192: conservar el default real de esm.sh.
 import webpush from "https://esm.sh/web-push@3.6.7";
 
 // Envío de notificaciones push (el "clinc" con la app cerrada).
