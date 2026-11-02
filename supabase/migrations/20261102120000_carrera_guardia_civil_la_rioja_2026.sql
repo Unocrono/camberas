@@ -25,8 +25,10 @@
 --   · solo el 6K lleva chip y clasifica; 1K y 500 m son infantiles con
 --     medalla para todos, sin clasificación; la caminata no compite;
 --   · el dorsal solidario (5, 10, 20, 50 € o donación libre) y la camiseta
---     solidaria (10 €) no dan derecho a participar: no son recorridos, van
---     en el texto de la web;
+--     solidaria (10 €) no dan derecho a participar: van en un recorrido
+--     «Solidario» OCULTO, sin salida ni chip (dorsales 9001-9200), para
+--     tener a esos colaboradores en Camberas; el campo «Aportación» dice qué
+--     compró cada uno y «Importe de la donación» cuánto, si fue libre;
 --   · tallas de camiseta, las de Rockthesport (4, 8, 12, 16 (XS) y S a XXL);
 --   · no hay GPX ni rutómetro todavía.
 -- Nace OCULTA (is_visible = false) con la web activa: se ve con ?previa=1
@@ -90,17 +92,27 @@ INSERT INTO public.race_distances (
    'Carrera 500 m', 0.5, 8, NULL,
    'Polideportivo El Mazo, Haro', 'Polideportivo El Mazo, Haro',
    '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
-   true, 4, 2301, 2600, 'infantil', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja')
+   true, 4, 2301, 2600, 'infantil', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja'),
+  -- Dorsal y camiseta solidarios: no participan; oculto en la web, sin salida
+  ('df70bd6b-f08c-4bb6-a2ea-6c417d715329', '182defd5-bb44-4f9d-951a-6876472a8f8c',
+   'Solidario', 0, 5, NULL,
+   NULL, NULL,
+   '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
+   false, 5, 9001, 9200, 'marcha', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, distance_km = EXCLUDED.distance_km, price = EXCLUDED.price,
   cutoff_time = EXCLUDED.cutoff_time, kind = EXCLUDED.kind, competitive = EXCLUDED.competitive,
   chip = EXCLUDED.chip, registration_opens = EXCLUDED.registration_opens,
-  registration_closes = EXCLUDED.registration_closes, registration_url = EXCLUDED.registration_url;
+  registration_closes = EXCLUDED.registration_closes, registration_url = EXCLUDED.registration_url,
+  is_visible = EXCLUDED.is_visible;
 
--- Precio único hasta el cierre (hora de pared +00): 10 € 6K y Caminata, 8 € 1K y 500 m.
+-- Precio único hasta el cierre (hora de pared +00): 10 € 6K y Caminata, 8 € 1K
+-- y 500 m. El Solidario se queda con el mínimo (5 €) como precio base, sin
+-- tramos: lo que pagó cada uno lo dice su «Aportación».
 DELETE FROM public.race_distance_prices
  WHERE race_distance_id IN ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', '7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad',
-                            '745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb', 'f9beba65-ddf5-4480-b991-488338dff264');
+                            '745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb', 'f9beba65-ddf5-4480-b991-488338dff264',
+                            'df70bd6b-f08c-4bb6-a2ea-6c417d715329');
 INSERT INTO public.race_distance_prices (race_distance_id, price, start_datetime, end_datetime) VALUES
   ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', 10, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00'),
   ('7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad', 10, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00'),
@@ -121,12 +133,34 @@ ON CONFLICT (race_distance_id) DO UPDATE SET
 -- El reglamento solo premia la general masculina y femenina del 6K (más el
 -- trofeo honorífico FCSE, que sale del campo del formulario): la UNICA que
 -- siembra el trigger basta en todos los recorridos (Camberas antepone M-/F-).
+-- El Solidario no tiene salida (race_waves) porque nadie corre con ese dorsal.
 
 -- --------------------------------------------------------------- formulario
 SELECT public.seed_default_registration_fields_for_distance('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e');
 SELECT public.seed_default_registration_fields_for_distance('7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad');
 SELECT public.seed_default_registration_fields_for_distance('745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb');
 SELECT public.seed_default_registration_fields_for_distance('f9beba65-ddf5-4480-b991-488338dff264');
+SELECT public.seed_default_registration_fields_for_distance('df70bd6b-f08c-4bb6-a2ea-6c417d715329');
+
+-- Solidario: quien no corre no tiene por qué dar DNI, teléfono, nacimiento, sexo ni talla
+UPDATE public.registration_form_fields
+   SET is_required = false
+ WHERE race_distance_id = 'df70bd6b-f08c-4bb6-a2ea-6c417d715329'
+   AND field_name IN ('document_number', 'phone', 'gender', 'birth_date', 'tshirt_size');
+
+-- Solidario: qué compró cada uno y, en la donación libre, cuánto
+INSERT INTO public.registration_form_fields (race_distance_id, field_name, field_label, field_type, field_order, is_required, is_system_field, is_visible, field_options, help_text)
+SELECT 'df70bd6b-f08c-4bb6-a2ea-6c417d715329', 'aportacion', 'Aportación', 'select', 20, true, false, true,
+       '["Camiseta solidaria (10 €)", "Dorsal solidario 5 €", "Dorsal solidario 10 €", "Dorsal solidario 20 €", "Dorsal solidario 50 €", "Donación libre"]'::jsonb,
+       'El dorsal solidario no da derecho a participar ni incluye camiseta ni bolsa.'
+WHERE NOT EXISTS (SELECT 1 FROM public.registration_form_fields
+                   WHERE race_distance_id = 'df70bd6b-f08c-4bb6-a2ea-6c417d715329' AND field_name = 'aportacion');
+
+INSERT INTO public.registration_form_fields (race_distance_id, field_name, field_label, field_type, field_order, is_required, is_system_field, is_visible, field_options, help_text)
+SELECT 'df70bd6b-f08c-4bb6-a2ea-6c417d715329', 'importe_donacion', 'Importe de la donación (€)', 'number', 21, false, false, true,
+       NULL, 'Solo en la donación libre.'
+WHERE NOT EXISTS (SELECT 1 FROM public.registration_form_fields
+                   WHERE race_distance_id = 'df70bd6b-f08c-4bb6-a2ea-6c417d715329' AND field_name = 'importe_donacion');
 
 -- 6K: miembro de las FCSE (trofeo honorífico)
 INSERT INTO public.registration_form_fields (race_distance_id, field_name, field_label, field_type, field_order, is_required, is_system_field, is_visible, field_options, help_text)
