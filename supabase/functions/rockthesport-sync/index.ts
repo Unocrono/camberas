@@ -28,6 +28,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { formatoPropio } from "../_shared/formatoPropio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,6 +72,9 @@ const CAMPOS_SYNC = [
   "birth_date", "address", "city", "province", "country",
   "race_distance_id", "status", "payment_status",
 ] as const;
+// En formato propio («MARTA» → «Marta»), como el importador y EventBooking:
+// si no, cada pasada devolvería las mayúsculas de RockTheSport
+const CAMPOS_FORMATO_PROPIO = ["first_name", "last_name", "address", "city", "province", "country"] as const;
 // Si cambia alguno de estos, la categoría se vuelve a calcular
 const CAMPOS_CATEGORIA = ["birth_date", "gender", "gender_id"];
 
@@ -433,6 +437,10 @@ async function sincronizarCarrera(service: any, cfg: Record<string, unknown>): P
       // aviso de duplicado; independiente de lo que se escribe en la fila
       identidades: Identidad[],
     ) => {
+      deseadoBase = { ...deseadoBase };
+      for (const c of CAMPOS_FORMATO_PROPIO) deseadoBase[c] = formatoPropio(deseadoBase[c] as string | null);
+      club = formatoPropio(club);
+      team = formatoPropio(team);
       const distanceId = mapaTarifas.get(String(num(f.idTarifa)));
       if (!distanceId) {
         errores.push(`${etiqueta}: tarifa "${f.nombreTarifa ?? f.idTarifa}" (${f.idTarifa}) sin recorrido asignado`);
