@@ -17,6 +17,9 @@
 --   · la inscripción se hace en Rockthesport, no en Camberas: los plazos y
 --     precios se cargan igual para la ficha y los inscritos entran por
 --     importación (registration_url en cada recorrido);
+--   · inscripciones CERRADAS: el cierre se adelanta al 1-nov-2026 23:59 en la
+--     carrera, en los cuatro recorridos y en sus tramos de precio (Rockthesport
+--     anunciaba el 8 de noviembre);
 --   · rangos de dorsal, los de 2025: 1-1000 carrera, 1001-2000 caminata,
 --     2001-2300 1K y 2301-2600 500 m;
 --   · solo el 6K lleva chip y clasifica; 1K y 500 m son infantiles con
@@ -46,7 +49,7 @@ INSERT INTO public.races (
   'Segunda edición de la carrera solidaria de la 10ª Zona de la Guardia Civil de La Rioja, este año en Haro y a favor de ARDEM, la Asociación Riojana de Esclerosis Múltiple. Carrera de 6 km con chip, Caminata de 6 km para todas las edades y carreras infantiles de 500 m y 1 km. Domingo 15 de noviembre de 2026 desde el polideportivo El Mazo. Hinchables y talleres, degustaciones, ambiente musical y exhibición de medios de la Guardia Civil.',
   'popular', 'carrera', '2026-11-15',
   'Aparcamiento del polideportivo El Mazo, Haro (La Rioja)',
-  1000, '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00',
+  1000, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
   false, false, false, false, 60, 'race_date',
   'lo-zon-carrerapopular@guardiacivil.org', 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja', NULL,
   'https://camberas.com/fotos/guardia-civil-la-rioja/cartel-2026.jpg',
@@ -71,22 +74,22 @@ INSERT INTO public.race_distances (
   ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', '182defd5-bb44-4f9d-951a-6876472a8f8c',
    'Carrera 6K', 6, 10, '1:00 h',
    'Polideportivo El Mazo, Haro', 'Polideportivo El Mazo, Haro',
-   '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00',
+   '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
    true, 1, 1, 1000, 'carrera', true, true, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja'),
   ('7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad', '182defd5-bb44-4f9d-951a-6876472a8f8c',
    'Caminata 6K', 6, 10, '1:00 h',
    'Polideportivo El Mazo, Haro', 'Polideportivo El Mazo, Haro',
-   '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00',
+   '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
    true, 2, 1001, 2000, 'marcha', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja'),
   ('745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb', '182defd5-bb44-4f9d-951a-6876472a8f8c',
    'Carrera 1K', 1, 8, NULL,
    'Polideportivo El Mazo, Haro', 'Polideportivo El Mazo, Haro',
-   '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00',
+   '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
    true, 3, 2001, 2300, 'infantil', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja'),
   ('f9beba65-ddf5-4480-b991-488338dff264', '182defd5-bb44-4f9d-951a-6876472a8f8c',
    'Carrera 500 m', 0.5, 8, NULL,
    'Polideportivo El Mazo, Haro', 'Polideportivo El Mazo, Haro',
-   '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00',
+   '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00',
    true, 4, 2301, 2600, 'infantil', false, false, 'https://www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja')
 ON CONFLICT (id) DO UPDATE SET
   name = EXCLUDED.name, distance_km = EXCLUDED.distance_km, price = EXCLUDED.price,
@@ -99,10 +102,10 @@ DELETE FROM public.race_distance_prices
  WHERE race_distance_id IN ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', '7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad',
                             '745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb', 'f9beba65-ddf5-4480-b991-488338dff264');
 INSERT INTO public.race_distance_prices (race_distance_id, price, start_datetime, end_datetime) VALUES
-  ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', 10, '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00'),
-  ('7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad', 10, '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00'),
-  ('745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb',  8, '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00'),
-  ('f9beba65-ddf5-4480-b991-488338dff264',  8, '2026-09-18 00:00:00+00', '2026-11-08 23:59:00+00');
+  ('b43ac1de-e7bc-46e6-b48c-fd197a4f1e0e', 10, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00'),
+  ('7a1f8685-2cfa-44fd-afc6-cff6e53fb0ad', 10, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00'),
+  ('745ff9f7-71c2-4ecd-87a3-0f65e4ab56bb',  8, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00'),
+  ('f9beba65-ddf5-4480-b991-488338dff264',  8, '2026-09-18 00:00:00+00', '2026-11-01 23:59:00+00');
 
 -- Salidas del reglamento y Rockthesport: 500 m 11:00, 1K 11:15, 6K 12:00 y
 -- Caminata tras la carrera (12:01). Prevista y oficial iguales al nacer.
@@ -163,7 +166,7 @@ SELECT g.id, v.tipo, v.titulo, v.texto, v.req, v.orden
   ('classifications', 'Categorías de competición y premios', E'- Prueba de 500 metros: nacidos entre 2018 y 2023.\n- Prueba de 1.000 metros: nacidos entre 2014 y 2017.\n- Prueba de 6 km: nacidos en 2013 o antes.\n- Caminata de 6 km: todas las edades.\n\nLa inscripción por edades depende del año de nacimiento, independientemente de que el participante haya cumplido ya los años o no.\n\nEn las carreras infantiles, todos los participantes reciben medalla conmemorativa.\n\nEn la prueba de 6 km reciben trofeo los tres primeros clasificados en categoría masculina y femenina.\n\nAdemás, recibe trofeo honorífico el primer clasificado en categoría masculina y femenina que sea miembro de las FCSE. Si el mismo corredor consigue premio en ambas categorías, solo se le otorga en una de ellas, a su elección, y el trofeo descartado pasa al siguiente clasificado de la categoría desierta.', true, 4),
   ('cutoff_times', 'Desarrollo de la prueba', E'Cada participante debe llevar siempre visible durante la prueba el dorsal entregado por la organización. En la modalidad de 6 km los dorsales llevan chip de cronometraje.\n\nLa hora máxima de finalización de cualquiera de las pruebas son las 13:00 h.\n\nCada corredor es responsable de seguir el recorrido marcado, y no respetarlo es causa de descalificación. Los participantes deben seguir en todo momento las instrucciones del personal de la organización.\n\nEn caso de abandono, el corredor debe indicarlo al personal de la organización más cercano, si es posible, o a otro participante, que estará obligado a ayudarle si fuera necesario para notificar lo sucedido a cualquier miembro de la organización o servicio de socorro. El competidor asume toda la responsabilidad desde que abandona voluntariamente la prueba o es descalificado.\n\nEn caso de malas condiciones meteorológicas, por razones de seguridad u otras causas de fuerza mayor, la organización podrá interrumpir las pruebas, modificar el recorrido o variar los límites horarios.', true, 5),
   ('medical', 'Seguridad y seguros', E'La organización contrata un seguro de accidentes y de responsabilidad civil para todos los participantes.\n\nLa organización garantiza la seguridad de los participantes disponiendo las medidas y el personal necesarios, con vehículos oficiales de la organización y de seguridad debidamente identificados y una ambulancia en un punto estratégico del recorrido.\n\nEl recorrido está cerrado al tráfico en todo momento, atendiendo a las indicaciones de los responsables de la organización y, en concreto, del responsable de seguridad vial.\n\nLos participantes corren bajo su responsabilidad. Es responsabilidad de cada participante o de su tutor que esté en condiciones físicas aceptables para la prueba. El personal médico puede retirar el dorsal a cualquier corredor cuando considere que su salud está en peligro.', true, 6),
-  ('registration', 'Inscripción, pago y dorsales', E'La inscripción se realiza online en www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja hasta el 8 de noviembre inclusive, o hasta alcanzar el límite de 1.000 dorsales.\n\nPrecios: Carrera 6K y Caminata, 10 €; Carrera 1K y Carrera 500 m, 8 €; camiseta solidaria, 10 €; dorsal solidario de 5, 10, 20 o 50 €, o donación libre.\n\nLos dorsales se entregan el mismo día del evento, en el horario que comunique la organización. La organización podrá habilitar puntos y fechas de recogida previos, que se comunicarán a los inscritos por correo electrónico; si no los hay, la recogida será solo el día de la prueba en la zona delimitada para ello.', true, 7),
+  ('registration', 'Inscripción, pago y dorsales', E'La inscripción se realiza online en www.rockthesport.com/es/evento/ii-carrera-guardia-civil-la-rioja hasta el 1 de noviembre inclusive. Las inscripciones están cerradas.\n\nPrecios: Carrera 6K y Caminata, 10 €; Carrera 1K y Carrera 500 m, 8 €; camiseta solidaria, 10 €; dorsal solidario de 5, 10, 20 o 50 €, o donación libre.\n\nLos dorsales se entregan el mismo día del evento, en el horario que comunique la organización. La organización podrá habilitar puntos y fechas de recogida previos, que se comunicarán a los inscritos por correo electrónico; si no los hay, la recogida será solo el día de la prueba en la zona delimitada para ello.', true, 7),
   ('environment', 'Concienciación medioambiental', E'La organización quiere que el evento discurra de la forma más respetuosa posible con el medio ambiente. Todos los participantes deben mantener limpio el entorno y usar los contenedores habilitados, sin arrojar residuos fuera de ellos.', false, 8),
   ('responsibility', 'Responsabilidad, imagen y protección de datos', E'Los participantes eximen a la organización de las reclamaciones o demandas basadas en acciones u omisiones de los participantes o de terceros que actúen en su favor, así como de los daños que puedan sufrir ellos o sus materiales.\n\nAl inscribirse, la persona participante (o su padre, madre, tutor o representante legal, en el caso de menores) autoriza a la organización a captar fotografías y grabaciones durante el evento y cede de forma no exclusiva y gratuita su uso en medios de comunicación, redes sociales, la web oficial y soportes promocionales de esta edición y de las futuras.\n\nResponsable del tratamiento de datos: Guardia Civil de La Rioja. Los datos se usan solo para la gestión del evento (participantes, seguros, clasificaciones, premios y difusión de resultados e imágenes) y no se ceden a terceros salvo obligación legal o gestión directa del evento (cronometraje, seguros, autoridades). Los derechos de acceso, rectificación, supresión, oposición, portabilidad y limitación se ejercen por escrito en lo-zon-carrerapopular@guardiacivil.org o en la 10ª Zona de la Guardia Civil, C/ Duques de Nájera 147, 26005 Logroño.\n\nLa participación en el evento implica la aceptación de este reglamento y de la política de protección de datos.', true, 9)
   ) AS v(tipo, titulo, texto, req, orden)
@@ -177,7 +180,7 @@ FROM (VALUES
   ('¿A qué hora sale cada prueba?', 'El 500 m a las 11:00, el 1K a las 11:15, la Carrera 6K a las 12:00 y la Caminata justo después, todas desde el polideportivo El Mazo de Haro. Todas las pruebas terminan antes de las 13:00.', 1),
   ('¿En qué prueba puede correr mi hijo o hija?', 'Depende del año de nacimiento, no de los años cumplidos: 500 m para nacidos entre 2018 y 2023, 1K para nacidos entre 2014 y 2017 y Carrera 6K desde los nacidos en 2013. La Caminata es para todas las edades.', 2),
   ('¿Qué es el dorsal solidario?', 'Un donativo para ARDEM de 5, 10, 20 o 50 € (o la cantidad que quieras) para quien no puede participar. No da derecho a correr ni incluye camiseta ni bolsa; la camiseta oficial se puede comprar aparte como «Camiseta solidaria» por 10 €.', 3),
-  ('¿Hasta cuándo me puedo inscribir?', 'Hasta el 8 de noviembre inclusive en Rockthesport, o antes si se llega a los 1.000 dorsales.', 4),
+  ('¿Todavía me puedo inscribir?', 'No: las inscripciones se cerraron el 1 de noviembre.', 4),
   ('¿Dónde recojo el dorsal?', 'El mismo día de la prueba en la zona habilitada. Si la organización abre puntos de recogida previos, lo avisará por correo a los inscritos.', 5),
   ('¿Hay premios?', 'Medalla para todos en las carreras infantiles; trofeo para los tres primeros, masculino y femenino, de la Carrera 6K, y trofeo honorífico para el primer hombre y la primera mujer de las FCSE.', 6)
 ) AS v(p, r, o)
@@ -196,7 +199,7 @@ INSERT INTO public.race_web (race_id, plantilla, activa, tema, contenido) VALUES
     "organizador": {"nombre": "Guardia Civil · 10ª Zona de La Rioja", "email": "lo-zon-carrerapopular@guardiacivil.org", "telefono": "941 22 99 00 (ext. 1010317)", "direccion": "C/ Duques de Nájera 147, 26005 Logroño"},
     "beneficiario": {"nombre": "ARDEM · Asociación Riojana de Esclerosis Múltiple", "texto": "Todo lo recaudado va a ARDEM Rioja, asociación sin ánimo de lucro que defiende los derechos de las personas con patologías relacionadas con la esclerosis múltiple y sus familias, y gestiona servicios especializados para mejorar su calidad de vida y la de su entorno."},
     "inscripcion": {
-      "cierreTexto": "8 de noviembre de 2026 o hasta agotar los 1.000 dorsales",
+      "cierreTexto": "Inscripciones cerradas desde el 1 de noviembre de 2026",
       "incluye": ["Camiseta oficial del evento", "Bolsa del corredor con obsequios de los colaboradores", "Dorsal con chip en la Carrera 6K", "Medalla en las carreras infantiles", "Seguro de accidentes y responsabilidad civil"],
       "nota": "Inscripción en Rockthesport. ¿No puedes participar pero quieres colaborar? Dorsal solidario de 5, 10, 20 o 50 € o donación libre (no da derecho a participar ni incluye camiseta ni bolsa) y Camiseta solidaria por 10 €. La prueba se elige por año de nacimiento."
     },
