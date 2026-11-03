@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getConfig, tieneRolOrganizador, type Usuario } from "../_shared/asistente/data.ts";
 import { resolve } from "../_shared/asistente/intents.ts";
+import { anotarSalida, avisar, pasarAPersona, tocarConversacion } from "../_shared/asistente/bandeja.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método no permitido" }, 405);
 
-  let cuerpo: { session_id?: unknown; texto?: unknown } = {};
+  let cuerpo: { session_id?: unknown; texto?: unknown; accion?: unknown; desde?: unknown } = {};
   try {
     cuerpo = await req.json();
   } catch {
@@ -54,12 +55,38 @@ Deno.serve(async (req) => {
   }
   const sessionId = typeof cuerpo.session_id === "string" ? cuerpo.session_id.trim() : "";
   const texto = typeof cuerpo.texto === "string" ? cuerpo.texto.trim() : "";
+  const accion = typeof cuerpo.accion === "string" ? cuerpo.accion : "enviar";
   if (!/^[A-Za-z0-9_-]{8,64}$/.test(sessionId)) return json({ error: "Sesión no válida" }, 400);
-  if (!texto) return json({ error: "Escribe algo" }, 400);
-  if (texto.length > MAX_TEXTO) return json({ error: "Mensaje demasiado largo" }, 400);
 
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
   const sb = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+
+  // ── Leer: el chat pregunta si el equipo ha contestado ─────────────────────
+  if (accion === "leer") {
+    const desde = typeof cuerpo.desde === "string" ? cuerpo.desde : "1970-01-01T00:00:00Z";
+    const waIdLectura = `web:${sessionId}`;
+    const [{ data: conv }, { data: nuevos }] = await Promise.all([
+      sb.from("asistente_conversaciones").select("estado").eq("wa_id", waIdLectura).maybeSingle(),
+      sb
+        .from("wa_messages")
+        .select("wam_id, reply, created_at")
+        .eq("wa_id", waIdLectura)
+        .eq("autor", "persona")
+        .gt("created_at", desde)
+        .order("created_at", { ascending: true })
+        .limit(20),
+    ]);
+    return json({
+      estado: (conv as { estado?: string } | null)?.estado ?? "bot",
+      mensajes: ((nuevos ?? []) as { wam_id: string; reply: string | null; created_at: string }[])
+        .filter((m) => m.reply)
+        .map((m) => ({ id: m.wam_id, texto: m.reply as string, en: m.created_at })),
+      ahora: new Date().toISOString(),
+    });
+  }
+
+  if (!texto) return json({ error: "Escribe algo" }, 400);
+  if (texto.length > MAX_TEXTO) return json({ error: "Mensaje demasiado largo" }, 400);
 
   // ── ¿Quién escribe? Solo si trae sesión válida ───────────────────────────
   let usuario: Usuario | null = null;
@@ -89,6 +116,28 @@ Deno.serve(async (req) => {
       .gte("created_at", since);
     if ((count ?? 0) >= LIMITE_HORA) {
       return json({ reply: "Has hecho muchas consultas seguidas 😅 Espera un rato y vuelve a escribirme.", intent: "rate_limited" }, 429);
+    }
+
+    // Bandeja: si la lleva una persona del equipo (o la está esperando),
+    // Maika calla; se guarda el mensaje y se avisa a quien toque.
+    const conv = await tocarConversacion(sb, {
+      wa_id: waId,
+      canal: "web",
+      user_id: usuario?.id ?? null,
+      nombre: usuario?.first_name ?? null,
+      texto,
+    });
+    if (conv.estado === "pendiente" || conv.estado === "persona") {
+      await sb.from("wa_messages").insert({
+        wam_id: wamId,
+        wa_id: waId,
+        body: texto,
+        canal: "web",
+        user_id: usuario?.id ?? null,
+        intent: "persona_espera",
+      });
+      await avisar(sb, conv, texto);
+      return json({ reply: null, intent: "persona_espera", estado: conv.estado });
     }
 
     // Sin cuenta: tres preguntas y se cierra (cuenta todas las de la sesión,
@@ -127,9 +176,11 @@ Deno.serve(async (req) => {
       .filter((p) => p.body && p.reply)
       .map((p) => ({ body: p.body as string, reply: p.reply as string }));
 
-    const { intent, reply } = await resolve(sb, cfg, usuario, texto, historial, { canal: "web", esOrganizador });
+    const { intent, reply, aPersona } = await resolve(sb, cfg, usuario, texto, historial, { canal: "web", esOrganizador });
 
     await sb.from("wa_messages").update({ intent, reply, reply_sent: true }).eq("wam_id", wamId);
+    await anotarSalida(sb, waId, reply);
+    if (aPersona) await pasarAPersona(sb, conv, aPersona, texto);
 
     // Al visitante sin cuenta se le dice cuántas le quedan; en la última, que
     // la siguiente ya no se contesta.
@@ -142,7 +193,7 @@ Deno.serve(async (req) => {
       restantes = Math.max(0, PREGUNTAS_SIN_CUENTA - (usadas ?? 0));
     }
 
-    return json({ reply, intent, restantes });
+    return json({ reply, intent, restantes, estado: aPersona ? "pendiente" : "bot", ahora: new Date().toISOString() });
   } catch (e) {
     const detalle = e instanceof Error ? e.message : String(e);
     console.error("asistente-chat:", detalle);

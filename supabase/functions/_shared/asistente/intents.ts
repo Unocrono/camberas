@@ -11,6 +11,14 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type BotConfig, findRunner, getTop, type RunnerInfo, type Usuario } from "./data.ts";
 import { type Contexto, responderLibre, type Turno } from "./asistente.ts";
+import { PASO_A_PERSONA, pideUnaPersona } from "./bandeja.ts";
+
+export interface Resolucion {
+  intent: Intent;
+  reply: string;
+  /** Si hay que pasar la conversación al equipo: el motivo. */
+  aPersona?: string | null;
+}
 
 export type Intent =
   | "dorsal"
@@ -22,6 +30,7 @@ export type Intent =
   | "help"
   | "libre"
   | "organizador"
+  | "persona"
   | "unknown";
 
 /** Quita acentos y baja a minúsculas para que "clasificación" == "clasificacion". */
@@ -182,8 +191,14 @@ export async function resolve(
   text: string,
   historial: Turno[],
   ctx: Contexto = { canal: "whatsapp", esOrganizador: false },
-): Promise<{ intent: Intent; reply: string }> {
+): Promise<Resolucion> {
   const enAntena = !!(cfg && cfg.enabled && cfg.race_id);
+
+  // «Quiero hablar con una persona»: ni reglas ni modelo, directo al equipo.
+  if (pideUnaPersona(text)) {
+    return { intent: "persona", reply: PASO_A_PERSONA, aPersona: "lo pide el usuario" };
+  }
+
   const { intent, bib } = classify(text);
 
   if (intent === "help") return { intent, reply: helpReply(cfg, enAntena) };
@@ -192,8 +207,12 @@ export async function resolve(
   // en antena (entonces no hay texto fijo que dar y la pregunta es libre).
   if (intent === "unknown" || (intent === "info" && !enAntena)) {
     const libre = await responderLibre(sb, cfg, usuario, text, historial, ctx);
-    if (!libre) return { intent: "unknown", reply: NO_ENTIENDO };
-    return { intent: libre.perfil === "organizador" ? "organizador" : "libre", reply: libre.reply };
+    if (!libre) return { intent: "unknown", reply: NO_ENTIENDO, aPersona: "Maika no supo contestar" };
+    return {
+      intent: libre.aPersona ? "persona" : libre.perfil === "organizador" ? "organizador" : "libre",
+      reply: libre.reply,
+      aPersona: libre.aPersona,
+    };
   }
 
   // Lo que queda necesita carrera en directo.

@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import AsistenteBandeja from "./AsistenteBandeja";
 
 type Config = Tables<"wa_bot_config">;
 type Mensaje = Pick<Tables<"wa_messages">, "wam_id" | "wa_id" | "body" | "intent" | "reply_sent" | "error" | "created_at">;
@@ -46,6 +47,8 @@ const NOMBRE_INTENT: Record<string, string> = {
   help: "ayuda",
   libre: "contestador",
   organizador: "organizador",
+  persona: "pasa a persona",
+  persona_espera: "en manos del equipo",
   unknown: "no entendido",
   rate_limited: "demasiadas seguidas",
   no_registrado: "sin cuenta en Camberas",
@@ -175,17 +178,18 @@ export default function WhatsappBotManagement() {
   const distanciasDeCarrera = distancias.filter((d) => d.race_id === cfg.race_id);
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
       <div>
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <MessageCircle className="h-6 w-6" /> Asistente de WhatsApp
+          <MessageCircle className="h-6 w-6" /> Maika · WhatsApp y chat web
         </h2>
         <p className="text-muted-foreground">
-          Contesta a los usuarios registrados que escriben un dorsal, piden la clasificación, el mapa en vivo o la
-          información de la carrera. Los tiempos son los de las clasificaciones de Camberas: si no hay dato, lo
-          dice; nunca se inventa.
+          Contesta sobre inscripciones, carreras y, con una carrera en directo, dorsales y clasificaciones. Solo con
+          datos de Camberas: si no hay dato, lo dice. Cuando no sabe o se lo piden, pasa la conversación al equipo.
         </p>
       </div>
+
+      <AsistenteBandeja />
 
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">

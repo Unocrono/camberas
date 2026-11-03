@@ -74,6 +74,7 @@ const ESTILO = `Cómo hablas:
 - Si te falta un dato para responder, pregunta una sola cosa, la que más falta hace.
 - Solo con datos que te devuelvan las herramientas. Si no hay dato, dilo con naturalidad ("eso no lo tengo, lo miro con el equipo") y remite a ${SOPORTE}. No inventes fechas, precios, dorsales ni plazos.
 - Si pregunta algo ajeno a Camberas y a las carreras, dilo con amabilidad y vuelve al tema.
+- Si pide hablar con una persona, se queja, tiene una incidencia o una gestión que tú no puedes hacer, o no consigues responder con las herramientas, usa pasar_a_persona: el equipo de Camberas seguirá la conversación por este mismo chat.
 - Importes en euros con coma decimal (12,50 €). Fechas como "sábado 14 de marzo".`;
 
 function instruccionesParticipante(cfg: BotConfig | null, usuario: Usuario | null, canal: Canal, hoy: string): string {
@@ -172,6 +173,17 @@ const HERRAMIENTAS: Herramienta[] = [
     description:
       "Solo para quien ya es organizador en Camberas con sesión iniciada: sus carreras (nombre, fecha, slug) con inscritos y pagados. Úsala si pregunta cómo van sus inscripciones o cuánta gente tiene.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "pasar_a_persona",
+    description:
+      "Pasa la conversación a una persona del equipo de Camberas, que contestará por este mismo chat. Úsala cuando lo pidan expresamente, cuando haya una queja, una incidencia o una gestión que tú no puedes hacer (devolución, cambio que no está previsto, error en sus datos), o cuando tras consultar las herramientas sigues sin poder responder. Después, dile en una frase que una persona le contestará aquí mismo.",
+    input_schema: {
+      type: "object",
+      properties: { motivo: { type: "string", description: "Resumen de qué necesita, para quien lo atienda" } },
+      required: ["motivo"],
+      additionalProperties: false,
+    },
   },
   {
     name: "consultar_dorsal",
@@ -338,6 +350,11 @@ async function ejecutar(
       return salida;
     }
 
+    case "pasar_a_persona":
+      // El llamador (responderLibre) ya ha tomado nota del motivo; aquí solo
+      // se confirma al modelo para que redacte la despedida.
+      return { ok: true, nota: "Una persona del equipo contestará por este mismo chat. Díselo en una frase y no prometas plazos concretos." };
+
     case "consultar_dorsal": {
       if (!cfg?.enabled || !cfg.race_id) return { error: "No hay carrera en directo" };
       const dorsal = String(input.dorsal ?? "").replace(/\D/g, "");
@@ -417,7 +434,7 @@ export async function responderLibre(
   texto: string,
   historial: Turno[],
   ctx: Contexto,
-): Promise<{ reply: string; perfil: Perfil } | null> {
+): Promise<{ reply: string; perfil: Perfil; aPersona: string | null } | null> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {
     console.warn("asistente: falta ANTHROPIC_API_KEY, sin lenguaje libre");
@@ -443,6 +460,7 @@ export async function responderLibre(
   messages.push({ role: "user", content: texto });
 
   const perfil = detectarPerfil(texto, historial, ctx.esOrganizador);
+  let aPersona: string | null = null;
   const system = instrucciones(cfg, usuario, ctx, perfil, hoy);
 
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
@@ -466,6 +484,9 @@ export async function responderLibre(
     }
 
     const toolUses = response.content.filter((b): b is BloqueTool => b.type === "tool_use");
+    for (const t of toolUses) {
+      if (t.name === "pasar_a_persona") aPersona = String(t.input?.motivo ?? "lo pide el usuario").slice(0, 200);
+    }
 
     if (response.stop_reason !== "tool_use" || !toolUses.length) {
       const texto = response.content
@@ -476,7 +497,7 @@ export async function responderLibre(
       console.log(
         `asistente: ${perfil}, ${vuelta + 1} vuelta(s), tokens ${response.usage.input_tokens}/${response.usage.output_tokens}`,
       );
-      return texto ? { reply: texto, perfil } : null;
+      return texto ? { reply: texto, perfil, aPersona } : null;
     }
 
     messages.push({ role: "assistant", content: response.content });

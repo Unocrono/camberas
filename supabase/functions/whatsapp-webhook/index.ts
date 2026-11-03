@@ -18,9 +18,10 @@
  */
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { extractMessages, type IncomingMessage, sendText, verifySignature } from "./graph.ts";
+import { extractMessages, type IncomingMessage, sendText, verifySignature } from "../_shared/asistente/graph.ts";
 import { findUser, getConfig, tieneRolOrganizador } from "../_shared/asistente/data.ts";
 import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "../_shared/asistente/intents.ts";
+import { anotarSalida, avisar, pasarAPersona, tocarConversacion } from "../_shared/asistente/bandeja.ts";
 
 const RATE_LIMIT_REPLY =
   "Has hecho muchas consultas seguidas 😅 Espera un momento y vuelve a escribirme.";
@@ -160,6 +161,22 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
       // Solo texto. Audios, fotos y stickers reciben la ayuda.
       const text = msg.type === "text" ? msg.text : "";
 
+      // Bandeja: si la conversación la lleva una persona del equipo (o la
+      // está esperando), Maika calla y se avisa a quien toque.
+      const conv = await tocarConversacion(sb, {
+        wa_id: msg.from,
+        canal: "whatsapp",
+        user_id: usuario.id,
+        nombre: usuario.first_name,
+        texto: text || `[${msg.type}]`,
+      });
+      if (conv.estado === "pendiente" || conv.estado === "persona") {
+        await avisar(sb, conv, text || `[${msg.type}]`);
+        await sb.from("wa_messages").update({ intent: "persona_espera" }).eq("wam_id", msg.wamId);
+        console.log(`👤 ${msg.from} · en manos del equipo`);
+        continue;
+      }
+
       // Hilo: los últimos turnos contestados de esta persona (del más
       // antiguo al más nuevo), para que el contestador tenga contexto.
       const { data: previos } = await sb
@@ -176,7 +193,7 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
         .map((p) => ({ body: p.body as string, reply: p.reply as string }));
 
       const esOrganizador = await tieneRolOrganizador(sb, usuario.id);
-      const { intent, reply } = await resolve(sb, cfg, usuario, text, historial, {
+      const { intent, reply, aPersona } = await resolve(sb, cfg, usuario, text, historial, {
         canal: "whatsapp",
         esOrganizador,
       });
@@ -187,6 +204,8 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
         .from("wa_messages")
         .update({ intent, reply_sent: true, reply })
         .eq("wam_id", msg.wamId);
+      await anotarSalida(sb, msg.from, reply);
+      if (aPersona) await pasarAPersona(sb, conv, aPersona, text);
 
       console.log(`✅ ${msg.from} · ${intent}`);
     } catch (e) {

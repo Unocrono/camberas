@@ -127,3 +127,6 @@ verify_jwt = true
 
 [functions.asistente-chat]
 verify_jwt = false
+
+[functions.asistente-responder]
+verify_jwt = true

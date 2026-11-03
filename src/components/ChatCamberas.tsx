@@ -25,7 +25,7 @@ const SIN_CHAT = [/^\/admin/, /^\/organizer/, /^\/org\b/, /^\/timing/, /^\/overl
 const CLAVE_SESION = "camberas-chat-sesion";
 
 interface Burbuja {
-  de: "yo" | "bot";
+  de: "yo" | "bot" | "persona";
   texto: string;
 }
 
@@ -72,12 +72,44 @@ export default function ChatCamberas() {
   const [enviando, setEnviando] = useState(false);
   const [cerrado, setCerrado] = useState(false);
   const [restantes, setRestantes] = useState<number | null>(null);
+  /** bot | pendiente | persona: cuando no es «bot», el equipo lleva la conversación. */
+  const [estado, setEstado] = useState("bot");
+  const desdeRef = useRef<string>(new Date().toISOString());
   const finRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [burbujas, abierto]);
+
+  // Mientras la conversación está en manos del equipo, se pregunta cada pocos
+  // segundos si han contestado (el chat web no tiene push).
+  useEffect(() => {
+    if (!abierto || estado === "bot") return;
+    let vivo = true;
+    const leer = async () => {
+      try {
+        const { data } = await supabase.functions.invoke("asistente-chat", {
+          body: { session_id: sesionId(), accion: "leer", desde: desdeRef.current },
+        });
+        const cuerpo = data as { estado?: string; mensajes?: { id: string; texto: string; en: string }[]; ahora?: string } | null;
+        if (!vivo || !cuerpo) return;
+        if (cuerpo.mensajes?.length) {
+          setBurbujas((b) => [...b, ...cuerpo.mensajes!.map((m) => ({ de: "persona" as const, texto: m.texto }))]);
+          desdeRef.current = cuerpo.mensajes[cuerpo.mensajes.length - 1].en;
+        }
+        if (cuerpo.estado) setEstado(cuerpo.estado === "resuelta" ? "bot" : cuerpo.estado);
+      } catch {
+        /* se reintenta en el siguiente tic */
+      }
+    };
+    void leer();
+    const id = window.setInterval(leer, 5000);
+    return () => {
+      vivo = false;
+      window.clearInterval(id);
+    };
+  }, [abierto, estado]);
 
   useEffect(() => {
     if (abierto) inputRef.current?.focus();
@@ -105,7 +137,9 @@ export default function ChatCamberas() {
       });
       // invoke devuelve error en los 4xx/5xx, pero el cuerpo trae la respuesta
       // que queremos enseñar (cierre, límite). Se lee de ahí si hace falta.
-      let cuerpo = data as { reply?: string; cerrado?: boolean; restantes?: number; error?: string } | null;
+      let cuerpo = data as
+        | { reply?: string | null; cerrado?: boolean; restantes?: number; error?: string; estado?: string; ahora?: string }
+        | null;
       if (error && !cuerpo) {
         const ctx = (error as { context?: Response }).context;
         try {
@@ -114,6 +148,10 @@ export default function ChatCamberas() {
           cuerpo = null;
         }
       }
+      if (cuerpo?.ahora) desdeRef.current = cuerpo.ahora;
+      if (cuerpo?.estado && cuerpo.estado !== "bot") setEstado(cuerpo.estado);
+      // reply null = lo tiene el equipo; se queda esperando su respuesta.
+      if (cuerpo && cuerpo.reply === null) return;
       const reply = cuerpo?.reply ?? cuerpo?.error ?? "Ahora mismo no puedo contestar. Escríbenos a soporte@camberas.com.";
       setBurbujas((b) => [...b, { de: "bot", texto: reply }]);
       if (cuerpo?.cerrado) setCerrado(true);
@@ -147,9 +185,15 @@ export default function ChatCamberas() {
         >
           <div className="flex items-center justify-between bg-[#235940] px-4 py-3 text-white sm:rounded-t-2xl">
             <div>
-              <p className="font-semibold leading-tight">Maika · Camberas</p>
+              <p className="font-semibold leading-tight">{estado === "bot" ? "Maika · Camberas" : "Equipo de Camberas"}</p>
               <p className="text-xs text-white/75">
-                {session ? "Te contesta al momento" : "Entra con tu cuenta para preguntar por tus inscripciones"}
+                {estado === "pendiente"
+                  ? "Una persona te contestará por aquí en cuanto pueda"
+                  : estado === "persona"
+                    ? "Te atiende una persona del equipo"
+                    : session
+                      ? "Te contesta al momento"
+                      : "Entra con tu cuenta para preguntar por tus inscripciones"}
               </p>
             </div>
             <button type="button" onClick={() => setAbierto(false)} aria-label="Cerrar" className="rounded-full p-1 hover:bg-white/15">
@@ -163,10 +207,15 @@ export default function ChatCamberas() {
                 <div
                   className={cn(
                     "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-snug",
-                    b.de === "yo" ? "rounded-br-sm bg-[#235940] text-white" : "rounded-bl-sm border border-[#235940]/10 bg-white text-foreground",
+                    b.de === "yo"
+                      ? "rounded-br-sm bg-[#235940] text-white"
+                      : b.de === "persona"
+                        ? "rounded-bl-sm border border-[#EC7C2B]/40 bg-[#EC7C2B]/10 text-foreground"
+                        : "rounded-bl-sm border border-[#235940]/10 bg-white text-foreground",
                   )}
                 >
-                  {b.de === "bot" ? pintar(b.texto) : b.texto}
+                  {b.de === "persona" && <p className="mb-0.5 text-[11px] font-semibold text-[#EC7C2B]">Equipo de Camberas</p>}
+                  {b.de === "yo" ? b.texto : pintar(b.texto)}
                 </div>
               </div>
             ))}
