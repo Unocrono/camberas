@@ -61,7 +61,9 @@ export function classify(raw: string): { intent: Intent; bib?: string } {
     return { intent: "info" };
   }
 
-  if (/^(hola|buenas|hey|ayuda|help|menu|start|\?|gracias)\b/.test(text) || text.length < 3) {
+  // Solo un saludo o «ayuda» a secas. «Hola, ¿estoy inscrito?» o un «sí» a
+  // una pregunta del bot tienen que llegar al contestador, no a la ayuda.
+  if (/^(hola|buenas|buenos dias|hey|ayuda|help|menu|start|\?|gracias)[\s!.¡¿?]*$/.test(text)) {
     return { intent: "help" };
   }
 

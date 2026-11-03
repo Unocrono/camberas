@@ -111,7 +111,7 @@ interface InscripcionRow {
   status: string | null;
   payment_status: string | null;
   created_at: string;
-  race: { name: string; date: string; slug: string | null; location: string | null } | null;
+  race: { name: string; date: string; slug: string | null; location: string | null; es_demo: boolean | null } | null;
   distance: { name: string; distance_km: number | null; price: number | null } | null;
 }
 
@@ -148,12 +148,13 @@ async function ejecutar(
       const { data } = await sb
         .from("registrations")
         .select(
-          "bib_number, status, payment_status, created_at, race:races(name, date, slug, location), distance:race_distances(name, distance_km, price)",
+          "bib_number, status, payment_status, created_at, race:races(name, date, slug, location, es_demo), distance:race_distances(name, distance_km, price)",
         )
         .eq("user_id", usuario.id)
         .order("created_at", { ascending: false })
         .limit(10);
-      const filas = (data ?? []) as unknown as InscripcionRow[];
+      // Las carreras demo son pruebas del panel: no son inscripciones reales.
+      const filas = ((data ?? []) as unknown as InscripcionRow[]).filter((r) => !r.race?.es_demo);
       return filas.map((r) => ({
         carrera: r.race?.name ?? null,
         fecha: r.race?.date ?? null,
