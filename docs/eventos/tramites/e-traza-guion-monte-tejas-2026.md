@@ -108,7 +108,8 @@ añade una sola vez** con los horarios de la primera pasada del primero y de la
 
 Horarios con el ritmo del ganador de 2025 (5:03 min/km) y el ritmo de corte
 (12:37 min/km, cierre a las 14:00). Recursos humanos por punto: `Auxiliar
-habilitado`, 1 o 2 por cruce (voluntarios del club), a confirmar con el club.
+habilitado`, 1 o 2 por cruce (voluntarios del club), más Protección Civil en el
+cruce con la carretera y en salida y meta.
 
 Los avituallamientos (km 5,5 y 12,1) y el techo (km 7,8) están en monte, fuera de
 la red de carreteras: no van en TRAZA.
@@ -130,6 +131,7 @@ Botones **Jefaturas afectadas** (Cantabria) y **Guardar**.
 | Personal auxiliar (voluntarios) | PENDIENTE: número; se sitúan en los cruces del tramo urbano, controles y avituallamientos |
 | Vehículo de apertura / cierre | No hay vehículos en el recorrido; cierre con corredores escoba |
 | Servicio sanitario | 1 ambulancia clase B (SVB) con médico y 2 técnicos, de 10:00 a 14:15 h, en punto con acceso rápido a las vías |
+| Agentes de la autoridad | No hay Policía Local en San Felices de Buelna. Protección Civil del municipio coordina salida y llegada y cubre el cruce con la carretera (como en 2025). Guardia Civil de Tráfico: lo que disponga la Jefatura en la resolución |
 | Señalización | Cintas y banderines naranjas; se retira todo al terminar |
 | Seguros | RC y accidentes de la entidad organizadora: PENDIENTE compañía, nº de póliza y cobertura |
 
