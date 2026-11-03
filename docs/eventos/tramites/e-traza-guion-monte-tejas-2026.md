@@ -35,7 +35,7 @@ Si ya existe una SIMU, entrar por el icono de expediente de la lista.
 | Organizador | Club Deportivo Elemental KM Vertical Torrelavega · CIF G39861828 · Barrio El Llano 57A, San Felices de Buelna |
 | Representante | Jonatan Corona Miguel (presidente) · DNI 72128421F. Tramita por autorización de representación (3-nov-2026): UNO Cronometraje SL, CIF B39801097, C/ Guevara 28 bajo, 39001 Santander, 609 131 130, 2026@uno.es; actúa Bernardo Mazón Blanco, DNI 13750056N |
 | Teléfono / correo | 679 602 812 · Kmverticaltorrelavega@gmail.com |
-| Coorganizador | Grupo de Montaña Tejas4run |
+| Coorganizador | Grupo de Montaña Tejas4run (bajo la representación del club: Jonatan Corona Miguel) |
 | Colabora | Ayuntamiento de San Felices de Buelna |
 | Participantes previstos | 200 |
 | Vehículos de la organización | 0 en el recorrido (ambulancia en punto fijo) |
@@ -127,19 +127,20 @@ Botones **Jefaturas afectadas** (Cantabria) y **Guardar**.
 | Campo | Valor |
 |---|---|
 | Responsable de la prueba | Jonatan Corona Miguel · 72128421F · 679 602 812 (confirmar) |
-| Responsable de seguridad vial | PENDIENTE: nombre, DNI y teléfono |
+| Responsable de seguridad vial | Jonatan Corona Miguel · 72128421F · 679 602 812 (el mismo que el responsable de la prueba) |
 | Personal auxiliar (voluntarios) | PENDIENTE: número; se sitúan en los cruces del tramo urbano, controles y avituallamientos |
 | Vehículo de apertura / cierre | No hay vehículos en el recorrido; cierre con corredores escoba |
 | Servicio sanitario | 1 ambulancia clase B (SVB) con médico y 2 técnicos, de 10:00 a 14:15 h, en punto con acceso rápido a las vías |
 | Agentes de la autoridad | No hay Policía Local en San Felices de Buelna. Protección Civil del municipio coordina salida y llegada y cubre el cruce con la carretera (como en 2025). Guardia Civil de Tráfico: lo que disponga la Jefatura en la resolución |
 | Señalización | Cintas y banderines naranjas; se retira todo al terminar |
-| Seguros | RC y accidentes de la entidad organizadora: PENDIENTE compañía, nº de póliza y cobertura |
+| Seguros | RC y accidentes de la entidad organizadora: solicitud enviada a la aseguradora el 3-nov; mientras, declaración responsable. PENDIENTE compañía, nº de póliza y cobertura |
 
 ## 4. Documentos y observaciones
 
-Adjuntar: reglamento (PDF), trazado (PDF), solicitud/permiso del Ayuntamiento
-cuando lo emita, pólizas de RC y accidentes (antes de la prueba) y, si procede,
-permiso federativo.
+Adjuntar: reglamento (PDF), trazado (PDF), autorización de representación firmada
+(3-nov), solicitud/permiso del Ayuntamiento cuando lo emita, pólizas de RC y
+accidentes (antes de la prueba), permiso de Montes (solicitado el 2-nov a la
+Oficina Comarcal de Los Corrales) y, si procede, permiso federativo.
 
 Observaciones:
 
