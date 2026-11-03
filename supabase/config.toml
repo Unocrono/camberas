@@ -124,3 +124,6 @@ verify_jwt = true
 
 [functions.verificar-dominio]
 verify_jwt = true
+
+[functions.asistente-chat]
+verify_jwt = false

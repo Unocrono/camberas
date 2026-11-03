@@ -74,6 +74,9 @@ import PaginaReglamento from "./pages/web/PaginaReglamento";
 import PaginaRecorrido from "./pages/web/PaginaRecorrido";
 import PaginaInscripcionResultado from "./pages/web/PaginaInscripcionResultado";
 import PaginaLegal from "./pages/web/PaginaLegal";
+// Burbuja de chat con el contestador (mismo cerebro que el bot de WhatsApp).
+// Se oculta sola en paneles, cronometraje y overlays.
+import ChatCamberas from "./components/ChatCamberas";
 
 const queryClient = new QueryClient();
 
@@ -181,6 +184,7 @@ const AppCamberas = () => (
           {/* Catch-all para 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        <ChatCamberas />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

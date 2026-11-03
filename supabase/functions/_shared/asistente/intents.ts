@@ -10,7 +10,7 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type BotConfig, findRunner, getTop, type RunnerInfo, type Usuario } from "./data.ts";
-import { responderLibre, type Turno } from "./asistente.ts";
+import { type Canal, responderLibre, type Turno } from "./asistente.ts";
 
 export type Intent =
   | "dorsal"
@@ -177,9 +177,10 @@ const NO_ENTIENDO = "No he entendido eso 🤔 Prueba a preguntármelo de otra fo
 export async function resolve(
   sb: SupabaseClient,
   cfg: BotConfig | null,
-  usuario: Usuario,
+  usuario: Usuario | null,
   text: string,
   historial: Turno[],
+  canal: Canal = "whatsapp",
 ): Promise<{ intent: Intent; reply: string }> {
   const enAntena = !!(cfg && cfg.enabled && cfg.race_id);
   const { intent, bib } = classify(text);
@@ -189,7 +190,7 @@ export async function resolve(
   // Al contestador: lo no reconocido siempre, y «info» cuando no hay carrera
   // en antena (entonces no hay texto fijo que dar y la pregunta es libre).
   if (intent === "unknown" || (intent === "info" && !enAntena)) {
-    const libre = await responderLibre(sb, cfg, usuario, text, historial);
+    const libre = await responderLibre(sb, cfg, usuario, text, historial, canal);
     return libre ? { intent: "libre", reply: libre } : { intent: "unknown", reply: NO_ENTIENDO };
   }
 

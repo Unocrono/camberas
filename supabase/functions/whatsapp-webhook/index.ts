@@ -19,8 +19,8 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMessages, type IncomingMessage, sendText, verifySignature } from "./graph.ts";
-import { findUser, getConfig } from "./data.ts";
-import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "./intents.ts";
+import { findUser, getConfig } from "../_shared/asistente/data.ts";
+import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "../_shared/asistente/intents.ts";
 
 const RATE_LIMIT_REPLY =
   "Has hecho muchas consultas seguidas 😅 Espera un momento y vuelve a escribirme.";
@@ -106,6 +106,7 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
         wam_id: msg.wamId,
         wa_id: msg.from,
         body: msg.type === "text" ? msg.text : `[${msg.type}]`,
+        canal: "whatsapp",
       });
 
       if (dupError) {

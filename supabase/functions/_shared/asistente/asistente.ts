@@ -28,19 +28,30 @@ export interface Turno {
 
 export const SOPORTE = "soporte@camberas.com";
 
-function instrucciones(cfg: BotConfig | null, usuario: Usuario, hoy: string): string {
+/** Por dónde escribe: cambia el tono de las instrucciones y lo que sabe de quien habla. */
+export type Canal = "whatsapp" | "web";
+
+function instrucciones(cfg: BotConfig | null, usuario: Usuario | null, canal: Canal, hoy: string): string {
   const enAntena = cfg?.enabled && cfg.race_id
     ? `Hay una carrera en directo ahora mismo: ${cfg.race_name}. Para dorsales y clasificaciones usa las herramientas consultar_dorsal y clasificacion.`
     : "Ahora mismo no hay ninguna carrera en directo, así que no puedes dar tiempos ni clasificaciones en vivo.";
 
-  return `Eres el asistente de Camberas por WhatsApp. Camberas es la plataforma de carreras de montaña (trail y MTB) de UNO Cronometraje: inscripciones, cronometraje, seguimiento GPS en vivo y resultados. La web es https://camberas.com y cada carrera está en https://camberas.com/<slug>.
+  const quien = usuario
+    ? `Hablas con ${usuario.first_name || "un usuario registrado"}, usuario de Camberas con sesión iniciada: puedes consultar sus inscripciones con mis_inscripciones.`
+    : "Hablas con un visitante que NO ha iniciado sesión: no sabes quién es y no puedes consultar inscripciones ni pagos de nadie. Contesta lo público (carreras, precios, plazos, cómo inscribirse) y termina siempre con una frase corta invitándole a entrar o crear su cuenta gratis en https://camberas.com/auth, porque el asistente es para usuarios de Camberas y sin cuenta solo puede hacer tres preguntas.";
 
-Hoy es ${hoy}. Hablas con ${usuario.first_name || "un usuario registrado"}, usuario de Camberas (la identidad es la de su teléfono).
+  const donde = canal === "whatsapp"
+    ? "Eres el asistente de Camberas por WhatsApp (la identidad es la del teléfono)."
+    : "Eres el asistente de Camberas en el chat de la web camberas.com.";
+
+  return `${donde} Camberas es la plataforma de carreras de montaña (trail y MTB) de UNO Cronometraje: inscripciones, cronometraje, seguimiento GPS en vivo y resultados. La web es https://camberas.com y cada carrera está en https://camberas.com/<slug>.
+
+Hoy es ${hoy}. ${quien}
 
 ${enAntena}
 
 Cómo respondes:
-- En español, de tú, cercano y breve: es WhatsApp. Una sola respuesta completa, sin saludos largos ni despedidas. Negrita con *asteriscos*, nada de títulos ni tablas. Un emoji como mucho.
+- En español, de tú, cercano y breve: es un chat. Una sola respuesta completa, sin saludos largos ni despedidas. Negrita con *asteriscos*, nada de títulos ni tablas. Un emoji como mucho.
 - Solo con datos que te devuelvan las herramientas. Si una herramienta no trae lo que se pregunta, dilo claro ("no me consta…") y remite a ${SOPORTE}. No inventes fechas, precios, dorsales ni plazos.
 - Sus inscripciones las consultas con mis_inscripciones. Las carreras abiertas con proximas_carreras. Los detalles de una carrera (precios, plazos, recorrido, FAQ) con info_carrera.
 - Nunca des datos de otra persona (otro corredor, otro dorsal fuera de carrera). Si pregunta por alguien que no es él, explica que solo puedes hablar de sus propias inscripciones.
@@ -137,7 +148,7 @@ interface CarreraRow {
 async function ejecutar(
   sb: SupabaseClient,
   cfg: BotConfig | null,
-  usuario: Usuario,
+  usuario: Usuario | null,
   nombre: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
@@ -145,6 +156,7 @@ async function ejecutar(
 
   switch (nombre) {
     case "mis_inscripciones": {
+      if (!usuario) return { error: "El visitante no ha iniciado sesión: no se puede saber quién es" };
       const { data } = await sb
         .from("registrations")
         .select(
@@ -290,9 +302,10 @@ interface Respuesta {
 export async function responderLibre(
   sb: SupabaseClient,
   cfg: BotConfig | null,
-  usuario: Usuario,
+  usuario: Usuario | null,
   texto: string,
   historial: Turno[],
+  canal: Canal = "whatsapp",
 ): Promise<string | null> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {
@@ -318,13 +331,13 @@ export async function responderLibre(
   }
   messages.push({ role: "user", content: texto });
 
-  const system = instrucciones(cfg, usuario, hoy);
+  const system = instrucciones(cfg, usuario, canal, hoy);
 
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
     // deno-lint-ignore no-explicit-any
     const response = (await (anthropic.beta.messages as any).create({
       model: MODEL,
-      max_tokens: 1024, // una respuesta de WhatsApp; más sería un error
+      max_tokens: 1024, // una respuesta de chat; más sería un error
       system,
       output_config: { effort: "low" },
       tools: HERRAMIENTAS,
