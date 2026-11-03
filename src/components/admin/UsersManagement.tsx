@@ -38,7 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Trash2, RefreshCw, Plus, Pencil, History } from "lucide-react";
+import { Loader2, Search, Trash2, RefreshCw, Plus, Pencil, History, MailCheck, MailWarning } from "lucide-react";
 import {
   type AccesoUsuario,
   type UltimoAcceso,
@@ -68,6 +68,9 @@ interface UserWithProfile {
   // Registro de accesos (null si no ha entrado nunca o no se pudo consultar)
   ultimo_acceso: string | null;
   accesos: number;
+  // Cuándo confirmó el correo: null = aún no ha pulsado el enlace (Supabase
+  // no le deja entrar); undefined = no se pudo consultar
+  email_confirmado: string | null | undefined;
 }
 
 interface UserFormData {
@@ -149,14 +152,17 @@ export function UsersManagement() {
 
       if (rolesError) throw rolesError;
 
-      let emailMap: Record<string, string> = {};
+      const emailMap: Record<string, string> = {};
+      // Solo se rellena si la consulta funcionó: sin dato no se afirma nada
+      const confirmadoMap: Record<string, string | null> = {};
       try {
         const { data: usersWithEmails, error: emailsError } = await supabase
-          .rpc("get_users_with_emails" as any);
+          .rpc("get_users_with_emails");
 
         if (!emailsError && usersWithEmails) {
-          (usersWithEmails as Array<{ user_id: string; email: string }>).forEach((u) => {
+          usersWithEmails.forEach((u) => {
             emailMap[u.user_id] = u.email;
+            confirmadoMap[u.user_id] = u.email_confirmado;
           });
         }
       } catch {
@@ -197,6 +203,7 @@ export function UsersManagement() {
           roles: userRoles,
           ultimo_acceso: accesoMap[profile.id]?.ultimo_acceso ?? null,
           accesos: accesoMap[profile.id]?.accesos ?? 0,
+          email_confirmado: profile.id in confirmadoMap ? confirmadoMap[profile.id] : undefined,
         };
       });
 
@@ -475,6 +482,9 @@ export function UsersManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>Email</TableHead>
+              <TableHead className="w-[110px]" title="Si ha pulsado el enlace del correo de alta. Sin confirmar no puede entrar.">
+                Confirmado
+              </TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Teléfono</TableHead>
               <TableHead>Roles</TableHead>
@@ -488,7 +498,7 @@ export function UsersManagement() {
           <TableBody>
             {usuariosVisibles.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   No se encontraron usuarios
                 </TableCell>
               </TableRow>
@@ -496,6 +506,27 @@ export function UsersManagement() {
               usuariosVisibles.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.email}</TableCell>
+                  <TableCell>
+                    {user.email_confirmado === undefined ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : user.email_confirmado ? (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-emerald-600"
+                        title={`Correo confirmado el ${fechaHoraMadrid(user.email_confirmado)}`}
+                      >
+                        <MailCheck className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">Sí</span>
+                      </span>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 text-amber-600"
+                        title={`Sin confirmar: no ha pulsado el enlace del correo de alta (${haceCuanto(user.created_at)}). No puede entrar hasta que lo haga.`}
+                      >
+                        <MailWarning className="h-4 w-4" aria-hidden="true" />
+                        <span className="text-xs font-medium">No</span>
+                      </span>
+                    )}
+                  </TableCell>
                   <TableCell>{nombreDe(user) ?? "—"}</TableCell>
                   <TableCell>{user.phone || "—"}</TableCell>
                   <TableCell>
@@ -569,6 +600,10 @@ export function UsersManagement() {
 
       <p className="text-sm text-muted-foreground">
         Total: {usuariosVisibles.length} usuarios
+        {(() => {
+          const sinConfirmar = usuariosVisibles.filter((u) => u.email_confirmado === null).length;
+          return sinConfirmar > 0 ? ` · ${sinConfirmar} sin confirmar el correo` : "";
+        })()}
       </p>
 
       {/* Historial de accesos */}

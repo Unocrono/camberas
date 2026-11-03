@@ -6651,6 +6651,7 @@ export type Database = {
         Args: never
         Returns: {
           email: string
+          email_confirmado: string | null
           user_id: string
         }[]
       }
