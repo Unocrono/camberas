@@ -45,6 +45,7 @@ const NOMBRE_INTENT: Record<string, string> = {
   info: "info",
   help: "ayuda",
   libre: "contestador",
+  organizador: "organizador",
   unknown: "no entendido",
   rate_limited: "demasiadas seguidas",
   no_registrado: "sin cuenta en Camberas",

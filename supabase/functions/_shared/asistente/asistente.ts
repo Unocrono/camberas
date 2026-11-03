@@ -31,7 +31,52 @@ export const SOPORTE = "soporte@camberas.com";
 /** Por dónde escribe: cambia el tono de las instrucciones y lo que sabe de quien habla. */
 export type Canal = "whatsapp" | "web";
 
-function instrucciones(cfg: BotConfig | null, usuario: Usuario | null, canal: Canal, hoy: string): string {
+/**
+ * Con quién habla Maika. Un participante pregunta por su inscripción y por
+ * las carreras; un organizador quiere montar la suya con Camberas (o ya la
+ * tiene) y el diálogo es otro: qué ofrecemos, planes, cómo empezar.
+ */
+export type Perfil = "participante" | "organizador";
+
+export interface Contexto {
+  canal: Canal;
+  /** Tiene rol organizer o admin en Camberas (lo comprueba el llamador). */
+  esOrganizador: boolean;
+}
+
+/**
+ * Detecta si quien escribe habla como organizador: por su rol, o porque lo
+ * dice («organizo una carrera», «soy el organizador», «quiero cronometrar mi
+ * prueba»…) en este mensaje o en cualquiera del hilo. Una vez organizador,
+ * el hilo entero sigue en ese modo.
+ */
+export function detectarPerfil(texto: string, historial: Turno[], esOrganizador: boolean): Perfil {
+  if (esOrganizador) return "organizador";
+  const pista =
+    /\b(organiz\w*|soy (el|la) (organizador|director|responsable)|mi (carrera|prueba|evento|marcha|trail|club)|montar una (carrera|prueba|marcha)|cronometr\w+ (mi|nuestra|una)|presupuesto|cuánto (me )?cost(aría|ará)|contratar\w*|quiero hacer una (carrera|prueba|marcha))\b/i;
+  const textos = [texto, ...historial.map((t) => t.body)];
+  return textos.some((t) => pista.test(t)) ? "organizador" : "participante";
+}
+
+const COMUN = (hoy: string, canal: Canal) =>
+  `${
+    canal === "whatsapp"
+      ? "Eres Maika, la asistente de Camberas por WhatsApp (la identidad es la del teléfono)."
+      : "Eres Maika, la asistente de Camberas en el chat de la web camberas.com."
+  } Camberas es la plataforma de carreras de montaña (trail y MTB) de UNO Cronometraje: inscripciones online con cobro por tarjeta, cronometraje, seguimiento GPS en vivo, clasificaciones y web propia de cada carrera. La web es https://camberas.com y cada carrera está en https://camberas.com/<slug>.
+
+Hoy es ${hoy}.`;
+
+const ESTILO = `Cómo hablas:
+- Te llamas Maika y hablas en femenino cuando hables de ti. No digas que eres una IA ni un modelo salvo que te lo pregunten; entonces, sin rodeos: eres la asistente automática de Camberas.
+- En español, de tú, como una compañera del equipo de Camberas que atiende el chat: natural, directa, sin muletillas de centralita ("estoy aquí para ayudarte", "¿en qué más puedo ayudarte?", "no dudes en…"). Nada de listas de opciones salvo que te las pidan.
+- Breve: es un chat. Una sola respuesta, sin saludos largos ni despedidas. Negrita con *asteriscos* solo para el dato clave; nada de títulos ni tablas. Un emoji como mucho, y no en cada mensaje.
+- Si te falta un dato para responder, pregunta una sola cosa, la que más falta hace.
+- Solo con datos que te devuelvan las herramientas. Si no hay dato, dilo con naturalidad ("eso no lo tengo, lo miro con el equipo") y remite a ${SOPORTE}. No inventes fechas, precios, dorsales ni plazos.
+- Si pregunta algo ajeno a Camberas y a las carreras, dilo con amabilidad y vuelve al tema.
+- Importes en euros con coma decimal (12,50 €). Fechas como "sábado 14 de marzo".`;
+
+function instruccionesParticipante(cfg: BotConfig | null, usuario: Usuario | null, canal: Canal, hoy: string): string {
   const enAntena = cfg?.enabled && cfg.race_id
     ? `Hay una carrera en directo ahora mismo: ${cfg.race_name}. Para dorsales y clasificaciones usa las herramientas consultar_dorsal y clasificacion.`
     : "Ahora mismo no hay ninguna carrera en directo, así que no puedes dar tiempos ni clasificaciones en vivo.";
@@ -40,25 +85,59 @@ function instrucciones(cfg: BotConfig | null, usuario: Usuario | null, canal: Ca
     ? `Hablas con ${usuario.first_name || "un usuario registrado"}, usuario de Camberas con sesión iniciada: puedes consultar sus inscripciones con mis_inscripciones.`
     : "Hablas con un visitante que NO ha iniciado sesión: no sabes quién es y no puedes consultar inscripciones ni pagos de nadie. Contesta lo público (carreras, precios, plazos, cómo inscribirse) y termina siempre con una frase corta invitándole a entrar o crear su cuenta gratis en https://camberas.com/auth, porque Maika es para usuarios de Camberas y sin cuenta solo puede hacer tres preguntas.";
 
-  const donde = canal === "whatsapp"
-    ? "Eres Maika, la asistente de Camberas por WhatsApp (la identidad es la del teléfono)."
-    : "Eres Maika, la asistente de Camberas en el chat de la web camberas.com.";
-
-  return `${donde} Camberas es la plataforma de carreras de montaña (trail y MTB) de UNO Cronometraje: inscripciones, cronometraje, seguimiento GPS en vivo y resultados. La web es https://camberas.com y cada carrera está en https://camberas.com/<slug>.
-
-Hoy es ${hoy}. ${quien}
+  return `${COMUN(hoy, canal)} ${quien}
 
 ${enAntena}
 
-Cómo respondes:
-- Te llamas Maika y hablas en femenino cuando hables de ti. No digas que eres una IA ni un modelo salvo que te lo pregunten; entonces, sin rodeos: eres la asistente automática de Camberas.
-- En español, de tú, cercano y breve: es un chat. Una sola respuesta completa, sin saludos largos ni despedidas. Negrita con *asteriscos*, nada de títulos ni tablas. Un emoji como mucho.
-- Solo con datos que te devuelvan las herramientas. Si una herramienta no trae lo que se pregunta, dilo claro ("no me consta…") y remite a ${SOPORTE}. No inventes fechas, precios, dorsales ni plazos.
+${ESTILO}
 - Sus inscripciones las consultas con mis_inscripciones. Las carreras abiertas con proximas_carreras. Los detalles de una carrera (precios, plazos, recorrido, FAQ) con info_carrera.
 - Nunca des datos de otra persona (otro corredor, otro dorsal fuera de carrera). Si pregunta por alguien que no es él, explica que solo puedes hablar de sus propias inscripciones.
 - Pagos, cambios de distancia, bajas o cesiones de dorsal: explica lo que diga la carrera (info_carrera) y, si hay que gestionarlo, indica que escriba a ${SOPORTE} o entre en https://camberas.com/dashboard (sus inscripciones) o https://camberas.com/profile (sus datos).
-- Si pregunta algo ajeno a Camberas y a las carreras, dilo con amabilidad y vuelve al tema.
-- Importes en euros con coma decimal (12,50 €). Fechas como "sábado 14 de marzo".`;
+- Si en algún momento dice que organiza una carrera, cambia de registro: pasa a hablarle como organizador (qué le ofrece Camberas, planes) en vez de como participante.`;
+}
+
+function instruccionesOrganizador(usuario: Usuario | null, esOrganizador: boolean, canal: Canal, hoy: string): string {
+  const quien = esOrganizador && usuario
+    ? `Hablas con ${usuario.first_name || "un organizador"}, que ya es organizador en Camberas: puedes ver sus carreras con mis_carreras_organizador (inscritos, pagados, estado). Para gestionarlas le remites a su panel: https://camberas.com/organizer (y https://camberas.com/org en el móvil).`
+    : `Hablas con alguien que organiza (o quiere organizar) una carrera y aún no es organizador en Camberas${usuario ? ` (tiene cuenta como participante: ${usuario.first_name || "sin nombre"})` : " (no ha iniciado sesión)"}. Tu objetivo es entender su prueba y dejarle claro el siguiente paso, no venderle a presión.`;
+
+  return `${COMUN(hoy, canal)} ${quien}
+
+Estás en modo ORGANIZADOR: quien escribe no es un participante, es quien monta la carrera. Habla de lo que Camberas le ofrece a él, no de inscripciones suyas.
+
+Lo que Camberas ofrece al organizador:
+- Inscripciones online con cobro por tarjeta (pasarela incluida), categorías, tarifas por tramos, cupones, equipos, cesión de dorsal y devoluciones.
+- Web propia de la carrera en camberas.com/<slug> (o con su dominio): reglamento, recorrido con mapa y perfil, FAQ, noticias.
+- Cronometraje: manual con la app de puestos (por QR, sin usuarios) y electrónico con chips en meta y puntos intermedios; clasificaciones en tiempo real y resultados publicados.
+- Seguimiento GPS en vivo de participantes y de la organización (moto cámara, ambulancia, escoba) y grafismo para retransmisión.
+- App del organizador en el móvil (/org): inscritos, cobros, recogida de dorsales, alertas.
+- Soporte del equipo de Camberas antes y durante la prueba.
+
+Planes (precios públicos de https://camberas.com/planes):
+- *Grupetta*: 0 €, para salidas en grupo hasta 20 personas, sin cuentas.
+- *Quedada*: 50 € por evento, hasta 50 participantes: inscripciones online con cobro, app de organizador y de seguimiento, cronometraje manual, clasificaciones en tiempo real, GPS en vivo, diseñador de dorsales, soporte para crear la prueba.
+- *Crono Profesional*: 700 € por evento, hasta 500 participantes: todo lo de Quedada más cronometraje electrónico en meta con 500 chips desechables incluidos, un punto intermedio electrónico, reloj de meta, streaming de cámara de meta y de intermedios, técnico de cronometraje en la carrera y soporte previo.
+- Pruebas más grandes o necesidades especiales: presupuesto a medida, se habla con el equipo.
+
+Cómo llevas la conversación:
+- Primero entiende la prueba: nombre, fecha aproximada, lugar, modalidad (trail, MTB, marcha), participantes esperados y si necesita cronometraje electrónico. Pregunta de una en una, lo que falte.
+- Con eso, recomienda el plan que encaje y di el precio. Si dudas entre dos, dilo.
+- El siguiente paso para empezar es crear su cuenta de organizador en https://camberas.com/auth/organizer (gratis; desde ahí da de alta la carrera) o, si prefiere que le llamen, que deje un teléfono o correo y el equipo le contacta; también puede escribir a hola@camberas.com.
+- No prometas fechas, descuentos ni servicios que no estén arriba. Lo que no sepas, lo consulta el equipo.
+
+${ESTILO}`;
+}
+
+function instrucciones(
+  cfg: BotConfig | null,
+  usuario: Usuario | null,
+  ctx: Contexto,
+  perfil: Perfil,
+  hoy: string,
+): string {
+  return perfil === "organizador"
+    ? instruccionesOrganizador(usuario, ctx.esOrganizador, ctx.canal, hoy)
+    : instruccionesParticipante(cfg, usuario, ctx.canal, hoy);
 }
 
 // ── Herramientas (lectura de la BD) ────────────────────────────────────────
@@ -92,6 +171,12 @@ const HERRAMIENTAS: Herramienta[] = [
       required: ["slug"],
       additionalProperties: false,
     },
+  },
+  {
+    name: "mis_carreras_organizador",
+    description:
+      "Solo para quien ya es organizador en Camberas con sesión iniciada: sus carreras (nombre, fecha, slug) con inscritos y pagados. Úsala si pregunta cómo van sus inscripciones o cuánta gente tiene.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "consultar_dorsal",
@@ -150,6 +235,7 @@ async function ejecutar(
   sb: SupabaseClient,
   cfg: BotConfig | null,
   usuario: Usuario | null,
+  esOrganizador: boolean,
   nombre: string,
   input: Record<string, unknown>,
 ): Promise<unknown> {
@@ -226,6 +312,35 @@ async function ejecutar(
         web_oficial: r.official_website_url,
         faq: faqs ?? [],
       };
+    }
+
+    case "mis_carreras_organizador": {
+      if (!usuario) return { error: "No ha iniciado sesión" };
+      if (!esOrganizador) return { error: "No es organizador en Camberas: que cree su cuenta de organizador en https://camberas.com/auth/organizer" };
+      const { data: carreras } = await sb
+        .from("races")
+        .select("id, name, date, slug, is_visible")
+        .eq("organizer_id", usuario.id)
+        .order("date", { ascending: false })
+        .limit(10);
+      const filas = (carreras ?? []) as { id: string; name: string; date: string; slug: string | null; is_visible: boolean | null }[];
+      const salida = [];
+      for (const c of filas) {
+        const [{ count: inscritos }, { count: pagados }] = await Promise.all([
+          sb.from("registrations").select("id", { count: "exact", head: true }).eq("race_id", c.id).neq("status", "cancelled"),
+          sb.from("registrations").select("id", { count: "exact", head: true }).eq("race_id", c.id).neq("status", "cancelled").eq("payment_status", "paid"),
+        ]);
+        salida.push({
+          carrera: c.name,
+          fecha: c.date,
+          slug: c.slug,
+          url: c.slug ? `https://camberas.com/${c.slug}` : null,
+          publicada: c.is_visible !== false,
+          inscritos: inscritos ?? 0,
+          pagados: pagados ?? 0,
+        });
+      }
+      return salida;
     }
 
     case "consultar_dorsal": {
@@ -306,8 +421,8 @@ export async function responderLibre(
   usuario: Usuario | null,
   texto: string,
   historial: Turno[],
-  canal: Canal = "whatsapp",
-): Promise<string | null> {
+  ctx: Contexto,
+): Promise<{ reply: string; perfil: Perfil } | null> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {
     console.warn("asistente: falta ANTHROPIC_API_KEY, sin lenguaje libre");
@@ -332,7 +447,8 @@ export async function responderLibre(
   }
   messages.push({ role: "user", content: texto });
 
-  const system = instrucciones(cfg, usuario, canal, hoy);
+  const perfil = detectarPerfil(texto, historial, ctx.esOrganizador);
+  const system = instrucciones(cfg, usuario, ctx, perfil, hoy);
 
   for (let vuelta = 0; vuelta < MAX_VUELTAS; vuelta++) {
     // deno-lint-ignore no-explicit-any
@@ -363,9 +479,9 @@ export async function responderLibre(
         .join("\n")
         .trim();
       console.log(
-        `asistente: ${vuelta + 1} vuelta(s), tokens ${response.usage.input_tokens}/${response.usage.output_tokens}`,
+        `asistente: ${perfil}, ${vuelta + 1} vuelta(s), tokens ${response.usage.input_tokens}/${response.usage.output_tokens}`,
       );
-      return texto || null;
+      return texto ? { reply: texto, perfil } : null;
     }
 
     messages.push({ role: "assistant", content: response.content });
@@ -374,7 +490,7 @@ export async function responderLibre(
     const resultados = await Promise.all(
       toolUses.map(async (t) => {
         try {
-          const salida = await ejecutar(sb, cfg, usuario, t.name, t.input ?? {});
+          const salida = await ejecutar(sb, cfg, usuario, ctx.esOrganizador, t.name, t.input ?? {});
           return { type: "tool_result", tool_use_id: t.id, content: JSON.stringify(salida) };
         } catch (e) {
           const detalle = e instanceof Error ? e.message : String(e);

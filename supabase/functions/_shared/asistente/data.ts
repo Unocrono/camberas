@@ -64,6 +64,15 @@ export async function findUser(sb: SupabaseClient, waId: string): Promise<Usuari
   return (data as Usuario) ?? null;
 }
 
+/** Organizador o admin en Camberas (RPC has_role, con service role). */
+export async function tieneRolOrganizador(sb: SupabaseClient, userId: string): Promise<boolean> {
+  const [{ data: org }, { data: adm }] = await Promise.all([
+    sb.rpc("has_role", { _user_id: userId, _role: "organizer" }),
+    sb.rpc("has_role", { _user_id: userId, _role: "admin" }),
+  ]);
+  return org === true || adm === true;
+}
+
 // ── Corredor ─────────────────────────────────────────────────────────────────
 
 export type RunnerState = "finished" | "racing" | "retired" | "registered" | "unknown";

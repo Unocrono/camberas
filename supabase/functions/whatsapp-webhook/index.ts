@@ -19,7 +19,7 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMessages, type IncomingMessage, sendText, verifySignature } from "./graph.ts";
-import { findUser, getConfig } from "../_shared/asistente/data.ts";
+import { findUser, getConfig, tieneRolOrganizador } from "../_shared/asistente/data.ts";
 import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "../_shared/asistente/intents.ts";
 
 const RATE_LIMIT_REPLY =
@@ -175,7 +175,11 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
         .filter((p) => p.body && p.reply)
         .map((p) => ({ body: p.body as string, reply: p.reply as string }));
 
-      const { intent, reply } = await resolve(sb, cfg, usuario, text, historial);
+      const esOrganizador = await tieneRolOrganizador(sb, usuario.id);
+      const { intent, reply } = await resolve(sb, cfg, usuario, text, historial, {
+        canal: "whatsapp",
+        esOrganizador,
+      });
 
       await sendText(msg.from, isFirst ? reply + PRIVACY_NOTICE : reply);
 

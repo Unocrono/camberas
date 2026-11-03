@@ -10,7 +10,7 @@
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { type BotConfig, findRunner, getTop, type RunnerInfo, type Usuario } from "./data.ts";
-import { type Canal, responderLibre, type Turno } from "./asistente.ts";
+import { type Contexto, responderLibre, type Turno } from "./asistente.ts";
 
 export type Intent =
   | "dorsal"
@@ -21,6 +21,7 @@ export type Intent =
   | "info"
   | "help"
   | "libre"
+  | "organizador"
   | "unknown";
 
 /** Quita acentos y baja a minúsculas para que "clasificación" == "clasificacion". */
@@ -180,7 +181,7 @@ export async function resolve(
   usuario: Usuario | null,
   text: string,
   historial: Turno[],
-  canal: Canal = "whatsapp",
+  ctx: Contexto = { canal: "whatsapp", esOrganizador: false },
 ): Promise<{ intent: Intent; reply: string }> {
   const enAntena = !!(cfg && cfg.enabled && cfg.race_id);
   const { intent, bib } = classify(text);
@@ -190,8 +191,9 @@ export async function resolve(
   // Al contestador: lo no reconocido siempre, y «info» cuando no hay carrera
   // en antena (entonces no hay texto fijo que dar y la pregunta es libre).
   if (intent === "unknown" || (intent === "info" && !enAntena)) {
-    const libre = await responderLibre(sb, cfg, usuario, text, historial, canal);
-    return libre ? { intent: "libre", reply: libre } : { intent: "unknown", reply: NO_ENTIENDO };
+    const libre = await responderLibre(sb, cfg, usuario, text, historial, ctx);
+    if (!libre) return { intent: "unknown", reply: NO_ENTIENDO };
+    return { intent: libre.perfil === "organizador" ? "organizador" : "libre", reply: libre.reply };
   }
 
   // Lo que queda necesita carrera en directo.

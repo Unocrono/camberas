@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getConfig, type Usuario } from "../_shared/asistente/data.ts";
+import { getConfig, tieneRolOrganizador, type Usuario } from "../_shared/asistente/data.ts";
 import { resolve } from "../_shared/asistente/intents.ts";
 
 const corsHeaders = {
@@ -74,6 +74,7 @@ Deno.serve(async (req) => {
       usuario = (perfil as Usuario) ?? { id: user.id, first_name: null };
     }
   }
+  const esOrganizador = usuario ? await tieneRolOrganizador(sb, usuario.id) : false;
 
   const waId = `web:${sessionId}`;
   const wamId = `web:${crypto.randomUUID()}`;
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
       .filter((p) => p.body && p.reply)
       .map((p) => ({ body: p.body as string, reply: p.reply as string }));
 
-    const { intent, reply } = await resolve(sb, cfg, usuario, texto, historial, "web");
+    const { intent, reply } = await resolve(sb, cfg, usuario, texto, historial, { canal: "web", esOrganizador });
 
     await sb.from("wa_messages").update({ intent, reply, reply_sent: true }).eq("wam_id", wamId);
 
