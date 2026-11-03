@@ -148,9 +148,9 @@ function topReply(
 
 function helpReply(cfg: BotConfig | null, enAntena: boolean): string {
   const lineas = [
-    `👋 Hola, soy *Maika*, la asistente de Camberas.`,
+    `👋 Hola, soy *Maika*. Bienvenido a Camberas.`,
     ``,
-    `¿Buscas carrera, quieres saber precios y plazos, o cómo va tu dorsal o tu pago? Pregúntame como a una persona, por ejemplo:`,
+    `Estoy aquí para ayudarte a resolver cualquier duda sobre tu inscripción, buscar carreras, consultar el estado de tu dorsal o atender cualquier incidencia. Por ejemplo:`,
     `• _¿Estoy inscrito en la Peña Prieta?_`,
     `• _¿He pagado?_ · _¿Cuál es mi dorsal?_`,
     `• _¿Qué carreras hay abiertas?_`,

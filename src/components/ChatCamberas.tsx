@@ -32,7 +32,7 @@ interface Burbuja {
 const SALUDO: Burbuja = {
   de: "bot",
   texto:
-    "👋 Hola, soy Maika, la asistente de Camberas.\n\n¿Buscas carrera para las próximas semanas? ¿Quieres saber qué cuesta, cuándo cierra la inscripción o cómo es el recorrido? ¿O comprobar cómo va tu dorsal o tu pago?\n\nPregúntame como lo harías a una persona.",
+    "👋 Hola, soy Maika. Bienvenido a Camberas.\n\nEstoy aquí para ayudarte a resolver cualquier duda sobre tu inscripción, buscar carreras, consultar el estado de tu dorsal o atender cualquier incidencia.\n\n¿En qué te puedo ayudar hoy?",
 };
 
 function sesionId(): string {
