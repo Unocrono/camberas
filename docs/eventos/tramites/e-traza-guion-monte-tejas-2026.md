@@ -53,8 +53,8 @@ Texto para la descripción:
 > participantes circulan por acera o arcén respetando las normas generales de
 > circulación y las indicaciones de la organización, con voluntarios en los
 > cruces. Máximo 200 participantes mayores de 16 años, con dorsal y chip. Cierre
-> de control a las 14:00 h. Ambulancia de soporte vital básico con médico y dos
-> técnicos desde las 10:00 hasta las 14:15 h.
+> de control a las 14:00 h. Ambulancia de soporte vital básico con desfibrilador y dos
+> técnicos en emergencias sanitarias de 10:00 a 14:00 h.
 
 ## 2. Itinerario (pestaña Itinerario)
 
