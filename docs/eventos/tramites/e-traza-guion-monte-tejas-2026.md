@@ -130,7 +130,7 @@ Botones **Jefaturas afectadas** (Cantabria) y **Guardar**.
 | Responsable de seguridad vial | Jonatan Corona Miguel · 72128421F · 679 602 812 (el mismo que el responsable de la prueba) |
 | Personal auxiliar (voluntarios) | 45 voluntarios del club; en los cruces del tramo urbano, controles, avituallamientos y salida/meta |
 | Vehículo de apertura / cierre | No hay vehículos en el recorrido; cierre con corredores escoba |
-| Servicio sanitario | 1 ambulancia clase B (SVB) con médico y 2 técnicos, de 10:00 a 14:15 h, en punto con acceso rápido a las vías |
+| Servicio sanitario | 1 ambulancia clase B (SVB) con DESA y 2 técnicos en emergencias sanitarias, Ambulancias Amberne S.A. (presupuesto PE-9026.333/2026), de 10:00 a 14:00 h, en punto con acceso rápido a las vías. Sin médico |
 | Agentes de la autoridad | No hay Policía Local en San Felices de Buelna. Protección Civil del municipio coordina salida y llegada y cubre el cruce con la carretera (como en 2025). Guardia Civil de Tráfico: lo que disponga la Jefatura en la resolución |
 | Señalización | Cintas y banderines naranjas; se retira todo al terminar |
 | Seguros | RC y accidentes de la entidad organizadora: solicitud enviada a la aseguradora el 3-nov; mientras, declaración responsable. PENDIENTE compañía, nº de póliza y cobertura |
