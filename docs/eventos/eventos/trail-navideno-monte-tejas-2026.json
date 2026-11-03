@@ -141,11 +141,11 @@
     { "nombre": "Comida de llegada", "texto": "Para todos los participantes al terminar la prueba." },
     { "nombre": "Avituallamiento de meta", "texto": "Fuera de la zona de meta, con comida y bebida." },
     { "nombre": "Sorteos", "texto": "Todos los inscritos entran en los sorteos." },
-    { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con médico y técnicos desde media hora antes de la salida." }
+    { "nombre": "Asistencia sanitaria", "texto": "Ambulancia de soporte vital básico con desfibrilador y dos técnicos en emergencias sanitarias, desde media hora antes de la salida hasta el cierre de control." }
   ],
   "sanitario": {
-    "medios": [["1", "ambulancia SVB con médico"], ["2", "técnicos en emergencias sanitarias"]],
-    "nota": "Operativos desde media hora antes de la salida hasta quince minutos después del cierre. Línea directa con Protección Civil y Policía Local."
+    "medios": [["1", "ambulancia SVB con desfibrilador"], ["2", "técnicos en emergencias sanitarias"]],
+    "nota": "Operativos desde media hora antes de la salida hasta el cierre de control (10:00 a 14:00). Línea directa con Protección Civil."
   },
   "medioAmbiente": {
     "espacio": "Monte Tejas, San Felices de Buelna",
