@@ -42,8 +42,9 @@ import {
   Loader2, BellRing, RefreshCw, AlertCircle, ChevronLeft, ChevronDown, Home, QrCode, Download, FileCheck2,
   Route as RouteIcon, Users, Trophy, MapPin, UserCircle, UserPlus,
   ClipboardList, HeartHandshake, BarChart3,
-  Bike, ShieldCheck, Timer, TicketPercent, Ticket, LocateFixed, Store } from "lucide-react";
+  Bike, ShieldCheck, Timer, TicketPercent, Ticket, LocateFixed, Store, MessageCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import AsistenteBandeja from "@/components/admin/AsistenteBandeja";
 import { enablePush, pushPermission, syncPushMode } from "@/lib/pushNotifications";
 import { asegurarManifest } from "@/lib/instalarPwa";
 import { InstalarAppBoton } from "@/components/InstalarAppBoton";
@@ -186,7 +187,7 @@ interface OrgMenuItem {
   id: string;
   title: string;
   icon: LucideIcon;
-  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "mesas" | "recogidos" | "marcar";
+  screen?: "recorridos" | "voluntarios" | "invitado" | "mapa" | "inscripciones" | "estadisticas" | "resultados" | "perfil" | "documentacion" | "cupones" | "mesas" | "recogidos" | "marcar" | "bandeja";
   /** Para screen "mapa": qué concepto se pinta (corredores, motos…) */
   mapKind?: TrackMapKind;
   view?: string;
@@ -277,6 +278,15 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
   {
+    // Bandeja de Maika: las conversaciones de WhatsApp y del chat web que
+    // esperan a una persona. El push «… espera respuesta» abre esta pantalla
+    // (/org?pantalla=bandeja).
+    key: "maika", label: "Mensajes", icon: MessageCircle,
+    items: [
+      { id: "bandeja", title: "Bandeja de Maika", icon: MessageCircle, screen: "bandeja" },
+    ],
+  },
+  {
     // Un solo item nativo: datos de contacto, modo de avisos (el clinc
     // que antes vivía en la cabecera) y cerrar sesión
     key: "perfil", label: "Mi Perfil", icon: UserCircle,
@@ -285,6 +295,17 @@ const ORG_MENU: OrgMenuGroup[] = [
     ],
   },
 ];
+
+/** Pantalla pedida en la URL (los push llevan a /org?pantalla=bandeja). */
+const pantallaInicial = (): { item: OrgMenuItem; groupKey: string } | null => {
+  const pedida = new URLSearchParams(window.location.search).get("pantalla");
+  if (!pedida) return null;
+  for (const g of ORG_MENU) {
+    const item = g.items.find((i) => i.screen === pedida);
+    if (item) return { item, groupKey: g.key };
+  }
+  return null;
+};
 
 const OrganizerApp = () => {
   const { user, isAdmin, isOrganizer, loading: authLoading } = useAuth();
@@ -295,8 +316,8 @@ const OrganizerApp = () => {
   const [raceId, setRaceId] = useState<string | null>(null);
   const [summary, setSummary] = useState<RaceSummary | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const [openScreen, setOpenScreen] = useState<OrgMenuItem | null>(null);
+  const [openGroup, setOpenGroup] = useState<string | null>(() => pantallaInicial()?.groupKey ?? null);
+  const [openScreen, setOpenScreen] = useState<OrgMenuItem | null>(() => pantallaInicial()?.item ?? null);
   // Lista de carreras desplegada bajo la portada (solo si hay más de una)
   const [showRacePicker, setShowRacePicker] = useState(false);
   // QR del minisite de la carrera (formato de los QR de GPS, logo al centro)
@@ -730,6 +751,8 @@ const OrganizerApp = () => {
                 />
               ) : openScreen?.screen === "resultados" ? (
                 <OrgResults raceId={raceId} />
+              ) : openScreen?.screen === "bandeja" ? (
+                <AsistenteBandeja />
               ) : openScreen?.screen === "perfil" ? (
                 <OrgProfile clincMode={clincMode} onClincModeChange={setClincMode} />
               ) : openScreen?.screen === "documentacion" ? (

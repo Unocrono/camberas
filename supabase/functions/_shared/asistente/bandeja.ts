@@ -113,7 +113,7 @@ export async function avisar(sb: SupabaseClient, conv: Conversacion, texto: stri
           userId,
           title: `💬 ${quien} espera respuesta`,
           body: texto.slice(0, 120),
-          url: "/admin/whatsapp-bot",
+          url: "/org?pantalla=bandeja",
         }),
       }).catch((e) => console.warn("bandeja: push falló", e instanceof Error ? e.message : e)),
     ),
