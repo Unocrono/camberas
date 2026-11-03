@@ -1,14 +1,16 @@
 /**
  * Router determinista + formateo de respuestas.
  *
- * Sin LLM en esta fase: el día de carrera la inmensa mayoría de los mensajes
- * son literalmente un número de dorsal. Resolverlo con una regex es gratis,
- * instantáneo y no puede alucinar un tiempo. El LLM entra en la F2 para el
- * lenguaje libre, con estas mismas consultas como herramientas.
+ * Las reglas van delante: el día de carrera la inmensa mayoría de los mensajes
+ * son literalmente un número de dorsal, y resolverlo con una regex es gratis,
+ * instantáneo y no puede alucinar un tiempo. Lo que las reglas no reconocen
+ * pasa al contestador de lenguaje libre (asistente.ts), que usa estas mismas
+ * consultas como herramientas.
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { type BotConfig, findRunner, getTop, type RunnerInfo } from "./data.ts";
+import { type BotConfig, findRunner, getTop, type RunnerInfo, type Usuario } from "./data.ts";
+import { responderLibre, type Turno } from "./asistente.ts";
 
 export type Intent =
   | "dorsal"
@@ -18,6 +20,7 @@ export type Intent =
   | "live"
   | "info"
   | "help"
+  | "libre"
   | "unknown";
 
 /** Quita acentos y baja a minúsculas para que "clasificación" == "clasificacion". */
@@ -141,34 +144,55 @@ function topReply(
   return `*${label}* · ${cfg.race_name}\n\n${rows.join("\n")}${provisional}${link}`;
 }
 
-function helpReply(cfg: BotConfig): string {
-  return [
-    `👋 Asistente de *${cfg.race_name || "Camberas"}*.`,
+function helpReply(cfg: BotConfig | null, enAntena: boolean): string {
+  const lineas = [
+    `👋 Soy el asistente de *Camberas*.`,
     ``,
-    `Escríbeme:`,
-    `• Un *número de dorsal* (ej: 214) → cómo va`,
-    `• *clasificación* → top 5 general`,
-    `• *clasificación femenina* / *masculina*`,
-    `• *mapa* → seguimiento en vivo`,
-    `• *info* → horarios y recorrido`,
-  ].join("\n");
+    `Pregúntame por tus inscripciones y por las carreras, por ejemplo:`,
+    `• _¿Estoy inscrito en la Peña Prieta?_`,
+    `• _¿He pagado?_ · _¿Cuál es mi dorsal?_`,
+    `• _¿Qué carreras hay abiertas?_`,
+    `• _¿Cuánto cuesta la maratón?_`,
+  ];
+  if (enAntena) {
+    lineas.push(``, `Y con *${cfg?.race_name}* en directo:`);
+    lineas.push(`• Un *número de dorsal* (ej: 214) → cómo va`);
+    lineas.push(`• *clasificación* / *femenina* / *masculina*`);
+    lineas.push(`• *mapa* → seguimiento en vivo`);
+  }
+  return lineas.join("\n");
 }
 
-const CLOSED_REPLY = "Ahora mismo no hay ninguna carrera en directo. " +
-  "Vuelve a escribirme el día de la prueba y te doy tiempos al momento. 🏃";
+const CLOSED_REPLY = "Ahora mismo no hay ninguna carrera en directo, así que no puedo dar tiempos. " +
+  "Vuelve a escribirme el día de la prueba. 🏃\n\n" +
+  "Mientras tanto puedes preguntarme por tus inscripciones o por las próximas carreras.";
+
+const NO_ENTIENDO = "No he entendido eso 🤔 Prueba a preguntármelo de otra forma, " +
+  "o escribe a soporte@camberas.com.";
 
 // ── Resolución ──────────────────────────────────────────────────────────────
 
 export async function resolve(
   sb: SupabaseClient,
   cfg: BotConfig | null,
+  usuario: Usuario,
   text: string,
+  historial: Turno[],
 ): Promise<{ intent: Intent; reply: string }> {
-  if (!cfg || !cfg.enabled || !cfg.race_id) {
-    return { intent: "unknown", reply: CLOSED_REPLY };
+  const enAntena = !!(cfg && cfg.enabled && cfg.race_id);
+  const { intent, bib } = classify(text);
+
+  if (intent === "help") return { intent, reply: helpReply(cfg, enAntena) };
+
+  // Al contestador: lo no reconocido siempre, y «info» cuando no hay carrera
+  // en antena (entonces no hay texto fijo que dar y la pregunta es libre).
+  if (intent === "unknown" || (intent === "info" && !enAntena)) {
+    const libre = await responderLibre(sb, cfg, usuario, text, historial);
+    return libre ? { intent: "libre", reply: libre } : { intent: "unknown", reply: NO_ENTIENDO };
   }
 
-  const { intent, bib } = classify(text);
+  // Lo que queda necesita carrera en directo.
+  if (!enAntena || !cfg) return { intent, reply: CLOSED_REPLY };
 
   switch (intent) {
     case "dorsal": {
@@ -206,13 +230,8 @@ export async function resolve(
             (cfg.info_url ? `\n\n🔗 ${cfg.info_url}` : "")
           : `ℹ️ *${cfg.race_name}*` + (cfg.info_url ? `\n${cfg.info_url}` : ""),
       };
-    case "help":
-      return { intent, reply: helpReply(cfg) };
     default:
-      return {
-        intent: "unknown",
-        reply: `No he entendido eso 🤔\n\n${helpReply(cfg)}`,
-      };
+      return { intent: "unknown", reply: NO_ENTIENDO };
   }
 }
 
@@ -223,7 +242,7 @@ export async function resolve(
 export const NOT_REGISTERED_REPLY =
   "Este asistente es para usuarios de Camberas 🙂\n\n" +
   "Crea tu cuenta gratis en https://camberas.com/auth y guarda este número de teléfono en tu perfil. " +
-  "Después vuelve a escribirme y te doy tiempos al momento.";
+  "Después vuelve a escribirme y te atiendo al momento.";
 
 /** Aviso RGPD que se añade a la primera respuesta a cada número. */
 export const PRIVACY_NOTICE =

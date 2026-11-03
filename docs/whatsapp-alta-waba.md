@@ -184,10 +184,38 @@ dentro de ventana tienen límites distintos a las iniciadas, pero conviene:
 3. Vigilar la **calidad del número**: si mucha gente bloquea o reporta, Meta
    baja el tier o restringe el número.
 
-## 10. Qué falta (fases siguientes)
+## 10. El contestador (lenguaje libre)
 
-- **F2**: capa LLM para lenguaje libre, usando `findRunner` / `getTop` como
-  herramientas y `help_content` como FAQ. La regex se queda delante: un dorsal
-  suelto no debe pasar por el modelo.
+Desde el 3-nov-2026 el bot no es solo de tiempos: lo que las reglas de
+`intents.ts` no reconocen pasa a `asistente.ts`, que llama a Claude
+(`claude-opus-5-5`, secret `ANTHROPIC_API_KEY`, el mismo de `leer-carrera`)
+con herramientas que leen la base de datos:
+
+| Herramienta | Qué lee |
+|---|---|
+| `mis_inscripciones` | `registrations` del usuario que escribe (carrera, distancia, dorsal, estado, pago) |
+| `proximas_carreras` | `races` visibles con fecha de hoy en adelante y sus distancias con precio y plazos |
+| `info_carrera(slug)` | detalle de una carrera + `race_faqs` del organizador |
+| `consultar_dorsal` / `clasificacion` | lo de siempre, solo con carrera en antena |
+
+El modelo solo redacta lo que devuelven las herramientas; si no hay dato lo
+dice y remite a soporte@camberas.com. Nunca da datos de otra persona: la
+identidad es la del teléfono. Guarda la respuesta en `wa_messages.reply`
+(migración `20261103120000`) y usa los últimos seis turnos como hilo.
+
+Las reglas siguen delante: un dorsal suelto o «clasificación» no pasan por el
+modelo. Sin carrera en antena, el bot ya no está «cerrado»: contesta sobre
+inscripciones y carreras y solo rechaza tiempos.
+
+Coste orientativo: ~1 céntimo por respuesta del contestador (las de reglas,
+cero). Con `fallbacks: "default"` activo, si un filtro de seguridad rechazara
+una petición se reintenta sola en otro modelo.
+
+## 11. Qué falta (fases siguientes)
+
+- **Bandeja en el panel**: conversaciones con estado (bot / pendiente /
+  resuelta), responder desde `/org`, aviso push cuando el bot no sabe.
 - **F3**: avisos proactivos por plantilla (requiere aprobación de plantilla en
   Meta y sí tiene coste por mensaje).
+- **Botón de WhatsApp en la web** apuntando al número definitivo, con texto
+  previo según la página.

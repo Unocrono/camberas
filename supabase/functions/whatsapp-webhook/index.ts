@@ -158,13 +158,29 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
 
       // Solo texto. Audios, fotos y stickers reciben la ayuda.
       const text = msg.type === "text" ? msg.text : "";
-      const { intent, reply } = await resolve(sb, cfg, text);
+
+      // Hilo: los últimos turnos contestados de esta persona (del más
+      // antiguo al más nuevo), para que el contestador tenga contexto.
+      const { data: previos } = await sb
+        .from("wa_messages")
+        .select("body, reply")
+        .eq("wa_id", msg.from)
+        .neq("wam_id", msg.wamId)
+        .not("reply", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      const historial = ((previos ?? []) as { body: string | null; reply: string | null }[])
+        .reverse()
+        .filter((p) => p.body && p.reply)
+        .map((p) => ({ body: p.body as string, reply: p.reply as string }));
+
+      const { intent, reply } = await resolve(sb, cfg, usuario, text, historial);
 
       await sendText(msg.from, isFirst ? reply + PRIVACY_NOTICE : reply);
 
       await sb
         .from("wa_messages")
-        .update({ intent, reply_sent: true })
+        .update({ intent, reply_sent: true, reply })
         .eq("wam_id", msg.wamId);
 
       console.log(`✅ ${msg.from} · ${intent}`);

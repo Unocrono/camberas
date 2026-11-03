@@ -44,6 +44,7 @@ const NOMBRE_INTENT: Record<string, string> = {
   live: "mapa",
   info: "info",
   help: "ayuda",
+  libre: "contestador",
   unknown: "no entendido",
   rate_limited: "demasiadas seguidas",
   no_registrado: "sin cuenta en Camberas",
