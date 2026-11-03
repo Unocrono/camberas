@@ -6076,31 +6076,37 @@ export type Database = {
       wa_messages: {
         Row: {
           body: string | null
+          canal: string
           created_at: string
           error: string | null
           intent: string | null
           reply: string | null
           reply_sent: boolean
+          user_id: string | null
           wa_id: string
           wam_id: string
         }
         Insert: {
           body?: string | null
+          canal?: string
           created_at?: string
           error?: string | null
           intent?: string | null
           reply?: string | null
           reply_sent?: boolean
+          user_id?: string | null
           wa_id: string
           wam_id: string
         }
         Update: {
           body?: string | null
+          canal?: string
           created_at?: string
           error?: string | null
           intent?: string | null
           reply?: string | null
           reply_sent?: boolean
+          user_id?: string | null
           wa_id?: string
           wam_id?: string
         }
