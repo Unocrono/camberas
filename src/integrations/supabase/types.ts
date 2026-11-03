@@ -6079,6 +6079,7 @@ export type Database = {
           created_at: string
           error: string | null
           intent: string | null
+          reply: string | null
           reply_sent: boolean
           wa_id: string
           wam_id: string
@@ -6088,6 +6089,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           intent?: string | null
+          reply?: string | null
           reply_sent?: boolean
           wa_id: string
           wam_id: string
@@ -6097,6 +6099,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           intent?: string | null
+          reply?: string | null
           reply_sent?: boolean
           wa_id?: string
           wam_id?: string
