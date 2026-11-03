@@ -31,7 +31,8 @@ interface Burbuja {
 
 const SALUDO: Burbuja = {
   de: "bot",
-  texto: "👋 Hola, soy Maika, la asistente de Camberas. Pregúntame por las carreras, los precios, los plazos o, si has entrado con tu cuenta, por tus inscripciones.",
+  texto:
+    "👋 Hola, soy Maika, la asistente de Camberas.\n\n¿Buscas carrera para las próximas semanas? ¿Quieres saber qué cuesta, cuándo cierra la inscripción o cómo es el recorrido? ¿O comprobar cómo va tu dorsal o tu pago?\n\nPregúntame como lo harías a una persona.",
 };
 
 function sesionId(): string {
