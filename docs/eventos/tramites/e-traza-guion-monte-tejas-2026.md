@@ -18,7 +18,7 @@ Chrome o Edge. Plazo: al menos 30 días antes de la prueba (tope 13-nov-2026).
 
 ## 1. Crear el expediente
 
-Gestión de expedientes › Nuevo › «Crear nuevo: Simulación» (o Solicitud) › OK.
+Expediente ya creado el 2-nov-2026: **EDSO261102/007187**. Entrar por el icono de expediente de la lista; no crear otro.
 Si ya existe una SIMU, entrar por el icono de expediente de la lista.
 
 ### Datos generales
@@ -32,8 +32,8 @@ Si ya existe una SIMU, entrar por el icono de expediente de la lista.
 | Hora de fin | 14:00 |
 | Provincia / municipio | Cantabria · San Felices de Buelna |
 | Ámbito | Provincial (Jefatura Provincial de Tráfico de Cantabria) |
-| Organizador | Club Deportivo Elemental KM Vertical Torrelavega · CIF G39861828 |
-| Representante | Jonatan Corona Miguel · DNI 72128421F |
+| Organizador | Club Deportivo Elemental KM Vertical Torrelavega · CIF G39861828 · Barrio El Llano 57A, San Felices de Buelna |
+| Representante | Jonatan Corona Miguel (presidente) · DNI 72128421F. Tramita por autorización de representación (3-nov-2026): UNO Cronometraje SL, CIF B39801097, C/ Guevara 28 bajo, 39001 Santander, 609 131 130, 2026@uno.es; actúa Bernardo Mazón Blanco, DNI 13750056N |
 | Teléfono / correo | 679 602 812 · Kmverticaltorrelavega@gmail.com |
 | Coorganizador | Grupo de Montaña Tejas4run |
 | Colabora | Ayuntamiento de San Felices de Buelna |
