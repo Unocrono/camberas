@@ -101,6 +101,51 @@ export type Database = {
         }
         Relationships: []
       }
+      asistente_conversaciones: {
+        Row: {
+          asignado_a: string | null
+          canal: string
+          estado: string
+          motivo: string | null
+          nombre: string | null
+          pendiente_desde: string | null
+          ultimo_mensaje_at: string
+          ultimo_texto: string | null
+          ultimo_usuario_at: string | null
+          updated_at: string
+          user_id: string | null
+          wa_id: string
+        }
+        Insert: {
+          asignado_a?: string | null
+          canal?: string
+          estado?: string
+          motivo?: string | null
+          nombre?: string | null
+          pendiente_desde?: string | null
+          ultimo_mensaje_at?: string
+          ultimo_texto?: string | null
+          ultimo_usuario_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          wa_id: string
+        }
+        Update: {
+          asignado_a?: string | null
+          canal?: string
+          estado?: string
+          motivo?: string | null
+          nombre?: string | null
+          pendiente_desde?: string | null
+          ultimo_mensaje_at?: string
+          ultimo_texto?: string | null
+          ultimo_usuario_at?: string | null
+          updated_at?: string
+          user_id?: string | null
+          wa_id?: string
+        }
+        Relationships: []
+      }
       bib_chips: {
         Row: {
           bib_number: number
@@ -6075,6 +6120,8 @@ export type Database = {
       }
       wa_messages: {
         Row: {
+          autor: string
+          autor_id: string | null
           body: string | null
           canal: string
           created_at: string
@@ -6087,6 +6134,8 @@ export type Database = {
           wam_id: string
         }
         Insert: {
+          autor?: string
+          autor_id?: string | null
           body?: string | null
           canal?: string
           created_at?: string
@@ -6099,6 +6148,8 @@ export type Database = {
           wam_id: string
         }
         Update: {
+          autor?: string
+          autor_id?: string | null
           body?: string | null
           canal?: string
           created_at?: string
