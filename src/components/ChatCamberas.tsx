@@ -31,7 +31,7 @@ interface Burbuja {
 
 const SALUDO: Burbuja = {
   de: "bot",
-  texto: "👋 Soy el asistente de Camberas. Pregúntame por las carreras, los precios, los plazos o, si has entrado con tu cuenta, por tus inscripciones.",
+  texto: "👋 Hola, soy Maika, la asistente de Camberas. Pregúntame por las carreras, los precios, los plazos o, si has entrado con tu cuenta, por tus inscripciones.",
 };
 
 function sesionId(): string {
@@ -131,7 +131,7 @@ export default function ChatCamberas() {
         <button
           type="button"
           onClick={() => setAbierto(true)}
-          aria-label="Abrir el chat de ayuda"
+          aria-label="Abrir el chat con Maika"
           className="fixed bottom-5 right-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#EC7C2B] text-white shadow-lg transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#EC7C2B]/40"
         >
           <MessageCircle className="h-7 w-7" />
@@ -141,12 +141,12 @@ export default function ChatCamberas() {
       {abierto && (
         <div
           role="dialog"
-          aria-label="Chat de ayuda de Camberas"
+          aria-label="Chat con Maika, la asistente de Camberas"
           className="fixed bottom-0 right-0 z-50 flex h-[100dvh] w-full flex-col bg-[#FAF6EC] shadow-2xl sm:bottom-5 sm:right-5 sm:h-[560px] sm:max-h-[85vh] sm:w-[380px] sm:rounded-2xl sm:border sm:border-[#235940]/15"
         >
           <div className="flex items-center justify-between bg-[#235940] px-4 py-3 text-white sm:rounded-t-2xl">
             <div>
-              <p className="font-semibold leading-tight">Asistente de Camberas</p>
+              <p className="font-semibold leading-tight">Maika · Camberas</p>
               <p className="text-xs text-white/75">
                 {session ? "Te contesta al momento" : "Entra con tu cuenta para preguntar por tus inscripciones"}
               </p>

@@ -33,7 +33,7 @@ const HILO = 6;
  */
 const PREGUNTAS_SIN_CUENTA = 3;
 const CERRADO_SIN_CUENTA =
-  "Para seguir hablando conmigo necesitas una cuenta de Camberas: es gratis y te la haces en un minuto. " +
+  "Para seguir hablando con Maika necesitas una cuenta de Camberas: es gratis y te la haces en un minuto. " +
   "Entra o regístrate en https://camberas.com/auth y vuelve a preguntarme lo que quieras. 🙂";
 
 const json = (body: unknown, status = 200) =>

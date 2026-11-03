@@ -148,7 +148,7 @@ function topReply(
 
 function helpReply(cfg: BotConfig | null, enAntena: boolean): string {
   const lineas = [
-    `👋 Soy el asistente de *Camberas*.`,
+    `👋 Soy *Maika*, la asistente de Camberas.`,
     ``,
     `Pregúntame por tus inscripciones y por las carreras, por ejemplo:`,
     `• _¿Estoy inscrito en la Peña Prieta?_`,
@@ -243,7 +243,7 @@ export async function resolve(
  * El asistente es solo para usuarios registrados, del nivel que sea.
  */
 export const NOT_REGISTERED_REPLY =
-  "Este asistente es para usuarios de Camberas 🙂\n\n" +
+  "Hola, soy Maika, la asistente de Camberas, y solo atiendo a usuarios de Camberas 🙂\n\n" +
   "Crea tu cuenta gratis en https://camberas.com/auth y guarda este número de teléfono en tu perfil. " +
   "Después vuelve a escribirme y te atiendo al momento.";
 
