@@ -24,8 +24,8 @@
   "inscripcion": {
     "apertura": "2026-10-24T20:00:00+02:00",
     "cierre": "2026-12-07T23:59:00+01:00",
-    "cierreTexto": "Del 24 de octubre a las 20:00 al 7 de diciembre, o hasta agotar los 200 dorsales",
-    "limiteDorsales": 200,
+    "cierreTexto": "Del 24 de octubre a las 20:00 al 7 de diciembre, o hasta agotar los 250 dorsales",
+    "limiteDorsales": 250,
     "plazasDisponibles": null,
     "modalidades": ["individual"],
     "tarifas": [
@@ -76,7 +76,7 @@
       "cierre": "14:00",
       "lugarSalida": "Plaza del Ayuntamiento, San Felices de Buelna",
       "lugarMeta": "Plaza del Ayuntamiento, San Felices de Buelna",
-      "plazas": 200,
+      "plazas": 250,
       "marcaje": "Cintas y banderines naranjas",
       "color": "#E0201F",
       "descripcion": "16 km de puro trail y 860 m de desnivel por las sendas del Monte Tejas. Sales y llegas en la plaza del Ayuntamiento de San Felices de Buelna y, por el camino, hay veinte gnomos escondidos con premio.",

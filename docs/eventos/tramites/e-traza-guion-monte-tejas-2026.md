@@ -37,7 +37,7 @@ Si ya existe una SIMU, entrar por el icono de expediente de la lista.
 | Teléfono / correo | 679 602 812 · Kmverticaltorrelavega@gmail.com |
 | Coorganizador | Grupo de Montaña Tejas4run (bajo la representación del club: Jonatan Corona Miguel) |
 | Colabora | Ayuntamiento de San Felices de Buelna |
-| Participantes previstos | 200 |
+| Participantes previstos | 250 |
 | Vehículos de la organización | 0 en el recorrido (ambulancia en punto fijo) |
 
 ### Memoria
@@ -52,7 +52,7 @@ Texto para la descripción:
 > 500 m por el parque de la Lama. No se solicita corte de tráfico: los
 > participantes circulan por acera o arcén respetando las normas generales de
 > circulación y las indicaciones de la organización, con voluntarios en los
-> cruces. Máximo 200 participantes mayores de 16 años, con dorsal y chip. Cierre
+> cruces. Máximo 250 participantes mayores de 16 años, con dorsal y chip. Cierre
 > de control a las 14:00 h. Ambulancia de soporte vital básico con desfibrilador y dos
 > técnicos en emergencias sanitarias de 10:00 a 14:00 h.
 
