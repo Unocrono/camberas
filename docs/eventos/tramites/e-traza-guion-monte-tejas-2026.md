@@ -133,7 +133,7 @@ Botones **Jefaturas afectadas** (Cantabria) y **Guardar**.
 | Servicio sanitario | 1 ambulancia clase B (SVB) con DESA y 2 técnicos en emergencias sanitarias, Ambulancias Amberne S.A. (presupuesto PE-9026.333/2026), de 10:00 a 14:00 h, en punto con acceso rápido a las vías. Sin médico |
 | Agentes de la autoridad | No hay Policía Local en San Felices de Buelna. Protección Civil del municipio coordina salida y llegada y cubre el cruce con la carretera (como en 2025). Guardia Civil de Tráfico: lo que disponga la Jefatura en la resolución |
 | Señalización | Cintas y banderines naranjas; se retira todo al terminar |
-| Seguros | RC y accidentes de la entidad organizadora: solicitud enviada a la aseguradora el 3-nov; mientras, declaración responsable. PENDIENTE compañía, nº de póliza y cobertura |
+| Seguros | Allianz (correduría Insurance Sport). RC póliza 32479131/2517: 600.000 € por siniestro, 350.000 € por víctima, franquicia 200 €, 12 a 14-dic. Accidentes póliza 34462927/6090: 295 asegurados (250 + 45 voluntarios), RD 849/1993. Certificados del 4-nov en docs/eventos/tramites/firmados/ |
 
 ## 4. Documentos y observaciones
 
