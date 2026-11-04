@@ -77,6 +77,8 @@ import PaginaLegal from "./pages/web/PaginaLegal";
 // Burbuja de chat con el contestador (mismo cerebro que el bot de WhatsApp).
 // Se oculta sola en paneles, cronometraje y overlays.
 import ChatCamberas from "./components/ChatCamberas";
+// A quien entra sin teléfono en el perfil se le pide (Maika lo necesita).
+import PedirTelefono from "./components/PedirTelefono";
 
 const queryClient = new QueryClient();
 
@@ -185,6 +187,7 @@ const AppCamberas = () => (
           <Route path="*" element={<NotFound />} />
         </Routes>
         <ChatCamberas />
+        <PedirTelefono />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
