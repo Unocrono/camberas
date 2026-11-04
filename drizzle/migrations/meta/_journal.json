@@ -36,6 +36,13 @@
       "when": 1793745321711,
       "tag": "0004_asistente_bandeja",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793780378412,
+      "tag": "0005_telefono_en_alta_usuario",
+      "breakpoints": true
     }
   ]
 }
