@@ -104,18 +104,26 @@ export async function avisar(sb: SupabaseClient, conv: Conversacion, texto: stri
   }
 
   const quien = conv.nombre || (conv.canal === "web" ? "Visitante web" : "WhatsApp");
+  console.log(`bandeja: aviso a ${destinatarios.length} destinatario(s) por ${conv.wa_id}`);
   await Promise.all(
-    destinatarios.map((userId) =>
-      fetch(`${url}/functions/v1/send-push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          userId,
-          title: `💬 ${quien} espera respuesta`,
-          body: texto.slice(0, 120),
-          url: "/org?pantalla=bandeja",
-        }),
-      }).catch((e) => console.warn("bandeja: push falló", e instanceof Error ? e.message : e)),
-    ),
+    destinatarios.map(async (userId) => {
+      try {
+        const res = await fetch(`${url}/functions/v1/send-push`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+          body: JSON.stringify({
+            userId,
+            title: `💬 ${quien} espera respuesta`,
+            body: texto.slice(0, 120),
+            url: "/org?pantalla=bandeja",
+          }),
+        });
+        // Se deja escrito lo que contestó send-push (sent/skipped/removed o
+        // error): es la única forma de saber si el push salió de verdad.
+        console.log(`bandeja: send-push ${res.status} ${await res.text()} (usuario ${userId})`);
+      } catch (e) {
+        console.warn("bandeja: push falló", e instanceof Error ? e.message : e);
+      }
+    }),
   );
 }
