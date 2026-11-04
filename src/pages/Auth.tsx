@@ -51,6 +51,12 @@ const signupSchema = loginSchema.extend({
     .min(1, "Los apellidos son requeridos")
     .max(100, "Los apellidos deben tener menos de 100 caracteres")
     .regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "Los apellidos solo pueden contener letras"),
+  // Obligatorio: es lo que identifica al usuario en el asistente de WhatsApp
+  // (Maika solo atiende a teléfonos que estén en un perfil).
+  phone: z.string()
+    .trim()
+    .transform((v) => v.replace(/[\s.-]/g, ""))
+    .refine((v) => /^(\+?\d{1,3})?\d{9}$/.test(v), "Escribe un teléfono válido (9 cifras, con o sin prefijo)"),
 });
 
 const Auth = () => {
@@ -59,6 +65,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -85,6 +92,7 @@ const Auth = () => {
         password,
         first_name: firstName,
         last_name: lastName,
+        phone,
       });
 
       const { error } = await supabase.auth.signUp({
@@ -94,6 +102,8 @@ const Auth = () => {
           data: {
             first_name: validatedData.first_name,
             last_name: validatedData.last_name,
+            // El trigger handle_new_user lo copia a profiles.phone
+            phone: validatedData.phone,
             is_organizer: false,
           },
           emailRedirectTo: `${window.location.origin}${returnTo}`,
@@ -287,6 +297,22 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-phone">Teléfono móvil</Label>
+                    <Input
+                      id="register-phone"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      placeholder="600 123 456"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Con él podrás consultar tus inscripciones y tiempos por WhatsApp.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password">Contraseña</Label>
