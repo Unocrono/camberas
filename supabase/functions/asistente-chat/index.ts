@@ -14,7 +14,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getConfig, tieneRolOrganizador, type Usuario } from "../_shared/asistente/data.ts";
+import { getConfig, nombreCompleto, tieneRolOrganizador, type Usuario } from "../_shared/asistente/data.ts";
 import { resolve } from "../_shared/asistente/intents.ts";
 import { anotarSalida, avisar, pasarAPersona, tocarConversacion } from "../_shared/asistente/bandeja.ts";
 
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     });
     const { data: { user } } = await authClient.auth.getUser();
     if (user) {
-      const { data: perfil } = await sb.from("profiles").select("id, first_name").eq("id", user.id).maybeSingle();
+      const { data: perfil } = await sb.from("profiles").select("id, first_name, last_name").eq("id", user.id).maybeSingle();
       usuario = (perfil as Usuario) ?? { id: user.id, first_name: null };
     }
   }
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       wa_id: waId,
       canal: "web",
       user_id: usuario?.id ?? null,
-      nombre: usuario?.first_name ?? null,
+      nombre: nombreCompleto(usuario),
       texto,
     });
     if (conv.estado === "pendiente" || conv.estado === "persona") {

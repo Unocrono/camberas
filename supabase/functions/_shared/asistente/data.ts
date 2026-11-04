@@ -38,7 +38,12 @@ export async function getConfig(sb: SupabaseClient): Promise<BotConfig | null> {
 export interface Usuario {
   id: string;
   first_name: string | null;
+  last_name?: string | null;
 }
+
+/** «Bernardo Mazón», o lo que haya. */
+export const nombreCompleto = (u: Usuario | null): string | null =>
+  u ? [u.first_name, u.last_name].filter(Boolean).join(" ").trim() || null : null;
 
 /**
  * El asistente es solo para usuarios de Camberas, del nivel que sea: el
@@ -56,7 +61,7 @@ export async function findUser(sb: SupabaseClient, waId: string): Promise<Usuari
 
   const { data } = await sb
     .from("profiles")
-    .select("id, first_name")
+    .select("id, first_name, last_name")
     .filter("phone", "imatch", patron)
     .limit(1)
     .maybeSingle();

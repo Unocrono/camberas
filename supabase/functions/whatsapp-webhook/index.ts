@@ -19,7 +19,7 @@
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMessages, type IncomingMessage, sendText, verifySignature } from "../_shared/asistente/graph.ts";
-import { findUser, getConfig, tieneRolOrganizador } from "../_shared/asistente/data.ts";
+import { findUser, getConfig, nombreCompleto, tieneRolOrganizador } from "../_shared/asistente/data.ts";
 import { NOT_REGISTERED_REPLY, PRIVACY_NOTICE, resolve } from "../_shared/asistente/intents.ts";
 import { anotarSalida, avisar, pasarAPersona, tocarConversacion } from "../_shared/asistente/bandeja.ts";
 
@@ -167,7 +167,7 @@ async function handleMessages(messages: IncomingMessage[]): Promise<void> {
         wa_id: msg.from,
         canal: "whatsapp",
         user_id: usuario.id,
-        nombre: usuario.first_name,
+        nombre: nombreCompleto(usuario),
         texto: text || `[${msg.type}]`,
       });
       if (conv.estado === "pendiente" || conv.estado === "persona") {

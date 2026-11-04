@@ -27,6 +27,7 @@ interface Conversacion {
   wa_id: string;
   canal: "whatsapp" | "web";
   nombre: string | null;
+  user_id: string | null;
   estado: Estado;
   motivo: string | null;
   asignado_a: string | null;
@@ -81,7 +82,7 @@ export default function AsistenteBandeja() {
   const cargarLista = useCallback(async () => {
     const { data, error } = await db
       .from("asistente_conversaciones")
-      .select("wa_id, canal, nombre, estado, motivo, asignado_a, pendiente_desde, ultimo_usuario_at, ultimo_mensaje_at, ultimo_texto")
+      .select("wa_id, canal, nombre, user_id, estado, motivo, asignado_a, pendiente_desde, ultimo_usuario_at, ultimo_mensaje_at, ultimo_texto")
       .order("ultimo_mensaje_at", { ascending: false })
       .limit(60);
     if (error) {
@@ -90,6 +91,17 @@ export default function AsistenteBandeja() {
     }
     setConversaciones((data ?? []) as Conversacion[]);
     setCargando(false);
+  }, []);
+
+  // Perfil de quien escribe (si está registrado), para la cabecera del hilo.
+  const [perfil, setPerfil] = useState<{ first_name: string | null; last_name: string | null; email: string | null; phone: string | null } | null>(null);
+  const cargarPerfil = useCallback(async (userId: string | null) => {
+    if (!userId) {
+      setPerfil(null);
+      return;
+    }
+    const { data } = await db.from("profiles").select("first_name, last_name, email, phone").eq("id", userId).maybeSingle();
+    setPerfil((data as typeof perfil) ?? null);
   }, []);
 
   const cargarHilo = useCallback(async (waId: string) => {
@@ -111,9 +123,12 @@ export default function AsistenteBandeja() {
   useEffect(() => {
     if (!seleccion) return;
     cargarHilo(seleccion);
+    cargarPerfil(conversaciones.find((c) => c.wa_id === seleccion)?.user_id ?? null);
     const id = window.setInterval(() => cargarHilo(seleccion), 10000);
     return () => window.clearInterval(id);
-  }, [seleccion, cargarHilo]);
+    // Solo al cambiar de conversación: la lista se refresca sola cada 15 s.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seleccion, cargarHilo, cargarPerfil]);
 
   const visibles = useMemo(
     () => (soloPendientes ? conversaciones.filter((c) => c.estado === "pendiente" || c.estado === "persona") : conversaciones),
@@ -238,7 +253,15 @@ export default function AsistenteBandeja() {
                 <>
                   <div className="flex items-center justify-between gap-2 border-b p-3">
                     <div className="min-w-0">
-                      <p className="font-medium truncate">{nombreConv(actual)}</p>
+                      <p className="font-medium truncate">
+                        {perfil ? [perfil.first_name, perfil.last_name].filter(Boolean).join(" ") || nombreConv(actual) : nombreConv(actual)}
+                        {!actual.user_id && <span className="ml-2 text-xs font-normal text-muted-foreground">sin cuenta</span>}
+                      </p>
+                      {perfil && (perfil.email || perfil.phone) && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {[perfil.email, perfil.phone].filter(Boolean).join(" · ")}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {actual.canal === "web" ? "Chat web" : "WhatsApp"} · {ETIQUETA[actual.estado].texto}
                         {actual.pendiente_desde && actual.estado === "pendiente" ? ` desde ${hace(actual.pendiente_desde)}` : ""}
