@@ -98,6 +98,7 @@ const STATUS_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
   subido: "Subido",
   en_revision: "En revisión",
+  presentado: "Presentado",
   aprobado: "Aprobado",
   rechazado: "Rechazado",
   caducado: "Caducado",
@@ -127,6 +128,12 @@ const statusBadge = (status: string) => {
       return <Badge className="bg-green-600 hover:bg-green-600">{STATUS_LABELS[status]}</Badge>;
     case "en_revision":
       return <Badge className="bg-amber-500 hover:bg-amber-500">{STATUS_LABELS[status]}</Badge>;
+    case "presentado":
+      return (
+        <Badge variant="outline" className="border-primary text-primary">
+          {STATUS_LABELS[status]}
+        </Badge>
+      );
     case "subido":
       return <Badge variant="outline">{STATUS_LABELS[status]}</Badge>;
     case "rechazado":
@@ -225,6 +232,10 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
 
   const isFulfilled = (req: Requirement) =>
     docsFor(req.id).some((d) => effectiveStatus(d) === "aprobado");
+
+  /** presentado a la Administración y a la espera de resolución: no urge */
+  const isPresented = (req: Requirement) =>
+    docsFor(req.id).some((d) => effectiveStatus(d) === "presentado");
 
   const requiredReqs = requirements.filter((r) => r.is_required);
   const fulfilledCount = requiredReqs.filter(isFulfilled).length;
@@ -437,8 +448,10 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
       {requirements.map((req) => {
         const deadline = deadlineFor(req);
         const fulfilled = isFulfilled(req);
+        const presented = isPresented(req);
         const urgent =
           !fulfilled &&
+          !presented &&
           deadline != null &&
           deadline.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
         const reqDocs = docsFor(req.id);
@@ -458,6 +471,11 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
                   )}
                   {fulfilled && (
                     <Badge className="bg-green-600 hover:bg-green-600 font-normal">Cumplido</Badge>
+                  )}
+                  {!fulfilled && presented && (
+                    <Badge variant="outline" className="border-primary text-primary font-normal">
+                      Presentado
+                    </Badge>
                   )}
                   {urgent && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                 </CardTitle>

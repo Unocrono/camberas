@@ -47,6 +47,7 @@ const STATUS_LABELS: Record<string, string> = {
   pendiente: "Pendiente",
   subido: "Subido",
   en_revision: "En revisión",
+  presentado: "Presentado",
   aprobado: "Aprobado",
   rechazado: "Rechazado",
   caducado: "Caducado",
@@ -61,6 +62,7 @@ const effectiveStatus = (doc: RaceDocument | undefined): string => {
 
 const STATUS_STYLE: Record<string, string> = {
   aprobado: "bg-primary/15 text-primary",
+  presentado: "border border-primary/50 text-primary",
   en_revision: "bg-amber-500/15 text-amber-600",
   subido: "bg-muted text-foreground",
   rechazado: "bg-destructive/15 text-destructive",
@@ -146,9 +148,18 @@ export const OrgDocuments = ({ raceId, raceDate }: Props) => {
     );
   }
 
+  // Un requisito puede tener varios documentos (borrador, solicitud, acuse…):
+  // se muestra el más avanzado
+  const RANGO: Record<string, number> = {
+    aprobado: 6, presentado: 5, subido: 4, en_revision: 3, pendiente: 2, rechazado: 1, caducado: 0,
+  };
   const docPorRequisito = new Map<string, RaceDocument>();
   for (const d of documents) {
-    if (d.requirement_id && !docPorRequisito.has(d.requirement_id)) docPorRequisito.set(d.requirement_id, d);
+    if (!d.requirement_id) continue;
+    const actual = docPorRequisito.get(d.requirement_id);
+    if (!actual || (RANGO[effectiveStatus(d)] ?? 0) > (RANGO[effectiveStatus(actual)] ?? 0)) {
+      docPorRequisito.set(d.requirement_id, d);
+    }
   }
 
   const aprobados = requirements.filter(
@@ -173,7 +184,7 @@ export const OrgDocuments = ({ raceId, raceDate }: Props) => {
           const status = effectiveStatus(doc);
           const dias = diasParaLimite(req);
           // Urgente: sin aprobar y quedan 7 días o menos (o ya pasó)
-          const urgente = status !== "aprobado" && dias !== null && dias <= 7;
+          const urgente = status !== "aprobado" && status !== "presentado" && dias !== null && dias <= 7;
           return (
             <div key={req.id} className="px-4 py-3">
               <div className="flex items-start justify-between gap-3">
