@@ -443,7 +443,10 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
           deadline.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000;
         const reqDocs = docsFor(req.id);
         return (
-          <Card key={req.id} className={urgent ? "border-amber-500" : undefined}>
+          <Card
+            key={req.id}
+            className={fulfilled ? "border-green-600" : urgent ? "border-amber-500" : undefined}
+          >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -452,6 +455,9 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
                     <Badge variant="outline" className="font-normal">
                       Opcional
                     </Badge>
+                  )}
+                  {fulfilled && (
+                    <Badge className="bg-green-600 hover:bg-green-600 font-normal">Cumplido</Badge>
                   )}
                   {urgent && <AlertTriangle className="h-4 w-4 text-amber-500" />}
                 </CardTitle>

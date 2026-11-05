@@ -60,7 +60,7 @@ const effectiveStatus = (doc: RaceDocument | undefined): string => {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  aprobado: "bg-secondary/15 text-secondary",
+  aprobado: "bg-primary/15 text-primary",
   en_revision: "bg-amber-500/15 text-amber-600",
   subido: "bg-muted text-foreground",
   rechazado: "bg-destructive/15 text-destructive",
