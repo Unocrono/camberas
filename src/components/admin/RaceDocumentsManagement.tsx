@@ -125,7 +125,7 @@ const effectiveStatus = (doc: RaceDocument): string => {
 const statusBadge = (status: string) => {
   switch (status) {
     case "aprobado":
-      return <Badge className="bg-green-600 hover:bg-green-600">{STATUS_LABELS[status]}</Badge>;
+      return <Badge className="bg-primary hover:bg-primary">{STATUS_LABELS[status]}</Badge>;
     case "en_revision":
       return <Badge className="bg-amber-500 hover:bg-amber-500">{STATUS_LABELS[status]}</Badge>;
     case "presentado":
@@ -458,7 +458,7 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
         return (
           <Card
             key={req.id}
-            className={fulfilled ? "border-green-600" : urgent ? "border-amber-500" : undefined}
+            className={fulfilled ? "border-primary" : urgent ? "border-amber-500" : undefined}
           >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -470,7 +470,7 @@ export function RaceDocumentsManagement({ raceId }: RaceDocumentsManagementProps
                     </Badge>
                   )}
                   {fulfilled && (
-                    <Badge className="bg-green-600 hover:bg-green-600 font-normal">Cumplido</Badge>
+                    <Badge className="bg-primary hover:bg-primary font-normal">Cumplido</Badge>
                   )}
                   {!fulfilled && presented && (
                     <Badge variant="outline" className="border-primary text-primary font-normal">
