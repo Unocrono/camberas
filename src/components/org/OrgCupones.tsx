@@ -61,6 +61,10 @@ export const OrgCupones = ({ raceId }: Props) => {
   const [cargando, setCargando] = useState(true);
   // QR abierto en pantalla, para enseñarlo o descargarlo
   const [qr, setQr] = useState<{ cupon: Cupon; png: string } | null>(null);
+  // Dos pestañas: los que aún se pueden repartir y los que ya no sirven
+  // (gastados, caducados o desactivados). Con 30 invitaciones de un solo uso,
+  // la lista mezclada no dejaba ver cuáles quedaban.
+  const [pestana, setPestana] = useState<"activos" | "agotados">("activos");
 
   const cargar = useCallback(async () => {
     if (!raceId) return;
@@ -127,17 +131,24 @@ export const OrgCupones = ({ raceId }: Props) => {
   };
 
   /** ¿Está en condiciones de usarse ahora mismo? */
-  const estado = (c: Cupon): { texto: string; vivo: boolean } => {
-    if (!c.active) return { texto: "desactivado", vivo: false };
+  const estado = (
+    c: Cupon,
+  ): { texto: string; vivo: boolean; clave: "desactivado" | "pendiente" | "caducado" | "agotado" | "vigor" } => {
+    if (!c.active) return { texto: "desactivado", vivo: false, clave: "desactivado" };
     const ahora = new Date();
     if (c.valid_from && ahora < new Date(c.valid_from))
-      return { texto: `desde el ${fechaCorta(c.valid_from)}`, vivo: false };
+      return { texto: `desde el ${fechaCorta(c.valid_from)}`, vivo: false, clave: "pendiente" };
     if (c.valid_until && ahora > new Date(c.valid_until))
-      return { texto: "caducado", vivo: false };
+      return { texto: "caducado", vivo: false, clave: "caducado" };
     if (c.max_uses != null && (c.usos ?? 0) >= c.max_uses)
-      return { texto: "agotado", vivo: false };
-    return { texto: "en vigor", vivo: true };
+      return { texto: "agotado", vivo: false, clave: "agotado" };
+    return { texto: "en vigor", vivo: true, clave: "vigor" };
   };
+
+  // Activos: en vigor o aún por empezar. Agotados: sin usos, caducados o desactivados.
+  const activos = cupones.filter((c) => ["vigor", "pendiente"].includes(estado(c).clave));
+  const agotados = cupones.filter((c) => !["vigor", "pendiente"].includes(estado(c).clave));
+  const visibles = pestana === "activos" ? activos : agotados;
 
   if (!raceId) return null;
 
@@ -160,7 +171,30 @@ export const OrgCupones = ({ raceId }: Props) => {
           </p>
         </div>
       ) : (
-        cupones.map((c) => {
+        <>
+          <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-card p-1 text-xs font-bold uppercase">
+            {(["activos", "agotados"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPestana(p)}
+                className={`rounded-lg py-2 ${
+                  pestana === p ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {p === "activos" ? `Activos (${activos.length})` : `Agotados (${agotados.length})`}
+              </button>
+            ))}
+          </div>
+
+          {visibles.length === 0 && (
+            <p className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
+              {pestana === "activos"
+                ? "No queda ningún cupón activo. Se crean desde el panel, en Cupones y descuentos."
+                : "Todavía no se ha agotado ningún cupón."}
+            </p>
+          )}
+
+          {visibles.map((c) => {
           const e = estado(c);
           return (
             <div key={c.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
@@ -231,7 +265,8 @@ export const OrgCupones = ({ raceId }: Props) => {
               </div>
             </div>
           );
-        })
+          })}
+        </>
       )}
 
       <p className="text-xs text-muted-foreground">
